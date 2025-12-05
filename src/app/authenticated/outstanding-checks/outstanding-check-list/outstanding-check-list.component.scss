@@ -1,0 +1,52 @@
+.cardTitle {
+	color: #7E69B4;
+	font-weight: bold;
+}
+
+.subcard {
+	border-top-width: 5px;
+	border-top-color: rgba($color: #e2e8f0, $alpha: 0.8)
+}
+
+#get-button {
+  margin-top: 10px;
+
+  @media screen and (max-width: 768px) {
+    width: 100% !important;
+    margin-bottom:20px;
+  }
+
+  .mat-icon {
+    margin-right: 0 !important;
+  }
+}
+
+// icon spin
+.spin {
+  -webkit-animation: spin 2s infinite linear;
+  animation: spin 2s infinite linear;
+}
+.pulse {
+  -webkit-animation: spin 1s infinite steps(16);
+  animation: spin 1s infinite steps(16);
+}
+@-webkit-keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+@keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}

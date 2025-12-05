@@ -1,0 +1,74 @@
+@if (!isServiceError && !itemsToLoad.includes('letter')) {
+
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">description</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            @if (create) {
+              Create Letter for: 
+            } @else {
+              Edit Letter for: 
+            }
+          </span>
+
+          <form [formGroup]="stateForm" id="state-form" class="contents">
+            <mat-form-field appearance="outline" class="w-32">
+              <mat-select placeholder="--" formControlName="state" (selectionChange)="selectLetter($event.value)">
+                <mat-option [value]="defaultState">Default</mat-option>
+                @for (value of states; track value) {
+                  <mat-option [value]="value">{{value}}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </form>
+        </span>
+        <button mat-raised-button type="button" color="accent" id="get-button" (click)="back()"
+          class="scale-90 text-nowrap">Back to {{backText}}</button>
+      </div>
+
+      <mat-card>
+        @if (!letter.state || letter.state === 'create') {
+          <div class="announcement">
+						<mat-icon class="min-w-5">info</mat-icon>
+						<span>Select a state above to create a letter.</span>
+					</div>
+        } @else {
+          <form [formGroup]="form" id="letter-form" class="contents">
+            <mat-form-field appearance="fill" class="mt-5 mb-0">
+              <mat-label for="subject">Subject</mat-label>
+              <input matInput name="subject" type="text" formControlName="subject"/>
+            </mat-form-field>
+            <p [innerText]="prefixText || ''"></p>
+  
+            <mat-form-field appearance="outline" class="flex-1">
+              <textarea matInput autocomplete="off" cdkFocusInitial cdkTextareaAutosize
+                formControlName="text">
+              </textarea>
+            </mat-form-field>
+          </form>
+  
+          <p [innerText]="suffixText || ''"></p>
+  
+          <mat-divider/>
+          
+          <div class="flex justify-between gap-3 py-3 items-center">
+            <span><strong>Modified by: </strong>
+              @if (letter.modifiedBy && letter.modifiedOn) {
+                {{letter.modifiedBy}} on {{letter.modifiedOn | date: 'MMM d, yyyy'}}
+              } @else {
+                New
+              }
+            </span>
+            <button mat-raised-button type="button" color="primary" id="get-button" (click)="save()" [disabled]="form.pristine || form.invalid"
+              class="scale-90 text-nowrap">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        }
+      </mat-card>
+    </section>
+  </div>
+}

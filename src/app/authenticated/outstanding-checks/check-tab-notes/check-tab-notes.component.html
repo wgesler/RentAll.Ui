@@ -1,0 +1,27 @@
+<div id="info-form-wrapper" class="content">
+  <h2 _ngcontent-ng-c1934975361="" class="text-2xl">Add A Note</h2>
+  <form [formGroup]="form" (ngSubmit)="addNote()" class="info-form mb-1">    
+    <div class="flex justify-between items-center gap-2">
+      <mat-form-field appearance="outline" class="flex-1">
+        <textarea matInput autocomplete="off" cdkFocusInitial cdkTextareaAutosize
+          formControlName="text" placeholder="Add note here...">
+        </textarea>
+      </mat-form-field>
+      <button mat-raised-button type="submit" color="primary" id="get-button" class="scale-90 text-nowrap -mt-5"
+      [disabled]="!form.get('text').value">Submit</button>
+    </div>
+  </form>
+</div>
+
+@if (!itemsToLoad.includes('notes')) {
+  <app-data-table
+    [data]="notes"
+    [columns]="notesColumns"
+    [hasFilter]="true"
+    [hasColumnIndex]="true"
+    [hasActionsRowClick]="true"
+    (rowClickEvent)="openDetails($event)">
+  </app-data-table>
+} @else {
+  <div class="flex no-data"><span><mat-spinner color="primary" diameter="30"/></span></div>
+}

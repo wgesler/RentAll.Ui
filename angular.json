@@ -1,0 +1,202 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "FourT.Private.EscheaTR.Ui": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/four-t.private.eschea-tr.ui",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              "src/favicon-32x32.png",
+              "src/assets"
+            ],
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss",
+              "node_modules/ngx-toastr/toastr.css"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
+              "assets": [
+                "src/favicon-32x32.png",
+                "src/assets",
+                {
+                  "glob": "Web.config",
+                  "input": "./",
+                  "output": "./"
+                },
+                "src/manifest.webmanifest"
+              ],
+              "outputHashing": "all"
+            },
+            "testr": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.testr.ts"
+                }
+              ],
+              "assets": [
+                "src/favicon-32x32.png",
+                "src/assets",
+                {
+                  "glob": "Web.config",
+                  "input": "./",
+                  "output": "./"
+                },
+                "src/manifest.webmanifest"
+              ],
+              "outputHashing": "all"
+            },
+            "demo": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.demo.ts"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "stage": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.stage.ts"
+                }
+              ],
+              "assets": [
+                "src/favicon-32x32.png",
+                "src/assets",
+                {
+                  "glob": "Web.config",
+                  "input": "./",
+                  "output": "./"
+                },
+                "src/manifest.webmanifest"
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.dev.ts"
+                }
+              ],
+              "assets": [
+                "src/favicon-32x32.png",
+                "src/assets",
+                {
+                  "glob": "Web.config",
+                  "input": "./",
+                  "output": "./"
+                },
+                "src/manifest.webmanifest"
+              ],
+              "outputHashing": "all"
+            },
+            "local": {
+              "optimization": false,
+              "namedChunks": true,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "local"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "port": 4100
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "FourT.Private.EscheaTR.Ui:build:production"
+            },
+            "demo": {
+              "buildTarget": "FourT.Private.EscheaTR.Ui:build:demo"
+            },
+            "stage": {
+              "buildTarget": "FourT.Private.EscheaTR.Ui:build:stage"
+            },
+            "development": {
+              "buildTarget": "FourT.Private.EscheaTR.Ui:build:development"
+            },
+            "local": {
+              "buildTarget": "FourT.Private.EscheaTR.Ui:build:local"
+            }
+          },
+          "defaultConfiguration": "local"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "options": {
+            "buildTarget": "FourT.Private.EscheaTR.Ui:build"
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "tsconfig.spec.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              "src/favicon.ico",
+              "src/assets"
+            ],
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss",
+              "node_modules/ngx-toastr/toastr.css"
+            ],
+            "scripts": []
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "schematicCollections": [
+      "@angular-eslint/schematics"
+    ],
+    "analytics": false
+  }
+}

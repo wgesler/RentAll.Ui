@@ -1,0 +1,30 @@
+<div class="flex flex-row flex-wrap">
+    <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+        <span class="text-2xl items-center flex gap-2 ml-1">
+            @if (data.icon) {<mat-icon [color]="data.iconColor" [style.color]="data.iconColor">{{data.icon}}</mat-icon>}
+            {{data.title}}
+        </span>
+        <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit" color="none">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+    <mat-dialog-content class="flex-shrink-0 w-full">
+        <p>
+            @if ( data.useHTML) {<span [innerHtml]="data.message | safe_html"></span>}
+            @if (!data.useHTML) {<span>{{data.message}}</span>}
+        </p>
+    </mat-dialog-content>
+    <mat-divider class="flex-shrink-0 w-full"/>
+    <div class="flex flex-1 justify-end gap-3 p-3">
+        @if (data.no) {
+            <button mat-raised-button color="accent" (click)="data.callback(dialogRef, false)" id="cancel">
+                {{data.no}}
+            </button>
+        }
+        @if (data.yes) {
+            <button mat-raised-button cdkFocusInitial color="primary" (click)="data.callback(dialogRef, true)" id="ok">
+                {{data.yes}}
+            </button>
+        }
+    </div>
+</div>

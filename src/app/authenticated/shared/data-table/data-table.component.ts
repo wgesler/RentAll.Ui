@@ -1,0 +1,330 @@
+import { Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { MatCheckboxChange } from '@angular/material/checkbox';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTableDataSource } from '@angular/material/table';
+import { take } from 'rxjs';
+import { FormatterService } from '../../../../app/services/formatter-service';
+import { MaterialModule } from '../../../material.module';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { PurposefulAny } from '../../../shared/models/amorphous';
+import { SelectionModel } from '@angular/cdk/collections';
+import { Status } from '../../../enums/status.enum';
+import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
+import { ButtonData } from './models/button-data';
+import { TableItem } from './models/table-item';
+
+@Component({
+  selector: 'app-data-table',
+  standalone: true,
+  imports: [CommonModule, MaterialModule, FormsModule],
+  templateUrl: './data-table.component.html',
+  styleUrls: ['./data-table.component.scss'],
+})
+
+export class DataTableComponent implements OnChanges, OnInit {
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) sort: MatSort;
+  @Input() data: PurposefulAny[];
+  @Input() columns: ColumnSet;
+
+  // NOTE: Update ngOnChanges references if you rename any of these.
+  @Input() disableSort: boolean = false;
+  @Input() hasButtonSelectAll: boolean = false;
+  @Input() hasButtonTop: boolean = false;
+  @Input() hasColumnDynamicAction: boolean = false;
+  @Input() hasColumnIndex: boolean = false;
+  @Input() hasFilter: boolean = false;
+  @Input() hasSubDescription: boolean = false;
+  @Input() hasToggleTop: boolean = false;
+
+  @Input() hasActionsEnabled: boolean = true;
+  @Input() hasActionsTopEnabled: boolean = true;
+
+  @Input() hasActionsCancel: boolean = false;
+  @Input() hasActionsDelete: boolean = false;
+  @Input() hasActionsDownload: boolean = false;
+  @Input() hasActionsEdit: boolean = false;
+  @Input() hasActionsLock: boolean = false;
+  @Input() hasActionsRestore: boolean = false;
+  @Input() hasActionsRowClick: boolean = false;
+  @Input() hasActionsSave: boolean = false;
+  @Input() hasActionsSelect: boolean = false;
+
+  @Input() isColumnFirstActions: boolean = false;
+  @Input() areColumnsUniform: boolean = false;
+
+  @Input() actionTooltipSelect: string = '';
+
+  @Input() buttonDisabledTop: boolean = false;
+  @Input() buttonIconTop: string = 'add';
+  @Input() buttonTextTop: string = 'Add';
+  @Input() buttonToggleTextTop: string = 'Advanced Mode';
+
+  @Input() columnTextSelect: string = 'Select';
+  @Input() columnTextObfuscate: string = 'Obfuscate Value';
+
+  @Input() itemsPerPage: number = 10;
+  @Input() pageSizeOptions: number[] = [10, 20, 50, 100];
+  @Input() showCustomRowTooltip: boolean = false;
+  @Input() templateTableId: number = 1;
+
+  @Output() buttonEvent = new EventEmitter<PurposefulAny>();
+  @Output() cancelEvent = new EventEmitter<PurposefulAny>();
+  @Output() deleteEvent = new EventEmitter<PurposefulAny>();
+  @Output() downloadEvent = new EventEmitter<PurposefulAny>();
+  @Output() dropdownChangeEvent = new EventEmitter<PurposefulAny>();
+  @Output() editEvent = new EventEmitter<PurposefulAny>();
+  @Output() lockEvent = new EventEmitter<PurposefulAny>();
+  @Output() restoreEvent = new EventEmitter<PurposefulAny>();
+  @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() saveEvent = new EventEmitter<PurposefulAny>();
+  @Output() selectEvent = new EventEmitter<PurposefulAny>();
+  @Output() topButtonEvent = new EventEmitter<boolean>();
+  @Output() topToggleButtonEvent = new EventEmitter<boolean>();
+
+  @Output() selectionSet = new EventEmitter<PurposefulAny>();
+
+  buttons: ButtonData[] = [];
+  dataSource = new MatTableDataSource<TableItem>();
+  isDataLoaded: boolean = false;
+  filterVal: string = null;
+
+  tableColumns: ColumnData[] = [];
+  displayedColumns: string[] = [];
+
+  selection = new SelectionModel<string>(true, []);
+  isAllSelected: boolean = false;
+  isToggle: boolean = false;
+  selectAllToolTip: string = 'Select all visible checks';
+
+  constructor(private zone: NgZone, private formatter: FormatterService) { }
+
+  ngOnInit(): void {
+    // Use a filterPredicate to make sure the table only filters on visible columns
+    this.dataSource.filterPredicate = (item: TableItem, filter: string): boolean =>
+      this.displayedColumns.map(column => 
+        item[column]?.toString().toLocaleLowerCase() ?? '').some(value => value.includes(filter));   
+
+    // Return sortable data from each column
+    this.dataSource.sortingDataAccessor = (item: TableItem, column: string): string | number => {
+      const currencyCheck = isNaN(item[column]) ? item[column].replace('$','').replace(',','') : item[column];
+      const dateCheck = new Date(item[column]).valueOf();
+      if (!isNaN(currencyCheck)) return Number(currencyCheck);
+      if (!isNaN(dateCheck)) return dateCheck;
+      if (!isNaN(item[column])) return Number(item[column]);
+      switch (typeof item[column]) {
+        case 'string':
+          return item[column].toLocaleLowerCase();
+        case 'object':
+          return item[column][0].toLocaleLowerCase();
+        default:
+          return item[column];
+      }
+    };
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    let updateActions, updateTools, updateColumns, updateData, updateFilter;
+    for (const key in changes) {
+      if (!updateActions && ['hasActions'].some(prefix => key.startsWith(prefix))) {
+        updateActions = true;
+      } else if (!updateTools && ['hasButton', 'hasFilter', 'hasToggle'].some(prefix => key.startsWith(prefix))) {
+        updateTools = true;
+      } else if (!updateColumns && ['columns', 'hasColumn'].some(prefix => key.startsWith(prefix))) {
+        updateColumns = true;
+      } else if (key === 'data') {
+        updateData = true;
+      }
+    }
+
+    // only update what changed
+    if (updateFilter && this.filterVal) this.applyFilter();
+    if (updateActions) this.setActions();
+    if (updateColumns) this.setTableColumns();
+    if (updateTools) this.setTableTools();
+    else if (updateData) this.setData();
+  }
+
+  applyFilter(resetPage: boolean = true): void {
+    this.dataSource.filter = this.filterVal.trim().toLocaleLowerCase();
+    if (resetPage) this.dataSource?.paginator.firstPage();
+  }
+
+  clearFilter(input: HTMLInputElement): void {
+    input.value = '';
+    this.dataSource.filter = '';
+    this.filterVal = '';
+
+    this.dataSource?.paginator.firstPage();
+  }
+
+  emitAddEvent(): void {
+    this.topButtonEvent.emit(true);
+  }
+
+  emitToggleEvent(): void {
+    this.topToggleButtonEvent.emit(true);
+  }
+
+  emitLockEvent(_event: Event, rowItem: PurposefulAny): void {
+    this.lockEvent.emit(rowItem);
+  }
+
+  emitEditEvent(_event: Event, rowItem: PurposefulAny): void {
+    this.editEvent.emit(rowItem);
+  }
+
+  emitRestoreEvent(_event: Event, rowItem: PurposefulAny): void {
+    this.restoreEvent.emit(rowItem);
+  }
+
+  emitSaveEvent(_event: Event, rowItem: PurposefulAny): void {
+    this.saveEvent.emit(rowItem);
+  }
+
+  emitDownloadEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.downloadEvent.emit(rowItem);
+  }
+
+  emitDeleteEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.deleteEvent.emit(rowItem);
+  }
+  
+  emitCancelEvent(_event: Event, rowItem: PurposefulAny): void {
+    this.cancelEvent.emit(rowItem);
+  }
+
+  emitRowClickEvent(rowItem: PurposefulAny): void {
+    this.rowClickEvent.emit(rowItem);
+  }
+
+  emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {
+    rowItem.selected = event.checked;
+    if (this.hasButtonSelectAll) {
+      event.checked ? this.selection.select(rowItem) : this.selection.deselect(rowItem);
+      this.selectionSet.emit(this.selection);
+      this.isAllSelected = this.setIsAllSelected();
+    } else {
+      this.selectEvent.emit(rowItem);
+    }
+  }
+
+  emitDropdownChangeEvent(rowItem: PurposefulAny): void {
+    this.dropdownChangeEvent.emit(rowItem);
+  }
+
+  emitButtonEvent(rowItem: PurposefulAny): void {
+    this.buttonEvent.emit(rowItem);
+  }
+
+  setColumnNameCasing(columnName: string): string {
+    const newColumnName = columnName[0].toUpperCase() + columnName.substring(1);
+    return newColumnName.replace(/([a-z])([A-Z])/g, '$1 $2');
+  }
+
+  getStatusText(status: number): string {
+    return Status[status].toString();
+  }
+
+  obfuscateValue(value: string): string {
+    return this.formatter.obfuscator(value);
+  }
+
+  private setTableColumns(): void {
+    let columns = {} as ColumnSet;
+    // order here is important
+    if (this.hasActionsSelect)
+      columns['select'] = { displayAs: this.columnTextSelect ?? 'Select', sort: false, wrap: false };
+    if (this.hasColumnIndex)
+      columns['no'] = { displayAs: 'No.', wrap: false, sort: false };
+
+    columns = {...columns, ...this.columns};
+    
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasColumnDynamicAction)
+      columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
+    
+    this.tableColumns = [];
+    this.displayedColumns = [];
+
+    // string object keys insertion order is preserved
+    for (const name in columns) {
+      const column = columns[name];
+      this.tableColumns.push({
+        // Handle default data overrides. Lookup 'JS spread syntax' if this still doesn't make sense.
+        ...defaultColumnData,
+        ...column,
+        // override any user-input values
+        name: name,
+        displayAs: column?.displayAs || this.setColumnNameCasing(column?.name) || '',
+      });
+      this.displayedColumns.push(name);
+    }
+  }
+
+  private setActions(): void {
+    this.buttons = [];
+    if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
+    if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
+    if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
+    if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
+    if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: '#E69138', tooltip: 'View / Download', tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
+    if (this.hasActionsDelete)   this.buttons.push({name: 'delete', callback: (event, rowItem) => this.emitDeleteEvent(event, rowItem), color: '#FA6868', tooltip: 'Delete', tooltipPosition: 'after', icon: 'delete', suspendOnUpdate: false});
+    if (this.hasActionsCancel)   this.buttons.push({name: 'cancel', callback: (event, rowItem) => this.emitCancelEvent(event, rowItem), color: '#3F51B5', tooltip: 'Cancel', tooltipPosition: 'after', icon: 'cancel', suspendOnUpdate: false});
+  }
+
+  private setTableTools(): void {
+    this.isDataLoaded = false;
+    this.zone.onStable.pipe(take(1)).subscribe(() => {
+      this.setData();
+      // Load viewChild components that load separately from rest of component.
+      this.dataSource.paginator = this.paginator;
+      this.dataSource.sort = this.sort;
+      this.isDataLoaded = true;
+    });
+  }
+
+  private setData(): void {
+    this.dataSource.data = this.data;
+    this.selection.clear();
+    this.selectionSet.emit(this.selection);
+    this.isAllSelected = false;
+  }
+
+  setIsAllSelected(): boolean {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.paginator.pageSize;
+    return numSelected === numRows;
+  }
+
+  toggleAllRows(event: MatCheckboxChange): void {
+    const currentPageItems = this.getCurrentPageItems();
+    if (this.isAllSelected) {
+      this.selection.clear();
+      this.selectAllToolTip = 'Select all visible checks';
+    } else {
+      this.selection.select(...currentPageItems);
+      this.selectAllToolTip = 'Unselect all visible checks';
+    }
+    currentPageItems.forEach((i) => { this.emitSelectEvent(event, i) });
+  }
+
+  getCurrentPageItems(): PurposefulAny[] {
+    const start = this.paginator.pageSize * this.paginator.pageIndex;
+    const end = start + this.paginator.pageSize;
+    const currentPageItems = this.dataSource.data.slice(start, end);
+    return currentPageItems;
+  }
+
+  onPageChange(): void {
+    const currentPageItems = this.getCurrentPageItems();
+    const checkEvent = new MatCheckboxChange;
+    this.selection.clear();
+    this.selectAllToolTip = 'Select all visible checks';
+    currentPageItems.forEach((i) => { this.emitSelectEvent(checkEvent, i) });
+  }
+}
+

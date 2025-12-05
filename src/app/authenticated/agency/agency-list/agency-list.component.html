@@ -1,0 +1,26 @@
+@if (!itemsToLoad.includes('agencies')) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-start align-center bg-slate-200 rounded-t-lg px-8">
+        <mat-icon mat-list-icon class="mr-5 mt-4">business</mat-icon>
+        <h2 class="pt-3">Agencies</h2>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="agenciesDisplay"
+              [columns]="agenciesDisplayedColumns"
+              [hasColumnIndex]="true"
+              [hasFilter]="true"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [itemsPerPage]="100"
+              (editEvent)="goToAgency($event)"
+              (rowClickEvent)="goToAgency($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}

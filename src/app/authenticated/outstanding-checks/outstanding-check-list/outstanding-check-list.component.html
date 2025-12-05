@@ -1,0 +1,110 @@
+<div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+	<section class="content-card">
+		<div class="flex justify-between items-center bg-slate-200 rounded-t-lg px-8">
+			<span class="flex justify-start">
+				<mat-icon mat-list-icon class="mr-5 mt-4">free_cancellation</mat-icon>
+				<h2 class="pt-3">Outstanding Checks</h2>
+			</span>
+			<span class="flex justify-end gap-2 items-center">
+				@if (!syncInProgress && lastSyncDate) {
+					<span class="[font-size:11px]">Last Synced {{ lastSyncDate }}</span>
+				} @else {
+					<span class="[font-size:11px]">Sync in progress...</span>
+				}
+				<button mat-raised-button type="button" color="accent" id="sync-button" (click)="initiateSync()" class="scale-90 text-nowrap" [disabled]="syncInProgress">Sync With Ramquest</button>
+			</span>
+		</div>
+		<mat-card class="mb-6">
+			<div class="mat">
+				<form [formGroup]="searchForm" class="mt-4 mb-1 lg:mb-4 flex wrap mobile-flex-columnx flex-wrap flex-col lg:flex-row items-center w-full" id="acct-recon-date-form">
+					<span class="flex flex-row flex-wrap xl:flex-nowrap w-full gap-8">
+						<span class="grow shrink w-full">
+							<mat-form-field class="mr-6 my-1 w-full">
+								<mat-label>Agency</mat-label>
+								<mat-select formControlName="agencyId" id="agencyId">
+									<mat-option *ngFor="let agency of agencies; index as i" [value]="agency.agencyId" [id]="agency.name" (click)="displayChecks()">
+										{{ agency.name }}
+									</mat-option>
+								</mat-select>
+							</mat-form-field>
+						</span>
+
+						<span class="flex justify-between items-center grow shrink-0 w-full lg:w-half">
+							<mat-form-field class="mr-6 my-1 w-full sm:w-auto shrink">
+								<mat-label>Start Date</mat-label>
+								<input matInput [matDatepicker]="date1" id="start-date" formControlName="startDate" [min]="minDate"
+									[max]="" (dateChange)="changeEndDate($event)" type="text" autocomplete="off" (click)="displayChecks()"
+									placeholder="Select a date...">
+								<mat-datepicker-toggle matSuffix [for]="date1"/>
+								<mat-datepicker #date1 [disabled]="false"/>
+								<mat-error>A valid date is required...</mat-error>
+							</mat-form-field>
+							<mat-form-field class="mr-6 my-1 w-full sm:w-auto shrink">
+								<mat-label>End Date</mat-label>
+								<input matInput [matDatepicker]="date2" id="end-date" formControlName="endDate" [min]="minDate" [max]="maxDate"
+									(dateChange)="changeStartDate($event)" type="text" autocomplete="off" placeholder="Select a date...">
+								<mat-datepicker-toggle matSuffix [for]="date2"/>
+								<mat-datepicker #date2 [disabled]="false"/>
+								<mat-error>A valid date is required...</mat-error>
+							</mat-form-field>
+						</span>	
+					</span>
+
+					<span class="flex flex-row gap-5 w-full">
+						<mat-label>Include Outstanding Checks With: </mat-label>
+						<span>
+							<mat-slide-toggle [checked]="showReminders" color="primary" id="showReminders" formControlName="showReminders" (click)="displayChecks()"
+								class="mr-6 whitespace-nowrap text-center sm:text-inherit">
+								Reminder Sent
+							</mat-slide-toggle>
+						
+							<mat-slide-toggle [checked]="showEscheated" color="primary" id="showEscheated" formControlName="showEscheated" (click)="displayChecks()"
+								class="mr-6 whitespace-nowrap text-center sm:text-inherit">
+								Escheat Sent
+							</mat-slide-toggle>
+						</span>
+					</span>
+
+
+				</form>
+			</div>
+		</mat-card>	
+
+		
+		<mat-card class="mb-10 subcard">
+			<div class="mat mt-5">
+				@if (syncInProgress) {
+					<div class="announcement">
+						<mat-icon class="min-w-5 spin pulse">sync</mat-icon>
+						<span>Data sync in progress. This may take a few minutes.</span>
+					</div>
+				} @else {
+					@if (!itemsToLoad.includes('outstandingChecks')) {
+						<div class="tableDiv">
+							<app-data-table
+								[data]="checkSummaryDisplay"
+								[columns]="checkSummaryDisplayedColumns"
+								[hasColumnIndex]="true"
+								[hasButtonSelectAll]="true"
+								[hasButtonTop]="true"
+								[hasFilter]="true"
+								[hasActionsEdit]="true"
+								[hasActionsSelect]="true"
+								[buttonDisabledTop]="selection.selected.length < 1"
+								[hasActionsTopEnabled]="!isSending"
+								[hasActionsEnabled]="!isSending"
+								[buttonIconTop]="isSending ? 'spinner' : 'email'"
+								[buttonTextTop]="isSending ? 'Sending' : 'Send Emails'"
+								(editEvent)="goToCheck($event)"
+								(selectionSet)="updateSelectionSet($event)"
+								(topButtonEvent)="goToBulkSend()"/>
+						</div>
+					}
+					@else {
+						<div class="flex no-data"><span><mat-spinner color="primary" diameter="30"/></span></div>
+					}
+				}
+			</div>
+		</mat-card>
+	</section>
+</div>

@@ -1,0 +1,65 @@
+.mat-field {
+	width: fit-content !important;
+	text-wrap: nowrap;
+	fill: 0 !important;
+}
+
+#logout-button {
+  text-align: right !important;
+}
+
+// Daily Quote
+.quote {
+    display: flex;
+    padding: 5px 70px;
+    height: 100%;
+    flex-shrink: 1;
+
+    @media screen and (max-width: 959px) {
+        display: none !important;
+    }
+    
+    .quote-head {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        background: var(--primary-color);
+        padding: 4px 15px;
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+        background-color: rgba(255, 255, 255, .4);
+
+        .title {
+            font-size: 16px;
+            height: 18px;
+            
+        }
+        .attribution-text {
+            font-size: 9px;
+            height: 12px;
+        }
+    }
+    
+    .quote-content {
+        display: flex;
+        justify-content: start;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 12px;
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+        font-size: small;
+        background-color: rgba(255, 255, 255, .1);
+
+        .quote-icon {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+            font-size: 34px;
+        }
+
+        span {
+            line-height: 14px;
+        }
+    }
+}

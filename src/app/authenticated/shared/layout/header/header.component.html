@@ -1,0 +1,52 @@
+<mat-toolbar id="header" color="primary" class="flex justify-between gap-8 shrink w-full">
+  <span [ngClass]="{'pl-[30px]' : (isHandset$ | async)}" class="flex justify-between items-center h-full">
+    @if ((isHandset$ | async) === false) {
+      <mat-icon class="align-sub mr-3 ml-2">library_add_check</mat-icon>
+    }
+    <span>RentAll</span>
+    <span class="quote">
+      <span class="quote-head">
+        <a id="quoteLink" href="https://zenquotes.io/" target="_blank">
+          <div class="title">Quote of the Day</div>
+          <div class="attribution-text">Provided by ZenQuotes API</div>
+        </a>
+      </span>
+      <span class="quote-content">
+        <mat-icon class="quote-icon">psychology_alt</mat-icon>
+        <span>“<i> {{(dailyQuote | async)?.quote}}</i>”</span><span *ngIf="(dailyQuote | async)?.author">  ~ {{(dailyQuote | async)?.author}} </span>
+      </span>
+    </span>
+  </span>
+  <span>
+
+    @if (isLoggedIn | async) {
+      <div class="mat-toolbar-rightside">
+        <button mat-button [matMenuTriggerFor]="menu" aria-label="profile button" id="profile-button">
+          <span class="flex justify-end items-center">
+            <span class="mobile-hide text-xs font-semibold mr-2">{{ user?.firstName + ' ' + user?.lastName }}</span>
+            <mat-icon>person</mat-icon>
+            <mat-icon>keyboard_arrow_down</mat-icon>
+          </span>
+        </button>
+  
+        <mat-menu #menu="matMenu" xPosition="after" class="header-mat-menu">
+          <div class="w-full px-4 pt-2">
+            <p class="text-sm mb-0 text-end">Logged in as:</p>
+            <div class="w-full text-end">
+              <div class="text-xs font-normal">{{ user?.firstName + ' ' + user?.lastName }}</div>
+              <div class="text-xs font-normal text-blue-600 mb-1">{{ user?.email }}</div>
+            </div>
+          </div>
+  
+          <mat-divider></mat-divider>
+  
+          <button mat-menu-item (click)="logout()" id="logout-button">
+            <mat-icon class="rotate-180">logout</mat-icon>
+            <span>Logout</span>
+          </button>
+        </mat-menu>
+      </div>
+    }
+
+  </span>
+</mat-toolbar>

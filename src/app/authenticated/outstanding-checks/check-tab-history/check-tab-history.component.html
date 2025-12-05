@@ -1,0 +1,12 @@
+@if (!itemsToLoad.includes('emails')) {
+  <app-data-table
+    [data]="emails"
+    [columns]="emailsColumns"
+    [hasFilter]="true"
+    [hasColumnIndex]="true"
+    [hasActionsRowClick]="true"
+    (rowClickEvent)="openDetails($event)">
+  </app-data-table>
+} @else {
+  <div class="flex no-data"><span><mat-spinner color="primary" diameter="30"/></span></div>
+}

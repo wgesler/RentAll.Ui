@@ -1,0 +1,46 @@
+<div id="loginPage">
+    <mat-toolbar id="header" color="primary" class="flex justify-between">
+        <span>
+            <mat-icon class="align-sub mr-3 ml-2">library_add_check</mat-icon>
+            <span>RentAll</span>
+        </span>
+    </mat-toolbar>
+    <div class="background"></div>
+    <div class="cardContainer">
+        <mat-card-content class="centerContainer">
+            <mat-card class="loginContainer">
+                <mat-card-title>Login</mat-card-title>
+                <form [formGroup]="form" (submit)="onSubmit()">
+                    
+                    <mat-form-field class="admin-login-field">
+                        <mat-label>Email</mat-label>
+                        <input matInput type="text" name="username" formControlName="username" id="username">
+                        <mat-icon matPrefix class="relative top-0.5 mr-2">person_outline</mat-icon>
+                        <mat-error *ngIf="!form.get('username')?.valid">Email is required</mat-error>
+                    </mat-form-field>
+                    
+                    <mat-form-field class="admin-login-field">
+                        <mat-label>Password</mat-label>
+                        <input [type]="hide ? 'password' : 'text'" matInput formControlName="password" id="password">
+                        <mat-icon matPrefix class="relative top-0.5 mr-2">lock_outline</mat-icon>
+                        <button type="button" mat-icon-button matSuffix (click)="hide = !hide" id="hide-button"
+                            [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
+                            <mat-icon>{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
+                        </button>
+                        <mat-error *ngIf="!form.get('password')?.valid">Password is required</mat-error>
+                   </mat-form-field>
+                     
+                    <section class="remember-me-section">
+                        <mat-checkbox class="example-margin" [checked]="rememberMe" formControlName="rememberMe" color="primary">
+                            Remember me
+                        </mat-checkbox>
+                    </section>
+
+                    <mat-card-actions id="admin-actions-wrap">
+                        <button mat-raised-button color="primary">Login</button>
+                    </mat-card-actions>
+                </form>
+            </mat-card>
+        </mat-card-content> 
+     </div>
+</div>

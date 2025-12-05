@@ -1,0 +1,317 @@
+.mobile-checkbox {
+    display: none;
+    position: fixed;
+    right: 0;
+    margin-right: 1.25em;
+    background: #dadada;
+    padding: 0.5em;
+    border-radius: 3px 0 0 3px;
+
+    @media screen and (max-width: 959px) {
+        display: block;
+    }
+}
+
+img {
+    display: inline;
+}
+
+.mat-table,
+.mat-mdc-table {
+    justify-content: center;
+}
+
+[mat-table] [mat-header-cell] {
+    border-top: 1px solid rgba(112, 112, 112, 0.37) !important;
+    border-bottom: 1px solid rgba(112, 112, 112, 0.37) !important;
+}
+
+.mat-icon-button,
+.mat-mdc-icon-button {
+    align-content: center;
+    align-items: center;
+    display: inline-flex;
+}
+
+.mat-mdc-no-data-row td {
+    text-align: center;
+    padding: 50px 0;
+}
+
+.edited-table-row {
+    border: 2px solid #B4CFF9;
+}
+
+.datatable-search-field {
+    min-width: 20em !important;
+}
+
+.datatable-add-btn {
+    transform: scale(0.9);
+}
+
+.is-scrollable {
+    overflow-x: auto;
+}
+
+.mat-table,
+.mat-mdc-table {
+    width: max-content;
+    min-width: 100%;
+
+    .mobile-label {
+        display: none;
+    }
+    img {
+        min-width: 2.3em;
+        padding: 0.75em;
+    }
+
+    .mat-column-actions {
+        text-align: center;
+    }
+
+    .mat-row,
+    .mat-mdc-row {
+        word-break: break-word;
+    }
+
+    .mat-row:hover,
+    .mat-mdc-row:hover {
+        background: #fafafa;
+    }
+
+    .inactive-chip {
+        background-color: #fce6e8;
+        color: #d23e4d;
+        border: solid 1px #d23e4d;
+        transform: scale(0.8);
+    }
+
+    .active-chip {
+        background-color: #e7fcea;
+        color: #038c11;
+        border: solid 1px #038c11;
+        transform: scale(0.8);
+    }
+
+    .registered-chip {
+        background-color: #fff3cd;
+        color: #856404;
+        border: solid 1px #856404;
+        transform: scale(0.8);
+    }
+}
+
+tr.mat-header-row,
+tr.mat-mdc-header-row {
+  height: 48px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .25;
+}
+
+th.mat-header-cell,
+th.mat-mdc-header-cell {
+  padding: 0;
+  border-bottom-width: 0;
+  border-bottom-style: none;
+  vertical-align: middle;
+  font-weight: 600;
+  color: black;
+  padding: 0 10px;
+  word-break: break-word !important;
+  max-width:175px;
+}
+
+tr.mat-row,
+tr.mat-mdc-row {
+  height: 48px;
+}
+
+td.mat-mdc-cell {
+  vertical-align: middle;
+  font-size: 12px;
+  font-weight: 400;
+  color: #707070;
+  border-bottom: 1px solid rgba(112, 112, 112, 27%);
+  padding: 0 10px;
+  min-width: 50px;
+  max-width: 100px;
+}
+
+td.mat-cell p,
+td.mat-mdc-cell p {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+td.mat-cell button,
+td.mat-mdc-cell button {
+  width: auto;
+}
+
+td.mat-cell.no-wrap,
+td.mat-mdc-cell.no-wrap {
+    white-space: nowrap;
+    max-width:none;
+}
+
+td.mat-cell.align-right,
+td.mat-mdc-cell.align-right {
+    text-align:right;
+}
+
+td.mat-cell.align-center,
+td.mat-mdc-cell.align-center {
+    text-align:center;
+}
+
+.datatable-hidden {
+    visibility: hidden;
+}
+
+@media screen and (max-width: 959px) {
+    .datatable-search-wrap {
+        flex-direction: column;
+        align-items: flex-start !important;
+        margin-bottom: 1em;
+    }
+
+    .mat-table,
+    .mat-mdc-table {
+        width:auto;
+        border-top: solid thin #dadada !important;
+
+        .mobile-label {
+            display: inline-block !important;
+            width: 11.5em;
+            font-weight: 750;
+            text-decoration: underline;
+            text-decoration-style: dotted;  
+            justify-content: left;          
+        }
+
+        .mobile-align {
+            justify-content: left;
+        }
+        
+        .mat-row,
+        .mat-mdc-row {
+            overflow-x: hidden;
+            padding: 1em 0 1em 0;
+            height: unset !important;
+            border-bottom: solid thin #dadada;
+            flex-direction: column;
+            box-sizing: border-box;
+            display: flex;
+            place-content: stretch flex-start;
+            align-items: stretch;  
+        }
+    
+        mat-cell.mat-cell, .mat-cell,
+        mat-cell.mat-mdc-cell, .mat-mdc-cell {
+            max-width: 100%;
+            padding-left: 1rem !important;
+            border-bottom: transparent !important;
+            font-size: 13px !important;
+            padding: 0.5em;
+    
+            & .label {
+                min-width: 7rem;
+                font-weight: 500;
+            }
+        }
+
+        mat-select {
+            width: calc(100% - 11.5em);
+            border: solid 1.5px #0d47a1;
+        }
+    
+        tr {
+            flex-direction: column;
+            box-sizing: border-box;
+            display: flex;
+            place-content: stretch flex-start;
+            align-items: stretch;
+        }
+
+        th, thead {
+            display: none !important;
+        }
+
+        .mat-column-select {
+            margin-bottom: 1em;
+        }
+
+        .mat-column-status {
+            margin: 1em 0 0.5em 0;
+        }
+
+        .mat-chip-list-wrapper {
+            justify-content: flex-start;
+        }
+
+        .mat-column-actions, .mat-column-isLocked, .mat-column-isSystem, .mat-column-no {
+            width: auto;
+        }
+
+        .mat-column-actions {
+            margin-top: 1em;
+            text-align: left;
+        }
+    }
+
+    .edited-table-row {
+        border: 4px solid #B4CFF9;
+        border-bottom: 4px solid #B4CFF9 !important;
+    }
+
+    td.mat-cell.no-wrap,
+    td.mat-mdc-cell.no-wrap {
+        white-space:normal;
+        max-width:none;
+    }
+
+    td.mat-cell.align-right,
+    td.mat-mdc-cell.align-right {
+        text-align:left;
+    }
+    
+    td.mat-cell.align-center,
+    td.mat-mdc-cell.align-center {
+        text-align:left;
+    }
+}
+
+.datatable-btn-disabled {
+    opacity: 0 !important;
+}
+
+.datatable-row-active {
+    background-color: #ffffba;
+
+    &:hover {
+        background-color: #ffffba !important;
+    }
+}
+
+.datatable-lock-loader-wrap {
+    width: 2.25rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    bottom: 0.75rem;
+}
+
+.datatable-truncated {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.datatable-hidden {
+    display: none;
+}
