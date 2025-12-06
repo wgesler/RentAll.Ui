@@ -1,0 +1,148 @@
+@if (!isServiceError && !itemsToLoad.includes('company')) {
+
+  
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">business</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Company' : 'Edit Company' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCompany()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+        
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveCompany()" class="info-form mb-8 pt-5">
+            <div class="grid grid-cols-4 gap-4">
+              <mat-form-field appearance="outline" class="col-span-3">
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name" required>
+                @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                  <mat-error>Name is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Code</mat-label>
+                <input matInput formControlName="companyCode" required>
+                @if (form.get('companyCode')?.hasError('required') && form.get('companyCode')?.touched) {
+                  <mat-error>Code is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Address 1</mat-label>
+                <input matInput formControlName="address1" required>
+                @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                  <mat-error>Address 1 is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Address 2</mat-label>
+                <input matInput formControlName="address2">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>City</mat-label>
+                <input matInput formControlName="city" required>
+                @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                  <mat-error>City is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>State</mat-label>
+                <mat-select formControlName="state" required>
+                  <mat-option value="">Select State</mat-option>
+                  @for (state of states; track state) {
+                    <mat-option [value]="state">{{ state }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                  <mat-error>State is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Zip Code</mat-label>
+                <input matInput formControlName="zip" required>
+                @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                  <mat-error>Zip Code is required</mat-error>
+                }
+              </mat-form-field>
+
+              <div class="col-span-1"></div>
+
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Phone</mat-label>
+                <input matInput formControlName="phone" required (blur)="formatPhone()" (input)="onPhoneInput($event)">
+                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
+                  <mat-error>Phone is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Website</mat-label>
+                <input matInput formControlName="website" type="url">
+              </mat-form-field>
+            </div>
+
+            <mat-divider class="my-5"/>
+
+            <h3 class="pt-3">Company Logo</h3>
+            <div class="flex justify-start image-input items-center mb-4">
+              <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                Choose Image
+              </button>
+              @if (fileName) {
+                <div class="relative inline-block ml-2">
+                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ 'data:image/*;base64,' + fileDetails.file }}" />
+                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+                <span class="text-sm font-semibold ml-2">{{ fileName }}</span>
+              }
+              @if (logoImgUrl && !fileName) {
+                <div class="relative inline-block ml-2">
+                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ logoImgUrl }}" />
+                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              }
+              <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
+            </div>
+            @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+              <div class="image-file-error mb-4">
+                Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+              </div>
+            }
+            <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+
+            @if (isSubmitting) {
+              <div class="flex justify-start gap-3 items-center">
+                <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+                <span>Saving...</span>
+              </div>
+            }
+          </form>
+      </mat-card>
+    </section>
+  </div>
+}
+

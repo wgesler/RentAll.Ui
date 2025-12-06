@@ -5,15 +5,16 @@ export class JwtContainer {
     exp: number;
     user: JwtUser;
 
-    constructor(sub: string, exp: number, user: JwtTempUser) {
+    constructor(sub: string, exp: number, user: any) {
         this.sub = sub;
         this.exp = exp;
+        // API returns PascalCase, so we need to access properties with PascalCase
         this.user = new JwtUser(
-            user.userGuid,
-            user.firstName,
-            user.lastName,
-            user.email,
-            user.role
+            user.UserGuid || user.userGuid || '',
+            user.FirstName || user.firstName || '',
+            user.LastName || user.lastName || '',
+            user.Email || user.email || '',
+            user.Role || user.role || ''
         );
     }
 }

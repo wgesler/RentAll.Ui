@@ -1,9 +1,9 @@
 import { ErrorResponse } from "../../../shared/models/error-response";
 
 export class AuthResponse extends ErrorResponse {
-    AccessToken?:  string;
-    ExpiresIn?:    number;
-    TokenType?:    string;
-    RefreshToken?: string;
-    Scope?:         string;
+    accessToken?:  string;
+    expiresIn?:    number;
+    tokenType?:    string;
+    refreshToken?: string;
+    scope?:         string;
 }

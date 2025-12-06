@@ -14,7 +14,6 @@ import { LoginDetails } from '../public/login/models/auth';
 export class SessionService {
   public sessionCalculatorId$ = new BehaviorSubject<string>(null);
   public sessionCompanyName$ = new BehaviorSubject<string>(null);
-  public sessionAgencyName$ = new BehaviorSubject<string>(null);
   public isPasswordDialogOpen: boolean = false;
   private sessionData$ = new BehaviorSubject<SessionDataResponse>(null);
   private readonly controller = 'session/';

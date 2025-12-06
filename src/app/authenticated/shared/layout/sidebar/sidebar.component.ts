@@ -28,19 +28,24 @@ export class SidebarComponent {
     );
   navItems = [
     {
-      icon: 'free_cancellation',
-      displayName: 'Outstanding Checks',
-      url: RouterToken.OutstandingCheckList,
+      icon: 'home',
+      displayName: 'Rentals',
+      url: RouterToken.RentalList,
     },
     {
       icon: 'business',
-      displayName: 'Agencies',
-      url: RouterToken.AgencyList,
+      displayName: 'Companies',
+      url: RouterToken.CompanyList,
     },
     {
-      icon: 'description',
-      displayName: 'Letters',
-      url: RouterToken.LetterList,
+      icon: 'contacts',
+      displayName: 'Contacts',
+      url: RouterToken.ContactList,
+    },
+    {
+      icon: 'people',
+      displayName: 'Tenants',
+      url: RouterToken.TenantList,
     },
   ];
 

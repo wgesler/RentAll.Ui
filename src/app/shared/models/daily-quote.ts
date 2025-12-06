@@ -1,4 +1,4 @@
-export class DailyQuote {
-	quote: string = '';
-	author: string = '';
-  }
+export interface DailyQuote {
+  quote: string;
+  author: string;
+}

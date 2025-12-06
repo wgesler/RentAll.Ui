@@ -1,5 +1,5 @@
 export interface DefaultSearchItems {
-    agencyId: string;
+    companyId: string;
     startDate: string;
     endDate: string;
 }

@@ -1,13 +1,8 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './public/login/login.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
-import { AgencyComponent } from './authenticated/agency/agency/agency.component';
-import { AgencyListComponent } from './authenticated/agency/agency-list/agency-list.component';
-import { LetterListComponent } from './authenticated/letters/letter-list/letter-list.component';
-import { LetterComponent } from './authenticated/letters/letter/letter.component';
-import { OutstandingCheckListComponent } from './authenticated/outstanding-checks/outstanding-check-list/outstanding-check-list.component';
-import { canDeactivateGuard } from './guards/can-deactivate-guard';
-import { OutstandingCheckComponent } from './authenticated/outstanding-checks/outstanding-check/outstanding-check.component';
+import { CompanyComponent } from './authenticated/company/company/company.component';
+import { CompanyListComponent } from './authenticated/company/company-list/company-list.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
@@ -15,22 +10,20 @@ import { unAuthRouteGuard } from './guards/un-auth-guard';
 export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
-  AgencyList = 'agencies',
-  Agency = RouterToken.AgencyList + '/:id',
-  LetterList = 'letters',
-  Letter = RouterToken.LetterList + '/:state',
-  OutstandingCheckList = 'outstanding-checks',
-  OutstandingCheck = RouterToken.OutstandingCheckList + '/:checkid',
-  Default = RouterToken.OutstandingCheckList
+  RentalList = 'rentals',
+  CompanyList = 'companies',
+  Company = RouterToken.CompanyList + '/:id',
+  ContactList = 'contacts',
+  TenantList = 'tenants',
+  Default = RouterToken.CompanyList
 }
 
 export enum RouterUrl {
-  AgencyList           = `${RouterToken.Auth}/${RouterToken.AgencyList}`,
-  Agency               = `${RouterToken.Auth}/${RouterToken.Agency}`,
-  LetterList           = `${RouterToken.Auth}/${RouterToken.LetterList}`,
-  Letter               = `${RouterToken.Auth}/${RouterToken.Letter}`,
-  OutstandingCheckList = `${RouterToken.Auth}/${RouterToken.OutstandingCheckList}`,
-  OutstandingCheck     = `${RouterToken.Auth}/${RouterToken.OutstandingCheck}`,
+  RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
+  CompanyList           = `${RouterToken.Auth}/${RouterToken.CompanyList}`,
+  Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
+  ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
+  TenantList            = `${RouterToken.Auth}/${RouterToken.TenantList}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -42,12 +35,11 @@ export namespace RouterUrl {
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
-  { path: RouterToken.AgencyList, component: AgencyListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Agency, component: AgencyComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Letter, component: LetterComponent, canDeactivate: [canDeactivateGuard], canActivate: [authRouteGuard] },
-  { path: RouterToken.LetterList, component: LetterListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OutstandingCheck, component: OutstandingCheckComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.OutstandingCheckList, component: OutstandingCheckListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.RentalList, component: CompanyListComponent, canActivate: [authRouteGuard] }, // Placeholder - will be replaced later
+  { path: RouterToken.CompanyList, component: CompanyListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ContactList, component: CompanyListComponent, canActivate: [authRouteGuard] }, // Placeholder - will be replaced later
+  { path: RouterToken.TenantList, component: CompanyListComponent, canActivate: [authRouteGuard] }, // Placeholder - will be replaced later
 ]
 
 export const routes: Routes = [

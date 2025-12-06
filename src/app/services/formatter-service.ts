@@ -50,7 +50,12 @@ export class FormatterService {
     }
 
     phoneNumber(phone?: string): string {
-        if (phone) return `${phone.substring(0, 3)}-${phone.substring(3, 6)}-${phone.substring(6)}`;
+        if (!phone) return phone || '';
+        // Remove all non-digits
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length === 10) {
+            return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+        }
         return phone;
     }
 }

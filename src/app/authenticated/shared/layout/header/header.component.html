@@ -1,19 +1,16 @@
 <mat-toolbar id="header" color="primary" class="flex justify-between gap-8 shrink w-full">
-  <span [ngClass]="{'pl-[30px]' : (isHandset$ | async)}" class="flex justify-between items-center h-full">
+  <span [ngClass]="{'pl-[30px]' : (isHandset$ | async)}" class="flex items-center h-full">
     @if ((isHandset$ | async) === false) {
       <mat-icon class="align-sub mr-3 ml-2">library_add_check</mat-icon>
     }
-    <span>RentAll</span>
-    <span class="quote">
-      <span class="quote-head">
-        <a id="quoteLink" href="https://zenquotes.io/" target="_blank">
-          <div class="title">Quote of the Day</div>
-          <div class="attribution-text">Provided by ZenQuotes API</div>
-        </a>
-      </span>
+    <span class="mr-8">RentAll</span>
+    <span class="quote flex items-center">
+      <mat-icon class="quote-icon mr-2">psychology_alt</mat-icon>
       <span class="quote-content">
-        <mat-icon class="quote-icon">psychology_alt</mat-icon>
-        <span>“<i> {{(dailyQuote | async)?.quote}}</i>”</span><span *ngIf="(dailyQuote | async)?.author">  ~ {{(dailyQuote | async)?.author}} </span>
+        <span>“<i> {{(dailyQuote | async)?.quote}}</i>”</span>
+        @if ((dailyQuote | async)?.author) {
+          <span>  ~ {{(dailyQuote | async)?.author}} </span>
+        }
       </span>
     </span>
   </span>

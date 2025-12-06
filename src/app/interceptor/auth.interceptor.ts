@@ -13,7 +13,11 @@ const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<Purpos
 let isRefreshingToken: boolean = false;
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  if (req.url.endsWith('/refresh-token') || req.url.endsWith('/login')) {
+  // Skip interceptor for anonymous endpoints
+  if (req.url.endsWith('/refresh-token') || 
+      req.url.endsWith('/login') ||
+      req.url.includes('/common/daily-quote') ||
+      req.url.includes('/common/state')) {
     return next(req);
   }
 
@@ -65,8 +69,8 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
     
     return inject(AuthService).refresh().pipe(
       switchMap((authResponse: AuthResponse) => {
-        if (authResponse && authResponse.AccessToken) {
-          tokenSubject$.next(authResponse.AccessToken);
+        if (authResponse && authResponse.accessToken) {
+          tokenSubject$.next(authResponse.accessToken);
           return next(addToken(req));
         }
         // If we don't get a new token, we are in trouble so throw error back to login Component
@@ -112,7 +116,7 @@ function logoutUser(): Observable<PurposefulAny> {
 
 function addToken(req: HttpRequest<PurposefulAny>): HttpRequest<PurposefulAny> {
   const authData = inject(AuthService).getAuthData();
-  const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.AccessToken}}) : req;
+  const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.accessToken}}) : req;
 
   return authReq;
 }

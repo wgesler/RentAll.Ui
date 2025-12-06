@@ -1,0 +1,27 @@
+body {
+    background: #F4F5F6 !important;
+}
+
+.list {
+    margin-top: 30px;
+}
+
+.mat-expansion-panel-header {
+    background: var(--primary-color) !important;
+}
+
+ .mat-expansion-panel-header-title {
+    color: var(--white) !important;
+}
+
+
+.mat-expansion-panel-header-description,
+ .mat-expansion-indicator::after {
+    color: var(--white) !important;
+}
+
+
+ .mat-expansion-panel-body {
+    padding: 0 !important;
+}
+

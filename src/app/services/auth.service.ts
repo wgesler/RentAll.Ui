@@ -49,13 +49,11 @@ export class AuthService {
     }
 
     logout(): Observable<boolean> {
-        const sessionId = this.getSessionId();
-        if (sessionId) {
-            const logoutRequest = {sessionGuid: sessionId};
-            this.http.post<boolean>(this.controller + 'logout', logoutRequest).pipe(take(1)).subscribe({});
+        if (this.authData$.value?.refreshToken) {
+            const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken };
+            this.http.post<boolean>(this.controller + 'logout', request).pipe(take(1)).subscribe({});
         }
 
-        this.clearDefaultSearchItems();
         this.clearSensitiveData();
         this.dialog.closeAll();
         this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true });
@@ -66,7 +64,7 @@ export class AuthService {
 
     refresh(): Observable<AuthResponse> {
         if (!this.authData$.value) return of(new AuthResponse());
-        const request: RefreshTokenRequest = { refreshToken: this.authData$.value.RefreshToken! };
+        const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken! };
 
         return this.http.post<AuthResponse>(this.controller + 'refresh-token', request).pipe(
             tap((response: AuthResponse) => this.buildRefreshAuthData(response)));
@@ -89,20 +87,80 @@ export class AuthService {
     }
 
     setAuthData(response: AuthResponse): void {
-        this.authData$.next(response);
-        this.storageService.addItem(StorageKey.AccessEvent, 'true');
+        try {
+            if (!response) {
+                console.error('Response is null or undefined');
+                return;
+            }
 
-        const authorizationDataStorage = JSON.stringify(this.storageService.getItem(StorageKey.AuthData));
-        if (authorizationDataStorage) { this.storageService.removeItem(StorageKey.AuthData); }
+            this.authData$.next(response);
+            this.storageService.addItem(StorageKey.AccessEvent, 'true');
 
-        const tokenEnc = this.jwtHelperService.decodeToken(this.authData$.value?.AccessToken);
-        const token = tokenEnc as JwtTempContainer;
-        const jwtUserObj = JSON.parse(atob(token.user));
-        const jwtContainer = new JwtContainer(token.sub, token.exp, jwtUserObj);
+            const authorizationDataStorage = JSON.stringify(this.storageService.getItem(StorageKey.AuthData));
+            if (authorizationDataStorage) { this.storageService.removeItem(StorageKey.AuthData); }
 
-        this.storageService.addItem(StorageKey.AuthData, JSON.stringify(response));
-        this.jwtContainer$.next(jwtContainer);
-        this.isLoggedIn$.next(this.getIsLoggedIn());
+            // Use the response parameter directly - API returns camelCase
+            const accessToken = response?.accessToken;
+            if (!accessToken) {
+                console.error('No accessToken found in response. Response object:', response);
+                return;
+            }
+
+            const tokenEnc = this.jwtHelperService.decodeToken(accessToken);
+            if (!tokenEnc) {
+                console.error('Failed to decode JWT token');
+                return;
+            }
+
+            // Debug: Log the decoded token structure
+            console.log('Decoded JWT token:', tokenEnc);
+            console.log('Token keys:', Object.keys(tokenEnc));
+
+            const token = tokenEnc as any;
+            
+            // Check if token has the expected structure
+            if (!token.sub) {
+                console.error('JWT token does not contain sub property. Token structure:', token);
+                return;
+            }
+
+            // The user property might be in different formats
+            let jwtUserObj: any = null;
+            
+            if (token.user) {
+                // If user is a base64-encoded string, decode it
+                try {
+                    jwtUserObj = JSON.parse(atob(token.user));
+                } catch (e) {
+                    // If it's not base64, try parsing directly
+                    jwtUserObj = typeof token.user === 'string' ? JSON.parse(token.user) : token.user;
+                }
+            } else if (token.UserGuid || token.userGuid) {
+                // If user properties are directly on the token
+                jwtUserObj = token;
+            } else {
+                console.error('JWT token does not contain user property or user data. Token structure:', token);
+                return;
+            }
+
+            if (!jwtUserObj) {
+                console.error('Failed to parse user object from JWT');
+                return;
+            }
+
+            console.log('Parsed user object:', jwtUserObj);
+
+            const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);
+
+            this.storageService.addItem(StorageKey.AuthData, JSON.stringify(response));
+            this.jwtContainer$.next(jwtContainer);
+            this.isLoggedIn$.next(this.getIsLoggedIn());
+        } catch (error) {
+            console.error('Error in setAuthData:', error);
+            // Clear any partial state
+            this.jwtContainer$.next(undefined);
+            this.isLoggedIn$.next(false);
+        }
     }
 
     getIsLoggedIn(): boolean {
@@ -120,9 +178,6 @@ export class AuthService {
         this.storageService.removeItem(StorageKey.AccessEvent);
     }
 
-    private clearDefaultSearchItems(): void {
-        this.storageService.removeItem(StorageKey.OutstandingSearchItems);
-    }
 
   private buildRefreshAuthData(response: AuthResponse): void {
         this.setAuthData(response);

@@ -3,6 +3,4 @@ export enum StorageKey {
     AccessEvent = '$access_event',
     Username = '$username',
     Password = '$password',
-
-    OutstandingSearchItems = '$defaultSearchItems',
 }
