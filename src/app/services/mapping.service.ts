@@ -14,14 +14,23 @@ import { FormatterService } from './formatter-service';
 export class MappingService {
   constructor(private formatter: FormatterService) { }
   
-  mapCompanies(companies: CompanyResponse[]): CompanyListDisplay[] {
+  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
+      let contactName = '';
+      let contactId = '';
+      if (o.contactId && contacts) {
+        const contact = contacts.find(c => c.contactId === o.contactId);
+        if (contact) {
+          contactName = contact.firstName + ' ' + contact.lastName;
+          contactId = contact.contactId;
+        }
+      }
       return {
         companyId: o.companyId,
         companyCode: o.companyCode,
         name: o.name,
-        contact: o.contactId || '', // Just show the contactId
-        contactId: o.contactId || '',
+        contact: contactName || o.contactId || '',
+        contactId: contactId || o.contactId || '',
         city: o.city,
         state: o.state,
         zip: o.zip,
@@ -33,14 +42,23 @@ export class MappingService {
     });
   }
 
-  mapProperties(properties: PropertyResponse[]): PropertyListDisplay[] {
+  mapProperties(properties: PropertyResponse[], contacts?: ContactResponse[]): PropertyListDisplay[] {
     return properties.map<PropertyListDisplay>((o: PropertyResponse) => {
+      let ownerName = '';
+      let contactId = '';
+      if (o.contactId && contacts) {
+        const contact = contacts.find(c => c.contactId === o.contactId);
+        if (contact) {
+          ownerName = contact.firstName + ' ' + contact.lastName;
+          contactId = contact.contactId;
+        }
+      }
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
         name: o.name,
-        owner: o.contactId || '', // Just show the contactId
-        contactId: o.contactId || '',
+        owner: ownerName || o.contactId || '',
+        contactId: contactId || o.contactId || '',
         phone: this.formatPhoneNumber(o.phone),
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,

@@ -4,6 +4,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { PropertyResponse, PropertyListDisplay } from '../models/property.model';
 import { PropertyService } from '../services/property.service';
+import { ContactService } from '../../contact/services/contact.service';
+import { ContactResponse } from '../../contact/models/contact.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -40,6 +42,7 @@ export class PropertyListComponent implements OnInit {
   };
   private allProperties: PropertyListDisplay[] = [];
   propertiesDisplay: PropertyListDisplay[] = [];
+  private contacts: ContactResponse[] = [];
 
   constructor(
     public propertyService: PropertyService,
@@ -47,12 +50,26 @@ export class PropertyListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private contactService: ContactService) {
       this.itemsToLoad.push('properties');
   }
 
   ngOnInit(): void {
-    this.getProperties();
+    // Load contacts first
+    this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts;
+        // Contacts loaded, now get properties
+        this.getProperties();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property List Component - Error loading contacts:', err);
+        this.contacts = [];
+        // Still try to load properties even if contacts fail
+        this.getProperties();
+      }
+    });
   }
 
   toggleInactive(): void {
@@ -102,7 +119,7 @@ export class PropertyListComponent implements OnInit {
       finalize(() => { this.removeLoadItem('properties') })
     ).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapProperties(properties);
+        this.allProperties = this.mappingService.mapProperties(properties, this.contacts);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

@@ -4,6 +4,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { CompanyResponse, CompanyListDisplay } from '../models/company.model';
 import { CompanyService } from '../services/company.service';
+import { ContactService } from '../../contact/services/contact.service';
+import { ContactResponse } from '../../contact/models/contact.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -41,6 +43,7 @@ export class CompanyListComponent implements OnInit {
   };
   private allCompanies: CompanyListDisplay[] = [];
   companiesDisplay: CompanyListDisplay[] = [];
+  private contacts: ContactResponse[] = [];
 
   constructor(
     public companyService: CompanyService,
@@ -48,12 +51,26 @@ export class CompanyListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private contactService: ContactService) {
       this.itemsToLoad.push('companies');
   }
 
   ngOnInit(): void {
-    this.getCompanies();
+    // Load contacts first
+    this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts;
+        // Contacts loaded, now get companies
+        this.getCompanies();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Company List Component - Error loading contacts:', err);
+        this.contacts = [];
+        // Still try to load companies even if contacts fail
+        this.getCompanies();
+      }
+    });
   }
 
   toggleInactive(): void {
@@ -105,7 +122,7 @@ export class CompanyListComponent implements OnInit {
       finalize(() => { this.removeLoadItem('companies') })
     ).subscribe({
       next: (companies) => {
-        this.allCompanies = this.mappingService.mapCompanies(companies);
+        this.allCompanies = this.mappingService.mapCompanies(companies, this.contacts);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
