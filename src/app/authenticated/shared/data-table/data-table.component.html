@@ -1,6 +1,6 @@
-<div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap" *ngIf="dataSource.data.length > 1 || hasButtonTop">
+<div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap" *ngIf="hasFilter || hasToggleTop || hasButtonTop">
     @if (hasFilter) {
-        <mat-form-field id="datatable-search-field-{{templateTableId}}" [ngClass]="{'datatable-hidden' : dataSource.data.length < 2}"
+        <mat-form-field id="datatable-search-field-{{templateTableId}}"
         class="mobile-view-full datatable-search-field">
             <mat-label><mat-icon class="relative top-0.5">filter_list</mat-icon> Filter</mat-label>
             <input matInput (input)="applyFilter()" placeholder="Filter table by word or value..." #dataTableSearch autocomplete="off" id="datatable-search-input-{{templateTableId}}"
@@ -111,7 +111,29 @@
                                 {{item[column.name]}}
                             }
                         } @case ('email') {
-                            <a href="mailto:{{item[column.name]}}" id="table-email-link-{{templateTableId}}-{{i}}" class="text-blue-700">{{item[column.name]}}</a>
+                            <span (click)="onEmailClick($event, item)" 
+                                  class="text-blue-700 underline cursor-pointer" 
+                                  id="table-email-link-{{templateTableId}}-{{i}}">
+                                {{item[column.name]}}
+                            </span>
+                        } @case ('contactName') {
+                            <span (click)="onContactClick($event, item)" 
+                                  class="text-blue-700 underline cursor-pointer" 
+                                  id="table-contact-link-{{templateTableId}}-{{i}}">
+                                {{item[column.name]}}
+                            </span>
+                        } @case ('contact') {
+                            <span (click)="onContactClick($event, item)" 
+                                  class="text-blue-700 underline cursor-pointer" 
+                                  id="table-contact-link-{{templateTableId}}-{{i}}">
+                                {{item[column.name]}}
+                            </span>
+                        } @case ('owner') {
+                            <span (click)="onContactClick($event, item)" 
+                                  class="text-blue-700 underline cursor-pointer" 
+                                  id="table-owner-link-{{templateTableId}}-{{i}}">
+                                {{item[column.name]}}
+                            </span>
                         } @default {
                             @if (column.obfuscate) {
                                 <span>

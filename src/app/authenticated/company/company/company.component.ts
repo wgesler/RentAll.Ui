@@ -9,12 +9,16 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts, emptyGuid } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { CompanyResponse, CompanyListDisplay, CompanyRequest } from '../models/company.model';
+import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
+import { ContactType } from '../../contact/models/contact-type';
+import { ContactService } from '../../contact/services/contact.service';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { ExternalStorageService } from '../../../services/external-storage.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-company',
@@ -39,6 +43,7 @@ export class CompanyComponent implements OnInit {
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+  companyContacts: ContactListDisplay[] = [];
 
   constructor(
     public companyService: CompanyService,
@@ -48,13 +53,23 @@ export class CompanyComponent implements OnInit {
     private toastr: ToastrService,
     private externalStorageService: ExternalStorageService,
     private commonService: CommonService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private contactService: ContactService,
+    private mappingService: MappingService
   ) {
     this.itemsToLoad.push('company');
     this.loadStates();
   }
 
   ngOnInit(): void {
+    this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+      next: (response: ContactResponse[]) => {
+        this.companyContacts = this.mappingService.mapContacts(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Company Component - Error loading contacts:', err);
+      }
+    });
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.companyId = paramMap.get('id');
@@ -76,6 +91,7 @@ export class CompanyComponent implements OnInit {
     this.form = this.fb.group({
       companyCode: new FormControl('', [Validators.required]),
       name: new FormControl('', [Validators.required]),
+      contactId: new FormControl(null, [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
       city: new FormControl('', [Validators.required]),
@@ -84,7 +100,7 @@ export class CompanyComponent implements OnInit {
       phone: new FormControl('', [Validators.required]),
       website: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
-      isActive: new FormControl(1)
+      isActive: new FormControl(true) // Default to true (active)
     });
   }
 
@@ -170,6 +186,7 @@ export class CompanyComponent implements OnInit {
     const company: CompanyRequest = {
       companyId: this.companyId,
       companyCode: formValue.companyCode,
+      contactId: formValue.contactId,
       name: formValue.name,
       address1: formValue.address1,
       address2: formValue.address2 || undefined,
@@ -180,7 +197,7 @@ export class CompanyComponent implements OnInit {
       website: formValue.website || undefined,
       logoStorageId: this.logoStorageId || null,
       fileDetails: this.fileDetails || undefined,
-      isActive: formValue.isActive || 1
+      isActive: formValue.isActive
     };
 
     this.companyService.updateCompanyLogo(this.companyId, company).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
@@ -233,6 +250,7 @@ export class CompanyComponent implements OnInit {
     const companyRequest: CompanyRequest = {
       companyCode: formValue.companyCode,
       name: formValue.name,
+      contactId: formValue.contactId,
       address1: formValue.address1,
       address2: formValue.address2 || undefined,
       city: formValue.city,
@@ -242,7 +260,7 @@ export class CompanyComponent implements OnInit {
       website: formValue.website || undefined,
       logoStorageId: this.logoStorageId || null,
       fileDetails: this.fileDetails || undefined,
-      isActive: formValue.isActive || 1
+      isActive: formValue.isActive 
     };
 
     if (this.isAddMode) {
@@ -252,7 +270,7 @@ export class CompanyComponent implements OnInit {
       ).subscribe({
         next: (response: CompanyResponse) => {
           this.toastr.success('Company created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, [response.companyId]));
+          this.router.navigateByUrl(RouterUrl.CompanyList);
         },
         error: (err: HttpErrorResponse) => {
           this.isLoadError = true;
@@ -269,7 +287,7 @@ export class CompanyComponent implements OnInit {
       ).subscribe({
         next: (response: CompanyResponse) => {
           this.toastr.success('Company updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.company = response;
+          this.router.navigateByUrl(RouterUrl.CompanyList);
         },
         error: (err: HttpErrorResponse) => {
           this.isLoadError = true;
@@ -288,7 +306,10 @@ export class CompanyComponent implements OnInit {
         this.company = response;
         this.getStoragePublicUrl(this.company.logoStorageId);
         this.buildForm();
-        this.populateForm();
+        // Defer form population to next change detection cycle to avoid ExpressionChangedAfterItHasBeenCheckedError
+        setTimeout(() => {
+          this.populateForm();
+        }, 0);
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -304,6 +325,7 @@ export class CompanyComponent implements OnInit {
       this.form.patchValue({
         companyCode: this.company.companyCode,
         name: this.company.name,
+        contactId: this.company.contactId || null,
         address1: this.company.address1,
         address2: this.company.address2 || '',
         city: this.company.city,
@@ -311,7 +333,7 @@ export class CompanyComponent implements OnInit {
         zip: this.company.zip,
         phone: this.formatterService.phoneNumber(this.company.phone),
         website: this.company.website || '',
-        isActive: this.company.isActive
+        isActive: this.company.isActive // Convert number to boolean for checkbox
       });
     }
   }
@@ -320,7 +342,6 @@ export class CompanyComponent implements OnInit {
     // First check if states are already cached
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
-      console.log('Company Component - Using cached states:', cachedStates);
       this.states = [...cachedStates]; // Create a new array reference to trigger change detection
       return;
     }
@@ -331,7 +352,6 @@ export class CompanyComponent implements OnInit {
       take(1)
     ).subscribe({
       next: (states) => {
-        console.log('Company Component - States loaded from observable:', states);
         this.states = [...states]; // Create a new array reference to trigger change detection
       },
       error: (err) => {
@@ -339,5 +359,6 @@ export class CompanyComponent implements OnInit {
       }
     });
   }
+
 }
 

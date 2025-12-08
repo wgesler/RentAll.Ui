@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core';
 import { CompanyResponse, CompanyListDisplay } from '../authenticated/company/models/company.model';
+import { PropertyResponse, PropertyListDisplay } from '../authenticated/property/models/property.model';
+import { ContactResponse, ContactListDisplay } from '../authenticated/contact/models/contact.model';
+import { ContactType } from '../authenticated/contact/models/contact-type';
+import { UserResponse, UserListDisplay } from '../authenticated/user/models/user.model';
+import { UserGroups } from '../authenticated/user/models/user-type';
 import { FormatterService } from './formatter-service';
 
 @Injectable({
@@ -10,17 +15,95 @@ export class MappingService {
   constructor(private formatter: FormatterService) { }
   
   mapCompanies(companies: CompanyResponse[]): CompanyListDisplay[] {
-    return companies.map<CompanyListDisplay>((o: CompanyResponse) => ({
-      companyId: o.companyId,
-      companyCode: o.companyCode,
-      name: o.name,
-      city: o.city,
-      state: o.state,
-      zip: o.zip,
+    return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
+      return {
+        companyId: o.companyId,
+        companyCode: o.companyCode,
+        name: o.name,
+        contact: o.contactId || '', // Just show the contactId
+        contactId: o.contactId || '',
+        city: o.city,
+        state: o.state,
+        zip: o.zip,
+        phone: this.formatPhoneNumber(o.phone),
+        website: o.website,
+        logoStorageId: o.logoStorageId,
+        isActive: o.isActive,
+      };
+    });
+  }
+
+  mapProperties(properties: PropertyResponse[]): PropertyListDisplay[] {
+    return properties.map<PropertyListDisplay>((o: PropertyResponse) => {
+      return {
+        propertyId: o.propertyId,
+        propertyCode: o.propertyCode,
+        name: o.name,
+        owner: o.contactId || '', // Just show the contactId
+        contactId: o.contactId || '',
+        phone: this.formatPhoneNumber(o.phone),
+        bedrooms: o.bedrooms,
+        bathrooms: o.bathrooms,
+        squareFeet: o.squareFeet,
+        isActive: o.isActive, 
+      };
+    });
+  }
+
+  mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
+    return contacts.map<ContactListDisplay>((o: ContactResponse) => ({
+      contactId: o.contactId,
+      contactCode: o.contactCode,
+      fullName: o.firstName + ' ' + o.lastName,
+      contactType: this.formatContactType(o.contactTypeId),
       phone: this.formatPhoneNumber(o.phone),
-      website: o.website,
-      logoStorageId: o.logoStorageId,
+      email: o.email,
+      isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
     }));
+  }
+
+  formatContactType(contactTypeId?: number): string {
+    if (contactTypeId === undefined || contactTypeId === null) {
+      return 'Unknown';
+    }
+    const typeLabels: { [key: number]: string } = {
+      [ContactType.Unknown]: 'Unknown',
+      [ContactType.Company]: 'Company',
+      [ContactType.Owner]: 'Owner',
+      [ContactType.Tenant]: 'Tenant',
+      [ContactType.Rentor]: 'Rentor',
+      [ContactType.Rentee]: 'Rentee'
+    };
+    return typeLabels[contactTypeId] || 'Unknown';
+  }
+
+  mapUsers(users: UserResponse[]): UserListDisplay[] {
+    return users.map<UserListDisplay>((o: UserResponse) => {
+      const userGroups = o.userGroups || [];
+      return {
+        userId: o.userId,
+        firstName: o.firstName,
+        lastName: o.lastName,
+        fullName: o.firstName + ' ' + o.lastName,
+        email: o.email,
+        userGroups: userGroups,
+        userGroupsDisplay: this.formatUserGroups(userGroups),
+        isActive: o.isActive
+      };
+    });
+  }
+
+  formatUserGroups(userGroups: string[]): string {
+    if (!userGroups || userGroups.length === 0) {
+      return '';
+    }
+    const groupLabels: { [key: string]: string } = {
+      'SuperAdmin': 'Super Admin',
+      'Admin': 'Admin',
+      'User': 'User',
+      'Unknown': 'Unknown'
+    };
+    return userGroups.map(g => groupLabels[g] || g).join(', ');
   }
 
   formatPhoneNumber(phone?: string): string {

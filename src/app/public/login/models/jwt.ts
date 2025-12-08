@@ -14,7 +14,7 @@ export class JwtContainer {
             user.FirstName || user.firstName || '',
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
-            user.Role || user.role || ''
+            user.UserGroups || user.userGroups || []
         );
     }
 }
@@ -24,7 +24,7 @@ export class JwtUser {
     firstName: string;
     lastName: string;
     email: string;
-    role: string;
+    userGroups: string[];
 
 
     constructor(
@@ -32,12 +32,12 @@ export class JwtUser {
         firstName: string,
         lastName: string,
         email: string,
-        role: string,
+        userGroups: string[]
     ) {
         this.userGuid = userGuid;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
-        this.role = role;
+        this.userGroups = userGroups;
     }
 }

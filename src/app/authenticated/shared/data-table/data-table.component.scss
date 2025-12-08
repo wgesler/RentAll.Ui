@@ -42,8 +42,15 @@ img {
     border: 2px solid #B4CFF9;
 }
 
+.datatable-search-wrap {
+    min-height: 64px;
+    height: auto;
+    overflow: visible;
+}
+
 .datatable-search-field {
     min-width: 20em !important;
+    width: auto;
 }
 
 .datatable-add-btn {

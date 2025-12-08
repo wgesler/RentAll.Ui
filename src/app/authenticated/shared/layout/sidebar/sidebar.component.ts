@@ -28,7 +28,7 @@ export class SidebarComponent {
     );
   navItems = [
     {
-      icon: 'home',
+      icon: 'attach_money',
       displayName: 'Rentals',
       url: RouterToken.RentalList,
     },
@@ -43,9 +43,14 @@ export class SidebarComponent {
       url: RouterToken.ContactList,
     },
     {
-      icon: 'people',
-      displayName: 'Tenants',
+      icon: 'home',
+      displayName: 'Properties',
       url: RouterToken.TenantList,
+    },
+    {
+      icon: 'person',
+      displayName: 'Users',
+      url: RouterToken.UserList,
     },
   ];
 

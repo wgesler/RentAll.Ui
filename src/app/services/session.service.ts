@@ -57,8 +57,11 @@ export class SessionService {
   }
 
   getSessionUserRoles(): string[] {
-    const groups = this.sessionData$.value?.data?.find(data => data.name === 'UserGroups')?.value as string[];
-    return groups;
+    const jwtUser = this.authService.getUser();
+    if (jwtUser && jwtUser.userGroups) {
+       return jwtUser.userGroups;
+    }
+    return [];
   }
 
   sessionLogout(): void {

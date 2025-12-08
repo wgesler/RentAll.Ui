@@ -112,10 +112,6 @@ export class AuthService {
                 return;
             }
 
-            // Debug: Log the decoded token structure
-            console.log('Decoded JWT token:', tokenEnc);
-            console.log('Token keys:', Object.keys(tokenEnc));
-
             const token = tokenEnc as any;
             
             // Check if token has the expected structure
@@ -147,8 +143,6 @@ export class AuthService {
                 console.error('Failed to parse user object from JWT');
                 return;
             }
-
-            console.log('Parsed user object:', jwtUserObj);
 
             const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);
 

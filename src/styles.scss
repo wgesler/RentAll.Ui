@@ -230,3 +230,17 @@ mat-form-field input,
     max-width: 50% !important;
   }
 }
+
+// Make required asterisk red in all forms
+::ng-deep .mat-mdc-form-field-required-marker,
+::ng-deep .mat-form-field-required-marker {
+  color: red !important;
+}
+
+// Also target the asterisk in mat-label
+::ng-deep mat-label .mat-mdc-form-field-required-marker,
+::ng-deep mat-label .mat-form-field-required-marker,
+::ng-deep .mat-mdc-form-field-label .mat-mdc-form-field-required-marker,
+::ng-deep .mat-form-field-label .mat-form-field-required-marker {
+  color: red !important;
+}

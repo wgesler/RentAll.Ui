@@ -1,13 +1,11 @@
-@if (!isServiceError && !itemsToLoad.includes('company')) {
-
-  
+@if (!isServiceError && !itemsToLoad.includes('property')) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">business</mat-icon>
+          <mat-icon class="flex-shrink-0">home</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Company' : 'Edit Company' }}
+            {{ isAddMode ? 'Add Property' : 'Edit Property' }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -16,7 +14,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCompany()"
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -25,7 +23,7 @@
       </div>
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveCompany()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
@@ -42,22 +40,22 @@
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Contact</mat-label>
-                  <mat-select formControlName="contactId" required>
-                    <mat-option [value]="null">Select Contact</mat-option>
-                    @for (contact of companyContacts; track contact.contactId) {
+                  <mat-label>Owner</mat-label>
+                  <mat-select formControlName="contactId">
+                    <mat-option value="">Select Owner</mat-option>
+                    @for (contact of contacts; track contact.contactId) {
                       <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
                     }
                   </mat-select>
-                  @if (form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
-                    <mat-error>Contact is required</mat-error>
+                  @if (isAddMode && form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
+                    <mat-error>Owner is required</mat-error>
                   }
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
                   <mat-label>Code</mat-label>
-                  <input matInput formControlName="companyCode" required>
-                  @if (form.get('companyCode')?.hasError('required') && form.get('companyCode')?.touched) {
+                  <input matInput formControlName="propertyCode" [required]="isAddMode">
+                  @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
                     <mat-error>Code is required</mat-error>
                   }
                 </mat-form-field>
@@ -105,8 +103,6 @@
                 }
               </mat-form-field>
 
-              <div class="col-span-1"></div>
-
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Phone</mat-label>
                 <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
@@ -115,44 +111,65 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Website</mat-label>
-                <input matInput formControlName="website" type="url">
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Bedrooms</mat-label>
+                <input matInput type="number" formControlName="bedrooms" required>
+                @if (form.get('bedrooms')?.hasError('required') && form.get('bedrooms')?.touched) {
+                  <mat-error>Bedrooms is required</mat-error>
+                }
               </mat-form-field>
-            </div>
 
-            <mat-divider class="my-5"/>
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Bathrooms</mat-label>
+                <input matInput type="number" step="0.5" formControlName="bathrooms" required>
+                @if (form.get('bathrooms')?.hasError('required') && form.get('bathrooms')?.touched) {
+                  <mat-error>Bathrooms is required</mat-error>
+                }
+              </mat-form-field>
 
-            <h3 class="pt-3">Company Logo</h3>
-            <div class="flex justify-start image-input items-center mb-4">
-              <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                Choose Image
-              </button>
-              @if (fileName) {
-                <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ 'data:image/*;base64,' + fileDetails.file }}" />
-                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
-                    <mat-icon>close</mat-icon>
-                  </button>
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Square Feet</mat-label>
+                <input matInput type="number" formControlName="squareFeet" required>
+                @if (form.get('squareFeet')?.hasError('required') && form.get('squareFeet')?.touched) {
+                  <mat-error>Square Feet is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Parking Spaces</mat-label>
+                <input matInput type="number" formControlName="parkingSpaces" required>
+                @if (form.get('parkingSpaces')?.hasError('required') && form.get('parkingSpaces')?.touched) {
+                  <mat-error>Parking Spaces is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Amenities</mat-label>
+                <textarea matInput formControlName="amenities" rows="3"></textarea>
+              </mat-form-field>
+
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Features</label>
+                  <div class="grid grid-cols-4 gap-4 items-center features-content">
+                    <mat-checkbox formControlName="gated">Gated</mat-checkbox>
+                    <mat-checkbox formControlName="washerDryer">Washer/Dryer</mat-checkbox>
+                    <mat-checkbox formControlName="pool">Pool</mat-checkbox>
+                    <mat-checkbox formControlName="hotTub">Hot Tub</mat-checkbox>
+                    <mat-checkbox formControlName="yard">Yard</mat-checkbox>
+                    <div class="flex items-center gap-4 col-span-2">
+                      <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
+                      @if (form.get('alarm')?.value) {
+                        <mat-form-field appearance="outline" class="alarm-code-field">
+                          <mat-label>Code</mat-label>
+                          <input matInput formControlName="alarmCode" maxlength="6">
+                        </mat-form-field>
+                      }
+                    </div>
+                  </div>
                 </div>
-                <span class="text-sm font-semibold ml-2">{{ fileName }}</span>
-              }
-              @if (logoImgUrl && !fileName) {
-                <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ logoImgUrl }}" />
-                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
-                    <mat-icon>close</mat-icon>
-                  </button>
-                </div>
-              }
-              <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
-            </div>
-            @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
-              <div class="image-file-error mb-4">
-                Only a jpg, gif, or png image type with a file size less than 2MB are valid.
               </div>
-            }
-            <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+            </div>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center">

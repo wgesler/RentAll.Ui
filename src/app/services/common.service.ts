@@ -53,7 +53,6 @@ export class CommonService {
   loadDailyQuote(): void {
     this.http.get<DailyQuote>(this.controller + 'daily-quote').pipe(take(1)).subscribe({
       next: (response) => {
-        console.log('Daily Quote Response:', response);
         this.dailyQuote$.next(response);
       },
       error: (err: HttpErrorResponse) => {
@@ -68,13 +67,11 @@ export class CommonService {
   loadStates(): void {
     this.http.get<StateResponse[]>(this.controller + 'state').pipe(take(1)).subscribe({
       next: (response) => {
-        console.log('States Response:', response);
         const states = response || [];
         // Save the entire structure
         this.states$.next(states);
         // Cache just the code values as string[]
         const stateCodes = states.map(state => state.code).filter(code => code && code !== '');
-        console.log('State codes extracted:', stateCodes);
         this.validStates$.next(stateCodes);
       },
       error: (err: HttpErrorResponse) => {

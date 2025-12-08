@@ -1,12 +1,12 @@
-@if (!itemsToLoad.includes('companies')) {
+@if (!itemsToLoad.includes('properties')) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center bg-slate-200 rounded-t-lg px-8 py-4">
         <div class="flex items-center">
-          <mat-icon mat-list-icon class="mr-5">business</mat-icon>
-          <h2 class="m-0">Companies</h2>
+          <mat-icon mat-list-icon class="mr-5">home</mat-icon>
+          <h2 class="m-0">Properties</h2>
         </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addCompany()" class="scale-90 text-nowrap">
+        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addProperty()" class="scale-90 text-nowrap">
           <mat-icon>add</mat-icon>
           Add
         </button>
@@ -15,8 +15,8 @@
         <div class="mat">
           <div class="tableDiv">
             <app-data-table
-              [data]="companiesDisplay"
-              [columns]="companiesDisplayedColumns"
+              [data]="propertiesDisplay"
+              [columns]="propertiesDisplayedColumns"
               [hasColumnIndex]="false"
               [hasFilter]="true"
               [hasToggleTop]="true"
@@ -26,9 +26,9 @@
               [itemsPerPage]="100"
               buttonToggleTextTop="Inactive"
               (topToggleButtonEvent)="toggleInactive()"
-              (editEvent)="goToCompany($event)"
-              (rowClickEvent)="goToCompany($event)"
-              (deleteEvent)="deleteCompany($event)"
+              (editEvent)="goToProperty($event)"
+              (rowClickEvent)="goToProperty($event)"
+              (deleteEvent)="deleteProperty($event)"
               (contactClickEvent)="goToContact($event)"/>
           </div>
         </div>

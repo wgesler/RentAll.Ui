@@ -4,6 +4,7 @@ import { RouterOutlet } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
+import { ContactService } from './authenticated/contact/services/contact.service';
 import { Observable } from 'rxjs';
 import { MatIconModule } from '@angular/material/icon'; 
 import { MatButtonModule } from '@angular/material/button';
@@ -23,12 +24,14 @@ export class AppComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private commonService: CommonService
+    private commonService: CommonService,
+    private contactService: ContactService
   ) { }
 
   ngOnInit(): void {
     // Load anonymous data on app startup
     this.commonService.loadDailyQuote();
     this.commonService.loadStates();
+    this.contactService.loadAllContacts();
   }
 }

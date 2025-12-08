@@ -1,47 +1,3 @@
-.no-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;;
-  width:200px;
-  height: 150px;
-  text-align: center;
-  border:1px solid #ccc;
-  background-color:#f1f1f1
-}
-
-.image-file-error {
-  color: red;
-  margin-top:5px;
-}
-.image-input{
-  font-size: 10px;
-}
-
-.myfilebrowser button {
-  min-width: auto;
-}
-
-.myfilebrowser {
-  min-width: auto;
-  float: right;
-  color: white;
-}
-
-#fileUpload {
-  display: none;
-}
-.fileUpload {
-  display: none;
-  font-size: 14px;
-  font-weight: 700;
-  color: rgb(0 0 0);
-  margin-left: 10px;
-
-  &:focus-visible {
-    border: none !important;
-  }
-}
-
 // Reduce font size in form fields
 ::ng-deep .mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
@@ -97,5 +53,9 @@
     min-height: 48px !important; // Moderate infix height
     padding: 10px 0 !important; // Moderate vertical padding
   }
+}
+
+mat-chip {
+  cursor: default;
 }
 
