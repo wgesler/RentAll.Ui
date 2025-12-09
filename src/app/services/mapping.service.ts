@@ -53,10 +53,12 @@ export class MappingService {
           contactId = contact.contactId;
         }
       }
+      // Use address1 as name since API doesn't have a name field
+      const propertyName = o.address1 || o.propertyCode || '';
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
-        name: o.name,
+        name: propertyName,
         owner: ownerName || o.contactId || '',
         contactId: contactId || o.contactId || '',
         phone: this.formatPhoneNumber(o.phone),

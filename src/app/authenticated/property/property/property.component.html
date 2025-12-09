@@ -1,13 +1,13 @@
 @if (!isServiceError && !itemsToLoad.includes('property')) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">home</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Property' : 'Edit Property' }}
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">home</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add Property' : 'Edit Property' }}{{ form?.get('propertyCode')?.value ? ': ' + form.get('propertyCode').value : '' }}
+            </span>
           </span>
-        </span>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
             class="scale-90 text-nowrap flex-shrink-0">
@@ -15,7 +15,7 @@
             Back
           </button>
           <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || !form.valid">
             <mat-icon>save</mat-icon>
             Save
           </button>
@@ -24,151 +24,322 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
             </div>
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex items-center gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Name</mat-label>
-                  <input matInput formControlName="name" required>
-                  @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
-                    <mat-error>Name is required</mat-error>
-                  }
-                </mat-form-field>
 
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Owner</mat-label>
-                  <mat-select formControlName="contactId">
-                    <mat-option value="">Select Owner</mat-option>
-                    @for (contact of contacts; track contact.contactId) {
-                      <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
+            <!-- Availability Section -->
+            <div class="features-container mb-4">
+              <label class="features-label">Availability</label>
+              <div class="features-row spread availability-row">
+                <mat-form-field appearance="outline" class="compact-date">
+                  <mat-label>Available-From</mat-label>
+                  <button mat-icon-button matPrefix type="button" (click)="availableFromPicker.open()">
+                    <mat-icon>calendar_today</mat-icon>
+                  </button>
+                  <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
+                  <mat-datepicker #availableFromPicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="compact-date">
+                  <mat-label>Available-Until</mat-label>
+                  <button mat-icon-button matPrefix type="button" (click)="availableUntilPicker.open()">
+                    <mat-icon>calendar_today</mat-icon>
+                  </button>
+                  <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
+                  <mat-datepicker #availableUntilPicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="compact-field">
+                  <mat-label>Min-Stay (Days)</mat-label>
+                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="compact-field">
+                  <mat-label>Max-Stay (Days)</mat-label>
+                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="compact-select">
+                  <mat-label>Check-In</mat-label>
+                  <mat-select formControlName="checkInTime">
+                    <mat-option value="">Select</mat-option>
+                    @for (option of checkInOptions; track option) {
+                      <mat-option [value]="option">{{ option }}</mat-option>
                     }
                   </mat-select>
-                  @if (isAddMode && form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
-                    <mat-error>Owner is required</mat-error>
-                  }
                 </mat-form-field>
-
-                <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
-                  <mat-label>Code</mat-label>
-                  <input matInput formControlName="propertyCode" [required]="isAddMode">
-                  @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
-                    <mat-error>Code is required</mat-error>
-                  }
+                <mat-form-field appearance="outline" class="compact-select">
+                  <mat-label>Check-Out</mat-label>
+                  <mat-select formControlName="checkOutTime">
+                    <mat-option value="">Select</mat-option>
+                    @for (option of checkOutOptions; track option) {
+                      <mat-option [value]="option">{{ option }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                
+                <mat-form-field appearance="outline" class="compact-field">
+                  <mat-label>Monthly Rate</mat-label>
+                  <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="compact-field">
+                  <mat-label>Daily Rate</mat-label>
+                  <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="wide-select">
+                  <mat-label>Property Style</mat-label>
+                  <mat-select formControlName="propertyStyle">
+                    @for (style of propertyStyles; track style.value) {
+                      <mat-option [value]="style.value">{{ style.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="wide-select">
+                  <mat-label>Property Type</mat-label>
+                  <mat-select formControlName="propertyType">
+                    @for (type of propertyTypes; track type.value) {
+                      <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="status-compact">
+                  <mat-label>Property Status</mat-label>
+                  <mat-select formControlName="propertyStatus">
+                    @for (status of propertyStatuses; track status.value) {
+                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
               </div>
+              <div class="features-row spread availability-row">
+                <mat-form-field appearance="outline" class="equal-field">
+                  <mat-label>Bedrooms</mat-label>
+                  <input matInput type="number" formControlName="bedrooms" required>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="equal-field">
+                  <mat-label>Bathrooms</mat-label>
+                  <input matInput type="number" step="0.5" formControlName="bathrooms" required>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="equal-field">
+                  <mat-label>Accommodates</mat-label>
+                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" formControlName="accomodates">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="equal-field">
+                  <mat-label>Square Feet</mat-label>
+                  <input matInput type="number" formControlName="squareFeet" required>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="equal-field">
+                  <mat-label>Bed Sizes</mat-label>
+                  <input matInput formControlName="bedSizes">
+                </mat-form-field>
+              </div>
+            </div>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Address 1</mat-label>
-                <input matInput formControlName="address1" required>
-                @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
-                  <mat-error>Address 1 is required</mat-error>
-                }
-              </mat-form-field>
+            <!-- Address Section -->
+            <div class="features-container mb-4">
+              <label class="features-label">Address</label>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                <!-- Top line: Address1, Address2, Suite -->
+                <div class="col-span-4 flex items-center gap-x-1.5">
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Address 1</mat-label>
+                    <input matInput formControlName="address1" required>
+                    @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                      <mat-error>Address 1 is required</mat-error>
+                    }
+                  </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Address 2</mat-label>
-                <input matInput formControlName="address2">
-              </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Address 2</mat-label>
+                    <input matInput formControlName="address2">
+                  </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>City</mat-label>
-                <input matInput formControlName="city" required>
-                @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
-                  <mat-error>City is required</mat-error>
-                }
-              </mat-form-field>
+                  <mat-form-field appearance="outline" style="width: 15ch; min-width: 15ch; flex-shrink: 0;">
+                    <mat-label>Suite</mat-label>
+                    <input matInput formControlName="suite">
+                  </mat-form-field>
+                </div>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>State</mat-label>
-                <mat-select formControlName="state" required>
-                  <mat-option value="">Select State</mat-option>
-                  @for (state of states; track state) {
-                    <mat-option [value]="state">{{ state }}</mat-option>
+                <!-- Next line: City, State, Zip -->
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>City</mat-label>
+                  <input matInput formControlName="city" required>
+                  @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                    <mat-error>City is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
-                  <mat-error>State is required</mat-error>
-                }
-              </mat-form-field>
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Zip Code</mat-label>
-                <input matInput formControlName="zip" required>
-                @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
-                  <mat-error>Zip Code is required</mat-error>
-                }
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>State</mat-label>
+                  <mat-select formControlName="state" required>
+                    <mat-option value="">Select State</mat-option>
+                    @for (state of states; track state) {
+                      <mat-option [value]="state">{{ state }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                    <mat-error>State is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
-                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                  <mat-error>Phone is required</mat-error>
-                }
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Zip Code</mat-label>
+                  <input matInput formControlName="zip" required>
+                  @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                    <mat-error>Zip Code is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Bedrooms</mat-label>
-                <input matInput type="number" formControlName="bedrooms" required>
-                @if (form.get('bedrooms')?.hasError('required') && form.get('bedrooms')?.touched) {
-                  <mat-error>Bedrooms is required</mat-error>
-                }
-              </mat-form-field>
+                <!-- Next line: Neighborhood, Cross Street, View, Mailbox -->
+                <div class="col-span-4 grid grid-cols-4 gap-x-1.5">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Neighborhood</mat-label>
+                    <input matInput formControlName="neighborhood">
+                  </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Bathrooms</mat-label>
-                <input matInput type="number" step="0.5" formControlName="bathrooms" required>
-                @if (form.get('bathrooms')?.hasError('required') && form.get('bathrooms')?.touched) {
-                  <mat-error>Bathrooms is required</mat-error>
-                }
-              </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Cross Street</mat-label>
+                    <input matInput formControlName="crossStreet">
+                  </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Square Feet</mat-label>
-                <input matInput type="number" formControlName="squareFeet" required>
-                @if (form.get('squareFeet')?.hasError('required') && form.get('squareFeet')?.touched) {
-                  <mat-error>Square Feet is required</mat-error>
-                }
-              </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>View</mat-label>
+                    <input matInput formControlName="view">
+                  </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Parking Spaces</mat-label>
-                <input matInput type="number" formControlName="parkingSpaces" required>
-                @if (form.get('parkingSpaces')?.hasError('required') && form.get('parkingSpaces')?.touched) {
-                  <mat-error>Parking Spaces is required</mat-error>
-                }
-              </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Mailbox</mat-label>
+                    <input matInput formControlName="mailbox">
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
 
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Amenities</mat-label>
-                <textarea matInput formControlName="amenities" rows="3"></textarea>
-              </mat-form-field>
-
+            <!-- Features & Security Section -->
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mb-4">
               <div class="col-span-4">
                 <div class="features-container">
-                  <label class="features-label">Features</label>
-                  <div class="grid grid-cols-4 gap-4 items-center features-content">
+                  <label class="features-label">Features & Security</label>
+                  <div class="grid grid-cols-4 gap-4 items-start features-content">
+                    <mat-checkbox formControlName="furnished">Furnished</mat-checkbox>
+                    <mat-checkbox formControlName="heating">Heating</mat-checkbox>
+                    <mat-checkbox formControlName="ac">AC</mat-checkbox>
+                    <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
+                    <mat-checkbox formControlName="security">Security</mat-checkbox>
                     <mat-checkbox formControlName="gated">Gated</mat-checkbox>
-                    <mat-checkbox formControlName="washerDryer">Washer/Dryer</mat-checkbox>
-                    <mat-checkbox formControlName="pool">Pool</mat-checkbox>
-                    <mat-checkbox formControlName="hotTub">Hot Tub</mat-checkbox>
-                    <mat-checkbox formControlName="yard">Yard</mat-checkbox>
-                    <div class="flex items-center gap-4 col-span-2">
+                    <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
+                    <mat-checkbox formControlName="smoking">Smoking</mat-checkbox>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 items-start features-content mt-4">
+                    <div class="flex items-center gap-3">
+                      <mat-checkbox formControlName="assignedParking">Assigned Parking</mat-checkbox>
+                      <mat-form-field appearance="outline" class="flex-1" style="min-width: 0;">
+                        <mat-label>Notes</mat-label>
+                        <input matInput formControlName="notes">
+                      </mat-form-field>
+                    </div>
+                    <div class="flex items-center gap-3">
                       <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
-                      @if (form.get('alarm')?.value) {
-                        <mat-form-field appearance="outline" class="alarm-code-field">
-                          <mat-label>Code</mat-label>
-                          <input matInput formControlName="alarmCode" maxlength="6">
-                        </mat-form-field>
-                      }
+                      <mat-form-field appearance="outline" class="alarm-code-field flex-1" style="min-width: 0;">
+                        <mat-label>Code</mat-label>
+                        <input matInput formControlName="alarmCode" maxlength="6">
+                      </mat-form-field>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <mat-checkbox formControlName="remoteAccess">Remote Access</mat-checkbox>
+                      <mat-form-field appearance="outline" class="alarm-code-field flex-1" style="min-width: 0;">
+                        <mat-label>Key Code</mat-label>
+                        <input matInput formControlName="keyCode" maxlength="10">
+                      </mat-form-field>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Kitchen Section -->
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 mb-4">
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Kitchen & Bath</label>
+                  <div class="grid grid-cols-4 gap-4 items-center features-content">
+                    <mat-checkbox formControlName="kitchen">Kitchen</mat-checkbox>
+                    <mat-checkbox formControlName="oven">Oven</mat-checkbox>
+                    <mat-checkbox formControlName="refrigerator">Refrigerator</mat-checkbox>
+                    <mat-checkbox formControlName="microwave">Microwave</mat-checkbox>
+                    <mat-checkbox formControlName="dishwasher">Dishwasher</mat-checkbox>
+                    <mat-checkbox formControlName="bathtub">Bathtub</mat-checkbox>
+                    <mat-checkbox formControlName="washerDryer">Washer/Dryer</mat-checkbox>
+                    <mat-checkbox formControlName="sofabeds">Sofabeds</mat-checkbox>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Electronics</label>
+                  <div class="grid grid-cols-4 gap-4 items-center features-content">
+                    <mat-checkbox formControlName="tv">TV</mat-checkbox>
+                    <mat-checkbox formControlName="cable">Cable</mat-checkbox>
+                    <mat-checkbox formControlName="dvd">DVD</mat-checkbox>
+                    <mat-checkbox formControlName="fastInternet">Fast Internet</mat-checkbox>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Outdoor Spaces</label>
+                  <div class="grid grid-cols-4 gap-4 items-center features-content">
+                    <mat-checkbox formControlName="deck">Deck</mat-checkbox>
+                    <mat-checkbox formControlName="patio">Patio</mat-checkbox>
+                    <mat-checkbox formControlName="yard">Yard</mat-checkbox>
+                    <mat-checkbox formControlName="garden">Garden</mat-checkbox>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Pool & Spa</label>
+                  <div class="grid grid-cols-5 gap-4 items-center features-content">
+                    <mat-checkbox formControlName="commonPool">Common Pool</mat-checkbox>
+                    <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
+                    <mat-checkbox formControlName="jacuzzi">Jacuzzi</mat-checkbox>
+                    <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
+                    <mat-checkbox formControlName="gym">Gym</mat-checkbox>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-4">
+                <div class="features-container">
+                  <label class="features-label">Trash</label>
+                  <div class="grid grid-cols-4 gap-x-1.5 items-center features-content">
+                    <mat-form-field appearance="outline" class="col-span-1">
+                      <mat-label>Pickup</mat-label>
+                      <mat-select formControlName="trashPickupId">
+                        <mat-option value="">Select Day</mat-option>
+                        @for (day of trashDays; track day.value) {
+                          <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-3">
+                      <mat-label>Removal</mat-label>
+                      <input matInput formControlName="trashRemoval">
+                    </mat-form-field>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Additional Amenities Section -->
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mb-4">
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Additional Amenities</mat-label>
+                <textarea matInput formControlName="amenities" rows="3"></textarea>
+              </mat-form-field>
             </div>
 
             @if (isSubmitting) {
@@ -177,7 +348,7 @@
                 <span>Saving...</span>
               </div>
             }
-          </form>
+        </form>
       </mat-card>
     </section>
   </div>
