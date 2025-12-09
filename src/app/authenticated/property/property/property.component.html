@@ -1,7 +1,7 @@
 @if (!isServiceError && !itemsToLoad.includes('property')) {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
           <span class="flex flex-column items-center gap-3 py-4">
             <mat-icon class="flex-shrink-0">home</mat-icon>
             <span class="flex-shrink-0 text-xl font-medium">
@@ -51,10 +51,14 @@
               </mat-checkbox>
             </div>
 
+            <mat-accordion multi="true">
             <!-- Availability Section -->
-            <div class="features-container mb-4">
-              <label class="features-label">Availability</label>
-              <div class="features-row spread availability-row">
+            <mat-expansion-panel [expanded]="expandedSections.availability" (opened)="onPanelOpened('availability')" (closed)="onPanelClosed('availability')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Availability</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="features-container">
+                <div class="features-row spread availability-row">
                 <mat-form-field appearance="outline" class="compact-date">
                   <mat-label>Available-From</mat-label>
                   <button mat-icon-button matPrefix type="button" (click)="availableFromPicker.open()">
@@ -153,11 +157,15 @@
                   <input matInput formControlName="bedSizes">
                 </mat-form-field>
               </div>
-            </div>
+              </div>
+            </mat-expansion-panel>
 
             <!-- Address Section -->
-            <div class="features-container mb-4">
-              <label class="features-label">Address</label>
+            <mat-expansion-panel [expanded]="expandedSections.address" (opened)="onPanelOpened('address')" (closed)="onPanelClosed('address')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Address</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="features-container">
               <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
                 <!-- Top line: Address1, Address2, Suite -->
                 <div class="col-span-4 flex items-center gap-x-1.5">
@@ -233,13 +241,17 @@
                   </mat-form-field>
                 </div>
               </div>
-            </div>
+              </div>
+            </mat-expansion-panel>
 
             <!-- Features & Security Section -->
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mb-4">
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Features & Security</label>
+            <mat-expansion-panel [expanded]="expandedSections.features" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Features & Security</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                <div class="col-span-4">
+                  <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-start features-content">
                     <mat-checkbox formControlName="furnished">Furnished</mat-checkbox>
                     <mat-checkbox formControlName="heating">Heating</mat-checkbox>
@@ -273,15 +285,19 @@
                       </mat-form-field>
                     </div>
                   </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </mat-expansion-panel>
 
             <!-- Kitchen Section -->
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 mb-4">
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Kitchen & Bath</label>
+            <mat-expansion-panel [expanded]="expandedSections.kitchen" (opened)="onPanelOpened('kitchen')" (closed)="onPanelClosed('kitchen')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Kitchen & Bath</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                <div class="col-span-4">
+                  <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-center features-content">
                     <mat-checkbox formControlName="kitchen">Kitchen</mat-checkbox>
                     <mat-checkbox formControlName="oven">Oven</mat-checkbox>
@@ -292,36 +308,57 @@
                     <mat-checkbox formControlName="washerDryer">Washer/Dryer</mat-checkbox>
                     <mat-checkbox formControlName="sofabeds">Sofabeds</mat-checkbox>
                   </div>
-                </div>
-              </div>
-
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Electronics</label>
-                  <div class="grid grid-cols-4 gap-4 items-center features-content">
-                    <mat-checkbox formControlName="tv">TV</mat-checkbox>
-                    <mat-checkbox formControlName="cable">Cable</mat-checkbox>
-                    <mat-checkbox formControlName="dvd">DVD</mat-checkbox>
-                    <mat-checkbox formControlName="fastInternet">Fast Internet</mat-checkbox>
                   </div>
                 </div>
               </div>
+            </mat-expansion-panel>
 
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Outdoor Spaces</label>
+            <!-- Electronics Section -->
+            <mat-expansion-panel [expanded]="expandedSections.electronics" (opened)="onPanelOpened('electronics')" (closed)="onPanelClosed('electronics')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Electronics</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                <div class="col-span-4">
+                  <div class="features-container">
+                    <div class="grid grid-cols-4 gap-4 items-center features-content">
+                      <mat-checkbox formControlName="tv">TV</mat-checkbox>
+                      <mat-checkbox formControlName="cable">Cable</mat-checkbox>
+                      <mat-checkbox formControlName="dvd">DVD</mat-checkbox>
+                      <mat-checkbox formControlName="fastInternet">Fast Internet</mat-checkbox>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Outdoor Spaces Section -->
+            <mat-expansion-panel [expanded]="expandedSections.outdoor" (opened)="onPanelOpened('outdoor')" (closed)="onPanelClosed('outdoor')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Outdoor Spaces</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                <div class="col-span-4">
+                  <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-center features-content">
                     <mat-checkbox formControlName="deck">Deck</mat-checkbox>
                     <mat-checkbox formControlName="patio">Patio</mat-checkbox>
                     <mat-checkbox formControlName="yard">Yard</mat-checkbox>
                     <mat-checkbox formControlName="garden">Garden</mat-checkbox>
                   </div>
+                  </div>
                 </div>
               </div>
+            </mat-expansion-panel>
 
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Pool & Spa</label>
+            <!-- Pool & Spa Section -->
+            <mat-expansion-panel [expanded]="expandedSections.pool" (opened)="onPanelOpened('pool')" (closed)="onPanelClosed('pool')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Pool & Spa</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                <div class="col-span-4">
+                  <div class="features-container">
                   <div class="grid grid-cols-5 gap-4 items-center features-content">
                     <mat-checkbox formControlName="commonPool">Common Pool</mat-checkbox>
                     <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
@@ -329,12 +366,19 @@
                     <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
                     <mat-checkbox formControlName="gym">Gym</mat-checkbox>
                   </div>
+                  </div>
                 </div>
               </div>
+            </mat-expansion-panel>
 
-              <div class="col-span-4">
-                <div class="features-container">
-                  <label class="features-label">Trash</label>
+            <!-- Trash Section -->
+            <mat-expansion-panel [expanded]="expandedSections.trash" (opened)="onPanelOpened('trash')" (closed)="onPanelClosed('trash')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Trash</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                <div class="col-span-4">
+                  <div class="features-container">
                   <div class="grid grid-cols-4 gap-x-1.5 items-center features-content">
                     <mat-form-field appearance="outline" class="col-span-1">
                       <mat-label>Pickup</mat-label>
@@ -351,17 +395,24 @@
                       <input matInput formControlName="trashRemoval">
                     </mat-form-field>
                   </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </mat-expansion-panel>
 
             <!-- Additional Amenities Section -->
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mb-4">
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Additional Amenities</mat-label>
-                <textarea matInput formControlName="amenities" rows="3"></textarea>
-              </mat-form-field>
-            </div>
+            <mat-expansion-panel [expanded]="expandedSections.amenities" (opened)="onPanelOpened('amenities')" (closed)="onPanelClosed('amenities')" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Additional Amenities</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                <mat-form-field appearance="outline" class="col-span-4">
+                  <mat-label>Additional Amenities</mat-label>
+                  <textarea matInput formControlName="amenities" rows="3"></textarea>
+                </mat-form-field>
+              </div>
+            </mat-expansion-panel>
+            </mat-accordion>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center">

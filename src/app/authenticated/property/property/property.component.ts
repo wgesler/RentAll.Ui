@@ -47,6 +47,27 @@ export class PropertyComponent implements OnInit {
   propertyTypes: { value: number, label: string }[] = [];
   checkInOptions: string[] = ['12:00 PM', '3:00 PM', '4:00 PM', 'Flexible'];
   checkOutOptions: string[] = ['10:00 AM', '11:00 AM', '12:00 PM', 'Flexible'];
+  
+  // Accordion expansion states
+  expandedSections = {
+    availability: true,
+    address: true,
+    features: true,
+    kitchen: true,
+    electronics: true,
+    outdoor: true,
+    pool: true,
+    trash: true,
+    amenities: true
+  };
+
+  onPanelOpened(section: keyof typeof this.expandedSections): void {
+    this.expandedSections[section] = true;
+  }
+
+  onPanelClosed(section: keyof typeof this.expandedSections): void {
+    this.expandedSections[section] = false;
+  }
 
   constructor(
     public propertyService: PropertyService,
