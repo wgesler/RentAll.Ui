@@ -5,7 +5,7 @@
           <span class="flex flex-column items-center gap-3 py-4">
             <mat-icon class="flex-shrink-0">home</mat-icon>
             <span class="flex-shrink-0 text-xl font-medium">
-              {{ isAddMode ? 'Add Property' : 'Edit Property' }}{{ form?.get('propertyCode')?.value ? ': ' + form.get('propertyCode').value : '' }}
+              {{ isAddMode ? 'Add Property' : 'Edit Property' }}
             </span>
           </span>
         <div class="flex gap-2">
@@ -24,7 +24,28 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-between items-center gap-3">
+              <div class="flex items-center gap-3">
+                <mat-form-field appearance="outline" style="width: 15ch; min-width: 15ch;">
+                  <mat-label>Property Code</mat-label>
+                  <input matInput formControlName="propertyCode" maxlength="15">
+                  @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
+                    <mat-error>Property Code is required</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline" style="width: 50ch; min-width: 50ch;">
+                  <mat-label>Owner</mat-label>
+                  <mat-select formControlName="contactId">
+                    <mat-option value="">Select Owner</mat-option>
+                    @for (contact of contacts; track contact.contactId) {
+                      <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (isAddMode && form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
+                    <mat-error>Owner is required</mat-error>
+                  }
+                </mat-form-field>
+              </div>
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
