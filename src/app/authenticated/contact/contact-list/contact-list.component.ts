@@ -53,17 +53,23 @@ export class ContactListComponent implements OnInit {
     this.getContacts();
   }
 
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
-  }
-
-  goToContact(event: ContactListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
-  }
-
   addContact(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, ['new']));
+  }
+
+  getContacts(): void {
+    this.contactService.getContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts') })).subscribe({
+      next: (response: ContactResponse[]) => {
+        this.allContacts = this.mappingService.mapContacts(response);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load Contacts', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   deleteContact(contact: ContactListDisplay): void {
@@ -84,29 +90,26 @@ export class ContactListComponent implements OnInit {
     }
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Routing methods
+  goToContact(event: ContactListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
   }
 
-  private getContacts(): void {
-    this.contactService.getContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts') })).subscribe({
-      next: (response: ContactResponse[]) => {
-        this.allContacts = this.mappingService.mapContacts(response);
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Contacts', CommonMessage.ServiceError);
-        }
-      }
-    });
+  // Filter methods
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.applyFilters();
   }
 
   applyFilters(): void {
     this.contactsDisplay = this.showInactive
       ? this.allContacts
       : this.allContacts.filter(contact => contact.isActive === true);
+  }
+
+    // Utility helpers
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

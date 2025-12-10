@@ -15,7 +15,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
 import { MappingService } from '../../../services/mapping.service';
-import { TrashDays, PropertyStyle, PropertyStatus, PropertyType } from '../models/property-enums';
+import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
 
 @Component({
   selector: 'app-property',
@@ -45,8 +45,8 @@ export class PropertyComponent implements OnInit {
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
-  checkInOptions: string[] = ['12:00 PM', '3:00 PM', '4:00 PM', 'Flexible'];
-  checkOutOptions: string[] = ['10:00 AM', '11:00 AM', '12:00 PM', 'Flexible'];
+  checkInTimes: { value: string, label: string }[] = [];
+  checkOutTimes: { value: string, label: string }[] = [];
   
   // Accordion expansion states
   expandedSections = {
@@ -101,6 +101,28 @@ export class PropertyComponent implements OnInit {
       .filter(key => !isNaN(Number(PropertyType[key])))
       .map(key => ({ value: Number(PropertyType[key]), label: key }));
     
+    // Initialize check-in times (string enum - values are the labels)
+    this.checkInTimes = [
+      { value: CheckinTimes.NA, label: 'N/A' },
+      { value: CheckinTimes.TwelvePM, label: '12PM' },
+      { value: CheckinTimes.OnePM, label: '1PM' },
+      { value: CheckinTimes.TwoPM, label: '2PM' },
+      { value: CheckinTimes.ThreePM, label: '3PM' },
+      { value: CheckinTimes.FourPM, label: '4PM' },
+      { value: CheckinTimes.FivePM, label: '5PM' }
+    ];
+    
+    // Initialize check-out times (string enum - values are the labels)
+    this.checkOutTimes = [
+      { value: CheckoutTimes.NA, label: 'NA' },
+      { value: CheckoutTimes.EightAM, label: '8AM' },
+      { value: CheckoutTimes.NineAM, label: '9AM' },
+      { value: CheckoutTimes.TenAM, label: '10AM' },
+      { value: CheckoutTimes.ElevenAM, label: '11AM' },
+      { value: CheckoutTimes.TwelvePM, label: '12PM' },
+      { value: CheckoutTimes.OnePM, label: '1PM' }
+    ];
+    
     this.buildForm();    
     this.removeLoadItem('property');
     
@@ -134,7 +156,8 @@ export class PropertyComponent implements OnInit {
     // Set up alarm and remoteAccess field enable/disable logic
     this.setupConditionalFields();
     
-    this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
+    // Subscribe to owner contacts observable
+    this.contactService.getAllOwnerContacts().subscribe({
       next: (response: ContactResponse[]) => {
         this.contacts = this.mappingService.mapContacts(response);
       },
@@ -155,7 +178,7 @@ export class PropertyComponent implements OnInit {
       propertyStyle: new FormControl(PropertyStyle.Standard),
       propertyStatus: new FormControl(PropertyStatus.NotProcessed),
       propertyType: new FormControl(PropertyType.Unspecified),
-      phone: new FormControl('', [Validators.required]),
+      phone: new FormControl(''),
       amount: new FormControl(0),
       amountTypeId: new FormControl(0),
       accomodates: new FormControl(0),
@@ -190,12 +213,12 @@ export class PropertyComponent implements OnInit {
       cable: new FormControl(false),
       dvd: new FormControl(false),
       fastInternet: new FormControl(false),
-      minStay: new FormControl<number | null>(null),
-      maxStay: new FormControl<number | null>(null),
+      minStay: new FormControl<number>(0),
+      maxStay: new FormControl<number>(0),
       checkInTime: new FormControl(''),
       checkOutTime: new FormControl(''),
-      availableFrom: new FormControl(''),
-      availableUntil: new FormControl(''),
+      availableFrom: new FormControl<Date | null>(null),
+      availableUntil: new FormControl<Date | null>(null),
       
       // Living tab
       view: new FormControl(''),
@@ -309,82 +332,40 @@ export class PropertyComponent implements OnInit {
     }
 
     this.isSubmitting = true;
-    const formValue = this.form.value;
-    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
-    const minStay = this.toNumberOrNull(formValue.minStay);
-    const maxStay = this.toNumberOrNull(formValue.maxStay);
-    const propertyRequest: PropertyRequest = {
-      propertyCode: formValue.propertyCode,
-      contactId: formValue.contactId || null,
-      propertyStyle: formValue.propertyStyle,
-      propertyStatus: formValue.propertyStatus,
-      propertyType: formValue.propertyType,
-      address1: formValue.address1,
-      address2: formValue.address2 || null,
-      suite: formValue.suite || null,
-      city: formValue.city,
-      state: formValue.state,
-      zip: formValue.zip,
-      neighborhood: formValue.neighborhood || null,
-      crossStreet: formValue.crossStreet || null,
-      phone: phoneDigits,
-      furnished: formValue.furnished,
-      bedrooms: formValue.bedrooms,
-      bathrooms: formValue.bathrooms,
-      accomodates: formValue.accomodates,
-      squareFeet: formValue.squareFeet,
-      bedSizes: formValue.bedSizes,
-      gated: formValue.gated,
-      heating: formValue.heating,
-      ac: formValue.ac,
-      sofabeds: formValue.sofabeds,
-      smoking: formValue.smoking,
-      petsAllowed: formValue.petsAllowed,
-      kitchen: formValue.kitchen,
-      washerDryer: formValue.washerDryer,
-      trashRemoval: formValue.trashRemoval,
-      trashPickupId: formValue.trashPickupId,
-      oven: formValue.oven,
-      refrigerator: formValue.refrigerator,
-      microwave: formValue.microwave,
-      dishwasher: formValue.dishwasher,
-      tv: formValue.tv,
-      cable: formValue.cable,
-      dvd: formValue.dvd,
-      fastInternet: formValue.fastInternet,
-      minStay,
-      maxStay,
-      checkInTime: formValue.checkInTime || null,
-      checkOutTime: formValue.checkOutTime || null,
-      availableFrom: formValue.availableFrom || null,
-      availableUntil: formValue.availableUntil || null,
-      view: formValue.view,
-      deck: formValue.deck,
-      garden: formValue.garden,
-      patio: formValue.patio,
-      yard: formValue.yard || false,
-      commonPool: formValue.commonPool,
-      privatePool: formValue.privatePool,
-      jacuzzi: formValue.jacuzzi,
-      sauna: formValue.sauna,
-      bathtub: formValue.bathtub,
-      gym: formValue.gym,
-      security: formValue.security,
-      elevator: formValue.elevator,
-      remoteAccess: formValue.remoteAccess,
-      assignedParking: formValue.assignedParking,
-      notes: formValue.notes || null,
-      amenities: formValue.amenities || null,
-      alarm: formValue.alarm,
-      alarmCode: formValue.alarmCode || null,
-      keyCode: formValue.keyCode || null,
-      mailbox: formValue.mailbox || null,
-      amount: formValue.amount,
-      amountTypeId: formValue.amountTypeId,
-      dailyRate: formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0,
-      monthlyRate: formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0,
-      isActive: formValue.isActive
-    };
+    // Use getRawValue() to include disabled form controls
+    const formValue = this.form.getRawValue();
+    
+    // Start with form values - bulk copy
+    const propertyRequest: PropertyRequest = { ...formValue } as PropertyRequest;
+    
+    // Transform fields that need special handling
+    propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
+    propertyRequest.monthlyRate = formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0;
+    
+    // Convert Date objects to ISO strings for API (use empty string instead of null)
+    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : '';
+    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : '';
+    
+    // Ensure optional string fields are empty strings, not null or undefined
+    const optionalStringFields = ['address2', 'neighborhood', 'crossStreet', 'checkInTime', 'checkOutTime', 
+                                   'bedSizes', 'phone', 'view', 'mailbox', 'notes', 'amenities', 'alarmCode', 'keyCode', 'trashRemoval'];
+    optionalStringFields.forEach(field => {
+      if (!propertyRequest[field] || propertyRequest[field] === null) {
+        propertyRequest[field] = '';
+      }
+    });
+    
+    // Handle phone formatting
+    if (formValue.phone) {
+      propertyRequest.phone = this.stripPhoneFormatting(formValue.phone);
+    } else {
+      propertyRequest.phone = '';
+    }
+    
+    // Handle boolean defaults
+    if (propertyRequest.yard === undefined) {
+      propertyRequest.yard = false;
+    }
 
     if (this.isAddMode) {
       this.propertyService.createProperty(propertyRequest).pipe(
@@ -404,10 +385,7 @@ export class PropertyComponent implements OnInit {
       });
     } else {
       propertyRequest.propertyId = this.propertyId;
-      this.propertyService.updateProperty(this.propertyId, propertyRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
+      this.propertyService.updateProperty(this.propertyId, propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.router.navigateByUrl(RouterUrl.TenantList);
@@ -441,78 +419,39 @@ export class PropertyComponent implements OnInit {
 
   private populateForm(): void {
     if (this.property && this.form) {
-      this.form.patchValue({
-        propertyCode: this.property.propertyCode,
-        contactId: this.property.contactId || '',
-        propertyStyle: this.property.propertyStyle ?? PropertyStyle.Standard,
-        propertyStatus: this.property.propertyStatus ?? PropertyStatus.NotProcessed,
-        propertyType: this.property.propertyType ?? PropertyType.Unspecified,
-        address1: this.property.address1,
-        address2: this.property.address2 || '',
-        suite: this.property.suite || '',
-        city: this.property.city,
-        state: this.property.state,
-        zip: this.property.zip,
-        neighborhood: this.property.neighborhood || '',
-        crossStreet: this.property.crossStreet || '',
-        phone: this.formatterService.phoneNumber(this.property.phone),
-        furnished: this.property.furnished,
-        bedrooms: this.property.bedrooms,
-        bathrooms: this.property.bathrooms,
-        accomodates: this.property.accomodates,
-        squareFeet: this.property.squareFeet,
-        bedSizes: this.property.bedSizes || '',
-        gated: this.property.gated,
-        heating: this.property.heating,
-        ac: this.property.ac,
-        sofabeds: this.property.sofabeds,
-        smoking: this.property.smoking,
-        petsAllowed: this.property.petsAllowed,
-        kitchen: this.property.kitchen,
-        washerDryer: this.property.washerDryer || false,
-        trashRemoval: this.property.trashRemoval || '',
-        trashPickupId: this.property.trashPickupId,
-        oven: this.property.oven,
-        refrigerator: this.property.refrigerator,
-        microwave: this.property.microwave,
-        dishwasher: this.property.dishwasher,
-        tv: this.property.tv,
-        cable: this.property.cable,
-        dvd: this.property.dvd,
-        fastInternet: this.property.fastInternet,
-        dailyRate: (this.property.dailyRate ?? 0).toFixed(2),
-        monthlyRate: (this.property.monthlyRate ?? 0).toFixed(2),
-        minStay: this.property.minStay ?? null,
-        maxStay: this.property.maxStay ?? null,
-        checkInTime: this.property.checkInTime || '',
-        checkOutTime: this.property.checkOutTime || '',
-        availableFrom: this.property.availableFrom || '',
-        availableUntil: this.property.availableUntil || '',
-        view: this.property.view || '',
-        deck: this.property.deck,
-        garden: this.property.garden,
-        patio: this.property.patio,
-        yard: this.property.yard || false,
-        commonPool: this.property.commonPool,
-        privatePool: this.property.privatePool,
-        jacuzzi: this.property.jacuzzi,
-        sauna: this.property.sauna,
-        bathtub: this.property.bathtub,
-        gym: this.property.gym,
-        security: this.property.security,
-        elevator: this.property.elevator,
-        remoteAccess: this.property.remoteAccess,
-        assignedParking: this.property.assignedParking,
-        notes: this.property.notes || '',
-        amenities: this.property.amenities || '',
-        alarm: this.property.alarm,
-        alarmCode: this.property.alarmCode || '',
-        keyCode: this.property.keyCode || '',
-        mailbox: this.property.mailbox || '',
-        amount: this.property.amount,
-        amountTypeId: this.property.amountTypeId,
-        isActive: this.property.isActive
+      // Start with property object, converting to form-friendly format
+      const formData: any = { ...this.property };
+      
+      // Transform fields that need special handling
+      formData.contactId = this.property.contactId || '';
+      formData.propertyStyle = this.property.propertyStyle ?? PropertyStyle.Standard;
+      formData.propertyStatus = this.property.propertyStatus ?? PropertyStatus.NotProcessed;
+      formData.propertyType = this.property.propertyType ?? PropertyType.Unspecified;
+      formData.dailyRate = (this.property.dailyRate ?? 0).toFixed(2);
+      formData.monthlyRate = (this.property.monthlyRate ?? 0).toFixed(2);
+      formData.minStay = this.property.minStay ?? 0;
+      formData.maxStay = this.property.maxStay ?? 0;
+      
+      // Convert date strings to Date objects
+      formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
+      formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
+      
+      // Handle string fields that might be null/undefined - convert to empty strings
+      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'checkInTime', 
+                           'checkOutTime', 'view', 'bedSizes',
+                           'trashRemoval', 'notes', 'amenities', 'alarmCode', 'keyCode', 'mailbox'];
+      stringFields.forEach(field => {
+        formData[field] = this.property[field] || '';
       });
+      
+      // Handle phone - ensure empty string if null/undefined, then format if present
+      formData.phone = this.property.phone || '';
+      if (formData.phone) {
+        formData.phone = this.formatterService.phoneNumber(formData.phone);
+      }
+      
+      // Set all values at once
+      this.form.patchValue(formData);
     }
   }
 

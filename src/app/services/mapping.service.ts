@@ -29,7 +29,7 @@ export class MappingService {
         companyId: o.companyId,
         companyCode: o.companyCode,
         name: o.name,
-        contact: contactName || o.contactId || '',
+        contact: contactName || '',
         contactId: contactId || o.contactId || '',
         city: o.city,
         state: o.state,

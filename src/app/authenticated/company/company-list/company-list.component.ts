@@ -10,7 +10,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, forkJoin } from 'rxjs';
+import { take, finalize, forkJoin, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -38,7 +38,6 @@ export class CompanyListComponent implements OnInit {
     'state': { displayAs: 'State' },
     'zip': { displayAs: 'Zip' },
     'phone': { displayAs: 'Phone' },
-    'website': { displayAs: 'Website', maxWidth: '25ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allCompanies: CompanyListDisplay[] = [];
@@ -56,41 +55,36 @@ export class CompanyListComponent implements OnInit {
       this.itemsToLoad.push('companies');
   }
 
-  ngOnInit(): void {
-    // Load contacts first
-    this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+  ngOnInit(): void {    // Load contacts from already-cached source
+    this.contactService.getAllCompanyContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
-        // Contacts loaded, now get companies
         this.getCompanies();
       },
       error: (err: HttpErrorResponse) => {
         console.error('Company List Component - Error loading contacts:', err);
         this.contacts = [];
-        // Still try to load companies even if contacts fail
         this.getCompanies();
       }
     });
   }
 
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
-  }
-
-  goToCompany(event: CompanyListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, [event.companyId]));
-  }
-
-  goToContact(event: CompanyListDisplay): void {
-    if (event.contactId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
-    }
+  getCompanies(): void {
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies') })).subscribe({
+      next: (companies) => {
+        this.allCompanies = this.mappingService.mapCompanies(companies, this.contacts);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   addCompany(): void {
-    // TODO: Navigate to add company page when created
-    // For now, this is a placeholder
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, ['new']));
   }
 
@@ -112,32 +106,32 @@ export class CompanyListComponent implements OnInit {
     }
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Routing methods
+  goToCompany(event: CompanyListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, [event.companyId]));
   }
 
-  private getCompanies(): void {
-    this.companyService.getCompanies().pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('companies') })
-    ).subscribe({
-      next: (companies) => {
-        this.allCompanies = this.mappingService.mapCompanies(companies, this.contacts);
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
-        }
-      }
-    });
+  goToContact(event: CompanyListDisplay): void {
+    if (event.contactId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    }
+  }
+
+  // Filter methods
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.applyFilters();
   }
 
   applyFilters(): void {
     this.companiesDisplay = this.showInactive
       ? this.allCompanies
       : this.allCompanies.filter(company => company.isActive);
+  }
+
+  // Utility helpers
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

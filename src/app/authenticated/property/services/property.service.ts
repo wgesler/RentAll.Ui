@@ -29,6 +29,7 @@ export class PropertyService {
 
   // POST: Create a new property
   createProperty(property: PropertyRequest): Observable<PropertyResponse> {
+    console.log('Creating property:', property);
     return this.http.post<PropertyResponse>(this.controller, property);
   }
 
@@ -47,4 +48,6 @@ export class PropertyService {
     return this.http.delete<void>(this.controller + propertyId);
   }
 }
+
+
 

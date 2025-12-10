@@ -52,17 +52,23 @@ export class UserListComponent implements OnInit {
     this.getUsers();
   }
 
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
-  }
-
-  goToUser(event: UserListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
-  }
-
   addUser(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, ['new']));
+  }
+
+  getUsers(): void {
+    this.userService.getUsers().pipe(take(1), finalize(() => { this.removeLoadItem('users') })).subscribe({
+      next: (response: UserResponse[]) => {
+        this.allUsers = this.mappingService.mapUsers(response);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load Users', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   deleteUser(user: UserListDisplay): void {
@@ -83,29 +89,23 @@ export class UserListComponent implements OnInit {
     }
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 
-  private getUsers(): void {
-    this.userService.getUsers().pipe(take(1), finalize(() => { this.removeLoadItem('users') })).subscribe({
-      next: (response: UserResponse[]) => {
-        this.allUsers = this.mappingService.mapUsers(response);
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Users', CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
-
+  // Utility Methods
   applyFilters(): void {
     this.usersDisplay = this.showInactive
       ? this.allUsers
       : this.allUsers.filter(user => user.isActive);
+  }
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.applyFilters();
+  }
+
+  goToUser(event: UserListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+  }
+    removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

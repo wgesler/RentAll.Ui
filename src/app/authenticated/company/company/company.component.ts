@@ -10,7 +10,6 @@ import { CommonMessage, CommonTimeouts, emptyGuid } from '../../../enums/common-
 import { RouterUrl } from '../../../app.routes';
 import { CompanyResponse, CompanyListDisplay, CompanyRequest } from '../models/company.model';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
-import { ContactType } from '../../contact/models/contact-type';
 import { ContactService } from '../../contact/services/contact.service';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { FileDetails } from '../../../shared/models/fileDetails';
@@ -62,7 +61,8 @@ export class CompanyComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+    this.contactService.getAllCompanyContacts().pipe(
+      filter((contacts: ContactResponse[]) => contacts && contacts.length > 0),take(1)).subscribe({
       next: (response: ContactResponse[]) => {
         this.companyContacts = this.mappingService.mapContacts(response);
       },
@@ -87,31 +87,81 @@ export class CompanyComponent implements OnInit {
     }
   }
 
-  buildForm(): void {
-    this.form = this.fb.group({
-      companyCode: new FormControl('', [Validators.required]),
-      name: new FormControl('', [Validators.required]),
-      contactId: new FormControl(null, [Validators.required]),
-      address1: new FormControl('', [Validators.required]),
-      address2: new FormControl(''),
-      city: new FormControl('', [Validators.required]),
-      state: new FormControl('', [Validators.required]),
-      zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required]),
-      website: new FormControl(''),
-      fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
-      isActive: new FormControl(true) // Default to true (active)
+  getCompany(): void {
+    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.removeLoadItem('company'); })).subscribe({
+      next: (response: CompanyResponse) => {
+        this.company = response;
+        this.getStoragePublicUrl(this.company.logoStorageId);
+        this.buildForm();
+        this.populateForm();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
     });
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.CompanyList);
+  saveCompany(): void {
+    if (!this.form.valid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.isSubmitting = true;
+
+    // Bulk map: form → request, normalizing optional strings to empty string
+    const formValue = this.form.getRawValue();
+    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
+
+    const companyRequest: CompanyRequest = {
+      ...formValue,
+      address1: (formValue.address1 || '').trim(),
+      address2: formValue.address2 || '',
+      city: (formValue.city || '').trim(),
+      state: (formValue.state || '').trim(),
+      zip: (formValue.zip || '').trim(),
+      website: formValue.website || '',
+      phone: phoneDigits,
+      logoStorageId: this.logoStorageId || null,
+      fileDetails: this.fileDetails || undefined
+    };
+
+    // Defensive guard: required fields must remain non-empty
+    if (!companyRequest.address1 || !companyRequest.city || !companyRequest.state || !companyRequest.zip || !companyRequest.phone) {
+      this.isSubmitting = false;
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    if (!this.isAddMode) {
+      companyRequest.companyId = this.companyId;
+    }
+
+    const save$ = this.isAddMode
+      ? this.companyService.createCompany(companyRequest)
+      : this.companyService.updateCompany(this.companyId, companyRequest);
+
+    save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
+      next: () => {
+        const message = this.isAddMode ? 'Company created successfully' : 'Company updated successfully';
+        this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.router.navigateByUrl(RouterUrl.CompanyList);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isLoadError = true;
+        if (err.status !== 400) {
+          const failMessage = this.isAddMode ? 'Create company request has failed. ' : 'Update company request has failed. ';
+          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 
+  // Logo methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -141,82 +191,6 @@ export class CompanyComponent implements OnInit {
     this.form.get('fileUpload').updateValueAndValidity();
   }
 
-  private stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    // Remove all non-digit characters
-    return phone.replace(/\D/g, '');
-  }
-
-  formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, ''); // Remove all non-digits
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
-  }
-
-  onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, ''); // Remove all non-digits
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
-  }
-
-  updateLogo(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    const formValue = this.form.value;
-    // Strip phone formatting (remove non-digits) before saving
-    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
-    const company: CompanyRequest = {
-      companyId: this.companyId,
-      companyCode: formValue.companyCode,
-      contactId: formValue.contactId,
-      name: formValue.name,
-      address1: formValue.address1,
-      address2: formValue.address2 || undefined,
-      city: formValue.city,
-      state: formValue.state,
-      zip: formValue.zip,
-      phone: phoneDigits,
-      website: formValue.website || undefined,
-      logoStorageId: this.logoStorageId || null,
-      fileDetails: this.fileDetails || undefined,
-      isActive: formValue.isActive
-    };
-
-    this.companyService.updateCompanyLogo(this.companyId, company).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-      next: (response: CompanyResponse) => {
-        if (this.isUploadingLogo) {
-          this.getStoragePublicUrl(response.logoStorageId);
-          this.fileName = null;
-        }
-        this.toastr.success('Company logo updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Update Company logo request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
-
   getStoragePublicUrl(fileStorageGuid: string): void {
     if (fileStorageGuid && fileStorageGuid !== null && fileStorageGuid !== '' && fileStorageGuid !== emptyGuid) {
       this.logoStorageId = fileStorageGuid;
@@ -237,90 +211,25 @@ export class CompanyComponent implements OnInit {
     }
   }
 
-  saveCompany(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formValue = this.form.value;
-    // Strip phone formatting (remove non-digits) before saving
-    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
-    const companyRequest: CompanyRequest = {
-      companyCode: formValue.companyCode,
-      name: formValue.name,
-      contactId: formValue.contactId,
-      address1: formValue.address1,
-      address2: formValue.address2 || undefined,
-      city: formValue.city,
-      state: formValue.state,
-      zip: formValue.zip,
-      phone: phoneDigits,
-      website: formValue.website || undefined,
-      logoStorageId: this.logoStorageId || null,
-      fileDetails: this.fileDetails || undefined,
-      isActive: formValue.isActive 
-    };
-
-    if (this.isAddMode) {
-      this.companyService.createCompany(companyRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
-        next: (response: CompanyResponse) => {
-          this.toastr.success('Company created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.CompanyList);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Create company request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      });
-    } else {
-      companyRequest.companyId = this.companyId;
-      this.companyService.updateCompany(this.companyId, companyRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
-        next: (response: CompanyResponse) => {
-          this.toastr.success('Company updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.CompanyList);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Update company request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      });
-    }
-  }
-
-  private getCompany(): void {
-    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),
-    finalize(() => { this.removeLoadItem('company') })).subscribe({
-      next: (response: CompanyResponse) => {
-        this.company = response;
-        this.getStoragePublicUrl(this.company.logoStorageId);
-        this.buildForm();
-        // Defer form population to next change detection cycle to avoid ExpressionChangedAfterItHasBeenCheckedError
-        setTimeout(() => {
-          this.populateForm();
-        }, 0);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+    // Form methods
+    buildForm(): void {
+    this.form = this.fb.group({
+      companyCode: new FormControl('', [Validators.required]),
+      name: new FormControl('', [Validators.required]),
+      contactId: new FormControl(null, [Validators.required]),
+      address1: new FormControl('', [Validators.required]),
+      address2: new FormControl(''),
+      city: new FormControl('', [Validators.required]),
+      state: new FormControl('', [Validators.required]),
+      zip: new FormControl('', [Validators.required]),
+      phone: new FormControl('', [Validators.required]),
+      website: new FormControl(''),
+      fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      isActive: new FormControl(true)
     });
   }
 
-  private populateForm(): void {
+  populateForm(): void {
     if (this.company && this.form) {
       this.form.patchValue({
         companyCode: this.company.companyCode,
@@ -338,26 +247,63 @@ export class CompanyComponent implements OnInit {
     }
   }
 
+  // Phone helpers
+  stripPhoneFormatting(phone: string): string {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '');
+  }
+
+  formatPhone(): void {
+    const phoneControl = this.form.get('phone');
+    if (phoneControl && phoneControl.value) {
+      const phone = phoneControl.value.replace(/\D/g, '');
+      if (phone.length === 10) {
+        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+        phoneControl.setValue(formatted, { emitEvent: false });
+      }
+    }
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const phone = input.value.replace(/\D/g, '');
+    if (phone.length <= 10) {
+      let formatted = phone;
+      if (phone.length > 6) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+      } else if (phone.length > 3) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
+      } else if (phone.length > 0) {
+        formatted = `(${phone}`;
+      }
+      this.form.get('phone').setValue(formatted, { emitEvent: false });
+    }
+  }
+
+  // Utility helpers
   private loadStates(): void {
-    // First check if states are already cached
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates]; // Create a new array reference to trigger change detection
+      this.states = [...cachedStates];
       return;
     }
     
-    // Subscribe to get states when they're loaded (filter out empty arrays)
-    this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),
-      take(1)
-    ).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
       next: (states) => {
-        this.states = [...states]; // Create a new array reference to trigger change detection
+        this.states = [...states];
       },
       error: (err) => {
         console.error('Company Component - Error loading states:', err);
       }
     });
+  }
+
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.CompanyList);
   }
 
 }

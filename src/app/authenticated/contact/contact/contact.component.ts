@@ -72,6 +72,73 @@ export class ContactComponent implements OnInit {
     }
   }
 
+  getContact(): void {
+    this.contactService.getContactByGuid(this.contactId).pipe(
+      take(1),
+      finalize(() => { this.removeLoadItem('contact'); })
+    ).subscribe({
+      next: (response: ContactResponse) => {
+        this.contact = response;
+        this.buildForm();
+        this.populateForm();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load contact info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  saveContact(): void {
+    if (!this.form.valid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.isSubmitting = true;
+
+    // Bulk map: form → request, normalizing optional strings to empty string
+    const formValue = this.form.getRawValue();
+    const contactRequest: ContactRequest = {
+      ...formValue,
+      address1: formValue.address1 || '',
+      address2: formValue.address2 || '',
+      city: formValue.city || '',
+      state: formValue.state || '',
+      zip: formValue.zip || '',
+      phone: this.stripPhoneFormatting(formValue.phone)
+    };
+
+    if (!this.isAddMode) {
+      contactRequest.contactId = this.contactId;
+    }
+
+    const save$ = this.isAddMode
+      ? this.contactService.createContact(contactRequest)
+      : this.contactService.updateContact(this.contactId, contactRequest);
+
+    save$.pipe(
+      take(1),
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: () => {
+        const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
+        this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.router.navigateByUrl(RouterUrl.ContactList);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isLoadError = true;
+        if (err.status !== 400) {
+          const failMessage = this.isAddMode ? 'Create contact request has failed. ' : 'Update contact request has failed. ';
+          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  // Form methods
   buildForm(): void {
     this.form = this.fb.group({
       contactCode: new FormControl('', [Validators.required, Validators.maxLength(15)]),
@@ -89,15 +156,31 @@ export class ContactComponent implements OnInit {
     });
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.ContactList);
+  populateForm(): void {
+    if (this.contact && this.form) {
+      const isActiveValue = typeof this.contact.isActive === 'number' 
+        ? this.contact.isActive === 1 
+        : Boolean(this.contact.isActive);
+      
+      this.form.patchValue({
+        contactCode: this.contact.contactCode,
+        contactTypeId: this.contact.contactTypeId ?? ContactType.Unknown,
+        firstName: this.contact.firstName,
+        lastName: this.contact.lastName,
+        address1: this.contact.address1 || '',
+        address2: this.contact.address2 || '',
+        city: this.contact.city || '',
+        state: this.contact.state || '',
+        zip: this.contact.zip || '',
+        phone: this.formatterService.phoneNumber(this.contact.phone),
+        email: this.contact.email,
+        isActive: isActiveValue
+      });
+    }
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  private stripPhoneFormatting(phone: string): string {
+  // Phone helpers
+  stripPhoneFormatting(phone: string): string {
     if (!phone) return '';
     return phone.replace(/\D/g, '');
   }
@@ -129,117 +212,15 @@ export class ContactComponent implements OnInit {
     }
   }
 
-  saveContact(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formValue = this.form.value;
-    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
-    const contactRequest: ContactRequest = {
-      contactCode: formValue.contactCode,
-      contactTypeId: formValue.contactTypeId,
-      firstName: formValue.firstName,
-      lastName: formValue.lastName,
-      phone: phoneDigits,
-      email: formValue.email,
-      address1: formValue.address1 || undefined,
-      address2: formValue.address2 || undefined,
-      city: formValue.city || undefined,
-      state: formValue.state || undefined,
-      zip: formValue.zip || undefined,
-      isActive: formValue.isActive
-    };
-
-    if (this.isAddMode) {
-      this.contactService.createContact(contactRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
-        next: (response: ContactResponse) => {
-          this.toastr.success('Contact created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.ContactList);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Create contact request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      });
-    } else {
-      contactRequest.contactId = this.contactId;
-      this.contactService.updateContact(this.contactId, contactRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
-        next: (response: ContactResponse) => {
-          this.toastr.success('Contact updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.ContactList);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Update contact request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      });
-    }
-  }
-
-  private getContact(): void {
-    this.contactService.getContactByGuid(this.contactId).pipe(take(1),
-    finalize(() => { this.removeLoadItem('contact') })).subscribe({
-      next: (response: ContactResponse) => {
-        this.contact = response;
-        this.buildForm();
-        this.populateForm();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load contact info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
-
-  private populateForm(): void {
-    if (this.contact && this.form) {
-      const isActiveValue = typeof this.contact.isActive === 'number' 
-        ? this.contact.isActive === 1 
-        : Boolean(this.contact.isActive);
-      
-      this.form.patchValue({
-        contactCode: this.contact.contactCode,
-        contactTypeId: this.contact.contactTypeId ?? ContactType.Unknown,
-        firstName: this.contact.firstName,
-        lastName: this.contact.lastName,
-        address1: this.contact.address1 || '',
-        address2: this.contact.address2 || '',
-        city: this.contact.city || '',
-        state: this.contact.state || '',
-        zip: this.contact.zip || '',
-        phone: this.formatterService.phoneNumber(this.contact.phone),
-        email: this.contact.email,
-        isActive: isActiveValue
-      });
-    }
-  }
-
-  private loadStates(): void {
+  // Utility helpers
+  loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
       this.states = [...cachedStates];
       return;
     }
     
-    this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),
-      take(1)
-    ).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
       next: (states) => {
         this.states = [...states];
       },
@@ -247,6 +228,14 @@ export class ContactComponent implements OnInit {
         console.error('Contact Component - Error loading states:', err);
       }
     });
+  }
+
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.ContactList);
   }
 }
 

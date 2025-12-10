@@ -4,3 +4,5 @@ export class FileDetails {
   file: string;
 }
 
+
+

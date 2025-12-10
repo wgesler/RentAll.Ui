@@ -67,137 +67,21 @@ export class UserComponent implements OnInit {
     }
   }
 
-  private setupPasswordValidation(): void {
-    // Re-validate confirmPassword when password changes (real-time validation)
-    this.form.get('password')?.valueChanges.subscribe(() => {
-      const confirmPasswordControl = this.form.get('confirmPassword');
-      if (confirmPasswordControl && confirmPasswordControl.value) {
-        // Mark as touched so error shows immediately
-        confirmPasswordControl.markAsTouched();
-        confirmPasswordControl.updateValueAndValidity({ emitEvent: false });
-        // Also trigger form-level validation
-        this.form.updateValueAndValidity({ emitEvent: false });
-      }
-    });
-    
-    // Re-validate confirmPassword when confirmPassword changes (real-time validation as user types)
-    this.form.get('confirmPassword')?.valueChanges.subscribe(() => {
-      const confirmPasswordControl = this.form.get('confirmPassword');
-      if (confirmPasswordControl && confirmPasswordControl.value) {
-        // Mark as touched so error shows immediately while typing
-        confirmPasswordControl.markAsTouched();
-        confirmPasswordControl.updateValueAndValidity({ emitEvent: false });
-        // Also trigger form-level validation
-        this.form.updateValueAndValidity({ emitEvent: false });
-      }
-    });
-  }
-
-  buildForm(): void {
-    const passwordValidators = this.isAddMode 
-      ? [Validators.required, this.passwordStrengthValidator] 
-      : [this.passwordStrengthValidator];
-    
-    const confirmPasswordValidators = this.isAddMode 
-      ? [Validators.required, this.passwordMatchValidator.bind(this)] 
-      : [this.passwordMatchValidator.bind(this)];
-    
-    this.form = this.fb.group({
-      firstName: new FormControl('', [Validators.required]),
-      lastName: new FormControl('', [Validators.required]),
-      email: new FormControl('', [Validators.required, Validators.email]),
-      password: new FormControl('', passwordValidators),
-      confirmPassword: new FormControl('', confirmPasswordValidators),
-      userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
-      isActive: new FormControl(true)
-    }, { validators: this.passwordMatchValidator });
-  }
-
-  passwordStrengthValidator(control: AbstractControl): ValidationErrors | null {
-    if (!control.value) {
-      return null; // Let required validator handle empty values
-    }
-
-    const password = control.value;
-    const errors: ValidationErrors = {};
-
-    // Check minimum length
-    if (password.length < 8) {
-      errors['passwordMinLength'] = true;
-    }
-
-    // Check for at least one number
-    if (!/\d/.test(password)) {
-      errors['passwordRequiresNumber'] = true;
-    }
-
-    // Check for at least one special character
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-      errors['passwordRequiresSpecial'] = true;
-    }
-
-    return Object.keys(errors).length > 0 ? errors : null;
-  }
-
-  userGroupsRequiredValidator(control: AbstractControl): ValidationErrors | null {
-    const value = control.value;
-    if (!value || !Array.isArray(value) || value.length === 0) {
-      return { userGroupsRequired: true };
-    }
-    return null;
-  }
-
-  passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
-    // If this is called as a field validator (confirmPassword field)
-    if (control.parent) {
-      const password = control.parent.get('password');
-      const confirmPassword = control;
-      
-      if (!password) {
-        return null;
-      }
-      
-      // Real-time validation: check character by character as user types
-      // If confirmPassword has any value, compare it with password
-      if (confirmPassword.value !== null && confirmPassword.value !== undefined && confirmPassword.value !== '') {
-        if (password.value !== confirmPassword.value) {
-          return { passwordMismatch: true };
+  getUser(): void {
+    this.userService.getUserByGuid(this.userId).pipe(take(1),finalize(() => { this.removeLoadItem('user') })).subscribe({
+      next: (response: UserResponse) => {
+        this.user = response;
+        this.buildForm();
+        this.setupPasswordValidation();
+        this.populateForm();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load user info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
-      
-      return null;
-    }
-    
-    // If this is called as a form-level validator
-    const password = control.get('password');
-    const confirmPassword = control.get('confirmPassword');
-    
-    if (!password || !confirmPassword) {
-      return null;
-    }
-    
-    // Real-time validation: check character by character as user types
-    // If either field has a value, they must match
-    if (confirmPassword.value !== null && confirmPassword.value !== undefined && confirmPassword.value !== '') {
-      if (password.value !== confirmPassword.value) {
-        return { passwordMismatch: true };
-      }
-    }
-    
-    return null;
-  }
-
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.UserList);
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  getUserGroupLabel(value: string): string {
-    const group = this.availableUserGroups.find(g => g.value === value);
-    return group ? group.label : value;
+    });
   }
 
   saveUser(): void {
@@ -218,10 +102,7 @@ export class UserComponent implements OnInit {
     };
 
     if (this.isAddMode) {
-      this.userService.createUser(userRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
+      this.userService.createUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: UserResponse) => {
           this.toastr.success('User created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.router.navigateByUrl(RouterUrl.UserList);
@@ -235,10 +116,7 @@ export class UserComponent implements OnInit {
       });
     } else {
       userRequest.userId = this.userId;
-      this.userService.updateUser(this.userId, userRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
+      this.userService.updateUser(this.userId, userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: UserResponse) => {
           this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.router.navigateByUrl(RouterUrl.UserList);
@@ -253,25 +131,28 @@ export class UserComponent implements OnInit {
     }
   }
 
-  private getUser(): void {
-    this.userService.getUserByGuid(this.userId).pipe(take(1),
-    finalize(() => { this.removeLoadItem('user') })).subscribe({
-      next: (response: UserResponse) => {
-        this.user = response;
-        this.buildForm();
-        this.setupPasswordValidation();
-        this.populateForm();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load user info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
+  // Form methods
+  buildForm(): void {
+    const passwordValidators = this.isAddMode 
+      ? [Validators.required, this.passwordStrengthValidator] 
+      : [this.passwordStrengthValidator];
+    
+    const confirmPasswordValidators = this.isAddMode 
+      ? [Validators.required, this.passwordMatchValidator.bind(this)] 
+      : [this.passwordMatchValidator.bind(this)];
+    
+    this.form = this.fb.group({
+      firstName: new FormControl('', [Validators.required]),
+      lastName: new FormControl('', [Validators.required]),
+      email: new FormControl('', [Validators.required, Validators.email]),
+      password: new FormControl('', passwordValidators),
+      confirmPassword: new FormControl('', confirmPasswordValidators),
+      userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
+      isActive: new FormControl(true)
+    }, { validators: this.passwordMatchValidator });
   }
 
-  private populateForm(): void {
+  populateForm(): void {
     if (this.user && this.form) {
       // Normalize userGroups - convert numeric values or enum names to match our dropdown values
       const normalizeGroup = (group: string | number): string | null => {
@@ -321,12 +202,119 @@ export class UserComponent implements OnInit {
      }
   }
 
+  // User Group helpers
+  userGroupsRequiredValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (!value || !Array.isArray(value) || value.length === 0) {
+      return { userGroupsRequired: true };
+    }
+    return null;
+  }
+
+  getUserGroupLabel(value: string): string {
+    const group = this.availableUserGroups.find(g => g.value === value);
+    return group ? group.label : value;
+  }
+
   get userGroups(): string[] {
     return this.form.get('userGroups')?.value || [];
   }
 
   get allUserGroupOptions(): string[] {
     return this.availableUserGroups.map(g => g.value);
+  }
+
+  // Password helpers
+  setupPasswordValidation(): void {
+    // Re-validate confirmPassword when password changes (real-time validation)
+    this.form.get('password')?.valueChanges.subscribe(() => {
+      const confirmPasswordControl = this.form.get('confirmPassword');
+      if (confirmPasswordControl && confirmPasswordControl.value) {
+        // Mark as touched so error shows immediately
+        confirmPasswordControl.markAsTouched();
+        confirmPasswordControl.updateValueAndValidity({ emitEvent: false });
+        // Also trigger form-level validation
+        this.form.updateValueAndValidity({ emitEvent: false });
+      }
+    });
+    
+    // Re-validate confirmPassword when confirmPassword changes (real-time validation as user types)
+    this.form.get('confirmPassword')?.valueChanges.subscribe(() => {
+      const confirmPasswordControl = this.form.get('confirmPassword');
+      if (confirmPasswordControl && confirmPasswordControl.value) {
+        // Mark as touched so error shows immediately while typing
+        confirmPasswordControl.markAsTouched();
+        confirmPasswordControl.updateValueAndValidity({ emitEvent: false });
+        // Also trigger form-level validation
+        this.form.updateValueAndValidity({ emitEvent: false });
+      }
+    });
+  }
+
+  passwordStrengthValidator(control: AbstractControl): ValidationErrors | null {
+    if (!control.value) {
+      return null; // Let required validator handle empty values
+    }
+
+    const password = control.value;
+    const errors: ValidationErrors = {};
+
+    // Check minimum length
+    if (password.length < 8) {
+      errors['passwordMinLength'] = true;
+    }
+
+    // Check for at least one number
+    if (!/\d/.test(password)) {
+      errors['passwordRequiresNumber'] = true;
+    }
+
+    // Check for at least one special character
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors['passwordRequiresSpecial'] = true;
+    }
+
+    return Object.keys(errors).length > 0 ? errors : null;
+  }
+  
+  passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    // If this is called as a field validator (confirmPassword field)
+    if (control.parent) {
+      const password = control.parent.get('password');
+      const confirmPassword = control;
+      
+      if (!password) {
+        return null;
+      }
+      
+      // Real-time validation: check character by character as user types
+      // If confirmPassword has any value, compare it with password
+      if (confirmPassword.value !== null && confirmPassword.value !== undefined && confirmPassword.value !== '') {
+        if (password.value !== confirmPassword.value) {
+          return { passwordMismatch: true };
+        }
+      }
+      
+      return null;
+    }
+    
+    // If this is called as a form-level validator
+    const password = control.get('password');
+    const confirmPassword = control.get('confirmPassword');
+    
+    if (!password || !confirmPassword) {
+      return null;
+    }
+    
+    // Real-time validation: check character by character as user types
+    // If either field has a value, they must match
+    if (confirmPassword.value !== null && confirmPassword.value !== undefined && confirmPassword.value !== '') {
+      if (password.value !== confirmPassword.value) {
+        return { passwordMismatch: true };
+      }
+    }
+    
+    return null;
   }
 
   togglePasswordVisibility(): void {
@@ -354,6 +342,15 @@ export class UserComponent implements OnInit {
     // Show hint only if password is invalid (not if it's valid)
     // This means if password fulfills criteria, no hint will be shown
     return passwordControl.invalid && (passwordControl.touched || passwordControl.value);
+  }
+
+  // Utility helpers
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.UserList);
+  }
+
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

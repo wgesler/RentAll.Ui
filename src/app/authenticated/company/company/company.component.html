@@ -105,9 +105,7 @@
                 }
               </mat-form-field>
 
-              <div class="col-span-1"></div>
-
-              <mat-form-field appearance="outline" class="col-span-4">
+              <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
                 <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
                 @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {

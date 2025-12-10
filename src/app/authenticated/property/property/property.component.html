@@ -87,8 +87,8 @@
                   <mat-label>Check-In</mat-label>
                   <mat-select formControlName="checkInTime">
                     <mat-option value="">Select</mat-option>
-                    @for (option of checkInOptions; track option) {
-                      <mat-option [value]="option">{{ option }}</mat-option>
+                    @for (time of checkInTimes; track time.value) {
+                      <mat-option [value]="time.value">{{ time.label }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
@@ -96,8 +96,8 @@
                   <mat-label>Check-Out</mat-label>
                   <mat-select formControlName="checkOutTime">
                     <mat-option value="">Select</mat-option>
-                    @for (option of checkOutOptions; track option) {
-                      <mat-option [value]="option">{{ option }}</mat-option>
+                    @for (time of checkOutTimes; track time.value) {
+                      <mat-option [value]="time.value">{{ time.label }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
@@ -188,35 +188,42 @@
                   </mat-form-field>
                 </div>
 
-                <!-- Next line: City, State, Zip -->
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>City</mat-label>
-                  <input matInput formControlName="city" required>
-                  @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
-                    <mat-error>City is required</mat-error>
-                  }
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>State</mat-label>
-                  <mat-select formControlName="state" required>
-                    <mat-option value="">Select State</mat-option>
-                    @for (state of states; track state) {
-                      <mat-option [value]="state">{{ state }}</mat-option>
+                <!-- Next line: City, State, Zip, Phone -->
+                <div class="col-span-4 flex items-center gap-x-1.5">
+                  <mat-form-field appearance="outline" style="flex: 1.5;">
+                    <mat-label>City</mat-label>
+                    <input matInput formControlName="city" required>
+                    @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                      <mat-error>City is required</mat-error>
                     }
-                  </mat-select>
-                  @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
-                    <mat-error>State is required</mat-error>
-                  }
-                </mat-form-field>
+                  </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Zip Code</mat-label>
-                  <input matInput formControlName="zip" required>
-                  @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
-                    <mat-error>Zip Code is required</mat-error>
-                  }
-                </mat-form-field>
+                  <mat-form-field appearance="outline" style="flex: 0.5;">
+                    <mat-label>State</mat-label>
+                    <mat-select formControlName="state" required>
+                      <mat-option value="">Select State</mat-option>
+                      @for (state of states; track state) {
+                        <mat-option [value]="state">{{ state }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                      <mat-error>State is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Zip Code</mat-label>
+                    <input matInput formControlName="zip" required>
+                    @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                      <mat-error>Zip Code is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Phone</mat-label>
+                    <input matInput formControlName="phone" (input)="onPhoneInput($event)" (blur)="formatPhone()" maxlength="14">
+                  </mat-form-field>
+                </div>
 
                 <!-- Next line: Neighborhood, Cross Street, View, Mailbox -->
                 <div class="col-span-4 grid grid-cols-4 gap-x-1.5">

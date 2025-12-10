@@ -1,153 +1,184 @@
+// Ordered to match form layout - Updated to match API PropertyResponseDto
 export interface PropertyRequest {
+  // Top section
   propertyId?: string;
   propertyCode: string;
-  contactId?: string | null;
-  propertyStyle?: number;
-  propertyStatus?: number;
-  propertyType?: number;
-  address1: string;
-  address2?: string | null;
-  suite?: string | null;
-  city: string;
-  state: string;
-  zip: string;
-  neighborhood?: string | null;
-  crossStreet?: string | null;
-  phone: string;
-  contact?: string;
-  agentId?: string | null;
-  furnished?: boolean;
-  bedrooms: number;
-  bathrooms: number;
-  accomodates?: number;
-  squareFeet: number;
-  bedSizes?: string;
-  gated?: boolean;
-  heating?: boolean;
-  ac?: boolean;
-  sofabeds?: boolean;
-  smoking?: boolean;
-  petsAllowed?: boolean;
-  kitchen?: boolean;
-  washerDryer?: boolean;
-  trashRemoval?: string;
-  trashPickupId?: number;
-  oven?: boolean;
-  refrigerator?: boolean;
-  microwave?: boolean;
-  dishwasher?: boolean;
-  tv?: boolean;
-  cable?: boolean;
-  dvd?: boolean;
-  fastInternet?: boolean;
-  minStay?: number;
-  maxStay?: number;
-  checkInTime?: string;
-  checkOutTime?: string;
+  contactId: string;
+  isActive: boolean;
+  
+  // Availability section
   availableFrom?: string;
   availableUntil?: string;
-  view?: string;
-  deck?: boolean;
-  garden?: boolean;
-  patio?: boolean;
-  yard?: boolean;
-  commonPool?: boolean;
-  privatePool?: boolean;
-  jacuzzi?: boolean;
-  sauna?: boolean;
-  bathtub?: boolean;
-  gym?: boolean;
-  security?: boolean;
-  elevator?: boolean;
-  remoteAccess?: boolean;
-  assignedParking?: boolean;
-  notes?: string;
-  amenities?: string;
-  alarm?: boolean;
-  alarmCode?: string;
-  keyCode?: string;
-  mailbox?: string;
-  amount?: number;
-  amountTypeId?: number;
-  dailyRate?: number | null;
-  monthlyRate?: number | null;
-  isActive: boolean;
-}
-
-export interface PropertyResponse {
-  propertyId: string;
-  propertyCode: string;
-  contactId?: string | null;
-  propertyStyle?: number;
-  propertyStatus?: number;
-  propertyType?: number;
-  address1: string;
-  address2: string;
-  suite?: string | null;
-  city: string;
-  state: string;
-  zip: string;
-  neighborhood?: string | null;
-  crossStreet?: string | null;
-  phone: string;
-  contact: string;
-  agentId?: string | null;
-  furnished: boolean;
+  minStay: number;
+  maxStay: number;
+  checkInTime: number;
+  checkOutTime: number;
+  monthlyRate: number;
+  dailyRate: number;
+  propertyStyle: number;
+  propertyType: number;
+  propertyStatus: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
   squareFeet: number;
   bedSizes: string;
-  gated: boolean;
+  
+  // Address section
+  address1: string;
+  address2: string;
+  suite: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+  neighborhood: string;
+  crossStreet: string;
+  view: string;
+  mailbox: string;
+  
+  // Features & Security section
+  furnished: boolean;
   heating: boolean;
   ac: boolean;
-  sofabeds: boolean;
-  smoking: boolean;
+  elevator: boolean;
+  security: boolean;
+  gated: boolean;
   petsAllowed: boolean;
+  smoking: boolean;
+  assignedParking: boolean;
+  notes: string;
+  alarm: boolean;
+  alarmCode: string;
+  remoteAccess: boolean;
+  keyCode: string;
+  
+  // Kitchen & Bath section
   kitchen: boolean;
-  washerDryer: boolean;
-  trashRemoval: string;
-  trashPickupId: number;
   oven: boolean;
   refrigerator: boolean;
   microwave: boolean;
   dishwasher: boolean;
+  bathtub: boolean;
+  washerDryer: boolean;
+  sofabeds: boolean;
+  
+  // Electronics section
   tv: boolean;
   cable: boolean;
   dvd: boolean;
   fastInternet: boolean;
-  minStay?: number;
-  maxStay?: number;
-  checkInTime?: string;
-  checkOutTime?: string;
-  availableFrom?: string;
-  availableUntil?: string;
-  view: string;
+  
+  // Outdoor Spaces section
   deck: boolean;
-  garden: boolean;
   patio: boolean;
   yard: boolean;
+  garden: boolean;
+  
+  // Pool & Spa section
   commonPool: boolean;
   privatePool: boolean;
   jacuzzi: boolean;
   sauna: boolean;
-  bathtub: boolean;
   gym: boolean;
-  security: boolean;
-  elevator: boolean;
-  remoteAccess: boolean;
-  assignedParking: boolean;
-  notes?: string;
+  
+  // Trash section
+  trashPickupId: number;
+  trashRemoval: string;
+  
+  // Additional Amenities section
   amenities: string;
+}
+
+export interface PropertyResponse {
+  // Top section
+  propertyId: string;
+  propertyCode: string;
+  contactId: string;
+  isActive: boolean;
+  
+  // Availability section
+  availableFrom?: string;
+  availableUntil?: string;
+  minStay: number;
+  maxStay: number;
+  checkInTime: number;
+  checkOutTime: number;
+  monthlyRate: number;
+  dailyRate: number;
+  propertyStyle: number;
+  propertyType: number;
+  propertyStatus: number;
+  bedrooms: number;
+  bathrooms: number;
+  accomodates: number;
+  squareFeet: number;
+  bedSizes: string;
+  
+  // Address section
+  address1: string;
+  address2: string;
+  suite: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+  neighborhood: string;
+  crossStreet: string;
+  view: string;
+  mailbox: string;
+  
+  // Features & Security section
+  furnished: boolean;
+  heating: boolean;
+  ac: boolean;
+  elevator: boolean;
+  security: boolean;
+  gated: boolean;
+  petsAllowed: boolean;
+  smoking: boolean;
+  assignedParking: boolean;
+  notes: string;
   alarm: boolean;
   alarmCode: string;
+  remoteAccess: boolean;
   keyCode: string;
-  mailbox: string;
-  amount: number;
-  amountTypeId: number;
-  dailyRate?: number | null;
-  monthlyRate?: number | null;
-  isActive: boolean;
+  
+  // Kitchen & Bath section
+  kitchen: boolean;
+  oven: boolean;
+  refrigerator: boolean;
+  microwave: boolean;
+  dishwasher: boolean;
+  bathtub: boolean;
+  washerDryer: boolean;
+  sofabeds: boolean;
+  
+  // Electronics section
+  tv: boolean;
+  cable: boolean;
+  dvd: boolean;
+  fastInternet: boolean;
+  
+  // Outdoor Spaces section
+  deck: boolean;
+  patio: boolean;
+  yard: boolean;
+  garden: boolean;
+  
+  // Pool & Spa section
+  commonPool: boolean;
+  privatePool: boolean;
+  jacuzzi: boolean;
+  sauna: boolean;
+  gym: boolean;
+  
+  // Trash section
+  trashPickupId: number;
+  trashRemoval: string;
+  
+  // Additional Amenities section
+  amenities: string;
 }
 
 export interface PropertyListDisplay {
@@ -162,4 +193,3 @@ export interface PropertyListDisplay {
   squareFeet: number;
   isActive: boolean;
 }
-
