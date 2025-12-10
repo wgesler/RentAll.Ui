@@ -45,22 +45,22 @@ export enum PropertyStatus {
 }
 
 export enum CheckinTimes {
-  NA = 'N/A',
-  TwelvePM = '12PM',
-  OnePM = '1PM',
-  TwoPM = '2PM',
-  ThreePM = '3PM',
-  FourPM = '4PM',
-  FivePM = '5PM'
+  NA = 0,
+  TwelvePM = 1,
+  OnePM = 2,
+  TwoPM = 3,
+  ThreePM = 4,
+  FourPM = 5,
+  FivePM = 6
 }
 
 export enum CheckoutTimes {
-  NA = 'NA',
-  EightAM = '8AM',
-  NineAM = '9AM',
-  TenAM = '10AM',
-  ElevenAM = '11AM',
-  TwelvePM = '12PM',
-  OnePM = '1PM'
+  NA = 0,
+  EightAM = 1,
+  NineAM = 2,
+  TenAM = 3,
+  ElevenAM = 4,
+  TwelvePM = 5,
+  OnePM = 6
 }
 

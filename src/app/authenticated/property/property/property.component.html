@@ -58,105 +58,113 @@
                 <mat-panel-title>Availability</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="features-container">
+                <!-- Row 1: AvailableFrom, AvailableUntil, Min-Stay, Max-Stay -->
                 <div class="features-row spread availability-row">
-                <mat-form-field appearance="outline" class="compact-date">
-                  <mat-label>Available-From</mat-label>
-                  <button mat-icon-button matPrefix type="button" (click)="availableFromPicker.open()">
-                    <mat-icon>calendar_today</mat-icon>
-                  </button>
-                  <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
-                  <mat-datepicker #availableFromPicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-date">
-                  <mat-label>Available-Until</mat-label>
-                  <button mat-icon-button matPrefix type="button" (click)="availableUntilPicker.open()">
-                    <mat-icon>calendar_today</mat-icon>
-                  </button>
-                  <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
-                  <mat-datepicker #availableUntilPicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-field">
-                  <mat-label>Min-Stay (Days)</mat-label>
-                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-field">
-                  <mat-label>Max-Stay (Days)</mat-label>
-                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-select">
-                  <mat-label>Check-In</mat-label>
-                  <mat-select formControlName="checkInTime">
-                    <mat-option value="">Select</mat-option>
-                    @for (time of checkInTimes; track time.value) {
-                      <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-select">
-                  <mat-label>Check-Out</mat-label>
-                  <mat-select formControlName="checkOutTime">
-                    <mat-option value="">Select</mat-option>
-                    @for (time of checkOutTimes; track time.value) {
-                      <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-date">
+                    <mat-label>Available-From</mat-label>
+                    <button mat-icon-button matPrefix type="button" (click)="availableFromPicker.open()">
+                      <mat-icon>calendar_today</mat-icon>
+                    </button>
+                    <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
+                    <mat-datepicker #availableFromPicker></mat-datepicker>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-date">
+                    <mat-label>Available-Until</mat-label>
+                    <button mat-icon-button matPrefix type="button" (click)="availableUntilPicker.open()">
+                      <mat-icon>calendar_today</mat-icon>
+                    </button>
+                    <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
+                    <mat-datepicker #availableUntilPicker></mat-datepicker>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Min-Stay (Days)</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Max-Stay (Days)</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
+                  </mat-form-field>
+                </div>
                 
-                <mat-form-field appearance="outline" class="compact-field">
-                  <mat-label>Monthly Rate</mat-label>
-                  <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="compact-field">
-                  <mat-label>Daily Rate</mat-label>
-                  <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="wide-select">
-                  <mat-label>Property Style</mat-label>
-                  <mat-select formControlName="propertyStyle">
-                    @for (style of propertyStyles; track style.value) {
-                      <mat-option [value]="style.value">{{ style.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="wide-select">
-                  <mat-label>Property Type</mat-label>
-                  <mat-select formControlName="propertyType">
-                    @for (type of propertyTypes; track type.value) {
-                      <mat-option [value]="type.value">{{ type.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="status-compact">
-                  <mat-label>Property Status</mat-label>
-                  <mat-select formControlName="propertyStatus">
-                    @for (status of propertyStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              </div>
-              <div class="features-row spread availability-row">
-                <mat-form-field appearance="outline" class="equal-field">
-                  <mat-label>Bedrooms</mat-label>
-                  <input matInput type="number" formControlName="bedrooms" required>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="equal-field">
-                  <mat-label>Bathrooms</mat-label>
-                  <input matInput type="number" step="0.5" formControlName="bathrooms" required>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="equal-field">
-                  <mat-label>Accommodates</mat-label>
-                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" formControlName="accomodates">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="equal-field">
-                  <mat-label>Square Feet</mat-label>
-                  <input matInput type="number" formControlName="squareFeet" required>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="equal-field">
-                  <mat-label>Bed Sizes</mat-label>
-                  <input matInput formControlName="bedSizes">
-                </mat-form-field>
-              </div>
+                <!-- Row 2: Check-In, Check-Out, MonthlyRate, DailyRate -->
+                <div class="features-row spread availability-row">
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Check-In</mat-label>
+                    <mat-select formControlName="checkInTime">
+                      @for (time of checkInTimes; track time.value) {
+                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Check-Out</mat-label>
+                    <mat-select formControlName="checkOutTime">
+                      @for (time of checkOutTimes; track time.value) {
+                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Monthly Rate</mat-label>
+                    <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Daily Rate</mat-label>
+                    <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')">
+                  </mat-form-field>
+                </div>
+                
+                <!-- Row 3: PropertyStyle, PropertyType, PropertyStatus -->
+                <div class="features-row spread availability-row">
+                  <mat-form-field appearance="outline" class="wide-select">
+                    <mat-label>Property Style</mat-label>
+                    <mat-select formControlName="propertyStyle">
+                      @for (style of propertyStyles; track style.value) {
+                        <mat-option [value]="style.value">{{ style.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="wide-select">
+                    <mat-label>Property Type</mat-label>
+                    <mat-select formControlName="propertyType">
+                      @for (type of propertyTypes; track type.value) {
+                        <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="status-compact">
+                    <mat-label>Property Status</mat-label>
+                    <mat-select formControlName="propertyStatus">
+                      @for (status of propertyStatuses; track status.value) {
+                        <mat-option [value]="status.value">{{ status.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                
+                <!-- Row 4: Bedrooms, Bathrooms, Accommodates, Square Feet, Bed Sizes -->
+                <div class="features-row spread availability-row">
+                  <mat-form-field appearance="outline" class="equal-field">
+                    <mat-label>Bedrooms</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="bedrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="equal-field">
+                    <mat-label>Bathrooms</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="bathrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="equal-field">
+                    <mat-label>Accommodates</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" formControlName="accomodates" placeholder="0" (focus)="selectAllOnFocus($event)">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="equal-field">
+                    <mat-label>Square Feet</mat-label>
+                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="equal-field">
+                    <mat-label>Bed Sizes</mat-label>
+                    <input matInput formControlName="bedSizes">
+                  </mat-form-field>
+                </div>
               </div>
             </mat-expansion-panel>
 

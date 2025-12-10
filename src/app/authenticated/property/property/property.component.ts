@@ -45,8 +45,8 @@ export class PropertyComponent implements OnInit {
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
-  checkInTimes: { value: string, label: string }[] = [];
-  checkOutTimes: { value: string, label: string }[] = [];
+  checkInTimes: { value: number, label: string }[] = [];
+  checkOutTimes: { value: number, label: string }[] = [];
   
   // Accordion expansion states
   expandedSections = {
@@ -80,28 +80,55 @@ export class PropertyComponent implements OnInit {
     private contactService: ContactService,
     private mappingService: MappingService
   ) {
-    this.loadStates();
+      //this.itemsToLoad.push('property');
+      this.loadStates();
   }
 
   ngOnInit(): void {
-    // Initialize trash days
+    // Initialize dropdown menus
     this.trashDays = Object.keys(TrashDays)
       .filter(key => !isNaN(Number(TrashDays[key])))
-      .map(key => ({ 
-        value: Number(TrashDays[key]), 
-        label: key 
-      }));
-    this.propertyStyles = Object.keys(PropertyStyle)
-      .filter(key => !isNaN(Number(PropertyStyle[key])))
-      .map(key => ({ value: Number(PropertyStyle[key]), label: key }));
-    this.propertyStatuses = Object.keys(PropertyStatus)
-      .filter(key => !isNaN(Number(PropertyStatus[key])))
-      .map(key => ({ value: Number(PropertyStatus[key]), label: key }));
-    this.propertyTypes = Object.keys(PropertyType)
-      .filter(key => !isNaN(Number(PropertyType[key])))
-      .map(key => ({ value: Number(PropertyType[key]), label: key }));
+      .map(key => ({ value: Number(TrashDays[key]), label: key }));
+    // Initialize property styles (numeric enum)
+    this.propertyStyles = [
+      { value: PropertyStyle.Standard, label: 'Standard' },
+      { value: PropertyStyle.Corporate, label: 'Corporate' },
+      { value: PropertyStyle.Vacation, label: 'Vacation' }
+    ];
     
-    // Initialize check-in times (string enum - values are the labels)
+    // Initialize property statuses (numeric enum)
+    this.propertyStatuses = [
+      { value: PropertyStatus.NotProcessed, label: 'NotProcessed' },
+      { value: PropertyStatus.Cleaned, label: 'Cleaned' },
+      { value: PropertyStatus.Inspected, label: 'Inspected' },
+      { value: PropertyStatus.Ready, label: 'Ready' },
+      { value: PropertyStatus.Occupied, label: 'Occupied' },
+      { value: PropertyStatus.Maintenance, label: 'Maintenance' },
+      { value: PropertyStatus.Offline, label: 'Offline' }
+    ];
+    
+    // Initialize property types (numeric enum)
+    this.propertyTypes = [
+      { value: PropertyType.Unspecified, label: 'Unspecified' },
+      { value: PropertyType.Apartment, label: 'Apartment' },
+      { value: PropertyType.Bungalow, label: 'Bungalow' },
+      { value: PropertyType.Boat, label: 'Boat' },
+      { value: PropertyType.Chalet, label: 'Chalet' },
+      { value: PropertyType.Condo, label: 'Condo' },
+      { value: PropertyType.Cottage, label: 'Cottage' },
+      { value: PropertyType.Flat, label: 'Flat' },
+      { value: PropertyType.House, label: 'House' },
+      { value: PropertyType.Loft, label: 'Loft' },
+      { value: PropertyType.Office, label: 'Office' },
+      { value: PropertyType.Penthouse, label: 'Penthouse' },
+      { value: PropertyType.Room, label: 'Room' },
+      { value: PropertyType.RV, label: 'RV' },
+      { value: PropertyType.Studio, label: 'Studio' },
+      { value: PropertyType.Townhouse, label: 'Townhouse' },
+      { value: PropertyType.Villa, label: 'Villa' }
+    ];
+    
+    // Initialize check-in times (numeric enum)
     this.checkInTimes = [
       { value: CheckinTimes.NA, label: 'N/A' },
       { value: CheckinTimes.TwelvePM, label: '12PM' },
@@ -112,7 +139,7 @@ export class PropertyComponent implements OnInit {
       { value: CheckinTimes.FivePM, label: '5PM' }
     ];
     
-    // Initialize check-out times (string enum - values are the labels)
+    // Initialize check-out times (numeric enum)
     this.checkOutTimes = [
       { value: CheckoutTimes.NA, label: 'NA' },
       { value: CheckoutTimes.EightAM, label: '8AM' },
@@ -123,8 +150,19 @@ export class PropertyComponent implements OnInit {
       { value: CheckoutTimes.OnePM, label: '1PM' }
     ];
     
-    this.buildForm();    
-    this.removeLoadItem('property');
+    // Build form first so template can access it
+    this.buildForm();
+    
+    // Load owner contacts from already-cached source
+    this.contactService.getAllOwnerContacts().pipe(
+      filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
+      next: (response: ContactResponse[]) => {
+        this.contacts = this.mappingService.mapContacts(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property Component - Error loading contacts:', err);
+      }
+    });
     
     // Set isAddMode from route params and load property if needed
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
@@ -143,10 +181,13 @@ export class PropertyComponent implements OnInit {
           contactControl?.clearValidators();
           codeControl?.clearValidators();
         }
+
         contactControl?.updateValueAndValidity();
         codeControl?.updateValueAndValidity();
-        
-        if (!this.isAddMode) {          // Add 'property' back to show loading state while fetching
+
+        if (this.isAddMode) {
+          this.removeLoadItem('property');
+        } else {
           this.itemsToLoad.push('property');
           this.getProperty();
         }
@@ -156,175 +197,25 @@ export class PropertyComponent implements OnInit {
     // Set up alarm and remoteAccess field enable/disable logic
     this.setupConditionalFields();
     
-    // Subscribe to owner contacts observable
-    this.contactService.getAllOwnerContacts().subscribe({
-      next: (response: ContactResponse[]) => {
-        this.contacts = this.mappingService.mapContacts(response);
+
+  }
+
+  getProperty(): void {
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1),
+    finalize(() => { this.removeLoadItem('property') })).subscribe({
+      next: (response: PropertyResponse) => {
+        this.property = response;
+        this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Component - Error loading contacts:', err);
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
-
-  buildForm(): void {
-    const contactValidators = [];
-    const codeValidators = this.isAddMode ? [Validators.required] : [];
-    
-    this.form = this.fb.group({
-      // Rental tab
-      propertyCode: new FormControl('', codeValidators),
-      contactId: new FormControl('', contactValidators),
-      propertyStyle: new FormControl(PropertyStyle.Standard),
-      propertyStatus: new FormControl(PropertyStatus.NotProcessed),
-      propertyType: new FormControl(PropertyType.Unspecified),
-      phone: new FormControl(''),
-      amount: new FormControl(0),
-      amountTypeId: new FormControl(0),
-      accomodates: new FormControl(0),
-      dailyRate: new FormControl<string>('0.00'),
-      monthlyRate: new FormControl<string>('0.00'),
-      furnished: new FormControl(false),
-      
-      // Details tab
-      address1: new FormControl('', [Validators.required]),
-      address2: new FormControl(''),
-      suite: new FormControl(''),
-      city: new FormControl('', [Validators.required]),
-      state: new FormControl('', [Validators.required]),
-      zip: new FormControl('', [Validators.required]),
-      neighborhood: new FormControl(''),
-      crossStreet: new FormControl(''),
-      bedrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
-      bathrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
-      squareFeet: new FormControl(0, [Validators.required, Validators.min(0)]),
-      bedSizes: new FormControl(''),
-      
-      // Kitchen & Electronics tab
-      kitchen: new FormControl(false),
-      washerDryer: new FormControl(false),
-      trashRemoval: new FormControl(''),
-      trashPickupId: new FormControl(0),
-      oven: new FormControl(false),
-      refrigerator: new FormControl(false),
-      microwave: new FormControl(false),
-      dishwasher: new FormControl(false),
-      tv: new FormControl(false),
-      cable: new FormControl(false),
-      dvd: new FormControl(false),
-      fastInternet: new FormControl(false),
-      minStay: new FormControl<number>(0),
-      maxStay: new FormControl<number>(0),
-      checkInTime: new FormControl(''),
-      checkOutTime: new FormControl(''),
-      availableFrom: new FormControl<Date | null>(null),
-      availableUntil: new FormControl<Date | null>(null),
-      
-      // Living tab
-      view: new FormControl(''),
-      deck: new FormControl(false),
-      garden: new FormControl(false),
-      patio: new FormControl(false),
-      yard: new FormControl(false),
-      commonPool: new FormControl(false),
-      privatePool: new FormControl(false),
-      jacuzzi: new FormControl(false),
-      sauna: new FormControl(false),
-      bathtub: new FormControl(false),
-      gym: new FormControl(false),
-      security: new FormControl(false),
-      elevator: new FormControl(false),
-      remoteAccess: new FormControl(false),
-      assignedParking: new FormControl(false),
-      notes: new FormControl({ value: '', disabled: true }),
-      
-      // Amenities tab
-      amenities: new FormControl(''),
-      alarm: new FormControl(false),
-      alarmCode: new FormControl({ value: '', disabled: true }),
-      keyCode: new FormControl({ value: '', disabled: true }),
-      mailbox: new FormControl(''),
-      gated: new FormControl(false),
-      heating: new FormControl(false),
-      ac: new FormControl(false),
-      sofabeds: new FormControl(false),
-      smoking: new FormControl(false),
-      petsAllowed: new FormControl(false),
-      
-      isActive: new FormControl(true)
-    });
-  }
-
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.TenantList);
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  private stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
-  formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
-  }
-
-  onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
-  }
-
-  formatDecimal(fieldName: string): void {
-    const control = this.form.get(fieldName);
-    if (control && control.value !== null && control.value !== '') {
-      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
-      if (!isNaN(value)) {
-        const formatted = value.toFixed(2);
-        control.setValue(formatted, { emitEvent: false });
-      } else {
-        control.setValue('0.00', { emitEvent: false });
-      }
-    } else {
-      control?.setValue('0.00', { emitEvent: false });
-    }
-  }
-
-  onDecimalInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/[^0-9.]/g, '');
-    
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
-    }
-    
-    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
-  }
-
+  
   saveProperty(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -335,19 +226,33 @@ export class PropertyComponent implements OnInit {
     // Use getRawValue() to include disabled form controls
     const formValue = this.form.getRawValue();
     
-    // Start with form values - bulk copy
-    const propertyRequest: PropertyRequest = { ...formValue } as PropertyRequest;
+    // Start with form values - bulk copy (excluding fields that need special mapping)
+    const { checkInTime, checkOutTime, propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
+    const propertyRequest: PropertyRequest = { ...restFormValue } as PropertyRequest;
     
     // Transform fields that need special handling
     propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
     propertyRequest.monthlyRate = formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0;
     
-    // Convert Date objects to ISO strings for API (use empty string instead of null)
-    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : '';
-    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : '';
+    // Ensure numeric fields are numbers
+    propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
+    propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
+    propertyRequest.bathrooms = formValue.bathrooms ? Number(formValue.bathrooms) : 0;
+    propertyRequest.squareFeet = formValue.squareFeet ? Number(formValue.squareFeet) : 0;
+    
+    // Convert Date objects to ISO strings for API (use null if not set)
+    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : null;
+    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : null;
+    
+    // Map enum fields to Id fields
+    propertyRequest.checkInTimeId = formValue.checkInTime ?? CheckinTimes.NA;
+    propertyRequest.checkOutTimeId = formValue.checkOutTime ?? CheckoutTimes.NA;
+    propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
+    propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
+    propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.NotProcessed;
     
     // Ensure optional string fields are empty strings, not null or undefined
-    const optionalStringFields = ['address2', 'neighborhood', 'crossStreet', 'checkInTime', 'checkOutTime', 
+    const optionalStringFields = ['address2', 'neighborhood', 'crossStreet', 
                                    'bedSizes', 'phone', 'view', 'mailbox', 'notes', 'amenities', 'alarmCode', 'keyCode', 'trashRemoval'];
     optionalStringFields.forEach(field => {
       if (!propertyRequest[field] || propertyRequest[field] === null) {
@@ -400,33 +305,100 @@ export class PropertyComponent implements OnInit {
     }
   }
 
-  private getProperty(): void {
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1),
-    finalize(() => { this.removeLoadItem('property') })).subscribe({
-      next: (response: PropertyResponse) => {
-        console.log('Property loaded:', response);
-        this.property = response;
-        this.populateForm();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+  // Form methods
+  buildForm(): void {
+    const contactValidators = [];
+    const codeValidators = this.isAddMode ? [Validators.required] : [];
+    
+    this.form = this.fb.group({
+      // Rental tab
+      propertyCode: new FormControl('', codeValidators),
+      contactId: new FormControl('', contactValidators),
+      propertyStyle: new FormControl<number>(PropertyStyle.Standard),
+      propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed),
+      propertyType: new FormControl<number>(PropertyType.Unspecified),
+      phone: new FormControl(''),
+      accomodates: new FormControl(0),
+      dailyRate: new FormControl<string>('0.00'),
+      monthlyRate: new FormControl<string>('0.00'),
+      furnished: new FormControl(false),
+      
+      // Details tab
+      address1: new FormControl('', [Validators.required]),
+      address2: new FormControl(''),
+      suite: new FormControl(''),
+      city: new FormControl('', [Validators.required]),
+      state: new FormControl('', [Validators.required]),
+      zip: new FormControl('', [Validators.required]),
+      neighborhood: new FormControl(''),
+      crossStreet: new FormControl(''),
+      bedrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
+      bathrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
+      squareFeet: new FormControl(0, [Validators.required, Validators.min(0)]),
+      bedSizes: new FormControl(''),
+      
+      // Kitchen & Electronics tab
+      kitchen: new FormControl(false),
+      washerDryer: new FormControl(false),
+      trashRemoval: new FormControl(''),
+      trashPickupId: new FormControl(0),
+      oven: new FormControl(false),
+      refrigerator: new FormControl(false),
+      microwave: new FormControl(false),
+      dishwasher: new FormControl(false),
+      tv: new FormControl(false),
+      cable: new FormControl(false),
+      dvd: new FormControl(false),
+      fastInternet: new FormControl(false),
+      minStay: new FormControl<number>(0),
+      maxStay: new FormControl<number>(0),
+      checkInTime: new FormControl<number>(CheckinTimes.NA),
+      checkOutTime: new FormControl<number>(CheckoutTimes.NA),
+      availableFrom: new FormControl<Date | null>(null),
+      availableUntil: new FormControl<Date | null>(null),
+      
+      // Living tab
+      view: new FormControl(''),
+      deck: new FormControl(false),
+      garden: new FormControl(false),
+      patio: new FormControl(false),
+      yard: new FormControl(false),
+      commonPool: new FormControl(false),
+      privatePool: new FormControl(false),
+      jacuzzi: new FormControl(false),
+      sauna: new FormControl(false),
+      bathtub: new FormControl(false),
+      gym: new FormControl(false),
+      security: new FormControl(false),
+      elevator: new FormControl(false),
+      remoteAccess: new FormControl(false),
+      assignedParking: new FormControl(false),
+      notes: new FormControl({ value: '', disabled: true }),
+      
+      // Amenities tab
+      amenities: new FormControl(''),
+      alarm: new FormControl(false),
+      alarmCode: new FormControl({ value: '', disabled: true }),
+      keyCode: new FormControl({ value: '', disabled: true }),
+      mailbox: new FormControl(''),
+      gated: new FormControl(false),
+      heating: new FormControl(false),
+      ac: new FormControl(false),
+      sofabeds: new FormControl(false),
+      smoking: new FormControl(false),
+      petsAllowed: new FormControl(false),
+      
+      isActive: new FormControl(true)
     });
   }
 
-  private populateForm(): void {
+  populateForm(): void {
     if (this.property && this.form) {
       // Start with property object, converting to form-friendly format
       const formData: any = { ...this.property };
       
       // Transform fields that need special handling
       formData.contactId = this.property.contactId || '';
-      formData.propertyStyle = this.property.propertyStyle ?? PropertyStyle.Standard;
-      formData.propertyStatus = this.property.propertyStatus ?? PropertyStatus.NotProcessed;
-      formData.propertyType = this.property.propertyType ?? PropertyType.Unspecified;
       formData.dailyRate = (this.property.dailyRate ?? 0).toFixed(2);
       formData.monthlyRate = (this.property.monthlyRate ?? 0).toFixed(2);
       formData.minStay = this.property.minStay ?? 0;
@@ -436,9 +408,21 @@ export class PropertyComponent implements OnInit {
       formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
       formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
       
+      // Handle enum Id fields as numbers (map from Id fields)
+      const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
+      const propertyStatusValue = this.property.propertyStatusId != null ? Number(this.property.propertyStatusId) : PropertyStatus.NotProcessed;
+      const propertyTypeValue = this.property.propertyTypeId != null ? Number(this.property.propertyTypeId) : PropertyType.Unspecified;
+      const checkInTimeValue = this.property.checkInTimeId != null ? Number(this.property.checkInTimeId) : CheckinTimes.NA;
+      const checkOutTimeValue = this.property.checkOutTimeId != null ? Number(this.property.checkOutTimeId) : CheckoutTimes.NA;
+      
+      formData.checkInTime = checkInTimeValue;
+      formData.checkOutTime = checkOutTimeValue;
+      formData.propertyStyle = propertyStyleValue;
+      formData.propertyStatus = propertyStatusValue;
+      formData.propertyType = propertyTypeValue;
+     
       // Handle string fields that might be null/undefined - convert to empty strings
-      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'checkInTime', 
-                           'checkOutTime', 'view', 'bedSizes',
+      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view', 'bedSizes',
                            'trashRemoval', 'notes', 'amenities', 'alarmCode', 'keyCode', 'mailbox'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
@@ -455,7 +439,7 @@ export class PropertyComponent implements OnInit {
     }
   }
 
-  private setupConditionalFields(): void {
+  setupConditionalFields(): void {
     // Subscribe to alarm checkbox changes to enable/disable alarm code field
     this.form.get('alarm')?.valueChanges.subscribe(value => {
       const alarmCodeControl = this.form.get('alarmCode');
@@ -517,13 +501,76 @@ export class PropertyComponent implements OnInit {
     }
   }
 
-  private toNumberOrNull(value: any): number | null {
-    if (value === null || value === undefined || value === '') return null;
-    const parsed = Number(value);
-    return isNaN(parsed) ? null : parsed;
+  // Formatting handlers
+  stripPhoneFormatting(phone: string): string {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '');
   }
 
-  private loadStates(): void {
+  formatPhone(): void {
+    const phoneControl = this.form.get('phone');
+    if (phoneControl && phoneControl.value) {
+      const phone = phoneControl.value.replace(/\D/g, '');
+      if (phone.length === 10) {
+        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+        phoneControl.setValue(formatted, { emitEvent: false });
+      }
+    }
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const phone = input.value.replace(/\D/g, '');
+    if (phone.length <= 10) {
+      let formatted = phone;
+      if (phone.length > 6) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+      } else if (phone.length > 3) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
+      } else if (phone.length > 0) {
+        formatted = `(${phone}`;
+      }
+      this.form.get('phone').setValue(formatted, { emitEvent: false });
+    }
+  }
+
+  formatDecimal(fieldName: string): void {
+    const control = this.form.get(fieldName);
+    if (control && control.value !== null && control.value !== '') {
+      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
+      if (!isNaN(value)) {
+        const formatted = value.toFixed(2);
+        control.setValue(formatted, { emitEvent: false });
+      } else {
+        control.setValue('0.00', { emitEvent: false });
+      }
+    } else {
+      control?.setValue('0.00', { emitEvent: false });
+    }
+  }
+
+  onDecimalInput(event: Event, fieldName: string): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9.]/g, '');
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      input.value = parts[0] + '.' + parts.slice(1).join('');
+    } else {
+      input.value = value;
+    }
+    
+    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
+  }
+
+  selectAllOnFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.select();
+  }
+
+  // Utility methods
+  loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
       this.states = [...cachedStates];
@@ -531,8 +578,7 @@ export class PropertyComponent implements OnInit {
     }
     
     this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),
-      take(1)
+      filter(states => states && states.length > 0),take(1)
     ).subscribe({
       next: (states) => {
         this.states = [...states];
@@ -542,6 +588,19 @@ export class PropertyComponent implements OnInit {
       }
     });
   }
+  
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.TenantList);
+  }
 
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  toNumberOrNull(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return isNaN(parsed) ? null : parsed;
+  }
 }
 

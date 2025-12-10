@@ -10,7 +10,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, forkJoin } from 'rxjs';
+import { take, finalize, forkJoin, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -32,11 +32,10 @@ export class PropertyListComponent implements OnInit {
 
   propertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '10ch' },
-    'name': { displayAs: 'Name', maxWidth: '25ch' },
     'owner': { displayAs: 'Owner', maxWidth: '25ch' },
-    'phone': { displayAs: 'Unit Phone' },
     'bedrooms': { displayAs: 'Beds' },
     'bathrooms': { displayAs: 'Baths' },
+    'accomodates': { displayAs: 'Accoms' },
     'squareFeet': { displayAs: 'Sq Ft' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
@@ -55,40 +54,37 @@ export class PropertyListComponent implements OnInit {
       this.itemsToLoad.push('properties');
   }
 
-  ngOnInit(): void {
-    // Load contacts first
-    this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
+  ngOnInit(): void {    // Load contacts from already-cached source
+    this.contactService.getAllOwnerContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
-        // Contacts loaded, now get properties
         this.getProperties();
       },
       error: (err: HttpErrorResponse) => {
         console.error('Property List Component - Error loading contacts:', err);
         this.contacts = [];
-        // Still try to load properties even if contacts fail
         this.getProperties();
       }
     });
   }
 
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
-  }
-
-  goToProperty(event: PropertyListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-  }
-
-  goToContact(event: PropertyListDisplay): void {
-    if (event.contactId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
-    }
-  }
-
   addProperty(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+  }
+
+  getProperties(): void {
+    this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties') })).subscribe({
+      next: (properties) => {
+        this.allProperties = this.mappingService.mapProperties(properties, this.contacts);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load Properties', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   deleteProperty(property: PropertyListDisplay): void {
@@ -108,33 +104,32 @@ export class PropertyListComponent implements OnInit {
       });
     }
   }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Navigation methods
+  goToProperty(event: PropertyListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
   }
 
-  private getProperties(): void {
-    this.propertyService.getProperties().pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('properties') })
-    ).subscribe({
-      next: (properties) => {
-        this.allProperties = this.mappingService.mapProperties(properties, this.contacts);
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Properties', CommonMessage.ServiceError);
-        }
-      }
-    });
+  goToContact(event: PropertyListDisplay): void {
+    if (event.contactId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    }
   }
 
+  // Filter methods
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.applyFilters();
+  }
+  
   applyFilters(): void {
     this.propertiesDisplay = this.showInactive
       ? this.allProperties
       : this.allProperties.filter(property => property.isActive);
+  }
+
+  // Utiltity methods
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

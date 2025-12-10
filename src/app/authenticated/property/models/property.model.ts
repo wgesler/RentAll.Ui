@@ -11,13 +11,13 @@ export interface PropertyRequest {
   availableUntil?: string;
   minStay: number;
   maxStay: number;
-  checkInTime: number;
-  checkOutTime: number;
+  checkInTimeId: number;
+  checkOutTimeId: number;
   monthlyRate: number;
   dailyRate: number;
-  propertyStyle: number;
-  propertyType: number;
-  propertyStatus: number;
+  propertyStyleId: number;
+  propertyTypeId: number;
+  propertyStatusId: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -91,24 +91,23 @@ export interface PropertyRequest {
 }
 
 export interface PropertyResponse {
-  // Top section
   propertyId: string;
   propertyCode: string;
   contactId: string;
   isActive: boolean;
-  
+   
   // Availability section
   availableFrom?: string;
   availableUntil?: string;
   minStay: number;
   maxStay: number;
-  checkInTime: number;
-  checkOutTime: number;
+  checkInTimeId: number;
+  checkOutTimeId: number;
   monthlyRate: number;
   dailyRate: number;
-  propertyStyle: number;
-  propertyType: number;
-  propertyStatus: number;
+  propertyStyleId: number;
+  propertyTypeId: number;
+  propertyStatusId: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -126,7 +125,7 @@ export interface PropertyResponse {
   neighborhood: string;
   crossStreet: string;
   view: string;
-  mailbox: string;
+  mailbox?: string;
   
   // Features & Security section
   furnished: boolean;
@@ -184,10 +183,9 @@ export interface PropertyResponse {
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
-  name: string;
   owner: string;
-  contactId: string;
-  phone: string;
+  contactId?: string;
+  accomodates: number;
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;

@@ -58,10 +58,9 @@ export class MappingService {
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
-        name: propertyName,
-        owner: ownerName || o.contactId || '',
+        owner: ownerName || '',
         contactId: contactId || o.contactId || '',
-        phone: this.formatPhoneNumber(o.phone),
+        accomodates: o.accomodates,
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,
         squareFeet: o.squareFeet,

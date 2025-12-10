@@ -12,6 +12,72 @@ import { PurposefulAny } from '../shared/models/amorphous';
 const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<PurposefulAny>(null);
 let isRefreshingToken: boolean = false;
 
+// Helper function declarations
+function addToken(req: HttpRequest<PurposefulAny>, authService: AuthService): HttpRequest<PurposefulAny> {
+  const authData = authService.getAuthData();
+  const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.accessToken}}) : req;
+  return authReq;
+}
+
+function logoutUser(authService: AuthService): Observable<PurposefulAny> {
+  return authService.logout();
+}
+
+function handle400Error(error: HttpErrorResponse, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  if (error?.error)
+    toastrService.error(
+      typeof error?.error === 'string' ? error.error : 'An unexpected error has occurred.', CommonMessage.Error);
+  else if (authService.getIsLoggedIn() && error.status === 400)
+    return logoutUser(authService);
+  return throwError(() => error);
+}
+
+function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  if (!isRefreshingToken) {
+    loadingBarService.show();
+    isRefreshingToken = true;
+    tokenSubject$.next(null);
+    
+    return authService.refresh().pipe(
+      switchMap((authResponse: AuthResponse) => {
+        if (authResponse && authResponse.accessToken) {
+          tokenSubject$.next(authResponse.accessToken);
+          return next(addToken(req, authService));
+        }
+        return logoutUser(authService);
+      }),
+      catchError(error => {
+        if (error instanceof HttpErrorResponse && ((error as HttpErrorResponse).status === 401)) {
+          return logoutUser(authService);
+        }
+        const err = error?.error?.Message ?? error?.error;
+        if (err) toastrService.error(err);
+        return throwError(() => error);
+      }),
+      finalize(() => {
+        isRefreshingToken = false;
+      })
+    );
+  } else {
+    return tokenSubject$.pipe(filter(token => token !== null), take(1),
+      switchMap(() => next(addToken(req, authService))));
+  }
+}
+
+function handle409Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+   if (error?.error) {
+    toastrService.error(error.error);
+  }
+  return throwError(() => error);
+}
+
+function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  if (error?.error?.Message) {
+    toastrService.error(error.error.Message);
+  }
+  return throwError(() => error);
+}
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Skip interceptor for anonymous endpoints
   if (req.url.endsWith('/refresh-token') || 
@@ -21,102 +87,34 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  inject(LoadingBarService).show();
-  req = addToken(req);
+  // Inject services at the top level (injection context)
+  const loadingBarService = inject(LoadingBarService);
+  const authService = inject(AuthService);
+  const toastrService = inject(ToastrService);
+
+  loadingBarService.show();
+  req = addToken(req, authService);
 
   return next(req).pipe(
     catchError(error => {
       if (error instanceof HttpErrorResponse) {
         switch ((error as HttpErrorResponse).status) {
           case 400:
-            return handle400Error(error);
+            return handle400Error(error, authService, toastrService);
           case 401:
-            return handle401Error(req, error, next);
+            return handle401Error(req, error, next, loadingBarService, authService, toastrService);
           case 409:
-            return handle409Error(error);
+            return handle409Error(error, toastrService);
           default:
-            return handleDefaultError(error);
+            return handleDefaultError(error, toastrService);
         }
       } else {
-        inject(LoadingBarService).hide();
+        loadingBarService.hide();
         return throwError(() => error);
       }
     }),
     finalize(() => {
-      inject(LoadingBarService).hide();
+      loadingBarService.hide();
     })
   );
 };
-
-function handle400Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error)
-    inject(ToastrService).error(
-      typeof error?.error === 'string' ? error.error : 'An unexpected error has occurred.', CommonMessage.Error);
-  else if (inject(AuthService).getIsLoggedIn() && error.status === 400)
-    // If we get a 400 and the error message is 'invalid_grant', the token is no longer valid so logout.
-    return logoutUser();
-  return throwError(() => error);
-}
-
-function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn): Observable<HttpEvent<PurposefulAny>> {
-  if (!isRefreshingToken) {
-    inject(LoadingBarService).show();
-    isRefreshingToken = true;
-
-    // Reset here so that the following requests wait until the token
-    // comes back from the refreshToken call.
-    tokenSubject$.next(null);
-    
-    return inject(AuthService).refresh().pipe(
-      switchMap((authResponse: AuthResponse) => {
-        if (authResponse && authResponse.accessToken) {
-          tokenSubject$.next(authResponse.accessToken);
-          return next(addToken(req));
-        }
-        // If we don't get a new token, we are in trouble so throw error back to login Component
-        return logoutUser();
-      }),
-      catchError(error =>
-      {
-        // logout if 401 is thrown.
-        if (error instanceof HttpErrorResponse && ((error as HttpErrorResponse).status === 401)) {
-          return logoutUser();
-        }
-        const err = error?.error?.Message ?? error?.error;
-        if (err) inject(ToastrService).error(err);
-        return throwError(() => error);
-      }),
-      finalize(() => {
-        isRefreshingToken = false;
-      })
-    );
-  } else {
-    return tokenSubject$.pipe(filter(token => token !== null), take(1),
-      switchMap(() => next(addToken(req))));
-  }
-}
-
-function handle409Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
-   if (error?.error) {
-    inject(ToastrService).error(error.error);
-  }
-  return throwError(() => error);
-}
-
-function handleDefaultError(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error?.Message) {
-    inject(ToastrService).error(error.error.Message);
-  }
-  return throwError(() => error);
-}
-
-function logoutUser(): Observable<PurposefulAny> {
-  return inject(AuthService).logout();
-}
-
-function addToken(req: HttpRequest<PurposefulAny>): HttpRequest<PurposefulAny> {
-  const authData = inject(AuthService).getAuthData();
-  const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.accessToken}}) : req;
-
-  return authReq;
-}
