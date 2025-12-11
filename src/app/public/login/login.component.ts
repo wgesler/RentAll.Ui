@@ -53,7 +53,7 @@ export class LoginComponent {
 
     this.form = this.fb.group({
       username: [this.username, [Validators.required, Validators.pattern(emailRegex)]],
-      password: [this.password, Validators.required],
+      password: [this.password],
       rememberMe: [this.rememberMe]
     });
   }

@@ -1,0 +1,38 @@
+@if (!itemsToLoad.includes('reservations')) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center bg-slate-200 rounded-t-lg px-8 py-4">
+        <div class="flex items-center">
+          <mat-icon mat-list-icon class="mr-5">calendar_today</mat-icon>
+          <h2 class="m-0">Reservations</h2>
+        </div>
+        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addReservation()" class="scale-90 text-nowrap">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="reservationsDisplay"
+              [columns]="reservationsDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="true"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="true"
+              [itemsPerPage]="100"
+              buttonToggleTextTop="Inactive"
+              (topToggleButtonEvent)="toggleInactive()"
+              (editEvent)="goToReservation($event)"
+              (rowClickEvent)="goToReservation($event)"
+              (deleteEvent)="deleteReservation($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}
+

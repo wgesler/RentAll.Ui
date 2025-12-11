@@ -1,0 +1,38 @@
+@if (!itemsToLoad.includes('agents')) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center bg-slate-200 rounded-t-lg px-8 py-4">
+        <div class="flex items-center">
+          <mat-icon mat-list-icon class="mr-5">person</mat-icon>
+          <h2 class="m-0">Agents</h2>
+        </div>
+        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addAgent()" class="scale-90 text-nowrap">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="agentsDisplay"
+              [columns]="agentsDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="true"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="true"
+              [itemsPerPage]="100"
+              buttonToggleTextTop="Inactive"
+              (topToggleButtonEvent)="toggleInactive()"
+              (editEvent)="goToAgent($event)"
+              (rowClickEvent)="goToAgent($event)"
+              (deleteEvent)="deleteAgent($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}
+

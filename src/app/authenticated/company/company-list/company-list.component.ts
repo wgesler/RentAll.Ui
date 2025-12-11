@@ -55,14 +55,25 @@ export class CompanyListComponent implements OnInit {
       this.itemsToLoad.push('companies');
   }
 
-  ngOnInit(): void {    // Load contacts from already-cached source
-    this.contactService.getAllCompanyContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-        this.getCompanies();
+  ngOnInit(): void {
+    this.contactService.areContactsLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1)
+    ).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+          next: (contacts: ContactResponse[]) => {
+            this.contacts = contacts || [];
+            this.getCompanies();
+          },
+          error: (err: HttpErrorResponse) => {
+            console.error('Company List Component - Error loading contacts:', err);
+            this.contacts = [];
+            this.getCompanies();
+          }
+        });
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('Company List Component - Error loading contacts:', err);
+      error: () => {
         this.contacts = [];
         this.getCompanies();
       }
@@ -72,6 +83,7 @@ export class CompanyListComponent implements OnInit {
   getCompanies(): void {
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies') })).subscribe({
       next: (companies) => {
+        console.log('Company List Component - Companies loaded:', companies);
         this.allCompanies = this.mappingService.mapCompanies(companies, this.contacts);
         this.applyFilters();
       },

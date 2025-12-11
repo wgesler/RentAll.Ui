@@ -14,7 +14,7 @@ mat-sidenav {
   background-color: #1c2c3f !important;
   box-shadow: 2px 1px 1px rgb(0 0 0 / 10%), 0 1px 3px rgb(0 0 0 / 10%);
   width: 175px;
-  padding-top:30px;
+  padding-top: 30px;
   text-align: center;
 
   & .mat-list-text, .mat-icon {
@@ -25,8 +25,9 @@ mat-sidenav {
     margin-top: 50px;
   }
   & .active-list-item {
-    border-left: 2px solid rgba(255,255,255,.5);
-    background-color: rgba(143,141,141,0.08);
+    border-left: 4px solid rgba(255,255,255,1);
+    background-color: rgba(255,255,255,0.15);
+    font-weight: 600;
   }
 
   & .mat-list-item-content-open {

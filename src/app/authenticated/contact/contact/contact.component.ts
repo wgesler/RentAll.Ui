@@ -36,9 +36,7 @@ export class ContactComponent implements OnInit {
     { value: ContactType.Unknown, label: 'Unknown' },
     { value: ContactType.Company, label: 'Company' },
     { value: ContactType.Owner, label: 'Owner' },
-    { value: ContactType.Tenant, label: 'Tenant' },
-    { value: ContactType.Rentor, label: 'Rentor' },
-    { value: ContactType.Rentee, label: 'Rentee' }
+    { value: ContactType.Tenant, label: 'Tenant' }
   ];
 
   constructor(

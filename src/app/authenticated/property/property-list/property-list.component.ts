@@ -54,14 +54,25 @@ export class PropertyListComponent implements OnInit {
       this.itemsToLoad.push('properties');
   }
 
-  ngOnInit(): void {    // Load contacts from already-cached source
-    this.contactService.getAllOwnerContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-        this.getProperties();
+  ngOnInit(): void {
+    this.contactService.areContactsLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1)
+    ).subscribe({
+      next: () => {
+        this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
+          next: (contacts: ContactResponse[]) => {
+            this.contacts = contacts || [];
+            this.getProperties();
+          },
+          error: (err: HttpErrorResponse) => {
+            console.error('Property List Component - Error loading contacts:', err);
+            this.contacts = [];
+            this.getProperties();
+          }
+        });
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('Property List Component - Error loading contacts:', err);
+      error: () => {
         this.contacts = [];
         this.getProperties();
       }
@@ -75,6 +86,7 @@ export class PropertyListComponent implements OnInit {
   getProperties(): void {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties') })).subscribe({
       next: (properties) => {
+        console.log('Property List Component - Properties loaded:', properties);
         this.allProperties = this.mappingService.mapProperties(properties, this.contacts);
         this.applyFilters();
       },

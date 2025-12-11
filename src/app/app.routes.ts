@@ -9,6 +9,10 @@ import { ContactComponent } from './authenticated/contact/contact/contact.compon
 import { ContactListComponent } from './authenticated/contact/contact-list/contact-list.component';
 import { UserComponent } from './authenticated/user/user/user.component';
 import { UserListComponent } from './authenticated/user/user-list/user-list.component';
+import { ReservationComponent } from './authenticated/reservation/reservation/reservation.component';
+import { ReservationListComponent } from './authenticated/reservation/reservation-list/reservation-list.component';
+import { AgentComponent } from './authenticated/agent/agent/agent.component';
+import { AgentListComponent } from './authenticated/agent/agent-list/agent-list.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
@@ -23,6 +27,10 @@ export enum RouterToken {
   Contact = RouterToken.ContactList + '/:id',
   TenantList = 'tenants',
   Property = RouterToken.TenantList + '/:id',
+  ReservationList = 'reservations',
+  Reservation = RouterToken.ReservationList + '/:id',
+  AgentList = 'agents',
+  Agent = RouterToken.AgentList + '/:id',
   UserList = 'users',
   User = RouterToken.UserList + '/:id',
   Default = RouterToken.CompanyList
@@ -36,6 +44,10 @@ export enum RouterUrl {
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   TenantList            = `${RouterToken.Auth}/${RouterToken.TenantList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
+  ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
+  Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
+  AgentList             = `${RouterToken.Auth}/${RouterToken.AgentList}`,
+  Agent                 = `${RouterToken.Auth}/${RouterToken.Agent}`,
   UserList              = `${RouterToken.Auth}/${RouterToken.UserList}`,
   User                  = `${RouterToken.Auth}/${RouterToken.User}`,
 }
@@ -49,13 +61,17 @@ export namespace RouterUrl {
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
-  { path: RouterToken.RentalList, component: CompanyListComponent, canActivate: [authRouteGuard] }, // Placeholder - will be replaced later
+  { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CompanyList, component: CompanyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ContactList, component: ContactListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.TenantList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.UserList, component: UserListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.User, component: UserComponent, canActivate: [authRouteGuard] },
 ]

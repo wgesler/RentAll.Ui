@@ -5,6 +5,9 @@ import { ContactResponse, ContactListDisplay } from '../authenticated/contact/mo
 import { ContactType } from '../authenticated/contact/models/contact-type';
 import { UserResponse, UserListDisplay } from '../authenticated/user/models/user.model';
 import { UserGroups } from '../authenticated/user/models/user-type';
+import { ReservationResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
+import { ReservationStatus } from '../authenticated/reservation/models/reservation-enum';
+import { AgentResponse, AgentListDisplay } from '../authenticated/agent/models/agent.model';
 import { FormatterService } from './formatter-service';
 
 @Injectable({
@@ -89,9 +92,7 @@ export class MappingService {
       [ContactType.Unknown]: 'Unknown',
       [ContactType.Company]: 'Company',
       [ContactType.Owner]: 'Owner',
-      [ContactType.Tenant]: 'Tenant',
-      [ContactType.Rentor]: 'Rentor',
-      [ContactType.Rentee]: 'Rentee'
+      [ContactType.Tenant]: 'Tenant'
     };
     return typeLabels[contactTypeId] || 'Unknown';
   }
@@ -133,5 +134,50 @@ export class MappingService {
       return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
     }
     return phone;
+  }
+
+  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[]): ReservationListDisplay[] {
+    return reservations.map<ReservationListDisplay>((o: ReservationResponse) => {
+      let contactName = '';
+      if (o.contactId && contacts) {
+        const contact = contacts.find(c => c.contactId === o.contactId);
+        if (contact) {
+          contactName = contact.firstName + ' ' + contact.lastName;
+        }
+      }
+      return {
+        reservationId: o.reservationId,
+        propertyCode: o.propertyCode || '',
+        contactId: o.contactId || '',
+        contactName: contactName || '',
+        arrivalDate: o.arrivalDate,
+        departureDate: o.departureDate,
+        reservationStatus: this.formatReservationStatus(o.reservationStatusId),
+        isActive: o.isActive
+      };
+    });
+  }
+
+  formatReservationStatus(reservationStatusId?: number): string {
+    if (reservationStatusId === undefined || reservationStatusId === null) {
+      return 'Unknown';
+    }
+    const statusLabels: { [key: number]: string } = {
+      [ReservationStatus.PreBooking]: 'Pre-Booking',
+      [ReservationStatus.Confirmed]: 'Confirmed',
+      [ReservationStatus.CheckedIn]: 'Checked In',
+      [ReservationStatus.GaveNotice]: 'Gave Notice',
+      [ReservationStatus.Frr]: 'FRR'
+    };
+    return statusLabels[reservationStatusId] || 'Unknown';
+  }
+
+  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
+    return agents.map<AgentListDisplay>((o: AgentResponse) => ({
+      agentId: o.agentId,
+      agentCode: o.agentCode,
+      description: o.description,
+      isActive: o.isActive
+    }));
   }
 }
