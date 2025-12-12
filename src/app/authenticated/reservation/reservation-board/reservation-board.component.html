@@ -8,30 +8,57 @@
     </div>
     <mat-card>
       <div class="board-wrapper">
-        <!-- Left side: Property information -->
-        <div class="property-column">
-          @for (property of properties; track property.propertyId) {
-            <div class="property-row">
-              <div class="property-cell code-cell">{{ property.propertyCode }}</div>
-              <div class="property-cell address-cell">{{ property.address }}</div>
-              <div class="property-cell rent-cell">{{ formatCurrency(property.monthlyRate) }}</div>
-              <div class="property-cell beds-cell">{{ property.bedsBaths }}</div>
-              <div class="property-cell status-cell">{{ property.statusLetter }}</div>
-            </div>
-          }
-        </div>
-
-        <!-- Right side: Calendar grid -->
-        <div class="calendar-column">
-          <!-- Calendar body: Property rows -->
-          @for (property of properties; track property.propertyId) {
-            <div class="property-calendar-row">
-              @for (day of calendarDays; track day.date.getTime()) {
-                <div class="calendar-cell"></div>
+        <table class="reservation-table">
+          <thead>
+            <!-- Row 1: Empty property cells + Month headers -->
+            <tr class="header-row header-row-1">
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              @for (monthGroup of getMonthGroups(); track monthGroup.monthName) {
+                <th class="month-header-cell" [attr.colspan]="monthGroup.days">{{ monthGroup.monthName }}</th>
               }
-            </div>
-          }
-        </div>
+            </tr>
+            <!-- Row 2: Property headers + Day of week -->
+            <tr class="header-row header-row-2">
+              <th class="property-header-cell code-header">Code</th>
+              <th class="property-header-cell address-header">Address</th>
+              <th class="property-header-cell rent-header">RET/M</th>
+              <th class="property-header-cell beds-header">BB</th>
+              <th class="property-header-cell status-header">ST</th>
+              @for (day of calendarDays; track day.date.getTime()) {
+                <th class="dow-header-cell">{{ day.dayOfWeek }}</th>
+              }
+            </tr>
+            <!-- Row 3: Empty property cells + Dates -->
+            <tr class="header-row header-row-3">
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell">&nbsp;</th>
+              @for (day of calendarDays; track day.date.getTime()) {
+                <th class="date-header-cell">{{ day.dayNumber }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (property of properties; track property.propertyId) {
+              <tr class="property-row">
+                <td class="property-cell code-cell">{{ property.propertyCode }}</td>
+                <td class="property-cell address-cell">{{ property.address }}</td>
+                <td class="property-cell rent-cell">{{ formatCurrency(property.monthlyRate) }}</td>
+                <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
+                <td class="property-cell status-cell">{{ property.statusLetter }}</td>
+                @for (day of calendarDays; track day.date.getTime()) {
+                  <td class="calendar-cell"></td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
     </mat-card>
   </section>

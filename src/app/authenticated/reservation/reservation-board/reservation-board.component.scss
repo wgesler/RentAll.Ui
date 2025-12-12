@@ -159,8 +159,7 @@
 }
 
 .board-wrapper {
-  display: flex;
-  overflow: hidden;
+  overflow: auto;
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -169,34 +168,123 @@
   height: 100%;
 }
 
-.property-column {
+.reservation-table {
   width: 100%;
-  max-width: 400px;
-  min-width: 400px;
-  background-color: white;
-  border-right: 2px solid #94a3b8;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex-shrink: 0;
-  z-index: 10;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  display: table;
   
-  // Hide scrollbar but keep functionality for sync
-  scrollbar-width: none; // Firefox
-  -ms-overflow-style: none; // IE and Edge
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: table-header-group;
+  }
   
-  &::-webkit-scrollbar {
-    display: none; // Chrome, Safari, Opera
+  tbody {
+    display: table-row-group;
+  }
+  
+  tr {
+    display: table-row;
+  }
+  
+  th, td {
+    border: 1px solid #e0e0e0;
+    display: table-cell;
   }
 }
 
+.header-row {
+  background-color: rgb(59, 130, 246); // Blue header
+  color: white;
+  
+  th {
+    border: 1px solid rgb(37, 99, 235) !important;
+    text-align: center;
+    font-weight: 600;
+    padding: 2px 4px;
+    height: 20px;
+    box-sizing: border-box;
+    vertical-align: middle;
+  }
+}
+
+.header-row-1 {
+  th {
+    font-size: 11px;
+  }
+}
+
+.header-row-2 {
+  th {
+    font-size: 10px;
+  }
+}
+
+.header-row-3 {
+  th {
+    font-size: 10px;
+  }
+}
+
+.property-header-cell {
+  background-color: rgb(59, 130, 246) !important;
+  width: auto;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+  vertical-align: middle;
+  height: 20px;
+  box-sizing: border-box;
+  
+  &.code-header {
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  &.address-header {
+    font-size: 10px;
+    color: white;
+    text-align: left;
+  }
+  
+  &.rent-header {
+    text-align: center;
+    font-weight: 500;
+  }
+  
+  &.beds-header {
+    text-align: center;
+  }
+  
+  &.status-header {
+    text-align: center;
+    font-weight: 600;
+  }
+}
+
+.month-header-cell {
+  background-color: rgb(59, 130, 246) !important;
+}
+
+.dow-header-cell {
+  background-color: rgb(59, 130, 246) !important;
+  font-size: 10px;
+}
+
+.date-header-cell {
+  background-color: rgb(59, 130, 246) !important;
+  font-size: 10px;
+}
+
 .property-row {
-  display: grid;
-  grid-template-columns: 80px 1fr 60px 50px 30px;
+  display: table-row;
   border-bottom: 1px solid #e0e0e0;
-  min-height: 20px;
   background-color: white;
 
   &:nth-child(even) {
@@ -209,51 +297,67 @@
 }
 
 .property-cell {
-  padding: 8px;
-  font-size: 13px;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-
-  &:last-child {
-    border-right: none;
-  }
+  display: table-cell;
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+  vertical-align: middle;
+  height: 20px;
+  box-sizing: border-box;
+  width: auto;
+  white-space: nowrap;
 
   &.code-cell {
     font-weight: 600;
-    justify-content: center;
+    text-align: center;
   }
 
   &.address-cell {
-    font-size: 12px;
+    font-size: 10px;
     color: #666;
   }
 
   &.rent-cell {
-    justify-content: center;
+    text-align: center;
     font-weight: 500;
   }
 
   &.beds-cell {
-    justify-content: center;
+    text-align: center;
   }
 
   &.status-cell {
-    justify-content: center;
+    text-align: center;
     font-weight: 600;
-    font-size: 14px;
   }
 }
 
-.calendar-column {
-  flex: 1;
-  overflow-x: auto;
-  overflow-y: auto;
+.calendar-cell {
+  display: table-cell;
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  border: 1px solid #e0e0e0;
   background-color: white;
-  min-width: 0;
+  padding: 0;
   box-sizing: border-box;
-  margin-right: 0;
-  height: 100%;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 10px;
+  
+  &:hover {
+    background-color: #e3f2fd;
+  }
+}
+
+.month-header-cell,
+.dow-header-cell,
+.date-header-cell {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
 }
 
 .month-row {
