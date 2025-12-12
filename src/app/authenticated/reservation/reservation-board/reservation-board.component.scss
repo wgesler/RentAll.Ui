@@ -1,8 +1,6 @@
 :host {
   display: flex;
   flex-direction: column;
-  margin-left: 10px !important;
-  margin-right: 10px !important; 
   height: 100%;
   width: 100%;
 }
@@ -254,15 +252,15 @@
   }
   
   &.rent-header {
-    width: 6ch !important;
-    min-width: 6ch;
-    max-width: 6ch;
+    width: 8ch !important;
+    min-width: 8ch;
+    max-width: 8ch;
   }
   
   &.beds-header {
-    width: 4ch !important;
-    min-width: 4ch;
-    max-width: 4ch;
+    width: 6ch !important;
+    min-width: 6ch;
+    max-width: 6ch;
   }
   
   &.status-header {
@@ -312,14 +310,22 @@
   white-space: nowrap;
 
   &.code-cell {
-    font-weight: 600;
     width: 10ch !important;
     min-width: 10ch;
     max-width: 10ch;
+    
+    a {
+      text-decoration: underline;
+      color: inherit;
+      cursor: pointer;
+      
+      &:hover {
+        color: rgb(59, 130, 246);
+      }
+    }
   }
 
   &.address-cell {
-    color: #666;
     text-align: left;
     width: 25ch !important;
     min-width: 25ch;
@@ -327,20 +333,18 @@
   }
 
   &.rent-cell {
-    font-weight: 500;
+    width: 8ch !important;
+    min-width: 8ch;
+    max-width: 8ch;
+  }
+
+  &.beds-cell {
     width: 6ch !important;
     min-width: 6ch;
     max-width: 6ch;
   }
 
-  &.beds-cell {
-    width: 4ch !important;
-    min-width: 4ch;
-    max-width: 4ch;
-  }
-
   &.status-cell {
-    font-weight: 600;
     width: 4ch !important;
     min-width: 4ch;
     max-width: 4ch;
@@ -360,9 +364,95 @@
   text-align: center;
   vertical-align: middle;
   font-size: 10px;
+
+  &.clickable {
+    cursor: pointer;
+  }
   
-  &:hover {
+  &:hover:not(.reservation-prebooking):not(.reservation-active):not(.reservation-notice):not(.reservation-arrival):not(.reservation-departure):not(.reservation-maintenance):not(.reservation-owner-blocked):not(.reservation-frr) {
     background-color: #e3f2fd;
+  }
+
+  &.reservation-arrival {
+    background-color: #3b82f6 !important; // blue
+    color: white;
+    
+    &:hover {
+      background-color: #2563eb !important; // darker blue on hover
+    }
+  }
+
+  &.reservation-departure {
+    background-color: #3b82f6 !important; // blue
+    color: white;
+    
+    &:hover {
+      background-color: #2563eb !important; // darker blue on hover
+    }
+  }
+
+  .reservation-link {
+    text-decoration: underline;
+    color: inherit;
+    cursor: pointer;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &.reservation-prebooking {
+    background-color: #fde047 !important; // yellow
+    color: #000;
+    
+    &:hover {
+      background-color: #facc15 !important; // darker yellow on hover
+    }
+  }
+
+  &.reservation-active {
+    background-color: #22c55e !important; // green
+    color: white;
+    
+    &:hover {
+      background-color: #16a34a !important; // darker green on hover
+    }
+  }
+
+  &.reservation-notice {
+    background-color: #ef4444 !important; // red
+    color: white;
+    
+    &:hover {
+      background-color: #dc2626 !important; // darker red on hover
+    }
+  }
+
+  &.reservation-frr {
+    background-color: #ff9800 !important; // orange
+    color: white;
+    
+    &:hover {
+      background-color: #f57c00 !important; // darker orange on hover
+    }
+  }
+
+  &.reservation-maintenance {
+    background-color: #6b7280 !important; // medium grey
+    color: white;
+    
+    &:hover {
+      background-color: #4b5563 !important; // slightly darker grey on hover
+    }
+  }
+
+  &.reservation-owner-blocked {
+    background-color: #9333ea !important; // purple
+    color: white;
+    
+    &:hover {
+      background-color: #7e22ce !important; // darker purple on hover
+    }
   }
 }
 

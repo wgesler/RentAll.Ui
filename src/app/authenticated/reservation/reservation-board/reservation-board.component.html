@@ -47,13 +47,35 @@
           <tbody>
             @for (property of properties; track property.propertyId) {
               <tr class="property-row">
-                <td class="property-cell code-cell">{{ property.propertyCode }}</td>
+                <td class="property-cell code-cell">
+                  <a [routerLink]="getPropertyRoute(property.propertyId)">{{ property.propertyCode }}</a>
+                </td>
                 <td class="property-cell address-cell">{{ property.address }}</td>
-                <td class="property-cell rent-cell">{{ formatCurrency(property.monthlyRate) }}</td>
+                <td class="property-cell rent-cell">{{ property.monthlyRate }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell">{{ property.statusLetter }}</td>
                 @for (day of calendarDays; track day.date.getTime()) {
-                  <td class="calendar-cell"></td>
+                  @if (getReservationForPropertyAndDate(property.propertyId, day.date); as reservation) {
+                    @if (getReservationDisplayText(reservation, day.date) === 'A' || getReservationDisplayText(reservation, day.date) === 'D') {
+                      @if (getReservationStatusClass(reservation, day.date) === 'reservation-arrival' || getReservationStatusClass(reservation, day.date) === 'reservation-departure') {
+                        <td class="calendar-cell clickable" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="navigateToReservation(reservation.reservationId)">
+                          <a [routerLink]="getReservationRoute(reservation.reservationId)" class="reservation-link" (click)="$event.stopPropagation()">
+                            {{ getReservationDisplayText(reservation, day.date) }}
+                          </a>
+                        </td>
+                      } @else {
+                        <td class="calendar-cell clickable" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="navigateToReservation(reservation.reservationId)">
+                          {{ getReservationDisplayText(reservation, day.date) }}
+                        </td>
+                      }
+                    } @else {
+                      <td class="calendar-cell clickable" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="navigateToReservation(reservation.reservationId)">
+                        {{ getReservationDisplayText(reservation, day.date) }}
+                      </td>
+                    }
+                  } @else {
+                    <td class="calendar-cell"></td>
+                  }
                 }
               </tr>
             }

@@ -167,7 +167,9 @@ export class MappingService {
       [ReservationStatus.Confirmed]: 'Confirmed',
       [ReservationStatus.CheckedIn]: 'Checked In',
       [ReservationStatus.GaveNotice]: 'Gave Notice',
-      [ReservationStatus.Frr]: 'FRR'
+      [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
+      [ReservationStatus.Maintenance]: 'Maintenance',
+      [ReservationStatus.OwnerBlocked]: 'Owner Blocked' 
     };
     return statusLabels[reservationStatusId] || 'Unknown';
   }

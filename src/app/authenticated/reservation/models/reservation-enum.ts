@@ -3,7 +3,9 @@ export enum ReservationStatus {
   Confirmed = 1,
   CheckedIn = 2,
   GaveNotice = 3,
-  Frr = 4
+  FirstRightRefusal = 4,
+  Maintenance = 5,
+  OwnerBlocked = 6
 }
 
 export enum ClientType {

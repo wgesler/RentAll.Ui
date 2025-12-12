@@ -294,7 +294,10 @@ export class ReservationComponent implements OnInit {
       { value: ReservationStatus.Confirmed, label: 'Confirmed' },
       { value: ReservationStatus.CheckedIn, label: 'Checked In' },
       { value: ReservationStatus.GaveNotice, label: 'Gave Notice' },
-      { value: ReservationStatus.Frr, label: 'FRR' }
+      { value: ReservationStatus.FirstRightRefusal, label: 'First Right of Refusal' },
+      { value: ReservationStatus.Maintenance, label: 'Maintenance' },
+      { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
+      
     ];
 
     this.checkInTimes = [

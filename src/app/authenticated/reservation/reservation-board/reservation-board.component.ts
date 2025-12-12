@@ -1,44 +1,121 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
 import { PropertyStatus } from '../../property/models/property-enums';
 import { take } from 'rxjs';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
+import { ReservationService } from '../services/reservation.service';
+import { ReservationResponse } from '../models/reservation-model';
+import { ReservationStatus } from '../models/reservation-enum';
+import { RouterUrl } from '../../../app.routes';
+import { ContactService } from '../../contact/services/contact.service';
+import { ContactResponse } from '../../contact/models/contact.model';
 
 
 
 @Component({
   selector: 'app-reservation-board',
   standalone: true,
-  imports: [CommonModule, MaterialModule],
+  imports: [CommonModule, MaterialModule, RouterLink],
   templateUrl: './reservation-board.component.html',
   styleUrl: './reservation-board.component.scss'
 })
 export class ReservationBoardComponent implements OnInit {
   properties: BoardProperty[] = [];
   calendarDays: CalendarDay[] = [];
+  reservations: ReservationResponse[] = [];
+  contacts: ContactResponse[] = [];
+  contactMap: Map<string, ContactResponse> = new Map();
   numberOfDays: number = 90; // Show 90 days by default
 
-  constructor(private propertyService: PropertyService) { }
+  constructor(
+    private propertyService: PropertyService,
+    private reservationService: ReservationService,
+    private contactService: ContactService,
+    private router: Router
+  ) { }
 
   ngOnInit(): void {
     this.generateCalendarDays();
-    this.loadProperties();
+    this.loadContacts();
+    this.loadReservations(); // This will call loadProperties() after reservations are loaded
+  }
+
+  loadContacts(): void {
+    this.contactService.getContacts().pipe(take(1)).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts;
+        // Create a lookup map for quick access
+        this.contactMap = new Map();
+        contacts.forEach(contact => {
+          this.contactMap.set(contact.contactId, contact);
+        });
+      },
+      error: (err) => {
+        console.error('Error loading contacts:', err);
+        this.contacts = [];
+        this.contactMap = new Map();
+      }
+    });
+  }
+
+  getMonthlyRateFromReservation(propertyId: string): number | null {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Find reservations for this property that are active today
+    const activeReservations = this.reservations.filter(r => {
+      if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
+        return false;
+      }
+      const arrival = new Date(r.arrivalDate);
+      arrival.setHours(0, 0, 0, 0);
+      const departure = new Date(r.departureDate);
+      departure.setHours(0, 0, 0, 0);
+      return today >= arrival && today <= departure;
+    });
+
+    // If we have active reservations, use the first one (or most recent by arrival date)
+    if (activeReservations.length > 0) {
+      // Sort by arrival date descending to get the most recent
+      activeReservations.sort((a, b) => {
+        if (!a.arrivalDate || !b.arrivalDate) return 0;
+        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
+      });
+      return activeReservations[0].monthlyRate;
+    }
+
+    // If no active reservation today, look for the most recent reservation for this property
+    const propertyReservations = this.reservations.filter(r => r.propertyId === propertyId);
+    if (propertyReservations.length > 0) {
+      // Sort by arrival date descending to get the most recent
+      propertyReservations.sort((a, b) => {
+        if (!a.arrivalDate || !b.arrivalDate) return 0;
+        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
+      });
+      return propertyReservations[0].monthlyRate;
+    }
+
+    return null;
   }
 
   loadProperties(): void {
     this.propertyService.getProperties().pipe(take(1)).subscribe({
       next: (properties: PropertyResponse[]) => {
-        this.properties = properties.map(p => ({
-          propertyId: p.propertyId,
-          propertyCode: p.propertyCode,
-          address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
-          monthlyRate: p.monthlyRate || 0,
-          bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
-          statusLetter: this.getStatusLetter(p.propertyStatusId)
-        }));
+        this.properties = properties.map(p => {
+          const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId);
+          return {
+            propertyId: p.propertyId,
+            propertyCode: p.propertyCode,
+            address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
+            monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
+            bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
+            statusLetter: this.getStatusLetter(p.propertyStatusId)
+          };
+        });
       },
       error: (err) => {
         console.error('Error loading properties:', err);
@@ -123,5 +200,180 @@ export class ReservationBoardComponent implements OnInit {
     }
 
     return groups;
+  }
+
+  loadReservations(): void {
+    this.reservationService.getReservations().pipe(take(1)).subscribe({
+      next: (reservations: ReservationResponse[]) => {
+        this.reservations = reservations.filter(r => r.isActive);
+        // Load properties after reservations are loaded so we can use reservation monthly rates
+        this.loadProperties();
+      },
+      error: (err) => {
+        console.error('Error loading reservations:', err);
+        this.reservations = [];
+        // Still load properties even if reservations fail
+        this.loadProperties();
+      }
+    });
+  }
+
+  getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationResponse | null {
+    const matchingReservations = this.reservations.filter(r => {
+      if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
+        return false;
+      }
+      const arrival = new Date(r.arrivalDate);
+      const departure = new Date(r.departureDate);
+      // Reset time to compare dates only
+      arrival.setHours(0, 0, 0, 0);
+      departure.setHours(0, 0, 0, 0);
+      const compareDate = new Date(date);
+      compareDate.setHours(0, 0, 0, 0);
+      return compareDate >= arrival && compareDate <= departure;
+    });
+
+    if (matchingReservations.length === 0) {
+      return null;
+    }
+
+    // If multiple reservations overlap on the same date, prioritize:
+    // 1. Active/current reservations (those that include today or later)
+    // 2. Most recent arrival date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Sort by arrival date descending (most recent first)
+    matchingReservations.sort((a, b) => {
+      if (!a.arrivalDate || !b.arrivalDate) return 0;
+      const dateA = new Date(a.arrivalDate);
+      const dateB = new Date(b.arrivalDate);
+      dateA.setHours(0, 0, 0, 0);
+      dateB.setHours(0, 0, 0, 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return matchingReservations[0];
+  }
+
+  getReservationStatusClass(reservation: ReservationResponse | null, date: Date): string {
+    if (!reservation) {
+      return '';
+    }
+
+    // Check if it's arrival or departure day first
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    const arrival = new Date(reservation.arrivalDate);
+    arrival.setHours(0, 0, 0, 0);
+    const departure = new Date(reservation.departureDate);
+    departure.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === arrival.getTime()) {
+      return 'reservation-arrival';
+    }
+    
+    if (compareDate.getTime() === departure.getTime()) {
+      return 'reservation-departure';
+    }
+    
+    // Otherwise use status-based colors
+    switch (reservation.reservationStatusId) {
+      case ReservationStatus.PreBooking:
+        return 'reservation-prebooking';
+      case ReservationStatus.Confirmed:
+      case ReservationStatus.CheckedIn:
+        return 'reservation-active';
+      case ReservationStatus.GaveNotice:
+        return 'reservation-notice';
+      case ReservationStatus.FirstRightRefusal:
+        return 'reservation-frr';
+      case ReservationStatus.Maintenance:
+        return 'reservation-maintenance';
+      case ReservationStatus.OwnerBlocked:
+        return 'reservation-owner-blocked';
+      default:
+        return '';
+    }
+  }
+
+  getReservationDisplayText(reservation: ReservationResponse | null, date: Date): string {
+    if (!reservation) {
+      return '';
+    }
+
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    const arrival = new Date(reservation.arrivalDate);
+    arrival.setHours(0, 0, 0, 0);
+    const departure = new Date(reservation.departureDate);
+    departure.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === arrival.getTime()) {
+      return 'A';
+    }
+    
+    if (compareDate.getTime() === departure.getTime()) {
+      return 'D';
+    }
+    
+    // For OwnerBlocked status, show "O" instead of "R"
+    if (reservation.reservationStatusId === ReservationStatus.OwnerBlocked) {
+      return 'O';
+    }
+    
+    // For Maintenance status, show "M" instead of "R"
+    if (reservation.reservationStatusId === ReservationStatus.Maintenance) {
+      return 'M';
+    }
+    
+    // For yellow (PreBooking), green (Confirmed/CheckedIn), red (GaveNotice), orange (FRR)
+    // Show letters of the tenant/contact name cycling through consecutive boxes
+    if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
+        reservation.reservationStatusId === ReservationStatus.Confirmed ||
+        reservation.reservationStatusId === ReservationStatus.CheckedIn ||
+        reservation.reservationStatusId === ReservationStatus.GaveNotice ||
+        reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
+      
+      const contact = this.contactMap.get(reservation.contactId);
+      if (contact) {
+        // Get full name (firstName + lastName), keep spaces, convert to uppercase
+        const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim().toUpperCase();
+        
+        if (fullName.length > 0) {
+          // Calculate which day of the reservation this is
+          // Day 0 = arrival (shows 'A'), so day 1 = first day after arrival shows first character
+          const arrival = new Date(reservation.arrivalDate);
+          arrival.setHours(0, 0, 0, 0);
+          const daysFromArrival = Math.floor((compareDate.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Skip arrival day (shows 'A'), so subtract 1 to get the character index
+          const charIndex = daysFromArrival - 1;
+          
+          // Only show characters if within the name length, otherwise leave blank
+          if (charIndex >= 0 && charIndex < fullName.length) {
+            return fullName.charAt(charIndex);
+          }
+          // If beyond the name length, return empty string to leave blank
+          return '';
+        }
+      }
+    }
+    
+    return 'R';
+  }
+
+  getPropertyRoute(propertyId: string): string {
+    return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
+  }
+
+  getReservationRoute(reservationId: string): string {
+    return '/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
+  }
+
+  navigateToReservation(reservationId: string): void {
+    this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
   }
 }
