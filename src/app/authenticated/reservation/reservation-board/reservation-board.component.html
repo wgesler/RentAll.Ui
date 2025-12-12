@@ -1,5 +1,85 @@
-<div>
-  <!-- Reservation Board content will be added here -->
+<div class="flex content-card-wrap justify-center reservation-board-wrapper">
+  <section class="content-card reservation-board-card">
+    <div class="board-header">
+      <div class="header-grid">
+        <div class="header-content-wrapper">
+          <!-- Left column: Property section -->
+          <div class="header-property-column">
+            <!-- First row: Title -->
+            <div class="board-title-cell">
+              <mat-icon mat-list-icon class="mr-5 align-bottom">grid_view</mat-icon>
+              <h2 class="m-0">Reservation Board</h2>
+            </div>
+            <!-- Second row: Property headers -->
+            <div class="property-headers-row">
+              <div class="property-header-cell code-header">Code</div>
+              <div class="property-header-cell address-header">Address</div>
+              <div class="property-header-cell rent-header">RET/M</div>
+              <div class="property-header-cell beds-header">BB</div>
+              <div class="property-header-cell status-header">ST</div>
+            </div>
+            <!-- Third row: Spacer -->
+            <div class="property-spacer-row">
+              <div class="property-spacer-cell code-spacer"></div>
+              <div class="property-spacer-cell address-spacer"></div>
+              <div class="property-spacer-cell rent-spacer"></div>
+              <div class="property-spacer-cell beds-spacer"></div>
+              <div class="property-spacer-cell status-spacer"></div>
+            </div>
+          </div>
+          <!-- Right column: Calendar section -->
+          <div class="header-calendar-column">
+            <!-- First row: Month headers -->
+            <div class="month-row">
+              @for (monthGroup of getMonthGroups(); track monthGroup.monthName) {
+                <div class="month-cell" [style.width.px]="monthGroup.days * 40">
+                  {{ monthGroup.monthName }}
+                </div>
+              }
+            </div>
+            <!-- Second row: Day of week -->
+            <div class="dow-row">
+              @for (day of calendarDays; track day.date.getTime()) {
+                <div class="dow-cell">{{ day.dayOfWeek }}</div>
+              }
+            </div>
+            <!-- Third row: Date numbers -->
+            <div class="date-row">
+              @for (day of calendarDays; track day.date.getTime()) {
+                <div class="date-cell">{{ day.dayNumber }}</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <mat-card>
+      <div class="board-wrapper">
+        <!-- Left side: Property information -->
+        <div class="property-column">
+          @for (property of properties; track property.propertyId) {
+            <div class="property-row">
+              <div class="property-cell code-cell">{{ property.propertyCode }}</div>
+              <div class="property-cell address-cell">{{ property.address }}</div>
+              <div class="property-cell rent-cell">{{ formatCurrency(property.monthlyRate) }}</div>
+              <div class="property-cell beds-cell">{{ property.bedsBaths }}</div>
+              <div class="property-cell status-cell">{{ property.statusLetter }}</div>
+            </div>
+          }
+        </div>
+
+        <!-- Right side: Calendar grid -->
+        <div class="calendar-column">
+          <!-- Calendar body: Property rows -->
+          @for (property of properties; track property.propertyId) {
+            <div class="property-calendar-row">
+              @for (day of calendarDays; track day.date.getTime()) {
+                <div class="calendar-cell"></div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </mat-card>
+  </section>
 </div>
-
-

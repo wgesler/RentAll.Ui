@@ -28,8 +28,13 @@ export class SidebarComponent {
     );
   navItems = [
     {
+      icon: 'grid_view',
+      displayName: 'Boards',
+      url: RouterToken.ReservationBoard,
+    },
+    {
       icon: 'handshake',
-      displayName: 'Rentals',
+      displayName: 'Reservations',
       url: RouterToken.RentalList,
     },
     {

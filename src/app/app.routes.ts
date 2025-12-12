@@ -11,6 +11,7 @@ import { UserComponent } from './authenticated/user/user/user.component';
 import { UserListComponent } from './authenticated/user/user-list/user-list.component';
 import { ReservationComponent } from './authenticated/reservation/reservation/reservation.component';
 import { ReservationListComponent } from './authenticated/reservation/reservation-list/reservation-list.component';
+import { ReservationBoardComponent } from './authenticated/reservation/reservation-board/reservation-board.component';
 import { AgentComponent } from './authenticated/agent/agent/agent.component';
 import { AgentListComponent } from './authenticated/agent/agent-list/agent-list.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
@@ -29,6 +30,7 @@ export enum RouterToken {
   Property = RouterToken.TenantList + '/:id',
   ReservationList = 'reservations',
   Reservation = RouterToken.ReservationList + '/:id',
+  ReservationBoard = 'boards',
   AgentList = 'agents',
   Agent = RouterToken.AgentList + '/:id',
   UserList = 'users',
@@ -46,6 +48,7 @@ export enum RouterUrl {
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
   Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
+  ReservationBoard      = `${RouterToken.Auth}/${RouterToken.ReservationBoard}`,
   AgentList             = `${RouterToken.Auth}/${RouterToken.AgentList}`,
   Agent                 = `${RouterToken.Auth}/${RouterToken.Agent}`,
   UserList              = `${RouterToken.Auth}/${RouterToken.UserList}`,
@@ -70,6 +73,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.UserList, component: UserListComponent, canActivate: [authRouteGuard] },
