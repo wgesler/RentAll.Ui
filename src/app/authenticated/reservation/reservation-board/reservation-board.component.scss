@@ -169,7 +169,6 @@
 }
 
 .reservation-table {
-  width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: auto;
@@ -231,40 +230,45 @@
 
 .property-header-cell {
   background-color: rgb(59, 130, 246) !important;
-  width: auto;
-  min-width: 0;
+  color: white;
+  font-weight: 200;
+  text-align: center;
   white-space: nowrap;
   padding: 2px 4px;
-  font-size: 11px;
+  font-size: 10px;
   border: 1px solid #e0e0e0;
-  text-align: left;
   vertical-align: middle;
   height: 20px;
   box-sizing: border-box;
   
   &.code-header {
-    font-weight: 600;
-    text-align: center;
+    width: 10ch !important;
+    min-width: 10ch;
+    max-width: 10ch;
   }
   
   &.address-header {
-    font-size: 10px;
-    color: white;
-    text-align: left;
+    width: 25ch !important;
+    min-width: 25ch;
+    max-width: 25ch;
   }
   
   &.rent-header {
-    text-align: center;
-    font-weight: 500;
+    width: 6ch !important;
+    min-width: 6ch;
+    max-width: 6ch;
   }
   
   &.beds-header {
-    text-align: center;
+    width: 4ch !important;
+    min-width: 4ch;
+    max-width: 4ch;
   }
   
   &.status-header {
-    text-align: center;
-    font-weight: 600;
+    width: 4ch !important;
+    min-width: 4ch;
+    max-width: 4ch;
   }
 }
 
@@ -301,35 +305,45 @@
   padding: 2px 4px;
   font-size: 11px;
   border: 1px solid #e0e0e0;
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
   height: 20px;
   box-sizing: border-box;
-  width: auto;
   white-space: nowrap;
 
   &.code-cell {
     font-weight: 600;
-    text-align: center;
+    width: 10ch !important;
+    min-width: 10ch;
+    max-width: 10ch;
   }
 
   &.address-cell {
-    font-size: 10px;
     color: #666;
+    text-align: left;
+    width: 25ch !important;
+    min-width: 25ch;
+    max-width: 25ch;
   }
 
   &.rent-cell {
-    text-align: center;
     font-weight: 500;
+    width: 6ch !important;
+    min-width: 6ch;
+    max-width: 6ch;
   }
 
   &.beds-cell {
-    text-align: center;
+    width: 4ch !important;
+    min-width: 4ch;
+    max-width: 4ch;
   }
 
   &.status-cell {
-    text-align: center;
     font-weight: 600;
+    width: 4ch !important;
+    min-width: 4ch;
+    max-width: 4ch;
   }
 }
 

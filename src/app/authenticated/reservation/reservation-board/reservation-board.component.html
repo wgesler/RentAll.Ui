@@ -12,11 +12,11 @@
           <thead>
             <!-- Row 1: Empty property cells + Month headers -->
             <tr class="header-row header-row-1">
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell code-header">&nbsp;</th>
+              <th class="property-header-cell address-header">&nbsp;</th>
+              <th class="property-header-cell rent-header">&nbsp;</th>
+              <th class="property-header-cell beds-header">&nbsp;</th>
+              <th class="property-header-cell status-header">&nbsp;</th>
               @for (monthGroup of getMonthGroups(); track monthGroup.monthName) {
                 <th class="month-header-cell" [attr.colspan]="monthGroup.days">{{ monthGroup.monthName }}</th>
               }
@@ -34,11 +34,11 @@
             </tr>
             <!-- Row 3: Empty property cells + Dates -->
             <tr class="header-row header-row-3">
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
-              <th class="property-header-cell">&nbsp;</th>
+              <th class="property-header-cell code-header">&nbsp;</th>
+              <th class="property-header-cell address-header">&nbsp;</th>
+              <th class="property-header-cell rent-header">&nbsp;</th>
+              <th class="property-header-cell beds-header">&nbsp;</th>
+              <th class="property-header-cell status-header">&nbsp;</th>
               @for (day of calendarDays; track day.date.getTime()) {
                 <th class="date-header-cell">{{ day.dayNumber }}</th>
               }
