@@ -53,7 +53,7 @@ export class SidebarComponent {
       url: RouterToken.ContactList,
     },
     {
-      icon: 'person',
+      icon: 'people',
       displayName: 'Users',
       url: RouterToken.UserList,
     },

@@ -14,15 +14,16 @@ mat-sidenav {
   background-color: #1c2c3f !important;
   box-shadow: 2px 1px 1px rgb(0 0 0 / 10%), 0 1px 3px rgb(0 0 0 / 10%);
   width: 175px;
-  padding-top: 30px;
+  padding-top: 0;
   text-align: center;
+  overflow-y: auto;
 
   & .mat-list-text, .mat-icon {
     color: white !important;
   }
 
   & .mdc-list-item:first-of-type {
-    margin-top: 50px;
+    margin-top: 80px;
   }
   & .active-list-item {
     border-left: 4px solid rgba(255,255,255,1);
