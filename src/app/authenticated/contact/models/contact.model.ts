@@ -1,7 +1,8 @@
 export interface ContactRequest {
   contactId?: string;
-  contactCode: string;
-  contactTypeId: number;
+  organizationId: string;
+  contactCode?: string;
+  entityTypeId: number;
   firstName: string;
   lastName: string;
   address1?: string;
@@ -16,8 +17,9 @@ export interface ContactRequest {
 
 export interface ContactResponse {
   contactId: string;
+  organizationId: string;
   contactCode: string;
-  contactTypeId: number;
+  entityTypeId: number;
   firstName: string;
   lastName: string;
   address1?: string;

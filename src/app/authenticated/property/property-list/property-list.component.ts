@@ -122,8 +122,8 @@ export class PropertyListComponent implements OnInit {
   }
 
   goToContact(event: PropertyListDisplay): void {
-    if (event.contactId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    if (event.owner1Id) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
     }
   }
 

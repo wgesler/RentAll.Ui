@@ -24,31 +24,43 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-between items-center gap-3">
-              <div class="flex items-center gap-3">
-                <mat-form-field appearance="outline" style="width: 15ch; min-width: 15ch;">
-                  <mat-label>Property Code</mat-label>
-                  <input matInput formControlName="propertyCode" maxlength="15">
-                  @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
-                    <mat-error>Property Code is required</mat-error>
-                  }
-                </mat-form-field>
-                <mat-form-field appearance="outline" style="width: 50ch; min-width: 50ch;">
-                  <mat-label>Owner</mat-label>
-                  <mat-select formControlName="contactId">
-                    <mat-option value="">Select Owner</mat-option>
-                    @for (contact of contacts; track contact.contactId) {
-                      <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (isAddMode && form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
-                    <mat-error>Owner is required</mat-error>
-                  }
-                </mat-form-field>
-              </div>
-              <mat-checkbox formControlName="isActive" color="primary">
+            <!-- First line: IsActive right justified -->
+            <div class="mb-4 flex justify-end">
+              <mat-checkbox formControlName="isActive" color="primary" class="mr-3">
                 Is Active
               </mat-checkbox>
+            </div>
+            
+            <!-- Second line: PropertyCode, Owner1, Owner2 - filling card width -->
+            <div class="mb-4 flex items-center gap-3">
+              <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 20ch; min-width: 20ch;">
+                <mat-label>Property Code</mat-label>
+                <input matInput formControlName="propertyCode" maxlength="15">
+                @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
+                  <mat-error>Property Code is required</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Owner 1</mat-label>
+                <mat-select formControlName="owner1Id">
+                  <mat-option value="">Select Owner</mat-option>
+                  @for (contact of contacts; track contact.contactId) {
+                    <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
+                  }
+                </mat-select>
+                @if (isAddMode && form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched) {
+                  <mat-error>Owner 1 is required</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Owner 2 (Optional)</mat-label>
+                <mat-select formControlName="owner2Id">
+                  <mat-option [value]="null">Select Owner</mat-option>
+                  @for (contact of contacts; track contact.contactId) {
+                    <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
             </div>
 
             <mat-accordion multi="true">
@@ -86,24 +98,8 @@
                   </mat-form-field>
                 </div>
                 
-                <!-- Row 2: Check-In, Check-Out, MonthlyRate, DailyRate -->
+                <!-- Row 2: MonthlyRate, DailyRate, CheckoutFee, MaidServiceFee -->
                 <div class="features-row spread availability-row">
-                  <mat-form-field appearance="outline" class="compact-select">
-                    <mat-label>Check-In</mat-label>
-                    <mat-select formControlName="checkInTime">
-                      @for (time of checkInTimes; track time.value) {
-                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="compact-select">
-                    <mat-label>Check-Out</mat-label>
-                    <mat-select formControlName="checkOutTime">
-                      @for (time of checkOutTimes; track time.value) {
-                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
                   <mat-form-field appearance="outline" class="compact-field">
                     <mat-label>Monthly Rate</mat-label>
                     <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')">
@@ -111,6 +107,18 @@
                   <mat-form-field appearance="outline" class="compact-field">
                     <mat-label>Daily Rate</mat-label>
                     <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Checkout Fee</mat-label>
+                    <input matInput type="text" formControlName="checkoutFee" (blur)="formatDecimal('checkoutFee')" (input)="onDecimalInput($event, 'checkoutFee')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Maid Service Fee</mat-label>
+                    <input matInput type="text" formControlName="maidServiceFee" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-field">
+                    <mat-label>Pet Fee</mat-label>
+                    <input matInput type="text" formControlName="petFee" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')">
                   </mat-form-field>
                 </div>
                 
@@ -160,9 +168,45 @@
                     <mat-label>Square Feet</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="equal-field">
-                    <mat-label>Bed Sizes</mat-label>
-                    <input matInput formControlName="bedSizes">
+                </div>
+                
+                <!-- Row 5: Bedroom1, Bedroom2, Bedroom3, Bedroom4 -->
+                <div class="features-row spread availability-row">
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Bedroom 1</mat-label>
+                    <mat-select formControlName="bedroomId1">
+                      <mat-option [value]="0">None</mat-option>
+                      @for (bedSize of bedSizeTypes; track bedSize.value) {
+                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Bedroom 2</mat-label>
+                    <mat-select formControlName="bedroomId2">
+                      <mat-option [value]="0">None</mat-option>
+                      @for (bedSize of bedSizeTypes; track bedSize.value) {
+                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Bedroom 3</mat-label>
+                    <mat-select formControlName="bedroomId3">
+                      <mat-option [value]="0">None</mat-option>
+                      @for (bedSize of bedSizeTypes; track bedSize.value) {
+                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Bedroom 4</mat-label>
+                    <mat-select formControlName="bedroomId4">
+                      <mat-option [value]="0">None</mat-option>
+                      @for (bedSize of bedSizeTypes; track bedSize.value) {
+                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
+                      }
+                    </mat-select>
                   </mat-form-field>
                 </div>
               </div>
@@ -277,28 +321,26 @@
                     <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
                     <mat-checkbox formControlName="smoking">Smoking</mat-checkbox>
                   </div>
-                  <div class="grid grid-cols-3 gap-4 items-start features-content mt-4">
-                    <div class="flex items-center gap-3">
-                      <mat-checkbox formControlName="assignedParking">Assigned Parking</mat-checkbox>
-                      <mat-form-field appearance="outline" class="flex-1" style="min-width: 0;">
-                        <mat-label>Notes</mat-label>
-                        <input matInput formControlName="notes">
-                      </mat-form-field>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
-                      <mat-form-field appearance="outline" class="alarm-code-field flex-1" style="min-width: 0;">
-                        <mat-label>Code</mat-label>
-                        <input matInput formControlName="alarmCode" maxlength="6">
-                      </mat-form-field>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <mat-checkbox formControlName="remoteAccess">Remote Access</mat-checkbox>
-                      <mat-form-field appearance="outline" class="alarm-code-field flex-1" style="min-width: 0;">
-                        <mat-label>Key Code</mat-label>
-                        <input matInput formControlName="keyCode" maxlength="10">
-                      </mat-form-field>
-                    </div>
+                  <div class="flex items-center gap-3 mt-4 flex-wrap">
+                    <mat-checkbox formControlName="assignedParking">Assigned Parking</mat-checkbox>
+                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                      <mat-label>Notes</mat-label>
+                      <input matInput formControlName="notes">
+                    </mat-form-field>
+                    <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
+                    <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 12ch; min-width: 12ch;">
+                      <mat-label>Code</mat-label>
+                      <input matInput formControlName="alarmCode" maxlength="6">
+                    </mat-form-field>
+                    <mat-checkbox formControlName="keypadAccess">Keypad Access</mat-checkbox>
+                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                      <mat-label>Master Key Code</mat-label>
+                      <input matInput formControlName="masterKeyCode" maxlength="10">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                      <mat-label>Tenant Key Code</mat-label>
+                      <input matInput formControlName="tenantKeyCode" maxlength="10">
+                    </mat-form-field>
                   </div>
                   </div>
                 </div>
@@ -339,7 +381,7 @@
                     <div class="grid grid-cols-4 gap-4 items-center features-content">
                       <mat-checkbox formControlName="tv">TV</mat-checkbox>
                       <mat-checkbox formControlName="cable">Cable</mat-checkbox>
-                      <mat-checkbox formControlName="dvd">DVD</mat-checkbox>
+                      <mat-checkbox formControlName="streaming">Streaming</mat-checkbox>
                       <mat-checkbox formControlName="fastInternet">Fast Internet</mat-checkbox>
                     </div>
                   </div>
@@ -403,6 +445,9 @@
                           <mat-option [value]="day.value">{{ day.label }}</mat-option>
                         }
                       </mat-select>
+                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                        <mat-error>Trash pickup is required</mat-error>
+                      }
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="col-span-3">

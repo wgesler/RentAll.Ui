@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -23,6 +23,8 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 })
 
 export class AgentListComponent implements OnInit {
+  @Input() embeddedInSettings: boolean = false;
+  @Output() agentSelected = new EventEmitter<string | null>();
   panelOpenState: boolean = true;
   itemsToLoad: string[] = [];
   isServiceError: boolean = false;
@@ -51,7 +53,12 @@ export class AgentListComponent implements OnInit {
   }
 
   addAgent(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Agent, ['new']));
+    if (this.embeddedInSettings) {
+      this.agentSelected.emit('new');
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Agent, ['new']);
+      this.router.navigateByUrl(url);
+    }
   }
 
   getAgents(): void {
@@ -99,7 +106,12 @@ export class AgentListComponent implements OnInit {
   }
 
   goToAgent(event: AgentListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Agent, [event.agentId]));
+    if (this.embeddedInSettings) {
+      this.agentSelected.emit(event.agentId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Agent, [event.agentId]);
+      this.router.navigateByUrl(url);
+    }
   }
 
   removeLoadItem(itemToRemove: string): void {

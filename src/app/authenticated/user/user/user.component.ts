@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize } from 'rxjs';
+import { take, finalize, Subscription } from 'rxjs';
 import { UserService } from '../services/user.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -11,6 +11,8 @@ import { RouterUrl } from '../../../app.routes';
 import { UserResponse, UserRequest } from '../models/user.model';
 import { UserGroups } from '../models/user-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { OrganizationListService } from '../../../services/organization-list.service';
+import { OrganizationResponse } from '../../organization/models/organization.model';
 
 @Component({
   selector: 'app-user',
@@ -20,7 +22,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, 
   styleUrl: './user.component.scss'
 })
 
-export class UserComponent implements OnInit {
+export class UserComponent implements OnInit, OnDestroy {
   itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   userId: string;
@@ -31,23 +33,24 @@ export class UserComponent implements OnInit {
   isAddMode: boolean = false;
   hidePassword: boolean = true;
   hideConfirmPassword: boolean = true;
-  availableUserGroups: { value: string, label: string }[] = [
-    { value: 'SuperAdmin', label: 'Super Admin' },
-    { value: 'Admin', label: 'Admin' },
-    { value: 'User', label: 'User' }
-  ];
+  availableUserGroups: { value: string, label: string }[] = [];
+  organizations: OrganizationResponse[] = [];
+  private organizationsSubscription: Subscription;
 
   constructor(
     public userService: UserService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private organizationListService: OrganizationListService
   ) {
     this.itemsToLoad.push('user');
   }
 
   ngOnInit(): void {
+    this.initializeUserGroups();
+    this.subscribeToOrganizations();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.userId = paramMap.get('id');
@@ -65,6 +68,44 @@ export class UserComponent implements OnInit {
       this.buildForm();
       this.setupPasswordValidation();
     }
+  }
+
+  ngOnDestroy(): void {
+    if (this.organizationsSubscription) {
+      this.organizationsSubscription.unsubscribe();
+    }
+  }
+
+  subscribeToOrganizations(): void {
+    this.organizationsSubscription = this.organizationListService.getOrganizations().subscribe({
+      next: (organizations) => {
+        this.organizations = organizations || [];
+      },
+      error: (err) => {
+        console.error('Error subscribing to organizations:', err);
+      }
+    });
+  }
+
+  initializeUserGroups(): void {
+    // Build availableUserGroups from the UserGroups enum
+    // Exclude Unknown (0) from the list
+    this.availableUserGroups = Object.keys(UserGroups)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
+      .map(key => ({
+        value: key,
+        label: this.formatUserGroupLabel(key)
+      }));
+  }
+
+  formatUserGroupLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    // e.g., "SuperAdmin" -> "Super Admin", "PropertyManager" -> "Property Manager"
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
   getUser(): void {
@@ -93,6 +134,7 @@ export class UserComponent implements OnInit {
     this.isSubmitting = true;
     const formValue = this.form.value;
     const userRequest: UserRequest = {
+      organizationId: formValue.organizationId,
       firstName: formValue.firstName,
       lastName: formValue.lastName,
       email: formValue.email,
@@ -142,6 +184,7 @@ export class UserComponent implements OnInit {
       : [this.passwordMatchValidator.bind(this)];
     
     this.form = this.fb.group({
+      organizationId: new FormControl('', [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
       email: new FormControl('', [Validators.required, Validators.email]),
@@ -189,6 +232,7 @@ export class UserComponent implements OnInit {
       
       // Use setValue for the userGroups array to ensure it's properly set
       this.form.patchValue({
+        organizationId: this.user.organizationId,
         firstName: this.user.firstName,
         lastName: this.user.lastName,
         email: this.user.email,

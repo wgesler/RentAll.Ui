@@ -6,6 +6,8 @@ import { ReservationResponse, ReservationListDisplay } from '../models/reservati
 import { ReservationService } from '../services/reservation.service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
+import { PropertyService } from '../../property/services/property.service';
+import { PropertyResponse } from '../../property/models/property.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -41,6 +43,7 @@ export class ReservationListComponent implements OnInit {
   private allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
   private contacts: ContactResponse[] = [];
+  private properties: PropertyResponse[] = [];
 
   constructor(
     public reservationService: ReservationService,
@@ -49,19 +52,35 @@ export class ReservationListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService,
-    private contactService: ContactService) {
+    private contactService: ContactService,
+    private propertyService: PropertyService) {
       this.itemsToLoad.push('reservations');
   }
 
   ngOnInit(): void {
+    // Load contacts and properties in parallel
     this.contactService.getAllContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
-        this.getReservations();
+        this.loadProperties();
       },
       error: (err: HttpErrorResponse) => {
         console.error('Reservation List Component - Error loading contacts:', err);
         this.contacts = [];
+        this.loadProperties();
+      }
+    });
+  }
+
+  loadProperties(): void {
+    this.propertyService.getProperties().pipe(take(1)).subscribe({
+      next: (properties: PropertyResponse[]) => {
+        this.properties = properties;
+        this.getReservations();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Reservation List Component - Error loading properties:', err);
+        this.properties = [];
         this.getReservations();
       }
     });
@@ -74,7 +93,7 @@ export class ReservationListComponent implements OnInit {
   getReservations(): void {
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations') })).subscribe({
       next: (response: ReservationResponse[]) => {
-        this.allReservations = this.mappingService.mapReservations(response, this.contacts);
+        this.allReservations = this.mappingService.mapReservations(response, this.contacts, this.properties);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

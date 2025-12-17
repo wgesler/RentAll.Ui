@@ -1,5 +1,6 @@
 export interface UserRequest {
   userId?: string;
+  organizationId: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -10,6 +11,7 @@ export interface UserRequest {
 
 export interface UserResponse {
   userId: string;
+  organizationId: string;
   firstName: string;
   lastName: string;
   email: string;

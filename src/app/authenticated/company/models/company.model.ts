@@ -2,11 +2,13 @@ import { FileDetails } from "../../../shared/models/fileDetails";
 
 export interface CompanyRequest {
   companyId?: string;
-  companyCode: string;
+  organizationId: string;
+  companyCode?: string;
   name: string;
   contactId: string;
   address1: string;
   address2?: string;
+  suite?: string;
   city: string;
   state: string;
   zip: string;
@@ -19,11 +21,13 @@ export interface CompanyRequest {
 
 export interface CompanyResponse {
   companyId: string;
+  organizationId: string;
   companyCode: string;
   contactId: string;
   name: string;
   address1: string;
   address2?: string;
+  suite?: string;
   city: string;
   state: string;
   zip: string;

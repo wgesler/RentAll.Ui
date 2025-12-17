@@ -173,7 +173,8 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.lockEvent.emit(rowItem);
   }
 
-  emitEditEvent(_event: Event, rowItem: PurposefulAny): void {
+  emitEditEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
     this.editEvent.emit(rowItem);
   }
 

@@ -134,6 +134,16 @@
                                   id="table-owner-link-{{templateTableId}}-{{i}}">
                                 {{item[column.name]}}
                             </span>
+                        } @case ('color') {
+                            <div class="flex items-center gap-2">
+                                <div [style.background-color]="item[column.name]" 
+                                     [style.width.px]="24" 
+                                     [style.height.px]="24" 
+                                     [style.border]="'1px solid #ccc'"
+                                     [style.border-radius.px]="4"
+                                     class="inline-block flex-shrink-0"></div>
+                                <span>{{item[column.name]}}</span>
+                            </div>
                         } @default {
                             @if (column.obfuscate) {
                                 <span>

@@ -13,6 +13,8 @@ import { ReservationStatus } from '../models/reservation-enum';
 import { RouterUrl } from '../../../app.routes';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
+import { ColorService } from '../../color/services/color.service';
+import { ColorResponse } from '../../color/models/color.model';
 
 
 
@@ -29,19 +31,41 @@ export class ReservationBoardComponent implements OnInit {
   reservations: ReservationResponse[] = [];
   contacts: ContactResponse[] = [];
   contactMap: Map<string, ContactResponse> = new Map();
+  colors: ColorResponse[] = [];
+  colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
   numberOfDays: number = 90; // Show 90 days by default
 
   constructor(
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private contactService: ContactService,
+    private colorService: ColorService,
     private router: Router
   ) { }
 
   ngOnInit(): void {
     this.generateCalendarDays();
+    this.loadColors();
     this.loadContacts();
     this.loadReservations(); // This will call loadProperties() after reservations are loaded
+  }
+
+  loadColors(): void {
+    this.colorService.getColors().pipe(take(1)).subscribe({
+      next: (colors: ColorResponse[]) => {
+        this.colors = colors;
+        // Create a lookup map for quick access by reservationStatusId
+        this.colorMap = new Map();
+        colors.forEach(color => {
+          this.colorMap.set(color.reservationStatusId, color.color);
+        });
+      },
+      error: (err) => {
+        console.error('Error loading colors:', err);
+        this.colors = [];
+        this.colorMap = new Map();
+      }
+    });
   }
 
   loadContacts(): void {
@@ -85,7 +109,7 @@ export class ReservationBoardComponent implements OnInit {
         if (!a.arrivalDate || !b.arrivalDate) return 0;
         return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
       });
-      return activeReservations[0].monthlyRate;
+      return activeReservations[0].billingRate;
     }
 
     // If no active reservation today, look for the most recent reservation for this property
@@ -96,7 +120,7 @@ export class ReservationBoardComponent implements OnInit {
         if (!a.arrivalDate || !b.arrivalDate) return 0;
         return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
       });
-      return propertyReservations[0].monthlyRate;
+      return propertyReservations[0].billingRate;
     }
 
     return null;
@@ -298,6 +322,47 @@ export class ReservationBoardComponent implements OnInit {
     }
   }
 
+  getReservationColor(reservation: ReservationResponse | null, date: Date): string | null {
+    if (!reservation) {
+      return null;
+    }
+
+    // Check if it's arrival or departure day - use blue for these
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    const arrival = new Date(reservation.arrivalDate);
+    arrival.setHours(0, 0, 0, 0);
+    const departure = new Date(reservation.departureDate);
+    departure.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
+      return '#3b82f6'; // Blue for arrival/departure
+    }
+    
+    // Get color from API based on reservation status
+    const color = this.colorMap.get(reservation.reservationStatusId);
+    return color || null;
+  }
+
+  getTextColor(backgroundColor: string | null): string {
+    if (!backgroundColor) {
+      return '';
+    }
+    
+    // Convert hex to RGB
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Calculate brightness using relative luminance formula
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // Return white for dark backgrounds, black for light backgrounds
+    return brightness > 128 ? '#000000' : '#ffffff';
+  }
+
   getReservationDisplayText(reservation: ReservationResponse | null, date: Date): string {
     if (!reservation) {
       return '';
@@ -337,7 +402,7 @@ export class ReservationBoardComponent implements OnInit {
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       
-      const contact = this.contactMap.get(reservation.contactId);
+      const contact = this.contactMap.get(reservation.clientId);
       if (contact) {
         // Get full name (firstName + lastName), keep spaces, convert to uppercase
         const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim().toUpperCase();

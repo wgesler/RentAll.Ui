@@ -54,27 +54,33 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
-                  <mat-label>Code</mat-label>
-                  <input matInput formControlName="companyCode" required>
-                  @if (form.get('companyCode')?.hasError('required') && form.get('companyCode')?.touched) {
-                    <mat-error>Code is required</mat-error>
-                  }
-                </mat-form-field>
+                @if (!isAddMode) {
+                  <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
+                    <mat-label>Code</mat-label>
+                    <input matInput [value]="company?.companyCode || ''" readonly disabled>
+                  </mat-form-field>
+                }
               </div>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Address 1</mat-label>
-                <input matInput formControlName="address1" required>
-                @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
-                  <mat-error>Address 1 is required</mat-error>
-                }
-              </mat-form-field>
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Address 1</mat-label>
+                  <input matInput formControlName="address1" required>
+                  @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                    <mat-error>Address 1 is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Address 2</mat-label>
-                <input matInput formControlName="address2">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Address 2</mat-label>
+                  <input matInput formControlName="address2">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Suite</mat-label>
+                  <input matInput formControlName="suite">
+                </mat-form-field>
+              </div>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>City</mat-label>

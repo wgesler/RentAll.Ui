@@ -64,3 +64,13 @@ export enum CheckoutTimes {
   OnePM = 6
 }
 
+export enum BedSizeType
+{
+    King = 1,
+    Queen = 2,
+    Double = 3,
+    Twin = 4,
+    DayBed = 5,
+    SofaBed = 6
+}
+

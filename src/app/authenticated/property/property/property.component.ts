@@ -15,7 +15,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
 import { MappingService } from '../../../services/mapping.service';
-import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
+import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType } from '../models/property-enums';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-property',
@@ -45,8 +46,7 @@ export class PropertyComponent implements OnInit {
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
-  checkInTimes: { value: number, label: string }[] = [];
-  checkOutTimes: { value: number, label: string }[] = [];
+  bedSizeTypes: { value: number, label: string }[] = [];
   
   // Accordion expansion states
   expandedSections = {
@@ -78,7 +78,8 @@ export class PropertyComponent implements OnInit {
     private commonService: CommonService,
     private formatterService: FormatterService,
     private contactService: ContactService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private authService: AuthService
   ) {
       //this.itemsToLoad.push('property');
       this.loadStates();
@@ -89,66 +90,11 @@ export class PropertyComponent implements OnInit {
     this.trashDays = Object.keys(TrashDays)
       .filter(key => !isNaN(Number(TrashDays[key])))
       .map(key => ({ value: Number(TrashDays[key]), label: key }));
-    // Initialize property styles (numeric enum)
-    this.propertyStyles = [
-      { value: PropertyStyle.Standard, label: 'Standard' },
-      { value: PropertyStyle.Corporate, label: 'Corporate' },
-      { value: PropertyStyle.Vacation, label: 'Vacation' }
-    ];
     
-    // Initialize property statuses (numeric enum)
-    this.propertyStatuses = [
-      { value: PropertyStatus.NotProcessed, label: 'NotProcessed' },
-      { value: PropertyStatus.Cleaned, label: 'Cleaned' },
-      { value: PropertyStatus.Inspected, label: 'Inspected' },
-      { value: PropertyStatus.Ready, label: 'Ready' },
-      { value: PropertyStatus.Occupied, label: 'Occupied' },
-      { value: PropertyStatus.Maintenance, label: 'Maintenance' },
-      { value: PropertyStatus.Offline, label: 'Offline' }
-    ];
-    
-    // Initialize property types (numeric enum)
-    this.propertyTypes = [
-      { value: PropertyType.Unspecified, label: 'Unspecified' },
-      { value: PropertyType.Apartment, label: 'Apartment' },
-      { value: PropertyType.Bungalow, label: 'Bungalow' },
-      { value: PropertyType.Boat, label: 'Boat' },
-      { value: PropertyType.Chalet, label: 'Chalet' },
-      { value: PropertyType.Condo, label: 'Condo' },
-      { value: PropertyType.Cottage, label: 'Cottage' },
-      { value: PropertyType.Flat, label: 'Flat' },
-      { value: PropertyType.House, label: 'House' },
-      { value: PropertyType.Loft, label: 'Loft' },
-      { value: PropertyType.Office, label: 'Office' },
-      { value: PropertyType.Penthouse, label: 'Penthouse' },
-      { value: PropertyType.Room, label: 'Room' },
-      { value: PropertyType.RV, label: 'RV' },
-      { value: PropertyType.Studio, label: 'Studio' },
-      { value: PropertyType.Townhouse, label: 'Townhouse' },
-      { value: PropertyType.Villa, label: 'Villa' }
-    ];
-    
-    // Initialize check-in times (numeric enum)
-    this.checkInTimes = [
-      { value: CheckinTimes.NA, label: 'N/A' },
-      { value: CheckinTimes.TwelvePM, label: '12PM' },
-      { value: CheckinTimes.OnePM, label: '1PM' },
-      { value: CheckinTimes.TwoPM, label: '2PM' },
-      { value: CheckinTimes.ThreePM, label: '3PM' },
-      { value: CheckinTimes.FourPM, label: '4PM' },
-      { value: CheckinTimes.FivePM, label: '5PM' }
-    ];
-    
-    // Initialize check-out times (numeric enum)
-    this.checkOutTimes = [
-      { value: CheckoutTimes.NA, label: 'NA' },
-      { value: CheckoutTimes.EightAM, label: '8AM' },
-      { value: CheckoutTimes.NineAM, label: '9AM' },
-      { value: CheckoutTimes.TenAM, label: '10AM' },
-      { value: CheckoutTimes.ElevenAM, label: '11AM' },
-      { value: CheckoutTimes.TwelvePM, label: '12PM' },
-      { value: CheckoutTimes.OnePM, label: '1PM' }
-    ];
+    this.initializePropertyStyles();
+    this.initializePropertyStatuses();
+    this.initializePropertyTypes();
+    this.initializeBedSizeTypes();
     
     // Build form first so template can access it
     this.buildForm();
@@ -171,18 +117,18 @@ export class PropertyComponent implements OnInit {
         this.isAddMode = this.propertyId === 'new';
         
         // Update form validators based on mode
-        const contactControl = this.form.get('contactId');
+        const owner1Control = this.form.get('owner1Id');
         const codeControl = this.form.get('propertyCode');
 
         if (this.isAddMode) {
-          contactControl?.setValidators([Validators.required]);
+          owner1Control?.setValidators([Validators.required]);
           codeControl?.setValidators([Validators.required]);
         } else {
-          contactControl?.clearValidators();
+          owner1Control?.clearValidators();
           codeControl?.clearValidators();
         }
 
-        contactControl?.updateValueAndValidity();
+        owner1Control?.updateValueAndValidity();
         codeControl?.updateValueAndValidity();
 
         if (this.isAddMode) {
@@ -194,7 +140,7 @@ export class PropertyComponent implements OnInit {
       }
     });
     
-    // Set up alarm and remoteAccess field enable/disable logic
+    // Set up alarm and keypadAccess field enable/disable logic
     this.setupConditionalFields();
     
 
@@ -225,38 +171,50 @@ export class PropertyComponent implements OnInit {
     this.isSubmitting = true;
     // Use getRawValue() to include disabled form controls
     const formValue = this.form.getRawValue();
+    const user = this.authService.getUser();
     
     // Start with form values - bulk copy (excluding fields that need special mapping)
-    const { checkInTime, checkOutTime, propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
-    const propertyRequest: PropertyRequest = { ...restFormValue } as PropertyRequest;
+    const { propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
+    const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
     
     // Transform fields that need special handling
     propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
     propertyRequest.monthlyRate = formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0;
+    propertyRequest.checkoutFee = formValue.checkoutFee ? parseFloat(formValue.checkoutFee.toString()) : 0;
+    propertyRequest.maidServiceFee = formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0;
+    propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
     
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
     propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
     propertyRequest.bathrooms = formValue.bathrooms ? Number(formValue.bathrooms) : 0;
     propertyRequest.squareFeet = formValue.squareFeet ? Number(formValue.squareFeet) : 0;
+    propertyRequest.bedroomId1 = formValue.bedroomId1 ? Number(formValue.bedroomId1) : 0;
+    propertyRequest.bedroomId2 = formValue.bedroomId2 ? Number(formValue.bedroomId2) : 0;
+    propertyRequest.bedroomId3 = formValue.bedroomId3 ? Number(formValue.bedroomId3) : 0;
+    propertyRequest.bedroomId4 = formValue.bedroomId4 ? Number(formValue.bedroomId4) : 0;
     
     // Convert Date objects to ISO strings for API (use null if not set)
     propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : null;
     propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : null;
     
     // Map enum fields to Id fields
-    propertyRequest.checkInTimeId = formValue.checkInTime ?? CheckinTimes.NA;
-    propertyRequest.checkOutTimeId = formValue.checkOutTime ?? CheckoutTimes.NA;
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.NotProcessed;
     
-    // Ensure optional string fields are empty strings, not null or undefined
-    const optionalStringFields = ['address2', 'neighborhood', 'crossStreet', 
-                                   'bedSizes', 'phone', 'view', 'mailbox', 'notes', 'amenities', 'alarmCode', 'keyCode', 'trashRemoval'];
+    // Handle owner2Id - set to undefined if empty string or null
+    if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
+      propertyRequest.owner2Id = undefined;
+    }
+    
+    // Handle optional nullable string fields - keep as undefined if empty
+    const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 
+                                   'phone', 'view', 'mailbox', 'notes', 'amenities', 'alarmCode', 
+                                   'masterKeyCode', 'tenantKeyCode', 'trashRemoval', 'description'];
     optionalStringFields.forEach(field => {
-      if (!propertyRequest[field] || propertyRequest[field] === null) {
-        propertyRequest[field] = '';
+      if (propertyRequest[field] === '' || propertyRequest[field] === null) {
+        propertyRequest[field] = undefined;
       }
     });
     
@@ -290,6 +248,7 @@ export class PropertyComponent implements OnInit {
       });
     } else {
       propertyRequest.propertyId = this.propertyId;
+      propertyRequest.organizationId = this.property?.organizationId || user?.organizationId || '';
       this.propertyService.updateProperty(this.propertyId, propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
@@ -313,7 +272,8 @@ export class PropertyComponent implements OnInit {
     this.form = this.fb.group({
       // Rental tab
       propertyCode: new FormControl('', codeValidators),
-      contactId: new FormControl('', contactValidators),
+      owner1Id: new FormControl('', contactValidators),
+      owner2Id: new FormControl(null),
       propertyStyle: new FormControl<number>(PropertyStyle.Standard),
       propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed),
       propertyType: new FormControl<number>(PropertyType.Unspecified),
@@ -321,6 +281,9 @@ export class PropertyComponent implements OnInit {
       accomodates: new FormControl(0),
       dailyRate: new FormControl<string>('0.00'),
       monthlyRate: new FormControl<string>('0.00'),
+      checkoutFee: new FormControl<string>('0.00'),
+      maidServiceFee: new FormControl<string>('0.00'),
+      petFee: new FormControl<string>('0.00'),
       furnished: new FormControl(false),
       
       // Details tab
@@ -335,25 +298,26 @@ export class PropertyComponent implements OnInit {
       bedrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
       bathrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
       squareFeet: new FormControl(0, [Validators.required, Validators.min(0)]),
-      bedSizes: new FormControl(''),
+      bedroomId1: new FormControl(0),
+      bedroomId2: new FormControl(0),
+      bedroomId3: new FormControl(0),
+      bedroomId4: new FormControl(0),
       
       // Kitchen & Electronics tab
       kitchen: new FormControl(false),
       washerDryer: new FormControl(false),
       trashRemoval: new FormControl(''),
-      trashPickupId: new FormControl(0),
+      trashPickupId: new FormControl(null, [Validators.required]),
       oven: new FormControl(false),
       refrigerator: new FormControl(false),
       microwave: new FormControl(false),
       dishwasher: new FormControl(false),
       tv: new FormControl(false),
       cable: new FormControl(false),
-      dvd: new FormControl(false),
+      streaming: new FormControl(false),
       fastInternet: new FormControl(false),
       minStay: new FormControl<number>(0),
       maxStay: new FormControl<number>(0),
-      checkInTime: new FormControl<number>(CheckinTimes.NA),
-      checkOutTime: new FormControl<number>(CheckoutTimes.NA),
       availableFrom: new FormControl<Date | null>(null),
       availableUntil: new FormControl<Date | null>(null),
       
@@ -371,15 +335,17 @@ export class PropertyComponent implements OnInit {
       gym: new FormControl(false),
       security: new FormControl(false),
       elevator: new FormControl(false),
-      remoteAccess: new FormControl(false),
+      keypadAccess: new FormControl(false),
       assignedParking: new FormControl(false),
       notes: new FormControl({ value: '', disabled: true }),
       
       // Amenities tab
       amenities: new FormControl(''),
+      description: new FormControl(''),
       alarm: new FormControl(false),
       alarmCode: new FormControl({ value: '', disabled: true }),
-      keyCode: new FormControl({ value: '', disabled: true }),
+      masterKeyCode: new FormControl({ value: '', disabled: true }),
+      tenantKeyCode: new FormControl({ value: '', disabled: true }),
       mailbox: new FormControl(''),
       gated: new FormControl(false),
       heating: new FormControl(false),
@@ -398,9 +364,13 @@ export class PropertyComponent implements OnInit {
       const formData: any = { ...this.property };
       
       // Transform fields that need special handling
-      formData.contactId = this.property.contactId || '';
+      formData.owner1Id = this.property.owner1Id || '';
+      formData.owner2Id = this.property.owner2Id || null;
       formData.dailyRate = (this.property.dailyRate ?? 0).toFixed(2);
       formData.monthlyRate = (this.property.monthlyRate ?? 0).toFixed(2);
+      formData.checkoutFee = (this.property.checkoutFee ?? 0).toFixed(2);
+      formData.maidServiceFee = (this.property.maidServiceFee ?? 0).toFixed(2);
+      formData.petFee = (this.property.petFee ?? 0).toFixed(2);
       formData.minStay = this.property.minStay ?? 0;
       formData.maxStay = this.property.maxStay ?? 0;
       
@@ -412,18 +382,21 @@ export class PropertyComponent implements OnInit {
       const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
       const propertyStatusValue = this.property.propertyStatusId != null ? Number(this.property.propertyStatusId) : PropertyStatus.NotProcessed;
       const propertyTypeValue = this.property.propertyTypeId != null ? Number(this.property.propertyTypeId) : PropertyType.Unspecified;
-      const checkInTimeValue = this.property.checkInTimeId != null ? Number(this.property.checkInTimeId) : CheckinTimes.NA;
-      const checkOutTimeValue = this.property.checkOutTimeId != null ? Number(this.property.checkOutTimeId) : CheckoutTimes.NA;
       
-      formData.checkInTime = checkInTimeValue;
-      formData.checkOutTime = checkOutTimeValue;
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
+      
+      // Handle bedroom IDs
+      formData.bedroomId1 = this.property.bedroomId1 ?? 0;
+      formData.bedroomId2 = this.property.bedroomId2 ?? 0;
+      formData.bedroomId3 = this.property.bedroomId3 ?? 0;
+      formData.bedroomId4 = this.property.bedroomId4 ?? 0;
      
       // Handle string fields that might be null/undefined - convert to empty strings
-      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view', 'bedSizes',
-                           'trashRemoval', 'notes', 'amenities', 'alarmCode', 'keyCode', 'mailbox'];
+      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
+                           'trashRemoval', 'notes', 'amenities', 'alarmCode', 'masterKeyCode', 
+                           'tenantKeyCode', 'mailbox', 'phone', 'description'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
@@ -452,14 +425,22 @@ export class PropertyComponent implements OnInit {
       }
     });
 
-    // Subscribe to remoteAccess checkbox changes to enable/disable key code field
-    this.form.get('remoteAccess')?.valueChanges.subscribe(value => {
-      const keyCodeControl = this.form.get('keyCode');
-      if (keyCodeControl) {
+    // Subscribe to keypadAccess checkbox changes to enable/disable key code fields
+    this.form.get('keypadAccess')?.valueChanges.subscribe(value => {
+      const masterKeyCodeControl = this.form.get('masterKeyCode');
+      const tenantKeyCodeControl = this.form.get('tenantKeyCode');
+      if (masterKeyCodeControl) {
         if (value) {
-          keyCodeControl.enable();
+          masterKeyCodeControl.enable();
         } else {
-          keyCodeControl.disable();
+          masterKeyCodeControl.disable();
+        }
+      }
+      if (tenantKeyCodeControl) {
+        if (value) {
+          tenantKeyCodeControl.enable();
+        } else {
+          tenantKeyCodeControl.disable();
         }
       }
     });
@@ -479,7 +460,7 @@ export class PropertyComponent implements OnInit {
 
     // Set initial state based on current values
     const alarmValue = this.form.get('alarm')?.value;
-    const remoteAccessValue = this.form.get('remoteAccess')?.value;
+    const keypadAccessValue = this.form.get('keypadAccess')?.value;
     const assignedParkingValue = this.form.get('assignedParking')?.value;
     
     if (alarmValue) {
@@ -488,10 +469,12 @@ export class PropertyComponent implements OnInit {
       this.form.get('alarmCode')?.disable();
     }
 
-    if (remoteAccessValue) {
-      this.form.get('keyCode')?.enable();
+    if (keypadAccessValue) {
+      this.form.get('masterKeyCode')?.enable();
+      this.form.get('tenantKeyCode')?.enable();
     } else {
-      this.form.get('keyCode')?.disable();
+      this.form.get('masterKeyCode')?.disable();
+      this.form.get('tenantKeyCode')?.disable();
     }
 
     if (assignedParkingValue) {
@@ -592,6 +575,83 @@ export class PropertyComponent implements OnInit {
   back(): void {
     this.router.navigateByUrl(RouterUrl.TenantList);
   }
+
+  initializePropertyStyles(): void {
+    // Build propertyStyles from the PropertyStyle enum
+    this.propertyStyles = Object.keys(PropertyStyle)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .map(key => ({
+        value: PropertyStyle[key],
+        label: this.formatPropertyStyleLabel(key)
+      }));
+  }
+
+  initializePropertyStatuses(): void {
+    // Build propertyStatuses from the PropertyStatus enum
+    this.propertyStatuses = Object.keys(PropertyStatus)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .map(key => ({
+        value: PropertyStatus[key],
+        label: this.formatPropertyStatusLabel(key)
+      }));
+  }
+
+  initializePropertyTypes(): void {
+    // Build propertyTypes from the PropertyType enum
+    // Include all types including Unspecified (0)
+    this.propertyTypes = Object.keys(PropertyType)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .map(key => ({
+        value: PropertyType[key],
+        label: this.formatPropertyTypeLabel(key)
+      }));
+  }
+
+  initializeBedSizeTypes(): void {
+    // Build bedSizeTypes from the BedSizeType enum
+    this.bedSizeTypes = Object.keys(BedSizeType)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .map(key => ({
+        value: BedSizeType[key],
+        label: this.formatBedSizeTypeLabel(key)
+      }));
+  }
+
+  formatBedSizeTypeLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+
+
+  formatPropertyStyleLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+
+  formatPropertyStatusLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    // e.g., "NotProcessed" -> "Not Processed"
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+
+  formatPropertyTypeLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+
+  // Removed formatCheckInTimeLabel and formatCheckOutTimeLabel - CheckInTime and CheckOutTime fields removed from API
 
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);

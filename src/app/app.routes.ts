@@ -14,6 +14,19 @@ import { ReservationListComponent } from './authenticated/reservation/reservatio
 import { ReservationBoardComponent } from './authenticated/reservation/reservation-board/reservation-board.component';
 import { AgentComponent } from './authenticated/agent/agent/agent.component';
 import { AgentListComponent } from './authenticated/agent/agent-list/agent-list.component';
+import { OrganizationComponent } from './authenticated/organization/organization/organization.component';
+import { OrganizationListComponent } from './authenticated/organization/organization-list/organization-list.component';
+import { OrganizationConfigurationComponent } from './authenticated/organization/organization-configuration/organization-configuration.component';
+import { AreaComponent } from './authenticated/area/area/area.component';
+import { AreaListComponent } from './authenticated/area/area-list/area-list.component';
+import { BuildingComponent } from './authenticated/building/building/building.component';
+import { BuildingListComponent } from './authenticated/building/building-list/building-list.component';
+import { FranchiseComponent } from './authenticated/franchise/franchise/franchise.component';
+import { FranchiseListComponent } from './authenticated/franchise/franchise-list/franchise-list.component';
+import { RegionComponent } from './authenticated/region/region/region.component';
+import { RegionListComponent } from './authenticated/region/region-list/region-list.component';
+import { ColorComponent } from './authenticated/color/color/color.component';
+import { ColorListComponent } from './authenticated/color/color-list/color-list.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
@@ -35,6 +48,19 @@ export enum RouterToken {
   Agent = RouterToken.AgentList + '/:id',
   UserList = 'users',
   User = RouterToken.UserList + '/:id',
+  OrganizationList = 'organizations',
+  Organization = RouterToken.OrganizationList + '/:id',
+  OrganizationConfiguration = 'organization-configuration',
+  AreaList = 'areas',
+  Area = RouterToken.AreaList + '/:id',
+  BuildingList = 'buildings',
+  Building = RouterToken.BuildingList + '/:id',
+  FranchiseList = 'franchises',
+  Franchise = RouterToken.FranchiseList + '/:id',
+  RegionList = 'regions',
+  Region = RouterToken.RegionList + '/:id',
+  ColorList = 'colors',
+  Color = RouterToken.ColorList + '/:id',
   Default = RouterToken.CompanyList
 }
 
@@ -53,6 +79,19 @@ export enum RouterUrl {
   Agent                 = `${RouterToken.Auth}/${RouterToken.Agent}`,
   UserList              = `${RouterToken.Auth}/${RouterToken.UserList}`,
   User                  = `${RouterToken.Auth}/${RouterToken.User}`,
+  OrganizationList      = `${RouterToken.Auth}/${RouterToken.OrganizationList}`,
+  Organization          = `${RouterToken.Auth}/${RouterToken.Organization}`,
+  OrganizationConfiguration = `${RouterToken.Auth}/${RouterToken.OrganizationConfiguration}`,
+  AreaList             = `${RouterToken.Auth}/${RouterToken.AreaList}`,
+  Area                 = `${RouterToken.Auth}/${RouterToken.Area}`,
+  BuildingList         = `${RouterToken.Auth}/${RouterToken.BuildingList}`,
+  Building             = `${RouterToken.Auth}/${RouterToken.Building}`,
+  FranchiseList        = `${RouterToken.Auth}/${RouterToken.FranchiseList}`,
+  Franchise            = `${RouterToken.Auth}/${RouterToken.Franchise}`,
+  RegionList           = `${RouterToken.Auth}/${RouterToken.RegionList}`,
+  Region               = `${RouterToken.Auth}/${RouterToken.Region}`,
+  ColorList            = `${RouterToken.Auth}/${RouterToken.ColorList}`,
+  Color                = `${RouterToken.Auth}/${RouterToken.Color}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -78,6 +117,19 @@ export const authRoutes: Routes = [
   { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.UserList, component: UserListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.User, component: UserComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.OrganizationList, component: OrganizationListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Organization, component: OrganizationComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.OrganizationConfiguration, component: OrganizationConfigurationComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AreaList, component: AreaListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Area, component: AreaComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.BuildingList, component: BuildingListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Building, component: BuildingComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.FranchiseList, component: FranchiseListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Franchise, component: FranchiseComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.RegionList, component: RegionListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Region, component: RegionComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ColorList, component: ColorListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
 ]
 
 export const routes: Routes = [

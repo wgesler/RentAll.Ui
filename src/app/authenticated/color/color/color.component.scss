@@ -1,0 +1,54 @@
+.embedded-mode {
+  .content-card-wrap {
+    justify-content: flex-start;
+    padding: 0;
+  }
+  
+  .content-card {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+  
+  section.content-card {
+    border-radius: 0;
+  }
+  
+  .bg-slate-200 {
+    border-radius: 0;
+  }
+}
+
+.color-picker-input {
+  width: 50px;
+  height: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px;
+  background: none;
+  
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+  }
+  
+  &::-moz-color-swatch {
+    border: none;
+    border-radius: 2px;
+  }
+  
+  &:hover {
+    border-color: rgba(0, 0, 0, 0.87);
+  }
+  
+  &:focus {
+    outline: 2px solid #3f51b5;
+    outline-offset: 2px;
+  }
+}
+

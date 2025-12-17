@@ -1,0 +1,135 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <span class="flex flex-column items-center gap-3 py-4">
+        <mat-icon class="flex-shrink-0">settings</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">
+          Organization Configuration
+        </span>
+      </span>
+    </div>
+
+    <mat-card>
+      <div class="info-form mb-8 pt-5">
+        <mat-accordion multi="true">
+          <!-- Board Selection Criteria Section -->
+          <mat-expansion-panel [expanded]="expandedSections.boardSelectionCriteria" 
+            (opened)="onPanelOpened('boardSelectionCriteria')" 
+            (closed)="onPanelClosed('boardSelectionCriteria')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Board Selection Criteria</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="p-4">
+              <!-- Board Selection Criteria configuration content will go here -->
+              <p>Board Selection Criteria configuration settings</p>
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Color Section -->
+          <mat-expansion-panel [expanded]="expandedSections.color" 
+            (opened)="onPanelOpened('color')" 
+            (closed)="onPanelClosed('color')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Color</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingColor && colorId) {
+                <app-color [id]="colorId" [embeddedMode]="true" (backEvent)="onColorBack()"></app-color>
+              } @else {
+                <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Agents Section -->
+          <mat-expansion-panel [expanded]="expandedSections.agents" 
+            (opened)="onPanelOpened('agents')" 
+            (closed)="onPanelClosed('agents')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Agent</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingAgent && agentId) {
+                <app-agent [agentId]="agentId" [embeddedMode]="true" (backEvent)="onAgentBack()"></app-agent>
+              } @else {
+                <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Franchises Section -->
+          <mat-expansion-panel [expanded]="expandedSections.franchises" 
+            (opened)="onPanelOpened('franchises')" 
+            (closed)="onPanelClosed('franchises')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Franchise</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingFranchise && franchiseId) {
+                <app-franchise [id]="franchiseId" [embeddedMode]="true" (backEvent)="onFranchiseBack()"></app-franchise>
+              } @else {
+                <app-franchise-list [embeddedInSettings]="true" (franchiseSelected)="onFranchiseSelected($event)"></app-franchise-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Regions Section -->
+          <mat-expansion-panel [expanded]="expandedSections.regions" 
+            (opened)="onPanelOpened('regions')" 
+            (closed)="onPanelClosed('regions')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Region</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingRegion && regionId) {
+                <app-region [id]="regionId" [embeddedMode]="true" (backEvent)="onRegionBack()"></app-region>
+              } @else {
+                <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Area Section -->
+          <mat-expansion-panel [expanded]="expandedSections.area" 
+            (opened)="onPanelOpened('area')" 
+            (closed)="onPanelClosed('area')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Area</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingArea && areaId) {
+                <app-area [id]="areaId" [embeddedMode]="true" (backEvent)="onAreaBack()"></app-area>
+              } @else {
+                <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Building Section -->
+          <mat-expansion-panel [expanded]="expandedSections.building" 
+            (opened)="onPanelOpened('building')" 
+            (closed)="onPanelClosed('building')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Building</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingBuilding && buildingId) {
+                <app-building [id]="buildingId" [embeddedMode]="true" (backEvent)="onBuildingBack()"></app-building>
+              } @else {
+                <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
+              }
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </div>
+    </mat-card>
+  </section>
+</div>
+

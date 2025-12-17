@@ -3,7 +3,7 @@ import { Observable, BehaviorSubject, map } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
-import { ContactType } from '../models/contact-type';
+import { EntityType } from '../models/contact-type';
 
 @Injectable({
     providedIn: 'root'
@@ -22,7 +22,9 @@ export class ContactService {
 
   // Load all contacts on startup
   loadAllContacts(): void {
-    this.http.get<ContactResponse[]>(this.controller).subscribe({
+    const url = this.controller;
+    
+    this.http.get<ContactResponse[]>(url).subscribe({
       next: (contacts) => {
         this.allContacts$.next(contacts || []);
         this.contactsLoaded$.next(true);
@@ -45,24 +47,31 @@ export class ContactService {
     return this.allContacts$;
   }
 
-  // Get company contacts (filtered by ContactType.Company)
+  // Get company contacts (filtered by EntityType.Company)
   getAllCompanyContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.contactTypeId === ContactType.Company))
+      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Company))
     );
   }
 
-  // Get owner contacts (filtered by ContactType.Owner)
+  // Get owner contacts (filtered by EntityType.Owner)
   getAllOwnerContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.contactTypeId === ContactType.Owner))
+      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Owner))
     );
   }
 
-  // Get tenant contacts (filtered by ContactType.Tenant)
+  // Get tenant contacts (filtered by EntityType.Tenant)
   getAllTenantContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.contactTypeId === ContactType.Tenant))
+      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Tenant))
+    );
+  }
+
+    // Get vendor contacts (filtered by EntityType.Tenant)
+  getAllVendorContacts(): Observable<ContactResponse[]> {
+    return this.allContacts$.pipe(
+      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Vendor))
     );
   }
 

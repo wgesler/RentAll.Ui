@@ -1,0 +1,38 @@
+@if (!itemsToLoad.includes('franchises')) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+        <div class="flex items-baseline">
+          <mat-icon mat-list-icon class="mr-5">store</mat-icon>
+          <h2 class="m-0">Franchises</h2>
+        </div>
+        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addFranchise()" class="scale-90 text-nowrap">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="franchisesDisplay"
+              [columns]="franchisesDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="true"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="true"
+              [itemsPerPage]="100"
+              buttonToggleTextTop="Inactive"
+              (topToggleButtonEvent)="toggleInactive()"
+              (editEvent)="goToFranchise($event)"
+              (rowClickEvent)="goToFranchise($event)"
+              (deleteEvent)="deleteFranchise($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}
+

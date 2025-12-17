@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, switchMap, map } from 'rxjs';
 import { CompanyService } from '../services/company.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -11,6 +11,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CompanyResponse, CompanyListDisplay, CompanyRequest } from '../models/company.model';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
 import { ContactService } from '../../contact/services/contact.service';
+import { EntityType } from '../../contact/models/contact-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
@@ -18,6 +19,7 @@ import { ExternalStorageService } from '../../../services/external-storage.servi
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-company',
@@ -54,20 +56,45 @@ export class CompanyComponent implements OnInit {
     private commonService: CommonService,
     private formatterService: FormatterService,
     private contactService: ContactService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private authService: AuthService
   ) {
     this.itemsToLoad.push('company');
     this.loadStates();
   }
 
   ngOnInit(): void {
-    this.contactService.getAllCompanyContacts().pipe(
-      filter((contacts: ContactResponse[]) => contacts && contacts.length > 0),take(1)).subscribe({
+    // Check if contacts are already loaded, otherwise wait for them
+    const contactsLoaded = this.contactService.areContactsLoaded();
+    const allContacts = this.contactService.getAllContacts();
+    
+    // Combine: wait for loaded flag, then get contacts
+    contactsLoaded.pipe(
+      filter(loaded => loaded === true),
+      switchMap(() => allContacts.pipe(take(1))),
+      map((allContacts) => {
+        console.log('Company Component - All contacts received:', allContacts);
+        console.log('Company Component - EntityType.Company value:', EntityType.Company);
+        if (allContacts && allContacts.length > 0) {
+          console.log('Company Component - All contacts entityTypeIds:', allContacts.map(c => ({ 
+            name: `${c.firstName} ${c.lastName}`, 
+            entityTypeId: c.entityTypeId 
+          })));
+        }
+        const companyContacts = allContacts.filter(c => c.entityTypeId === EntityType.Company);
+        console.log('Company Component - Filtered company contacts:', companyContacts);
+        return companyContacts;
+      }),
+      take(1)
+    ).subscribe({
       next: (response: ContactResponse[]) => {
-        this.companyContacts = this.mappingService.mapContacts(response);
+        console.log('Company Component - Company contacts before mapping:', response);
+        this.companyContacts = this.mappingService.mapContacts(response || []);
+        console.log('Company Component - Company contacts after mapping:', this.companyContacts);
       },
       error: (err: HttpErrorResponse) => {
         console.error('Company Component - Error loading contacts:', err);
+        this.companyContacts = [];
       }
     });
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
@@ -115,11 +142,14 @@ export class CompanyComponent implements OnInit {
     // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
     const phoneDigits = this.stripPhoneFormatting(formValue.phone);
+    const user = this.authService.getUser();
 
     const companyRequest: CompanyRequest = {
       ...formValue,
+      organizationId: user?.organizationId || '',
       address1: (formValue.address1 || '').trim(),
       address2: formValue.address2 || '',
+      suite: formValue.suite || '',
       city: (formValue.city || '').trim(),
       state: (formValue.state || '').trim(),
       zip: (formValue.zip || '').trim(),
@@ -138,6 +168,8 @@ export class CompanyComponent implements OnInit {
 
     if (!this.isAddMode) {
       companyRequest.companyId = this.companyId;
+      companyRequest.companyCode = this.company?.companyCode;
+      companyRequest.organizationId = this.company?.organizationId || user?.organizationId || '';
     }
 
     const save$ = this.isAddMode
@@ -214,11 +246,12 @@ export class CompanyComponent implements OnInit {
     // Form methods
     buildForm(): void {
     this.form = this.fb.group({
-      companyCode: new FormControl('', [Validators.required]),
+      companyCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
       contactId: new FormControl(null, [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
+      suite: new FormControl(''),
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
@@ -237,6 +270,7 @@ export class CompanyComponent implements OnInit {
         contactId: this.company.contactId || null,
         address1: this.company.address1,
         address2: this.company.address2 || '',
+        suite: this.company.suite || '',
         city: this.company.city,
         state: this.company.state,
         zip: this.company.zip,

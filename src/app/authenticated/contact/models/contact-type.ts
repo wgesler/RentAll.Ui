@@ -1,7 +1,9 @@
-export enum ContactType {
+export enum EntityType {
   Unknown = 0,
-  Company = 1,
-  Owner = 2,
-  Tenant = 3,
+  Organization = 1,
+  Company = 2,
+  Owner = 3,
+  Tenant = 4,
+  Vendor = 5
 }
 

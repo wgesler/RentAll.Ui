@@ -2,60 +2,68 @@
 
 export interface ReservationRequest {
   reservationId?: string;
-  agentId: string;
+  organizationId: string;
+  agentId?: string | null;
   propertyId: string;
-  contactId: string;
+  tenantName: string;
+  clientId: string;
   clientTypeId: number;
   reservationStatusId: number;
-  isActive: boolean;
-  
-  // Availability section
-  arrivalDate?: string;
-  departureDate?: string;
+  arrivalDate: string;
+  departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
-  monthlyRate: number;
-  dailyRate: number;
+  billingTypeId: number;
+  billingRate: number;
   numberOfPeople: number;
-  deposit: number;
-  departureFee: number;
+  deposit?: number | null;
+  checkoutFee: number;
+  maidServiceFee: number;
+  frequencyId: number;
+  petFee: number;
+  extraFee: number;
+  extraFeeName: string;
   taxes: number;
-  
-  // Address section
-  address1: string;
-  address2: string;
-  suite: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
+  createdOn?: string;
+  createdBy?: string;
+  modifiedOn?: string;
+  modifiedBy?: string;
+  isActive: boolean;
 }
 
 export interface ReservationResponse {
   reservationId: string;
-  agentId: string;
+  organizationId: string;
+  agentId?: string | null;
   propertyId: string;
-  propertyCode: string;
-  propertyAddress: string;
-  PropertyStatus: string;
-  contactId: string;
+  propertyCode?: string;
+  propertyAddress?: string;
+  PropertyStatus?: string;
+  contactName?: string;
+  tenantName: string;
+  clientId: string;
   clientTypeId: number;
   reservationStatusId: number;
-  isActive: boolean;
-  
-  // Availability section
-  arrivalDate?: string;
-  departureDate?: string;
+  arrivalDate: string;
+  departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
-  monthlyRate: number;
-  dailyRate: number;
-  bedrooms: number;
-  bathrooms: number;
+  billingTypeId: number;
+  billingRate: number;
   numberOfPeople: number;
-  deposit: number;
-  departureFee: number;
+  deposit?: number | null;
+  checkoutFee: number;
+  maidServiceFee: number;
+  frequencyId: number;
+  petFee: number;
+  extraFee: number;
+  extraFeeName: string;
   taxes: number;
+  createdOn: string;
+  createdBy: string;
+  modifiedOn: string;
+  modifiedBy: string;
+  isActive: boolean;
 }
 
 export interface ReservationListDisplay {

@@ -9,10 +9,11 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ContactResponse, ContactRequest } from '../models/contact.model';
-import { ContactType } from '../models/contact-type';
+import { EntityType } from '../models/contact-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-contact',
@@ -32,12 +33,7 @@ export class ContactComponent implements OnInit {
   isLoadError: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
-  availableContactTypes: { value: number, label: string }[] = [
-    { value: ContactType.Unknown, label: 'Unknown' },
-    { value: ContactType.Company, label: 'Company' },
-    { value: ContactType.Owner, label: 'Owner' },
-    { value: ContactType.Tenant, label: 'Tenant' }
-  ];
+  availableContactTypes: { value: number, label: string }[] = [];
 
   constructor(
     public contactService: ContactService,
@@ -46,13 +42,15 @@ export class ContactComponent implements OnInit {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private commonService: CommonService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private authService: AuthService
   ) {
     this.itemsToLoad.push('contact');
     this.loadStates();
   }
 
   ngOnInit(): void {
+    this.initializeContactTypes();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.contactId = paramMap.get('id');
@@ -68,6 +66,27 @@ export class ContactComponent implements OnInit {
     if (!this.isAddMode) {
       this.buildForm();
     }
+  }
+
+  initializeContactTypes(): void {
+    // Build availableContactTypes from the EntityType enum
+    // Exclude Unknown (0) from the list
+    this.availableContactTypes = Object.keys(EntityType)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
+      .map(key => ({
+        value: EntityType[key],
+        label: this.formatContactTypeLabel(key)
+      }));
+  }
+
+  formatContactTypeLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    // e.g., "Company" -> "Company", "Owner" -> "Owner"
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
   getContact(): void {
@@ -99,8 +118,11 @@ export class ContactComponent implements OnInit {
 
     // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
+    const user = this.authService.getUser();
     const contactRequest: ContactRequest = {
       ...formValue,
+      organizationId: user?.organizationId || '',
+      entityTypeId: formValue.contactTypeId, // Map contactTypeId from form to entityTypeId in request
       address1: formValue.address1 || '',
       address2: formValue.address2 || '',
       city: formValue.city || '',
@@ -108,9 +130,13 @@ export class ContactComponent implements OnInit {
       zip: formValue.zip || '',
       phone: this.stripPhoneFormatting(formValue.phone)
     };
+    // Remove contactTypeId from request since we're using entityTypeId
+    delete (contactRequest as any).contactTypeId;
 
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
+      contactRequest.contactCode = this.contact?.contactCode;
+      contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
     }
 
     const save$ = this.isAddMode
@@ -139,8 +165,8 @@ export class ContactComponent implements OnInit {
   // Form methods
   buildForm(): void {
     this.form = this.fb.group({
-      contactCode: new FormControl('', [Validators.required, Validators.maxLength(15)]),
-      contactTypeId: new FormControl(ContactType.Unknown, [Validators.required]),
+      contactCode: new FormControl(''), // Not required - only shown in Edit Mode
+      contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required]),
@@ -162,7 +188,7 @@ export class ContactComponent implements OnInit {
       
       this.form.patchValue({
         contactCode: this.contact.contactCode,
-        contactTypeId: this.contact.contactTypeId ?? ContactType.Unknown,
+        contactTypeId: this.contact.entityTypeId ?? EntityType.Unknown, // Map entityTypeId from response to contactTypeId in form
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
         address1: this.contact.address1 || '',

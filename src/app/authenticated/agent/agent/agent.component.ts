@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize } from 'rxjs';
@@ -10,6 +10,8 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { RouterUrl } from '../../../app.routes';
 import { AgentResponse, AgentRequest } from '../models/agent.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { AuthService } from '../../../services/auth.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
 
 @Component({
   selector: 'app-agent',
@@ -19,46 +21,90 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, 
   styleUrl: './agent.component.scss'
 })
 
-export class AgentComponent implements OnInit {
+export class AgentComponent implements OnInit, OnChanges {
+  @Input() agentId: string | null = null;
+  @Input() embeddedMode: boolean = false;
+  @Output() backEvent = new EventEmitter<void>();
+  
   itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  agentId: string;
+  private routeAgentId: string | null = null;
   agent: AgentResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
   isLoadError: boolean = false;
   isAddMode: boolean = false;
+  returnToSettings: boolean = false;
 
   constructor(
     public agentService: AgentService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private authService: AuthService,
+    private navigationContext: NavigationContextService
   ) {
     this.itemsToLoad.push('agent');
   }
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.agentId = paramMap.get('id');
+    // Check for returnTo query parameter
+    this.route.queryParams.subscribe(params => {
+      this.returnToSettings = params['returnTo'] === 'settings';
+    });
+
+    // If not in embedded mode, get agent ID from route
+    if (!this.embeddedMode) {
+      this.route.paramMap.subscribe((paramMap: ParamMap) => {
+        if (paramMap.has('id')) {
+          this.routeAgentId = paramMap.get('id');
+          this.isAddMode = this.routeAgentId === 'new';
+          if (this.isAddMode) {
+            this.removeLoadItem('agent');
+            this.buildForm();
+          } else {
+            this.getAgent(this.routeAgentId);
+          }
+        }
+      });
+      if (!this.isAddMode) {
+        this.buildForm();
+      }
+    } else {
+      // In embedded mode, use the input agentId
+      if (this.agentId) {
         this.isAddMode = this.agentId === 'new';
         if (this.isAddMode) {
           this.removeLoadItem('agent');
           this.buildForm();
         } else {
-          this.getAgent();
+          this.getAgent(this.agentId);
         }
       }
-    });
-    if (!this.isAddMode) {
-      this.buildForm();
     }
   }
 
-  getAgent(): void {
-    this.agentService.getAgentByGuid(this.agentId).pipe(take(1), finalize(() => { this.removeLoadItem('agent') })).subscribe({
+  ngOnChanges(changes: SimpleChanges): void {
+    // If in embedded mode and agentId changes, reload agent
+    if (this.embeddedMode && changes['agentId'] && !changes['agentId'].firstChange) {
+      const newAgentId = changes['agentId'].currentValue;
+      if (newAgentId && newAgentId !== 'new') {
+        this.getAgent(newAgentId);
+      } else if (newAgentId === 'new') {
+        this.isAddMode = true;
+        this.removeLoadItem('agent');
+        this.buildForm();
+      }
+    }
+  }
+
+  getAgent(id?: string): void {
+    const agentIdToUse = id || this.agentId || this.routeAgentId;
+    if (!agentIdToUse || agentIdToUse === 'new') {
+      return;
+    }
+    this.agentService.getAgentByGuid(agentIdToUse).pipe(take(1), finalize(() => { this.removeLoadItem('agent') })).subscribe({
       next: (response: AgentResponse) => {
         this.agent = response;
         this.buildForm();
@@ -81,7 +127,9 @@ export class AgentComponent implements OnInit {
 
     this.isSubmitting = true;
     const formValue = this.form.value;
+    const user = this.authService.getUser();
     const agentRequest: AgentRequest = {
+      organizationId: user?.organizationId || '',
       agentCode: formValue.agentCode,
       description: formValue.description,
       isActive: formValue.isActive
@@ -91,7 +139,14 @@ export class AgentComponent implements OnInit {
       this.agentService.createAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.AgentList);
+          if (this.embeddedMode) {
+            this.backEvent.emit();
+          } else if (this.returnToSettings) {
+            this.navigationContext.setCurrentAgentId(null);
+            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
+          } else {
+            this.router.navigateByUrl(RouterUrl.AgentList);
+          }
         },
         error: (err: HttpErrorResponse) => {
           this.isLoadError = true;
@@ -101,11 +156,20 @@ export class AgentComponent implements OnInit {
         }
       });
     } else {
-      agentRequest.agentId = this.agentId;
-      this.agentService.updateAgent(this.agentId, agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      const agentIdToUse = this.agentId || this.routeAgentId;
+      agentRequest.agentId = agentIdToUse;
+      agentRequest.organizationId = this.agent?.organizationId || user?.organizationId || '';
+      this.agentService.updateAgent(agentIdToUse, agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.AgentList);
+          if (this.embeddedMode) {
+            this.backEvent.emit();
+          } else if (this.returnToSettings) {
+            this.navigationContext.setCurrentAgentId(null);
+            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
+          } else {
+            this.router.navigateByUrl(RouterUrl.AgentList);
+          }
         },
         error: (err: HttpErrorResponse) => {
           this.isLoadError = true;
@@ -136,7 +200,14 @@ export class AgentComponent implements OnInit {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.AgentList);
+    if (this.embeddedMode) {
+      this.backEvent.emit();
+    } else if (this.returnToSettings) {
+      this.navigationContext.setCurrentAgentId(null);
+      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
+    } else {
+      this.router.navigateByUrl(RouterUrl.AgentList);
+    }
   }
 
   removeLoadItem(itemToRemove: string): void {

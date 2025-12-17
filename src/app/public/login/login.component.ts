@@ -11,8 +11,9 @@ import { finalize, take } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonMessage } from '../../enums/common-message.enum';
 import { StorageService } from '../../services/storage.service';
-import { RouterToken } from '../../app.routes';
+import { RouterToken, RouterUrl } from '../../app.routes';
 import { StorageKey } from '../../enums/storage-keys.enum';
+import { UserGroups } from '../../authenticated/user/models/user-type';
 
 @Component({
   selector: 'app-login',
@@ -78,7 +79,31 @@ export class LoginComponent {
     this.authService.login(this.getLoginRequest()).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
         if (this.authService.getIsLoggedIn()) {
-          this.router.navigateByUrl(RouterToken.Auth);
+          // Check if user is SuperAdmin and redirect to OrganizationList
+          const user = this.authService.getUser();
+          if (user && user.userGroups) {
+            const userGroupNumbers = user.userGroups.map(group => {
+              if (typeof group === 'string') {
+                const enumKey = Object.keys(UserGroups).find(key => key === group);
+                if (enumKey) {
+                  return UserGroups[enumKey as keyof typeof UserGroups];
+                }
+                const num = parseInt(group, 10);
+                if (!isNaN(num)) {
+                  return num;
+                }
+              }
+              return typeof group === 'number' ? group : null;
+            }).filter(num => num !== null) as number[];
+
+            if (userGroupNumbers.includes(UserGroups.SuperAdmin)) {
+              this.router.navigateByUrl(RouterUrl.OrganizationList);
+            } else {
+              this.router.navigateByUrl(RouterToken.Auth);
+            }
+          } else {
+            this.router.navigateByUrl(RouterToken.Auth);
+          }
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');
         }

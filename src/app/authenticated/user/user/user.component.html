@@ -30,6 +30,19 @@
               </mat-checkbox>
             </div>
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Organization</mat-label>
+                <mat-select formControlName="organizationId" required>
+                  <mat-option value="">Select Organization</mat-option>
+                  @for (org of organizations; track org.organizationId) {
+                    <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('organizationId')?.hasError('required') && form.get('organizationId')?.touched) {
+                  <mat-error>Organization is required</mat-error>
+                }
+              </mat-form-field>
+
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>First Name</mat-label>
                 <input matInput formControlName="firstName" required>

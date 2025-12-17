@@ -1,5 +1,6 @@
 export interface AgentRequest {
   agentId?: string;
+  organizationId: string;
   agentCode: string;
   description: string;
   isActive: boolean;
@@ -7,6 +8,7 @@ export interface AgentRequest {
 
 export interface AgentResponse {
   agentId: string;
+  organizationId: string;
   agentCode: string;
   description: string;
   isActive: boolean;

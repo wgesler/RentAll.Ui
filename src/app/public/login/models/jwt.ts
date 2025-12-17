@@ -10,7 +10,8 @@ export class JwtContainer {
         this.exp = exp;
         // API returns PascalCase, so we need to access properties with PascalCase
         this.user = new JwtUser(
-            user.UserGuid || user.userGuid || '',
+            user.UserId || user.userId || '',
+            user.OrganizationId || user.organizationId || '',
             user.FirstName || user.firstName || '',
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
@@ -20,7 +21,8 @@ export class JwtContainer {
 }
 
 export class JwtUser {
-    userGuid: string;
+    userId: string;
+    organizationId: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -28,13 +30,15 @@ export class JwtUser {
 
 
     constructor(
-        userGuid: string,
+        userId: string,
+        organizationId: string,
         firstName: string,
         lastName: string,
         email: string,
         userGroups: string[]
     ) {
-        this.userGuid = userGuid;
+        this.userId = userId;
+        this.organizationId = organizationId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;

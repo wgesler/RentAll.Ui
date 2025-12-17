@@ -5,7 +5,8 @@ export enum ReservationStatus {
   GaveNotice = 3,
   FirstRightRefusal = 4,
   Maintenance = 5,
-  OwnerBlocked = 6
+  OwnerBlocked = 6,
+  ArrivalDeparture = 7
 }
 
 export enum ClientType {
@@ -13,4 +14,17 @@ export enum ClientType {
   Corporate = 1,
   Government = 2,
   External = 3
+}
+
+export enum BillingType {
+  Monthly = 0,
+  Daily = 1,
+  Nightly = 2
+}
+
+export enum Frequency {
+  OneTime = 0,
+  Weekly = 1,
+  BiWeekly = 2,
+  Monthly = 3
 }
