@@ -73,27 +73,15 @@ export class CompanyComponent implements OnInit {
       filter(loaded => loaded === true),
       switchMap(() => allContacts.pipe(take(1))),
       map((allContacts) => {
-        console.log('Company Component - All contacts received:', allContacts);
-        console.log('Company Component - EntityType.Company value:', EntityType.Company);
-        if (allContacts && allContacts.length > 0) {
-          console.log('Company Component - All contacts entityTypeIds:', allContacts.map(c => ({ 
-            name: `${c.firstName} ${c.lastName}`, 
-            entityTypeId: c.entityTypeId 
-          })));
-        }
         const companyContacts = allContacts.filter(c => c.entityTypeId === EntityType.Company);
-        console.log('Company Component - Filtered company contacts:', companyContacts);
         return companyContacts;
       }),
       take(1)
     ).subscribe({
       next: (response: ContactResponse[]) => {
-        console.log('Company Component - Company contacts before mapping:', response);
         this.companyContacts = this.mappingService.mapContacts(response || []);
-        console.log('Company Component - Company contacts after mapping:', this.companyContacts);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Company Component - Error loading contacts:', err);
         this.companyContacts = [];
       }
     });

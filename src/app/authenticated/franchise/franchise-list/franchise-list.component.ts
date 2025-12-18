@@ -31,8 +31,8 @@ export class FranchiseListComponent implements OnInit {
   showInactive: boolean = false;
 
   franchisesDisplayedColumns: ColumnSet = {
-    'franchiseCode': { displayAs: 'Franchise Code', maxWidth: '15ch' },
-    'description': { displayAs: 'Description', maxWidth: '30ch' },
+    'franchiseCode': { displayAs: 'Franchise Code', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '40ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allFranchises: FranchiseListDisplay[] = [];
@@ -94,6 +94,16 @@ export class FranchiseListComponent implements OnInit {
     }
   }
 
+  goToFranchise(event: FranchiseListDisplay): void {
+    if (this.embeddedInSettings) {
+      this.franchiseSelected.emit(event.franchiseId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Franchise, [event.franchiseId.toString()]);
+      this.router.navigateByUrl(url);
+    }
+  }
+
+  // Filter methods
   applyFilters(): void {
     this.franchisesDisplay = this.showInactive
       ? this.allFranchises
@@ -105,15 +115,7 @@ export class FranchiseListComponent implements OnInit {
     this.applyFilters();
   }
 
-  goToFranchise(event: FranchiseListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.franchiseSelected.emit(event.franchiseId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Franchise, [event.franchiseId.toString()]);
-      this.router.navigateByUrl(url);
-    }
-  }
-
+  // Utility Methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }

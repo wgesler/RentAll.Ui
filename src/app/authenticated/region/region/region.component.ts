@@ -193,6 +193,7 @@ export class RegionComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       regionCode: new FormControl('', [Validators.required]),
@@ -211,6 +212,7 @@ export class RegionComponent implements OnInit, OnChanges {
     }
   }
 
+  // Utilty Methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

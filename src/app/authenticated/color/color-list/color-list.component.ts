@@ -30,8 +30,8 @@ export class ColorListComponent implements OnInit {
   isServiceError: boolean = false;
 
   colorsDisplayedColumns: ColumnSet = {
-    'reservationStatus': { displayAs: 'Reservation Status', maxWidth: '20ch' },
-    'color': { displayAs: 'Color', maxWidth: '15ch' }
+    'reservationStatus': { displayAs: 'Reservation Status', maxWidth: '40ch' },
+    'color': { displayAs: 'Color', maxWidth: '30ch' }
   };
   private allColors: ColorListDisplay[] = [];
   colorsDisplay: ColorListDisplay[] = [];
@@ -79,6 +79,7 @@ export class ColorListComponent implements OnInit {
   }
 
   goToColor(event: ColorListDisplay): void {
+    if (!event || event.colorId === null || event.colorId === undefined) return;
     if (this.embeddedInSettings) {
       this.colorSelected.emit(event.colorId);
     } else {

@@ -193,6 +193,7 @@ export class FranchiseComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       franchiseCode: new FormControl('', [Validators.required]),
@@ -211,6 +212,7 @@ export class FranchiseComponent implements OnInit, OnChanges {
     }
   }
 
+  // Utility Methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

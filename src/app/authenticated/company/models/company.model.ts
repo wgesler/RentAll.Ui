@@ -35,6 +35,10 @@ export interface CompanyResponse {
   website?: string;
   logoStorageId?: string;
   isActive: boolean;
+  createdOn: string;
+  createdBy: string;
+  modifiedOn: string;
+  modifiedBy: string;
 }
 
 export interface CompanyListDisplay {
@@ -45,10 +49,8 @@ export interface CompanyListDisplay {
   contactId: string;
   city: string;
   state: string;
-  zip: string;
   phone: string;
   website?: string;
-  logoStorageId?: string;
   isActive: boolean;
 }
 

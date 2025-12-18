@@ -181,6 +181,7 @@ export class AgentComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form methods
   buildForm(): void {
     this.form = this.fb.group({
       agentCode: new FormControl('', [Validators.required]),
@@ -199,6 +200,7 @@ export class AgentComponent implements OnInit, OnChanges {
     }
   }
 
+  // Utility methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

@@ -188,7 +188,8 @@ export class ColorComponent implements OnInit, OnChanges {
         return;
       }
       colorRequest.colorId = colorIdNum;
-      colorRequest.organizationId = this.color?.organizationId || user?.organizationId || '';
+      // Always use the current user's organizationId when updating
+      colorRequest.organizationId = user?.organizationId || '';
       this.colorService.updateColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
@@ -211,6 +212,7 @@ export class ColorComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form methods
   buildForm(): void {
     this.form = this.fb.group({
       reservationStatusId: new FormControl('', [Validators.required]),
@@ -233,6 +235,7 @@ export class ColorComponent implements OnInit, OnChanges {
     this.form.patchValue({ color: colorValue }, { emitEvent: true });
   }
 
+  // Utility methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

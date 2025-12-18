@@ -2,7 +2,7 @@ import { OnInit, Component } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { OrganizationResponse, OrganizationListDisplay } from '../models/organization.model';
+import { OrganizationListDisplay } from '../models/organization.model';
 import { OrganizationService } from '../services/organization.service';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
@@ -58,8 +58,7 @@ export class OrganizationListComponent implements OnInit {
   getOrganizations(): void {
     this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.removeLoadItem('organizations') })).subscribe({
       next: (organizations) => {
-        console.log('Organization List Component - Organizations loaded:', organizations);
-        this.allOrganizations = this.mapOrganizations(organizations);
+        this.allOrganizations = this.mappingService.mapOrganizations(organizations);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -69,24 +68,6 @@ export class OrganizationListComponent implements OnInit {
         }
       }
     });
-  }
-
-  mapOrganizations(organizations: OrganizationResponse[]): OrganizationListDisplay[] {
-    return organizations.map(org => ({
-      organizationId: org.organizationId,
-      organizationCode: org.organizationCode,
-      name: org.name,
-      address1: org.address1,
-      address2: org.address2,
-      suite: org.suite,
-      city: org.city,
-      state: org.state,
-      zip: org.zip,
-      phone: this.mappingService.formatPhoneNumber(org.phone),
-      website: org.website,
-      logoStorageId: org.logoStorageId,
-      isActive: org.isActive
-    }));
   }
 
   addOrganization(): void {

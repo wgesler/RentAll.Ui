@@ -31,8 +31,8 @@ export class AreaListComponent implements OnInit {
   showInactive: boolean = false;
 
   areasDisplayedColumns: ColumnSet = {
-    'areaCode': { displayAs: 'Area Code', maxWidth: '15ch' },
-    'description': { displayAs: 'Description', maxWidth: '30ch' },
+    'areaCode': { displayAs: 'Area Code', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '40ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allAreas: AreaListDisplay[] = [];
@@ -94,6 +94,16 @@ export class AreaListComponent implements OnInit {
     }
   }
 
+  goToArea(event: AreaListDisplay): void {
+    if (this.embeddedInSettings) {
+      this.areaSelected.emit(event.areaId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Area, [event.areaId.toString()]);
+      this.router.navigateByUrl(url);
+    }
+  }
+
+  // Filter methods
   applyFilters(): void {
     this.areasDisplay = this.showInactive
       ? this.allAreas
@@ -104,16 +114,8 @@ export class AreaListComponent implements OnInit {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
-
-  goToArea(event: AreaListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.areaSelected.emit(event.areaId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Area, [event.areaId.toString()]);
-      this.router.navigateByUrl(url);
-    }
-  }
-
+  
+  // Utility methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }

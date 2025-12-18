@@ -31,12 +31,11 @@ export class CompanyListComponent implements OnInit {
   showInactive: boolean = false;
 
   companiesDisplayedColumns: ColumnSet = {
-    'companyCode': { displayAs: 'Code', maxWidth: '10ch' },
-    'name': { displayAs: 'Name', maxWidth: '30ch' },
+    'companyCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'name': { displayAs: 'Name', maxWidth: '25ch' },
     'contact': { displayAs: 'Contact', maxWidth: '25ch' },
     'city': { displayAs: 'City' },
     'state': { displayAs: 'State' },
-    'zip': { displayAs: 'Zip' },
     'phone': { displayAs: 'Phone' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
@@ -83,7 +82,6 @@ export class CompanyListComponent implements OnInit {
   getCompanies(): void {
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies') })).subscribe({
       next: (companies) => {
-        console.log('Company List Component - Companies loaded:', companies);
         this.allCompanies = this.mappingService.mapCompanies(companies, this.contacts);
         this.applyFilters();
       },

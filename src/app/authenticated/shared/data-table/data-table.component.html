@@ -42,7 +42,10 @@
 
         @for (column of tableColumns; track column.name) {
             <ng-container [matColumnDef]="column.name">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
+                [style.max-width]="column.maxWidth"
+                [style.width]="column.maxWidth"
+                [style.min-width]="column.maxWidth">
                     @switch (column.name) {
                         @case ('select') {
                             @if (hasButtonSelectAll) {
@@ -64,6 +67,8 @@
                 <td mat-cell *matCellDef="let item, index as i"
                 class="align-middle"
                 [style.max-width]="column.maxWidth"
+                [style.width]="column.maxWidth"
+                [style.min-width]="column.maxWidth"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
                 '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',

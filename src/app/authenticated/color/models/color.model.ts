@@ -1,6 +1,6 @@
 export interface ColorRequest {
   colorId?: number;
-  organizationId: string;
+  organizationId?: string;
   reservationStatusId: number;
   color: string;
 }

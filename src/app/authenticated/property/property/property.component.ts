@@ -412,6 +412,75 @@ export class PropertyComponent implements OnInit {
     }
   }
 
+  // Formatting handlers
+  stripPhoneFormatting(phone: string): string {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '');
+  }
+
+  formatPhone(): void {
+    const phoneControl = this.form.get('phone');
+    if (phoneControl && phoneControl.value) {
+      const phone = phoneControl.value.replace(/\D/g, '');
+      if (phone.length === 10) {
+        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+        phoneControl.setValue(formatted, { emitEvent: false });
+      }
+    }
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const phone = input.value.replace(/\D/g, '');
+    if (phone.length <= 10) {
+      let formatted = phone;
+      if (phone.length > 6) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+      } else if (phone.length > 3) {
+        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
+      } else if (phone.length > 0) {
+        formatted = `(${phone}`;
+      }
+      this.form.get('phone').setValue(formatted, { emitEvent: false });
+    }
+  }
+
+  formatDecimal(fieldName: string): void {
+    const control = this.form.get(fieldName);
+    if (control && control.value !== null && control.value !== '') {
+      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
+      if (!isNaN(value)) {
+        const formatted = value.toFixed(2);
+        control.setValue(formatted, { emitEvent: false });
+      } else {
+        control.setValue('0.00', { emitEvent: false });
+      }
+    } else {
+      control?.setValue('0.00', { emitEvent: false });
+    }
+  }
+
+  onDecimalInput(event: Event, fieldName: string): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9.]/g, '');
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      input.value = parts[0] + '.' + parts.slice(1).join('');
+    } else {
+      input.value = value;
+    }
+    
+    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
+  }
+
+  selectAllOnFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.select();
+  }
+
+  // Setup and Initialize 
   setupConditionalFields(): void {
     // Subscribe to alarm checkbox changes to enable/disable alarm code field
     this.form.get('alarm')?.valueChanges.subscribe(value => {
@@ -484,98 +553,6 @@ export class PropertyComponent implements OnInit {
     }
   }
 
-  // Formatting handlers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
-  formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
-  }
-
-  onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
-  }
-
-  formatDecimal(fieldName: string): void {
-    const control = this.form.get(fieldName);
-    if (control && control.value !== null && control.value !== '') {
-      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
-      if (!isNaN(value)) {
-        const formatted = value.toFixed(2);
-        control.setValue(formatted, { emitEvent: false });
-      } else {
-        control.setValue('0.00', { emitEvent: false });
-      }
-    } else {
-      control?.setValue('0.00', { emitEvent: false });
-    }
-  }
-
-  onDecimalInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/[^0-9.]/g, '');
-    
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
-    }
-    
-    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
-  }
-
-  selectAllOnFocus(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    input.select();
-  }
-
-  // Utility methods
-  loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
-      return;
-    }
-    
-    this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),take(1)
-    ).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Property Component - Error loading states:', err);
-      }
-    });
-  }
-  
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.TenantList);
-  }
-
   initializePropertyStyles(): void {
     // Build propertyStyles from the PropertyStyle enum
     this.propertyStyles = Object.keys(PropertyStyle)
@@ -617,6 +594,7 @@ export class PropertyComponent implements OnInit {
       }));
   }
 
+  // Formatting enum labels
   formatBedSizeTypeLabel(enumKey: string): string {
     // Convert enum key to a readable label
     return enumKey
@@ -624,7 +602,6 @@ export class PropertyComponent implements OnInit {
       .trim()
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
-
 
   formatPropertyStyleLabel(enumKey: string): string {
     // Convert enum key to a readable label
@@ -651,8 +628,7 @@ export class PropertyComponent implements OnInit {
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
-  // Removed formatCheckInTimeLabel and formatCheckOutTimeLabel - CheckInTime and CheckOutTime fields removed from API
-
+  // Utility Methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
@@ -661,6 +637,29 @@ export class PropertyComponent implements OnInit {
     if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
     return isNaN(parsed) ? null : parsed;
+  }
+
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(
+      filter(states => states && states.length > 0),take(1)
+    ).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err) => {
+        console.error('Property Component - Error loading states:', err);
+      }
+    });
+  }
+  
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.TenantList);
   }
 }
 

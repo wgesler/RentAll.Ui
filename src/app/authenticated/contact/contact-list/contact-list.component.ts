@@ -29,9 +29,9 @@ export class ContactListComponent implements OnInit {
   showInactive: boolean = false;
 
   contactsDisplayedColumns: ColumnSet = {
-    'contactCode': { displayAs: 'Code', maxWidth: '10ch' },
+    'contactCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'contactType': { displayAs: 'Contact Type', maxWidth: '15ch' },
     'phone': { displayAs: 'Phone' },
     'email': { displayAs: 'Email', maxWidth: '25ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
@@ -90,8 +90,7 @@ export class ContactListComponent implements OnInit {
     }
   }
 
-  // Routing methods
-  goToContact(event: ContactListDisplay): void {
+    goToContact(event: ContactListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
   }
 

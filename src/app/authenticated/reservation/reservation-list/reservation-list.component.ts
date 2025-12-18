@@ -33,11 +33,11 @@ export class ReservationListComponent implements OnInit {
   showInactive: boolean = false;
 
   reservationsDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property Code', maxWidth: '15ch' },
-    'contactName': { displayAs: 'Contact', maxWidth: '25ch' },
-    'arrivalDate': { displayAs: 'Arrival Date', maxWidth: '15ch' },
-    'departureDate': { displayAs: 'Departure Date', maxWidth: '15ch' },
-    'reservationStatus': { displayAs: 'Status', maxWidth: '15ch' },
+    'propertyCode': { displayAs: 'Property Code', maxWidth: '20ch' },
+    'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
+    'contactName': { displayAs: 'Contact', maxWidth: '30ch' },
+    'arrivalDate': { displayAs: 'Arrival Date', maxWidth: '20ch' },
+    'departureDate': { displayAs: 'Departure Date', maxWidth: '20ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allReservations: ReservationListDisplay[] = [];
@@ -127,6 +127,7 @@ export class ReservationListComponent implements OnInit {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
   }
 
+  // Filtering Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -138,6 +139,7 @@ export class ReservationListComponent implements OnInit {
       : this.allReservations.filter(reservation => reservation.isActive === true);
   }
 
+  // Utility Methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }

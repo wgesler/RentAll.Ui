@@ -30,9 +30,9 @@ export class UserListComponent implements OnInit {
   showInactive: boolean = false;
 
   usersDisplayedColumns: ColumnSet = {
-    'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
-    'email': { displayAs: 'Email', maxWidth: '25ch' },
-    'userGroupsDisplay': { displayAs: 'User Groups' },
+    'fullName': { displayAs: 'Full Name', maxWidth: '30ch' },
+    'email': { displayAs: 'Email', maxWidth: '35ch' },
+    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '35ch'},
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allUsers: UserListDisplay[] = [];

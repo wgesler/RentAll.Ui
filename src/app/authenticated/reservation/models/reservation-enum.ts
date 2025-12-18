@@ -9,11 +9,12 @@ export enum ReservationStatus {
   ArrivalDeparture = 7
 }
 
-export enum ClientType {
-  Private = 0,
-  Corporate = 1,
-  Government = 2,
-  External = 3
+export enum ReservationType {
+ 	Private = 0,
+	Corporate = 1,
+	Government = 2,
+	External = 3,
+	Owner = 4
 }
 
 export enum BillingType {
@@ -23,8 +24,9 @@ export enum BillingType {
 }
 
 export enum Frequency {
-  OneTime = 0,
-  Weekly = 1,
-  BiWeekly = 2,
-  Monthly = 3
+  NA = 0,
+  OneTime = 1,
+  Weekly = 2,
+  BiMonthly = 3,
+  Monthly = 4
 }

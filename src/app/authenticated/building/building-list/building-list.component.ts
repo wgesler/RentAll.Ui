@@ -31,8 +31,8 @@ export class BuildingListComponent implements OnInit {
   showInactive: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {
-    'buildingCode': { displayAs: 'Building Code', maxWidth: '15ch' },
-    'description': { displayAs: 'Description', maxWidth: '30ch' },
+    'buildingCode': { displayAs: 'Building Code', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '40ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allBuildings: BuildingListDisplay[] = [];
@@ -94,6 +94,16 @@ export class BuildingListComponent implements OnInit {
     }
   }
 
+  goToBuilding(event: BuildingListDisplay): void {
+    if (this.embeddedInSettings) {
+      this.buildingSelected.emit(event.buildingId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Building, [event.buildingId.toString()]);
+      this.router.navigateByUrl(url);
+    }
+  }
+
+  // Filter methods
   applyFilters(): void {
     this.buildingsDisplay = this.showInactive
       ? this.allBuildings
@@ -105,15 +115,7 @@ export class BuildingListComponent implements OnInit {
     this.applyFilters();
   }
 
-  goToBuilding(event: BuildingListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.buildingSelected.emit(event.buildingId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Building, [event.buildingId.toString()]);
-      this.router.navigateByUrl(url);
-    }
-  }
-
+ // Utility methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }

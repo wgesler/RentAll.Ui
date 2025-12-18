@@ -144,7 +144,11 @@ td.mat-mdc-cell {
   border-bottom: 1px solid rgba(112, 112, 112, 27%);
   padding: 0 10px;
   min-width: 50px;
-  max-width: 100px;
+  
+  // Only apply default max-width if no inline style is set
+  &:not([style*="max-width"]) {
+    max-width: 100px;
+  }
 }
 
 td.mat-cell p,

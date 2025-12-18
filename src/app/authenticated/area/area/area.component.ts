@@ -193,6 +193,7 @@ export class AreaComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form methods
   buildForm(): void {
     this.form = this.fb.group({
       areaCode: new FormControl('', [Validators.required]),
@@ -211,6 +212,7 @@ export class AreaComponent implements OnInit, OnChanges {
     }
   }
 
+  // Utility methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

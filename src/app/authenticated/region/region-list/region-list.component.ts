@@ -31,8 +31,8 @@ export class RegionListComponent implements OnInit {
   showInactive: boolean = false;
 
   regionsDisplayedColumns: ColumnSet = {
-    'regionCode': { displayAs: 'Region Code', maxWidth: '15ch' },
-    'description': { displayAs: 'Description', maxWidth: '30ch' },
+    'regionCode': { displayAs: 'Region Code', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '40ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allRegions: RegionListDisplay[] = [];
@@ -94,6 +94,16 @@ export class RegionListComponent implements OnInit {
     }
   }
 
+  goToRegion(event: RegionListDisplay): void {
+    if (this.embeddedInSettings) {
+      this.regionSelected.emit(event.regionId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Region, [event.regionId.toString()]);
+      this.router.navigateByUrl(url);
+    }
+  }
+
+  // Filtering Methods
   applyFilters(): void {
     this.regionsDisplay = this.showInactive
       ? this.allRegions
@@ -105,15 +115,7 @@ export class RegionListComponent implements OnInit {
     this.applyFilters();
   }
 
-  goToRegion(event: RegionListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.regionSelected.emit(event.regionId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Region, [event.regionId.toString()]);
-      this.router.navigateByUrl(url);
-    }
-  }
-
+  // Utility Methods
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }

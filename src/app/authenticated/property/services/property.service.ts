@@ -29,8 +29,7 @@ export class PropertyService {
 
   // POST: Create a new property
   createProperty(property: PropertyRequest): Observable<PropertyResponse> {
-    console.log('Creating property:', property);
-    return this.http.post<PropertyResponse>(this.controller, property);
+   return this.http.post<PropertyResponse>(this.controller, property);
   }
 
   // PUT: Update entire property

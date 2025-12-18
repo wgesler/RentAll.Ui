@@ -193,6 +193,7 @@ export class BuildingComponent implements OnInit, OnChanges {
     }
   }
 
+  // Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       buildingCode: new FormControl('', [Validators.required]),
@@ -211,6 +212,7 @@ export class BuildingComponent implements OnInit, OnChanges {
     }
   }
 
+  // Utility Methods
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();

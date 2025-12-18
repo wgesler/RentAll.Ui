@@ -302,24 +302,8 @@ export class ReservationBoardComponent implements OnInit {
       return 'reservation-departure';
     }
     
-    // Otherwise use status-based colors
-    switch (reservation.reservationStatusId) {
-      case ReservationStatus.PreBooking:
-        return 'reservation-prebooking';
-      case ReservationStatus.Confirmed:
-      case ReservationStatus.CheckedIn:
-        return 'reservation-active';
-      case ReservationStatus.GaveNotice:
-        return 'reservation-notice';
-      case ReservationStatus.FirstRightRefusal:
-        return 'reservation-frr';
-      case ReservationStatus.Maintenance:
-        return 'reservation-maintenance';
-      case ReservationStatus.OwnerBlocked:
-        return 'reservation-owner-blocked';
-      default:
-        return '';
-    }
+    // No status-based CSS classes - colors come from API via inline styles
+    return '';
   }
 
   getReservationColor(reservation: ReservationResponse | null, date: Date): string | null {
@@ -394,15 +378,16 @@ export class ReservationBoardComponent implements OnInit {
       return 'M';
     }
     
-    // For yellow (PreBooking), green (Confirmed/CheckedIn), red (GaveNotice), orange (FRR)
+    // For PreBooking, Confirmed/CheckedIn, GaveNotice, FirstRightRefusal
     // Show letters of the tenant/contact name cycling through consecutive boxes
+    // Colors come from API via getReservationColor()
     if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
         reservation.reservationStatusId === ReservationStatus.Confirmed ||
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       
-      const contact = this.contactMap.get(reservation.clientId);
+      const contact = this.contactMap.get(reservation.contactId);
       if (contact) {
         // Get full name (firstName + lastName), keep spaces, convert to uppercase
         const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim().toUpperCase();

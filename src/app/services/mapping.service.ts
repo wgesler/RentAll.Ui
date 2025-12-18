@@ -13,6 +13,7 @@ import { BuildingResponse, BuildingListDisplay } from '../authenticated/building
 import { FranchiseResponse, FranchiseListDisplay } from '../authenticated/franchise/models/franchise.model';
 import { RegionResponse, RegionListDisplay } from '../authenticated/region/models/region.model';
 import { ColorResponse, ColorListDisplay } from '../authenticated/color/models/color.model';
+import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
 import { FormatterService } from './formatter-service';
 
 @Injectable({
@@ -22,6 +23,42 @@ import { FormatterService } from './formatter-service';
 export class MappingService {
   constructor(private formatter: FormatterService) { }
   
+  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
+    return agents.map<AgentListDisplay>((o: AgentResponse) => ({
+      agentId: o.agentId,
+      agentCode: o.agentCode,
+      description: o.description,
+      isActive: o.isActive
+    }));
+  }
+
+  mapAreas(areas: AreaResponse[]): AreaListDisplay[] {
+    return areas.map<AreaListDisplay>((o: AreaResponse) => ({
+      areaId: o.areaId,
+      areaCode: o.areaCode,
+      description: o.description,
+      isActive: o.isActive
+    }));
+  }
+
+  mapBuildings(buildings: BuildingResponse[]): BuildingListDisplay[] {
+    return buildings.map<BuildingListDisplay>((o: BuildingResponse) => ({
+      buildingId: o.buildingId,
+      buildingCode: o.buildingCode,
+      description: o.description,
+      isActive: o.isActive
+    }));
+  }
+
+  mapColors(colors: ColorResponse[]): ColorListDisplay[] {
+    return colors.map<ColorListDisplay>((o: ColorResponse) => ({
+      colorId: o.colorId,
+      reservationStatusId: o.reservationStatusId,
+      reservationStatus: this.formatReservationStatus(o.reservationStatusId),
+      color: o.color
+    }));
+  }
+
   mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
       let contactName = '';
@@ -48,6 +85,45 @@ export class MappingService {
         isActive: o.isActive,
       };
     });
+  }
+
+  mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
+    return contacts.map<ContactListDisplay>((o: ContactResponse) => ({
+      contactId: o.contactId,
+      contactCode: o.contactCode,
+      fullName: o.firstName + ' ' + o.lastName,
+      contactType: this.formatContactType(o.entityTypeId),
+      phone: this.formatPhoneNumber(o.phone),
+      email: o.email,
+      isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
+    }));
+  }
+
+  mapFranchises(franchises: FranchiseResponse[]): FranchiseListDisplay[] {
+    return franchises.map<FranchiseListDisplay>((o: FranchiseResponse) => ({
+      franchiseId: o.franchiseId,
+      franchiseCode: o.franchiseCode,
+      description: o.description,
+      isActive: o.isActive
+    }));
+  }
+
+  mapOrganizations(organizations: OrganizationResponse[]): OrganizationListDisplay[] {
+    return organizations.map<OrganizationListDisplay>((org: OrganizationResponse) => ({
+      organizationId: org.organizationId,
+      organizationCode: org.organizationCode,
+      name: org.name,
+      address1: org.address1,
+      address2: org.address2,
+      suite: org.suite,
+      city: org.city,
+      state: org.state,
+      zip: org.zip,
+      phone: this.formatPhoneNumber(org.phone),
+      website: org.website,
+      logoStorageId: org.logoStorageId,
+      isActive: org.isActive
+    }));
   }
 
   mapProperties(properties: PropertyResponse[], contacts?: ContactResponse[]): PropertyListDisplay[] {
@@ -78,76 +154,20 @@ export class MappingService {
     });
   }
 
-  mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
-    return contacts.map<ContactListDisplay>((o: ContactResponse) => ({
-      contactId: o.contactId,
-      contactCode: o.contactCode,
-      fullName: o.firstName + ' ' + o.lastName,
-      contactType: this.formatContactType(o.entityTypeId),
-      phone: this.formatPhoneNumber(o.phone),
-      email: o.email,
-      isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
+  mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
+    return regions.map<RegionListDisplay>((o: RegionResponse) => ({
+      regionId: o.regionId,
+      regionCode: o.regionCode,
+      description: o.description,
+      isActive: o.isActive
     }));
-  }
-
-  formatContactType(contactTypeId?: number): string {
-    if (contactTypeId === undefined || contactTypeId === null) {
-      return 'Unknown';
-    }
-    const typeLabels: { [key: number]: string } = {
-      [EntityType.Unknown]: 'Unknown',
-      [EntityType.Company]: 'Company',
-      [EntityType.Owner]: 'Owner',
-      [EntityType.Tenant]: 'Tenant',      
-      [EntityType.Vendor]: 'Vendor'
-    };
-    return typeLabels[contactTypeId] || 'Unknown';
-  }
-
-  mapUsers(users: UserResponse[]): UserListDisplay[] {
-    return users.map<UserListDisplay>((o: UserResponse) => {
-      const userGroups = o.userGroups || [];
-      return {
-        userId: o.userId,
-        firstName: o.firstName,
-        lastName: o.lastName,
-        fullName: o.firstName + ' ' + o.lastName,
-        email: o.email,
-        userGroups: userGroups,
-        userGroupsDisplay: this.formatUserGroups(userGroups),
-        isActive: o.isActive
-      };
-    });
-  }
-
-  formatUserGroups(userGroups: string[]): string {
-    if (!userGroups || userGroups.length === 0) {
-      return '';
-    }
-    const groupLabels: { [key: string]: string } = {
-      'SuperAdmin': 'Super Admin',
-      'Admin': 'Admin',
-      'User': 'User',
-      'Unknown': 'Unknown'
-    };
-    return userGroups.map(g => groupLabels[g] || g).join(', ');
-  }
-
-  formatPhoneNumber(phone?: string): string {
-    if (!phone) return phone || '';
-    // Remove all non-digits
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
-    }
-    return phone;
   }
 
   mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationResponse) => {
       let contactName = '';
-      if (o.clientId && contacts) {
-        const contact = contacts.find(c => c.contactId === o.clientId);
+      if (o.contactId && contacts) {
+        const contact = contacts.find(c => c.contactId === o.contactId);
         if (contact) {
           contactName = contact.firstName + ' ' + contact.lastName;
         } else {
@@ -170,14 +190,71 @@ export class MappingService {
       return {
         reservationId: o.reservationId,
         propertyCode: propertyCode, 
-        contactId: o.clientId || '',
+        contactId: o.contactId || '',
         contactName: contactName || '',
-        arrivalDate: o.arrivalDate,
-        departureDate: o.departureDate,
+        arrivalDate: this.formatDate(o.arrivalDate),
+        departureDate: this.formatDate(o.departureDate),
         reservationStatus: this.formatReservationStatus(o.reservationStatusId),
         isActive: o.isActive
       };
     });
+  }
+
+  mapUsers(users: UserResponse[]): UserListDisplay[] {
+    return users.map<UserListDisplay>((o: UserResponse) => {
+      const userGroups = o.userGroups || [];
+      return {
+        userId: o.userId,
+        firstName: o.firstName,
+        lastName: o.lastName,
+        fullName: o.firstName + ' ' + o.lastName,
+        email: o.email,
+        userGroups: userGroups,
+        userGroupsDisplay: this.formatUserGroups(userGroups),
+        isActive: o.isActive
+      };
+    });
+  }
+
+  // Helper/format functions
+  formatContactType(contactTypeId?: number): string {
+    if (contactTypeId === undefined || contactTypeId === null) {
+      return 'Unknown';
+    }
+    const typeLabels: { [key: number]: string } = {
+      [EntityType.Unknown]: 'Unknown',
+      [EntityType.Company]: 'Company',
+      [EntityType.Owner]: 'Owner',
+      [EntityType.Tenant]: 'Tenant',      
+      [EntityType.Vendor]: 'Vendor'
+    };
+    return typeLabels[contactTypeId] || 'Unknown';
+  }
+
+  formatDate(dateString?: string): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    } catch {
+      return '';
+    }
+  }
+
+  formatPhoneNumber(phone?: string): string {
+    if (!phone) return phone || '';
+    // Remove all non-digits
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+    }
+    return phone;
   }
 
   formatReservationStatus(reservationStatusId?: number): string {
@@ -197,57 +274,16 @@ export class MappingService {
     return statusLabels[reservationStatusId] || 'Unknown';
   }
 
-  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
-    return agents.map<AgentListDisplay>((o: AgentResponse) => ({
-      agentId: o.agentId,
-      agentCode: o.agentCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
-  }
-
-  mapAreas(areas: AreaResponse[]): AreaListDisplay[] {
-    return areas.map<AreaListDisplay>((o: AreaResponse) => ({
-      areaId: o.areaId,
-      areaCode: o.areaCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
-  }
-
-  mapBuildings(buildings: BuildingResponse[]): BuildingListDisplay[] {
-    return buildings.map<BuildingListDisplay>((o: BuildingResponse) => ({
-      buildingId: o.buildingId,
-      buildingCode: o.buildingCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
-  }
-
-  mapFranchises(franchises: FranchiseResponse[]): FranchiseListDisplay[] {
-    return franchises.map<FranchiseListDisplay>((o: FranchiseResponse) => ({
-      franchiseId: o.franchiseId,
-      franchiseCode: o.franchiseCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
-  }
-
-  mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
-    return regions.map<RegionListDisplay>((o: RegionResponse) => ({
-      regionId: o.regionId,
-      regionCode: o.regionCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
-  }
-
-  mapColors(colors: ColorResponse[]): ColorListDisplay[] {
-    return colors.map<ColorListDisplay>((o: ColorResponse) => ({
-      colorId: o.colorId,
-      reservationStatusId: o.reservationStatusId,
-      reservationStatus: this.formatReservationStatus(o.reservationStatusId),
-      color: o.color
-    }));
+  formatUserGroups(userGroups: string[]): string {
+    if (!userGroups || userGroups.length === 0) {
+      return '';
+    }
+    const groupLabels: { [key: string]: string } = {
+      'SuperAdmin': 'Super Admin',
+      'Admin': 'Admin',
+      'User': 'User',
+      'Unknown': 'Unknown'
+    };
+    return userGroups.map(g => groupLabels[g] || g).join(', ');
   }
 }

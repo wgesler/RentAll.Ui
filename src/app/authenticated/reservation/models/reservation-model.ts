@@ -5,9 +5,9 @@ export interface ReservationRequest {
   organizationId: string;
   agentId?: string | null;
   propertyId: string;
+  reservationTypeId: number;
+  contactId: string;
   tenantName: string;
-  clientId: string;
-  clientTypeId: number;
   reservationStatusId: number;
   arrivalDate: string;
   departureDate: string;
@@ -36,14 +36,16 @@ export interface ReservationResponse {
   organizationId: string;
   agentId?: string | null;
   propertyId: string;
-  propertyCode?: string;
-  propertyAddress?: string;
-  PropertyStatus?: string;
-  contactName?: string;
-  tenantName: string;
-  clientId: string;
-  clientTypeId: number;
+  contactId: string;
+  reservationTypeId: number;
   reservationStatusId: number;
+  propertyCode: string;
+  propertyAddress: string;
+  propertyStatusId: number;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  tenantName?: string;
   arrivalDate: string;
   departureDate: string;
   checkInTimeId: number;
@@ -59,10 +61,6 @@ export interface ReservationResponse {
   extraFee: number;
   extraFeeName: string;
   taxes: number;
-  createdOn: string;
-  createdBy: string;
-  modifiedOn: string;
-  modifiedBy: string;
   isActive: boolean;
 }
 

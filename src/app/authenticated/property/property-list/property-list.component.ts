@@ -31,8 +31,8 @@ export class PropertyListComponent implements OnInit {
   showInactive: boolean = false;
 
   propertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '10ch' },
-    'owner': { displayAs: 'Owner', maxWidth: '25ch' },
+    'propertyCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'owner': { displayAs: 'Owner', maxWidth: '30ch' },
     'bedrooms': { displayAs: 'Beds' },
     'bathrooms': { displayAs: 'Baths' },
     'accomodates': { displayAs: 'Accoms' },
@@ -86,7 +86,6 @@ export class PropertyListComponent implements OnInit {
   getProperties(): void {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties') })).subscribe({
       next: (properties) => {
-        console.log('Property List Component - Properties loaded:', properties);
         this.allProperties = this.mappingService.mapProperties(properties, this.contacts);
         this.applyFilters();
       },
@@ -116,7 +115,8 @@ export class PropertyListComponent implements OnInit {
       });
     }
   }
-  // Navigation methods
+
+  // Routing methods
   goToProperty(event: PropertyListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
   }

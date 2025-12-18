@@ -68,27 +68,6 @@ export class ContactComponent implements OnInit {
     }
   }
 
-  initializeContactTypes(): void {
-    // Build availableContactTypes from the EntityType enum
-    // Exclude Unknown (0) from the list
-    this.availableContactTypes = Object.keys(EntityType)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
-      .map(key => ({
-        value: EntityType[key],
-        label: this.formatContactTypeLabel(key)
-      }));
-  }
-
-  formatContactTypeLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    // e.g., "Company" -> "Company", "Owner" -> "Owner"
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
   getContact(): void {
     this.contactService.getContactByGuid(this.contactId).pipe(
       take(1),
@@ -203,6 +182,27 @@ export class ContactComponent implements OnInit {
     }
   }
 
+  initializeContactTypes(): void {
+    // Build availableContactTypes from the EntityType enum
+    // Exclude Unknown (0) from the list
+    this.availableContactTypes = Object.keys(EntityType)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
+      .map(key => ({
+        value: EntityType[key],
+        label: this.formatContactTypeLabel(key)
+      }));
+  }
+
+  formatContactTypeLabel(enumKey: string): string {
+    // Convert enum key to a readable label
+    // e.g., "Company" -> "Company", "Owner" -> "Owner"
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+  
   // Phone helpers
   stripPhoneFormatting(phone: string): string {
     if (!phone) return '';
