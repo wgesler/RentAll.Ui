@@ -61,19 +61,19 @@ export class PropertyComponent implements OnInit {
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
   
-  // Accordion expansion states
+  // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = {
-    availability: true,
-    address: true,
-    location: true,
-    features: true,
-    kitchen: true,
-    electronics: true,
-    outdoor: true,
-    pool: true,
-    trash: true,
-    amenities: true,
-    description: true
+    availability: false,
+    address: false,
+    location: false,
+    features: false,
+    kitchen: false,
+    electronics: false,
+    outdoor: false,
+    pool: false,
+    trash: false,
+    amenities: false,
+    description: false
   };
 
   onPanelOpened(section: keyof typeof this.expandedSections): void {
@@ -136,6 +136,23 @@ export class PropertyComponent implements OnInit {
       if (paramMap.has('id')) {
         this.propertyId = paramMap.get('id');
         this.isAddMode = this.propertyId === 'new';
+        
+        // Set panel expansion state based on mode
+        // In Add Mode: all panels open, In Edit Mode: all panels closed
+        const allExpanded = this.isAddMode;
+        this.expandedSections = {
+          availability: allExpanded,
+          address: allExpanded,
+          location: allExpanded,
+          features: allExpanded,
+          kitchen: allExpanded,
+          electronics: allExpanded,
+          outdoor: allExpanded,
+          pool: allExpanded,
+          trash: allExpanded,
+          amenities: allExpanded,
+          description: allExpanded
+        };
         
         // Update form validators based on mode
         const owner1Control = this.form.get('owner1Id');

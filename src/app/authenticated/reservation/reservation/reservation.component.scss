@@ -1,5 +1,27 @@
-// Reservation styles will be added here
+// Reservation styles
+.reservation-tabs {
+  ::ng-deep {
+    .mat-mdc-tab.mdc-tab--active {
+      border-top: 2px solid rgb(148, 163, 184); // Same color as tab background
+      border-left: 2px solid rgb(148, 163, 184);
+      border-right: 2px solid rgb(148, 163, 184);
+      border-bottom: none; // No border on bottom
+      border-radius: 0.5rem;
+    }
 
+    // Ensure all tab body content has the same height to prevent jumping
+    .mat-mdc-tab-body-wrapper {
+      min-height: 600px; // Set minimum height for all tab content
+    }
 
+    .mat-mdc-tab-body-content {
+      min-height: 600px;
+      display: block;
+    }
 
-
+    // Ensure form and child components fill the space
+    form.info-form {
+      min-height: 600px;
+    }
+  }
+}
