@@ -52,7 +52,7 @@ export interface PropertyRequest {
   gated: boolean;
   petsAllowed: boolean;
   smoking: boolean;
-  assignedParking: boolean;
+  parking: boolean;
   notes?: string;
   alarm: boolean;
   alarmCode?: string;
@@ -97,6 +97,12 @@ export interface PropertyRequest {
   // Additional Amenities section
   amenities?: string;
   description?: string;
+
+  // Location section
+  franchiseCode?: string | null;
+  regionCode?: string | null;
+  areaCode?: string | null;
+  buildingCode?: string | null;
 }
 
 export interface PropertyResponse {
@@ -151,7 +157,7 @@ export interface PropertyResponse {
   gated: boolean;
   petsAllowed: boolean;
   smoking: boolean;
-  assignedParking: boolean;
+  parking: boolean;
   notes?: string;
   alarm: boolean;
   alarmCode?: string;
@@ -196,6 +202,12 @@ export interface PropertyResponse {
   // Additional Amenities section
   amenities?: string;
   description?: string;
+
+  // Location section
+  franchiseCode?: string | null;
+  regionCode?: string | null;
+  areaCode?: string | null;
+  buildingCode?: string | null;
 }
 
 export interface PropertyListDisplay {
@@ -208,5 +220,6 @@ export interface PropertyListDisplay {
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
+  monthlyRate: number;
   isActive: boolean;
 }

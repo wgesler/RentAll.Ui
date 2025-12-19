@@ -12,6 +12,7 @@ import { UserListComponent } from './authenticated/user/user-list/user-list.comp
 import { ReservationComponent } from './authenticated/reservation/reservation/reservation.component';
 import { ReservationListComponent } from './authenticated/reservation/reservation-list/reservation-list.component';
 import { ReservationBoardComponent } from './authenticated/reservation/reservation-board/reservation-board.component';
+import { ReservationBoardSelectionComponent } from './authenticated/reservation/reservation-board-selection/reservation-board-selection.component';
 import { AgentComponent } from './authenticated/agent/agent/agent.component';
 import { AgentListComponent } from './authenticated/agent/agent-list/agent-list.component';
 import { OrganizationComponent } from './authenticated/organization/organization/organization.component';
@@ -44,6 +45,7 @@ export enum RouterToken {
   ReservationList = 'reservations',
   Reservation = RouterToken.ReservationList + '/:id',
   ReservationBoard = 'boards',
+  ReservationBoardSelection = RouterToken.ReservationBoard + '/selection',
   AgentList = 'agents',
   Agent = RouterToken.AgentList + '/:id',
   UserList = 'users',
@@ -61,7 +63,7 @@ export enum RouterToken {
   Region = RouterToken.RegionList + '/:id',
   ColorList = 'colors',
   Color = RouterToken.ColorList + '/:id',
-  Default = RouterToken.CompanyList
+  Default = RouterToken.ReservationBoard
 }
 
 export enum RouterUrl {
@@ -75,6 +77,7 @@ export enum RouterUrl {
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
   Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
   ReservationBoard      = `${RouterToken.Auth}/${RouterToken.ReservationBoard}`,
+  ReservationBoardSelection = `${RouterToken.Auth}/${RouterToken.ReservationBoardSelection}`,
   AgentList             = `${RouterToken.Auth}/${RouterToken.AgentList}`,
   Agent                 = `${RouterToken.Auth}/${RouterToken.Agent}`,
   UserList              = `${RouterToken.Auth}/${RouterToken.UserList}`,
@@ -113,6 +116,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ReservationBoardSelection, component: ReservationBoardSelectionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.UserList, component: UserListComponent, canActivate: [authRouteGuard] },

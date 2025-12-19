@@ -1,0 +1,48 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.reservation-board-selection-wrapper {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.reservation-board-selection-card {
+  width: 96% !important;
+  height: calc(100vh - 144px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  max-width: 96% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+
+  mat-card {
+    flex: 1;
+    overflow: auto;
+  }
+}
+
+// Hide numeric input spinners (entry-only)
+input.no-spinner[type='number']::-webkit-outer-spin-button,
+input.no-spinner[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+

@@ -31,12 +31,13 @@ export class PropertyListComponent implements OnInit {
   showInactive: boolean = false;
 
   propertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'owner': { displayAs: 'Owner', maxWidth: '30ch' },
     'bedrooms': { displayAs: 'Beds' },
     'bathrooms': { displayAs: 'Baths' },
     'accomodates': { displayAs: 'Accoms' },
     'squareFeet': { displayAs: 'Sq Ft' },
+    'monthlyRate': { displayAs: 'Monthly' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allProperties: PropertyListDisplay[] = [];

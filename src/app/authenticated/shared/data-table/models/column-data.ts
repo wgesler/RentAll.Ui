@@ -12,6 +12,7 @@ export interface ColumnData {
     isCheckbox?: boolean;
     options?: string[];
     buttonText?: string;
+    sortType?: 'default' | 'natural'; // 'natural' for codes with numbers (e.g., "CODE1", "CODE2", "CODE10")
 }
 
 export const defaultColumnData: ColumnData = {

@@ -29,7 +29,7 @@ export class ContactListComponent implements OnInit {
   showInactive: boolean = false;
 
   contactsDisplayedColumns: ColumnSet = {
-    'contactCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone' },

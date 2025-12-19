@@ -1,0 +1,185 @@
+@if (!itemsToLoad.includes('selection')) {
+  <div class="flex content-card-wrap justify-center reservation-board-selection-wrapper">
+    <section class="content-card reservation-board-selection-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">tune</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            Reservation Board Selection
+          </span>
+        </span>
+
+        <div class="flex gap-2 items-center">
+          <button
+            mat-raised-button
+            type="button"
+            color="accent"
+            id="back-button"
+            (click)="backToBoard()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+
+          <button
+            mat-raised-button
+            type="button"
+            color="primary"
+            id="save-button"
+            (click)="savePropertySelections()"
+            class="scale-90 text-nowrap flex-shrink-0"
+            [disabled]="isSubmitting || !form">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <form [formGroup]="form" class="info-form mb-8 pt-5">
+          <div class="grid grid-cols-4 gap-x-3 gap-y-3 px-6 pb-2">
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Property Status</mat-label>
+              <mat-select formControlName="propertyStatusId">
+                <mat-option value="">All</mat-option>
+                @for (s of propertyStatuses; track s.value) {
+                  <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>From Beds</mat-label>
+              <input
+                matInput
+                type="number"
+                class="no-spinner"
+                inputmode="numeric"
+                min="0"
+                step="1"
+                formControlName="fromBeds"
+                (keydown)="numbersOnly($event)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>To Beds</mat-label>
+              <input
+                matInput
+                type="number"
+                class="no-spinner"
+                inputmode="numeric"
+                min="0"
+                step="1"
+                formControlName="toBeds"
+                (keydown)="numbersOnly($event)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Accomodates</mat-label>
+              <input
+                matInput
+                type="number"
+                class="no-spinner"
+                inputmode="numeric"
+                min="0"
+                step="1"
+                formControlName="accomodates"
+                (keydown)="numbersOnly($event)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Property Code</mat-label>
+              <input matInput type="text" formControlName="propertyCode">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>City</mat-label>
+              <input matInput type="text" formControlName="city">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>State</mat-label>
+              <mat-select formControlName="state">
+                <mat-option value="">All</mat-option>
+                @for (s of states; track s) {
+                  <mat-option [value]="s">{{ s }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Max Rent</mat-label>
+              <input
+                matInput
+                type="number"
+                class="no-spinner"
+                inputmode="numeric"
+                min="0"
+                step="1"
+                formControlName="maxRent"
+                (keydown)="numbersOnly($event)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Franchise</mat-label>
+              <mat-select formControlName="franchiseId">
+                <mat-option value="">All</mat-option>
+                @for (f of franchises; track f.franchiseId) {
+                  <mat-option [value]="f.franchiseId">{{ f.franchiseCode }} - {{ f.description }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Region</mat-label>
+              <mat-select formControlName="regionId">
+                <mat-option value="">All</mat-option>
+                @for (r of regions; track r.regionId) {
+                  <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.description }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Area</mat-label>
+              <mat-select formControlName="areaId">
+                <mat-option value="">All</mat-option>
+                @for (a of areas; track a.areaId) {
+                  <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.description }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Building</mat-label>
+              <mat-select formControlName="buildingId">
+                <mat-option value="">All</mat-option>
+                @for (b of buildings; track b.buildingId) {
+                  <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.description }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="px-6 pb-6">
+            <div class="font-medium text-slate-700 mb-2">Amenities</div>
+            <div class="grid grid-cols-4 gap-x-4 gap-y-2">
+              <mat-checkbox formControlName="furnished" color="primary">Furnished</mat-checkbox>
+              <mat-checkbox formControlName="cable" color="primary">Cable</mat-checkbox>
+              <mat-checkbox formControlName="streaming" color="primary">Streaming</mat-checkbox>
+              <mat-checkbox formControlName="pool" color="primary">Pool</mat-checkbox>
+              <mat-checkbox formControlName="jacuzzi" color="primary">Jacuzzi</mat-checkbox>
+              <mat-checkbox formControlName="security" color="primary">Security</mat-checkbox>
+              <mat-checkbox formControlName="parking" color="primary">Parking</mat-checkbox>
+              <mat-checkbox formControlName="pets" color="primary">Pets</mat-checkbox>
+              <mat-checkbox formControlName="smoking" color="primary">Smoking</mat-checkbox>
+              <mat-checkbox formControlName="highSpeedInternet" color="primary">High Speed Internet</mat-checkbox>
+            </div>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}
+
+

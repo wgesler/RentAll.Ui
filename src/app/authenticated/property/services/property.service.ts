@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertySelectionRequest, PropertySelectionResponse } from '../../reservation/models/reservation-selection-model';
 
 @Injectable({
     providedIn: 'root'
@@ -45,6 +46,21 @@ export class PropertyService {
   // DELETE: Delete property
   deleteProperty(propertyId: string): Observable<void> {
     return this.http.delete<void>(this.controller + propertyId);
+  }
+
+  // GET: Get property selection criteria for a user
+  getPropertySelection(userId: string): Observable<PropertySelectionResponse> {
+    return this.http.get<PropertySelectionResponse>(this.controller + 'selection/' + userId);
+  }
+
+  // PUT: Save property selection criteria for a user
+  putPropertySelection(selection: PropertySelectionRequest): Observable<PropertySelectionResponse> {
+    return this.http.put<PropertySelectionResponse>(this.controller + 'selection/', selection);
+  }
+
+  // POST: Get properties by selection criteria
+  getPropertiesBySelectionCritera(userId: string): Observable<PropertyResponse[]> {
+    return this.http.get<PropertyResponse[]>(this.controller + 'user/' + userId);
   }
 }
 

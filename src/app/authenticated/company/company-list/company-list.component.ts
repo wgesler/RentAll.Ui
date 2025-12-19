@@ -31,7 +31,7 @@ export class CompanyListComponent implements OnInit {
   showInactive: boolean = false;
 
   companiesDisplayedColumns: ColumnSet = {
-    'companyCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'companyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'contact': { displayAs: 'Contact', maxWidth: '25ch' },
     'city': { displayAs: 'City' },

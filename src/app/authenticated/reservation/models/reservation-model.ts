@@ -72,6 +72,7 @@ export interface ReservationListDisplay {
   arrivalDate?: string;
   departureDate?: string;
   reservationStatus: string;
+  reservationStatusId?: number; // Added for proper sorting by numeric ID
   isActive: boolean;
 }
 

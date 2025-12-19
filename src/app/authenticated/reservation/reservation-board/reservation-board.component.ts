@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
+import { FormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
 import { PropertyStatus } from '../../property/models/property-enums';
@@ -15,13 +16,15 @@ import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { ColorService } from '../../color/services/color.service';
 import { ColorResponse } from '../../color/models/color.model';
+import { AuthService } from '../../../services/auth.service';
+import { PropertySelectionResponse } from '../models/reservation-selection-model';
 
 
 
 @Component({
   selector: 'app-reservation-board',
   standalone: true,
-  imports: [CommonModule, MaterialModule, RouterLink],
+  imports: [CommonModule, MaterialModule, RouterLink, FormsModule],
   templateUrl: './reservation-board.component.html',
   styleUrl: './reservation-board.component.scss'
 })
@@ -33,21 +36,66 @@ export class ReservationBoardComponent implements OnInit {
   contactMap: Map<string, ContactResponse> = new Map();
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
-  numberOfDays: number = 90; // Show 90 days by default
+
+  startDate: Date = null;
+  endDate: Date = null;
 
   constructor(
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private colorService: ColorService,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) { }
 
   ngOnInit(): void {
+    this.setDefaultDateRange();
     this.generateCalendarDays();
     this.loadColors();
     this.loadContacts();
     this.loadReservations(); // This will call loadProperties() after reservations are loaded
+  }
+
+  private setDefaultDateRange(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const end = new Date(today);
+    end.setMonth(end.getMonth() + 6);
+    end.setHours(0, 0, 0, 0);
+
+    this.startDate = today;
+    this.endDate = end;
+  }
+
+  onDateRangeChange(): void {
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+    } else if (this.startDate && !this.endDate) {
+      const end = new Date(this.startDate);
+      end.setMonth(end.getMonth() + 6);
+      end.setHours(0, 0, 0, 0);
+      this.endDate = end;
+    } else if (!this.startDate && this.endDate) {
+      const start = new Date(this.endDate);
+      start.setMonth(start.getMonth() - 6);
+      start.setHours(0, 0, 0, 0);
+      this.startDate = start;
+    }
+
+    // Normalize times
+    if (this.startDate) this.startDate.setHours(0, 0, 0, 0);
+    if (this.endDate) this.endDate.setHours(0, 0, 0, 0);
+
+    // Ensure start <= end (swap if needed)
+    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+      const tmp = this.startDate;
+      this.startDate = this.endDate;
+      this.endDate = tmp;
+    }
+
+    this.generateCalendarDays();
   }
 
   loadColors(): void {
@@ -127,9 +175,16 @@ export class ReservationBoardComponent implements OnInit {
   }
 
   loadProperties(): void {
-    this.propertyService.getProperties().pipe(take(1)).subscribe({
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      console.error('ReservationBoard - No userId found for this session.');
+      this.properties = [];
+      return;
+    }
+
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1)).subscribe({
       next: (properties: PropertyResponse[]) => {
-        this.properties = properties.map(p => {
+        this.properties = (properties || []).map(p => {
           const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId);
           return {
             propertyId: p.propertyId,
@@ -142,7 +197,7 @@ export class ReservationBoardComponent implements OnInit {
         });
       },
       error: (err) => {
-        console.error('Error loading properties:', err);
+        console.error('Error loading properties (selection criteria):', err);
         this.properties = [];
       }
     });
@@ -162,15 +217,20 @@ export class ReservationBoardComponent implements OnInit {
   }
 
   generateCalendarDays(): void {
-    const today = new Date();
     const days: CalendarDay[] = [];
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-    let currentDate = new Date(today);
+    const start = this.startDate ? new Date(this.startDate) : new Date();
+    const end = this.endDate ? new Date(this.endDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    let currentDate = new Date(start);
     let lastMonth = -1;
 
-    for (let i = 0; i < this.numberOfDays; i++) {
+    // Inclusive range
+    while (currentDate.getTime() <= end.getTime()) {
       const date = new Date(currentDate);
       const dayOfWeek = dayNames[date.getDay()];
       const dayNumber = date.getDate();
@@ -425,5 +485,23 @@ export class ReservationBoardComponent implements OnInit {
 
   navigateToReservation(reservationId: string): void {
     this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
+  }
+
+  goToBoardSelection(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+      return;
+    }
+
+    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { selection } });
+      },
+      error: () => {
+        // Still allow navigation even if selection load fails
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+      }
+    });
   }
 }

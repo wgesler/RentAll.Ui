@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, forkJoin } from 'rxjs';
 import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -17,6 +17,14 @@ import { ContactResponse, ContactListDisplay } from '../../contact/models/contac
 import { MappingService } from '../../../services/mapping.service';
 import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
+import { FranchiseService } from '../../franchise/services/franchise.service';
+import { RegionService } from '../../region/services/region.service';
+import { AreaService } from '../../area/services/area.service';
+import { BuildingService } from '../../building/services/building.service';
+import { FranchiseResponse } from '../../franchise/models/franchise.model';
+import { RegionResponse } from '../../region/models/region.model';
+import { AreaResponse } from '../../area/models/area.model';
+import { BuildingResponse } from '../../building/models/building.model';
 
 @Component({
   selector: 'app-property',
@@ -47,18 +55,25 @@ export class PropertyComponent implements OnInit {
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
   bedSizeTypes: { value: number, label: string }[] = [];
+
+  franchises: FranchiseResponse[] = [];
+  regions: RegionResponse[] = [];
+  areas: AreaResponse[] = [];
+  buildings: BuildingResponse[] = [];
   
   // Accordion expansion states
   expandedSections = {
     availability: true,
     address: true,
+    location: true,
     features: true,
     kitchen: true,
     electronics: true,
     outdoor: true,
     pool: true,
     trash: true,
-    amenities: true
+    amenities: true,
+    description: true
   };
 
   onPanelOpened(section: keyof typeof this.expandedSections): void {
@@ -79,7 +94,11 @@ export class PropertyComponent implements OnInit {
     private formatterService: FormatterService,
     private contactService: ContactService,
     private mappingService: MappingService,
-    private authService: AuthService
+    private authService: AuthService,
+    private franchiseService: FranchiseService,
+    private regionService: RegionService,
+    private areaService: AreaService,
+    private buildingService: BuildingService
   ) {
       //this.itemsToLoad.push('property');
       this.loadStates();
@@ -98,6 +117,8 @@ export class PropertyComponent implements OnInit {
     
     // Build form first so template can access it
     this.buildForm();
+
+    this.loadLocationLookups();
     
     // Load owner contacts from already-cached source
     this.contactService.getAllOwnerContacts().pipe(
@@ -144,6 +165,42 @@ export class PropertyComponent implements OnInit {
     this.setupConditionalFields();
     
 
+  }
+
+  private loadLocationLookups(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    forkJoin({
+      franchises: this.franchiseService.getFranchises().pipe(take(1)),
+      regions: this.regionService.getRegions().pipe(take(1)),
+      areas: this.areaService.getAreas().pipe(take(1)),
+      buildings: this.buildingService.getBuildings().pipe(take(1)),
+    }).pipe(take(1)).subscribe({
+      next: ({ franchises, regions, areas, buildings }) => {
+        this.franchises = (franchises || []).filter(f => f.organizationId === orgId && f.isActive);
+        this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+        this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        
+        // If property is already loaded, update location fields in form
+        if (this.property && this.form) {
+          this.form.patchValue({
+            franchiseId: this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode'),
+            regionId: this.getCodeToId(this.property.regionCode, this.regions, 'regionCode'),
+            areaId: this.getCodeToId(this.property.areaCode, this.areas, 'areaCode'),
+            buildingId: this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode'),
+          });
+        }
+      },
+      error: (err) => {
+        console.error('Property Component - Error loading location lookups:', err);
+        this.franchises = [];
+        this.regions = [];
+        this.areas = [];
+        this.buildings = [];
+      }
+    });
   }
 
   getProperty(): void {
@@ -229,6 +286,12 @@ export class PropertyComponent implements OnInit {
     if (propertyRequest.yard === undefined) {
       propertyRequest.yard = false;
     }
+
+    // Convert location IDs from dropdowns to codes for API
+    propertyRequest.franchiseCode = this.getIdToCode(formValue.franchiseId, this.franchises, 'franchiseCode');
+    propertyRequest.regionCode = this.getIdToCode(formValue.regionId, this.regions, 'regionCode');
+    propertyRequest.areaCode = this.getIdToCode(formValue.areaId, this.areas, 'areaCode');
+    propertyRequest.buildingCode = this.getIdToCode(formValue.buildingId, this.buildings, 'buildingCode');
 
     if (this.isAddMode) {
       this.propertyService.createProperty(propertyRequest).pipe(
@@ -336,7 +399,7 @@ export class PropertyComponent implements OnInit {
       security: new FormControl(false),
       elevator: new FormControl(false),
       keypadAccess: new FormControl(false),
-      assignedParking: new FormControl(false),
+      parking: new FormControl(false),
       notes: new FormControl({ value: '', disabled: true }),
       
       // Amenities tab
@@ -353,6 +416,12 @@ export class PropertyComponent implements OnInit {
       sofabeds: new FormControl(false),
       smoking: new FormControl(false),
       petsAllowed: new FormControl(false),
+
+      // Location section
+      franchiseId: new FormControl<number | null>(null),
+      regionId: new FormControl<number | null>(null),
+      areaId: new FormControl<number | null>(null),
+      buildingId: new FormControl<number | null>(null),
       
       isActive: new FormControl(true)
     });
@@ -405,6 +474,21 @@ export class PropertyComponent implements OnInit {
       formData.phone = this.property.phone || '';
       if (formData.phone) {
         formData.phone = this.formatterService.phoneNumber(formData.phone);
+      }
+
+      // Convert location codes from API to IDs for dropdowns
+      // Wait for location lookups to be loaded before converting
+      if (this.franchises.length > 0 && this.regions.length > 0 && this.areas.length > 0 && this.buildings.length > 0) {
+        formData.franchiseId = this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode');
+        formData.regionId = this.getCodeToId(this.property.regionCode, this.regions, 'regionCode');
+        formData.areaId = this.getCodeToId(this.property.areaCode, this.areas, 'areaCode');
+        formData.buildingId = this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode');
+      } else {
+        // Set to null if lookups aren't loaded yet (will be updated when lookups load)
+        formData.franchiseId = null;
+        formData.regionId = null;
+        formData.areaId = null;
+        formData.buildingId = null;
       }
       
       // Set all values at once
@@ -490,6 +574,7 @@ export class PropertyComponent implements OnInit {
           alarmCodeControl.enable();
         } else {
           alarmCodeControl.disable();
+          alarmCodeControl.setValue('', { emitEvent: false });
         }
       }
     });
@@ -503,6 +588,7 @@ export class PropertyComponent implements OnInit {
           masterKeyCodeControl.enable();
         } else {
           masterKeyCodeControl.disable();
+          masterKeyCodeControl.setValue('', { emitEvent: false });
         }
       }
       if (tenantKeyCodeControl) {
@@ -510,12 +596,13 @@ export class PropertyComponent implements OnInit {
           tenantKeyCodeControl.enable();
         } else {
           tenantKeyCodeControl.disable();
+          tenantKeyCodeControl.setValue('', { emitEvent: false });
         }
       }
     });
 
-    // Subscribe to assignedParking checkbox changes to enable/disable notes field
-    this.form.get('assignedParking')?.valueChanges.subscribe(value => {
+    // Subscribe to parking checkbox changes to enable/disable notes field
+    this.form.get('parking')?.valueChanges.subscribe(value => {
       const notesControl = this.form.get('notes');
       if (notesControl) {
         if (value) {
@@ -530,12 +617,13 @@ export class PropertyComponent implements OnInit {
     // Set initial state based on current values
     const alarmValue = this.form.get('alarm')?.value;
     const keypadAccessValue = this.form.get('keypadAccess')?.value;
-    const assignedParkingValue = this.form.get('assignedParking')?.value;
+    const parkingValue = this.form.get('parking')?.value;
     
     if (alarmValue) {
       this.form.get('alarmCode')?.enable();
     } else {
       this.form.get('alarmCode')?.disable();
+      this.form.get('alarmCode')?.setValue('', { emitEvent: false });
     }
 
     if (keypadAccessValue) {
@@ -543,13 +631,16 @@ export class PropertyComponent implements OnInit {
       this.form.get('tenantKeyCode')?.enable();
     } else {
       this.form.get('masterKeyCode')?.disable();
+      this.form.get('masterKeyCode')?.setValue('', { emitEvent: false });
       this.form.get('tenantKeyCode')?.disable();
+      this.form.get('tenantKeyCode')?.setValue('', { emitEvent: false });
     }
 
-    if (assignedParkingValue) {
+    if (parkingValue) {
       this.form.get('notes')?.enable();
     } else {
       this.form.get('notes')?.disable();
+      this.form.get('notes')?.setValue('', { emitEvent: false });
     }
   }
 
@@ -637,6 +728,32 @@ export class PropertyComponent implements OnInit {
     if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
     return isNaN(parsed) ? null : parsed;
+  }
+
+  // Convert ID from dropdown to Code for API
+  // Returns null if ID is null/empty/0 (meaning "All" or not selected)
+  private getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
+    if (id === null || id === undefined || id === '' || id === 0) {
+      return null;
+    }
+    const numericId = typeof id === 'number' ? id : Number(id);
+    if (!Number.isFinite(numericId) || numericId === 0) {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[idField] === numericId);
+    return item?.[codeField] || null;
+  }
+
+  // Convert Code from API to ID for dropdown
+  // Returns null if code is null/empty (meaning not set)
+  private getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
+    if (!code || code.trim() === '') {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[codeField] === code);
+    return item?.[idField] || null;
   }
 
   loadStates(): void {

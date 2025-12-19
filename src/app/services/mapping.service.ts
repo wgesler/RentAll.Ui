@@ -149,6 +149,7 @@ export class MappingService {
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,
         squareFeet: o.squareFeet,
+        monthlyRate: o.monthlyRate,
         isActive: o.isActive, 
       };
     });
@@ -195,6 +196,7 @@ export class MappingService {
         arrivalDate: this.formatDate(o.arrivalDate),
         departureDate: this.formatDate(o.departureDate),
         reservationStatus: this.formatReservationStatus(o.reservationStatusId),
+        reservationStatusId: o.reservationStatusId, // Added for proper sorting
         isActive: o.isActive
       };
     });

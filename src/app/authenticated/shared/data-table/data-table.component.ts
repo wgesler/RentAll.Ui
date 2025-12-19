@@ -110,18 +110,32 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     // Return sortable data from each column
     this.dataSource.sortingDataAccessor = (item: TableItem, column: string): string | number => {
-      const currencyCheck = isNaN(item[column]) ? item[column].replace('$','').replace(',','') : item[column];
-      const dateCheck = new Date(item[column]).valueOf();
+      const columnData = this.columns[column];
+      const value = item[column];
+      
+      // Check if this column should use natural sorting (for codes with numbers)
+      if (columnData?.sortType === 'natural' && typeof value === 'string') {
+        return this.naturalSortKey(value);
+      }
+      
+      // For status columns, use the numeric ID if available (e.g., reservationStatusId)
+      // This ensures proper ordering by enum value rather than alphabetically
+      if (column === 'reservationStatus' && item['reservationStatusId'] !== undefined) {
+        return item['reservationStatusId'] ?? 999; // Use high number for undefined/null
+      }
+      
+      const currencyCheck = isNaN(value) ? value?.toString().replace('$','').replace(',','') : value;
+      const dateCheck = new Date(value).valueOf();
       if (!isNaN(currencyCheck)) return Number(currencyCheck);
       if (!isNaN(dateCheck)) return dateCheck;
-      if (!isNaN(item[column])) return Number(item[column]);
-      switch (typeof item[column]) {
+      if (!isNaN(value)) return Number(value);
+      switch (typeof value) {
         case 'string':
-          return item[column].toLocaleLowerCase();
+          return value.toLocaleLowerCase();
         case 'object':
-          return item[column][0].toLocaleLowerCase();
+          return value[0]?.toLocaleLowerCase() ?? '';
         default:
-          return item[column];
+          return value;
       }
     };
   }
@@ -215,7 +229,8 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   onContactClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
-    if (rowItem.contactId) {
+    // Check for contactId (for companies) or owner1Id (for properties)
+    if (rowItem.contactId || rowItem.owner1Id) {
       this.contactClickEvent.emit(rowItem);
     }
   }
@@ -250,6 +265,29 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   obfuscateValue(value: string): string {
     return this.formatter.obfuscator(value);
+  }
+
+  /**
+   * Converts a string with numbers into a natural sort key.
+   * This ensures proper sorting of codes like "CODE1", "CODE2", "CODE10"
+   * by padding numeric parts with zeros.
+   * Example: "CODE1" -> "CODE0000000001", "CODE10" -> "CODE0000000010"
+   */
+  private naturalSortKey(value: string): string {
+    if (!value) return '';
+    
+    // Split the string into text and number parts
+    // This regex matches: text parts and number parts
+    const parts = value.match(/(\d+|\D+)/g) || [];
+    
+    return parts.map(part => {
+      // If it's a number, pad it with zeros to ensure proper sorting
+      if (/^\d+$/.test(part)) {
+        return part.padStart(10, '0'); // Pad to 10 digits
+      }
+      // If it's text, convert to lowercase for case-insensitive sorting
+      return part.toLowerCase();
+    }).join('');
   }
 
   private setTableColumns(): void {
