@@ -57,7 +57,7 @@ export class ReservationBoardComponent implements OnInit {
     this.loadReservations(); // This will call loadProperties() after reservations are loaded
   }
 
-  private setDefaultDateRange(): void {
+  setDefaultDateRange(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
