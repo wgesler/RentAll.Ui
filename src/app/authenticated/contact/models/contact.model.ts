@@ -3,8 +3,10 @@ export interface ContactRequest {
   organizationId: string;
   contactCode?: string;
   entityTypeId: number;
+  entityId?: string | null;
   firstName: string;
   lastName: string;
+  companyId?: string;
   address1?: string;
   address2?: string;
   city?: string;
@@ -21,8 +23,10 @@ export interface ContactResponse {
   organizationId: string;
   contactCode: string;
   entityTypeId: number;
+  entityId?: string | null;
   firstName: string;
   lastName: string;
+  companyId?: string;
   address1?: string;
   address2?: string;
   city?: string;

@@ -139,6 +139,17 @@
                                   id="table-owner-link-{{templateTableId}}-{{i}}">
                                 {{item[column.name]}}
                             </span>
+                        } @case ('website') {
+                            @if (item[column.name]) {
+                                <a [href]="item[column.name]" 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   (click)="$event.stopPropagation()"
+                                   class="text-blue-700 underline cursor-pointer" 
+                                   id="table-website-link-{{templateTableId}}-{{i}}">
+                                    {{item[column.name]}}
+                                </a>
+                            }
                         } @case ('color') {
                             <div class="flex items-center gap-2">
                                 <div [style.background-color]="item[column.name]" 

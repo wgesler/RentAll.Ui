@@ -3,34 +3,33 @@ import { Component, OnInit } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, filter } from 'rxjs';
-import { CompanyService } from '../services/company.service';
+import { VendorService } from '../services/vendor.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts, emptyGuid } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { CompanyResponse, CompanyListDisplay, CompanyRequest } from '../models/company.model';
+import { VendorResponse, VendorListDisplay, VendorRequest } from '../models/vendor.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { ExternalStorageService } from '../../../services/external-storage.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
-  selector: 'app-company',
+  selector: 'app-vendor',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './company.component.html',
-  styleUrl: './company.component.scss'
+  templateUrl: './vendor.component.html',
+  styleUrl: './vendor.component.scss'
 })
 
-export class CompanyComponent implements OnInit {
+export class VendorComponent implements OnInit {
   itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  companyId: string;
-  company: CompanyResponse;
+  vendorId: string;
+  vendor: VendorResponse;
   form: FormGroup;
   fileDetails: FileDetails = null;
   fileName: string = null;
@@ -43,7 +42,7 @@ export class CompanyComponent implements OnInit {
   states: string[] = [];
 
   constructor(
-    public companyService: CompanyService,
+    public vendorService: VendorService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
@@ -53,20 +52,20 @@ export class CompanyComponent implements OnInit {
     private formatterService: FormatterService,
     private authService: AuthService
   ) {
-    this.itemsToLoad.push('company');
+    this.itemsToLoad.push('vendor');
     this.loadStates();
   }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
-        this.companyId = paramMap.get('id');
-        this.isAddMode = this.companyId === 'new';
+        this.vendorId = paramMap.get('id');
+        this.isAddMode = this.vendorId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('company');
+          this.removeLoadItem('vendor');
           this.buildForm();
         } else {
-          this.getCompany();
+          this.getVendor();
         }
       }
     });
@@ -75,24 +74,24 @@ export class CompanyComponent implements OnInit {
     }
   }
 
-  getCompany(): void {
-    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.removeLoadItem('company'); })).subscribe({
-      next: (response: CompanyResponse) => {
-        this.company = response;
-        this.getStoragePublicUrl(this.company.logoStorageId);
+  getVendor(): void {
+    this.vendorService.getVendorByGuid(this.vendorId).pipe(take(1),finalize(() => { this.removeLoadItem('vendor'); })).subscribe({
+      next: (response: VendorResponse) => {
+        this.vendor = response;
+        this.getStoragePublicUrl(this.vendor.logoStorageId);
         this.buildForm();
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status !== 400) {
-          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.toastr.error('Could not load vendor info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
     });
   }
 
-  saveCompany(): void {
+  saveVendor(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
       return;
@@ -105,7 +104,7 @@ export class CompanyComponent implements OnInit {
     const phoneDigits = this.stripPhoneFormatting(formValue.phone);
     const user = this.authService.getUser();
 
-    const companyRequest: CompanyRequest = {
+    const vendorRequest: VendorRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
       address1: (formValue.address1 || '').trim(),
@@ -122,32 +121,32 @@ export class CompanyComponent implements OnInit {
     };
 
     // Defensive guard: required fields must remain non-empty
-    if (!companyRequest.address1 || !companyRequest.city || !companyRequest.state || !companyRequest.zip || !companyRequest.phone) {
+    if (!vendorRequest.address1 || !vendorRequest.city || !vendorRequest.state || !vendorRequest.zip || !vendorRequest.phone) {
       this.isSubmitting = false;
       this.form.markAllAsTouched();
       return;
     }
 
     if (!this.isAddMode) {
-      companyRequest.companyId = this.companyId;
-      companyRequest.companyCode = this.company?.companyCode;
-      companyRequest.organizationId = this.company?.organizationId || user?.organizationId || '';
+      vendorRequest.vendorId = this.vendorId;
+      vendorRequest.vendorCode = this.vendor?.vendorCode;
+      vendorRequest.organizationId = this.vendor?.organizationId || user?.organizationId || '';
     }
 
     const save$ = this.isAddMode
-      ? this.companyService.createCompany(companyRequest)
-      : this.companyService.updateCompany(this.companyId, companyRequest);
+      ? this.vendorService.createVendor(vendorRequest)
+      : this.vendorService.updateVendor(this.vendorId, vendorRequest);
 
     save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
-        const message = this.isAddMode ? 'Company created successfully' : 'Company updated successfully';
+        const message = this.isAddMode ? 'Vendor created successfully' : 'Vendor updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        this.router.navigateByUrl(RouterUrl.CompanyList);
+        this.router.navigateByUrl(RouterUrl.VendorList);
       },
       error: (err: HttpErrorResponse) => {
         this.isLoadError = true;
         if (err.status !== 400) {
-          const failMessage = this.isAddMode ? 'Create company request has failed. ' : 'Update company request has failed. ';
+          const failMessage = this.isAddMode ? 'Create vendor request has failed. ' : 'Update vendor request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
@@ -208,7 +207,7 @@ export class CompanyComponent implements OnInit {
     // Form methods
     buildForm(): void {
     this.form = this.fb.group({
-      companyCode: new FormControl(''), // Not required - only shown in Edit Mode
+      vendorCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
@@ -225,20 +224,20 @@ export class CompanyComponent implements OnInit {
   }
 
   populateForm(): void {
-    if (this.company && this.form) {
+    if (this.vendor && this.form) {
       this.form.patchValue({
-        companyCode: this.company.companyCode,
-        name: this.company.name,
-        address1: this.company.address1,
-        address2: this.company.address2 || '',
-        suite: this.company.suite || '',
-        city: this.company.city,
-        state: this.company.state,
-        zip: this.company.zip,
-        phone: this.formatterService.phoneNumber(this.company.phone),
-        website: this.company.website || '',
-        notes: this.company.notes || '',
-        isActive: this.company.isActive // Convert number to boolean for checkbox
+        vendorCode: this.vendor.vendorCode,
+        name: this.vendor.name,
+        address1: this.vendor.address1,
+        address2: this.vendor.address2 || '',
+        suite: this.vendor.suite || '',
+        city: this.vendor.city,
+        state: this.vendor.state,
+        zip: this.vendor.zip,
+        phone: this.formatterService.phoneNumber(this.vendor.phone),
+        website: this.vendor.website || '',
+        notes: this.vendor.notes || '',
+        isActive: this.vendor.isActive // Convert number to boolean for checkbox
       });
     }
   }
@@ -289,7 +288,7 @@ export class CompanyComponent implements OnInit {
         this.states = [...states];
       },
       error: (err) => {
-        console.error('Company Component - Error loading states:', err);
+        console.error('Vendor Component - Error loading states:', err);
       }
     });
   }
@@ -299,7 +298,7 @@ export class CompanyComponent implements OnInit {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.CompanyList);
+    this.router.navigateByUrl(RouterUrl.VendorList);
   }
 
 }

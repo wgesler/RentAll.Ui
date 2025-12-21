@@ -14,6 +14,10 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, 
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
+import { CompanyService } from '../../company/services/company.service';
+import { CompanyResponse } from '../../company/models/company.model';
+import { VendorService } from '../../vendor/services/vendor.service';
+import { VendorResponse } from '../../vendor/models/vendor.model';
 
 @Component({
   selector: 'app-contact',
@@ -34,6 +38,9 @@ export class ContactComponent implements OnInit {
   isAddMode: boolean = false;
   states: string[] = [];
   availableContactTypes: { value: number, label: string }[] = [];
+  companies: CompanyResponse[] = [];
+  vendors: VendorResponse[] = [];
+  EntityType = EntityType; // Expose enum to template
 
   constructor(
     public contactService: ContactService,
@@ -43,7 +50,9 @@ export class ContactComponent implements OnInit {
     private toastr: ToastrService,
     private commonService: CommonService,
     private formatterService: FormatterService,
-    private authService: AuthService
+    private authService: AuthService,
+    private companyService: CompanyService,
+    private vendorService: VendorService
   ) {
     this.itemsToLoad.push('contact');
     this.loadStates();
@@ -51,6 +60,8 @@ export class ContactComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeContactTypes();
+    this.loadCompanies();
+    this.loadVendors();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.contactId = paramMap.get('id');
@@ -98,20 +109,33 @@ export class ContactComponent implements OnInit {
     // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
+    const entityTypeId = formValue.contactTypeId;
+    let entityId: string | null = null;
+    
+    // Set entityId based on entityTypeId
+    if (entityTypeId === EntityType.Company && formValue.companyId) {
+      entityId = formValue.companyId;
+    } else if (entityTypeId === EntityType.Vendor && formValue.vendorId) {
+      entityId = formValue.vendorId;
+    }
+
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
-      entityTypeId: formValue.contactTypeId, // Map contactTypeId from form to entityTypeId in request
+      entityTypeId: entityTypeId, // Map contactTypeId from form to entityTypeId in request
+      entityId: entityId,
       address1: formValue.address1 || '',
       address2: formValue.address2 || '',
       city: formValue.city || '',
       state: formValue.state || '',
       zip: formValue.zip || '',
       phone: this.stripPhoneFormatting(formValue.phone),
-      notes: formValue.notes || ''
+      notes: formValue.notes || '',
+      companyId: formValue.companyId || undefined
     };
-    // Remove contactTypeId from request since we're using entityTypeId
+    // Remove contactTypeId and vendorId from request since we're using entityTypeId and entityId
     delete (contactRequest as any).contactTypeId;
+    delete (contactRequest as any).vendorId;
 
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
@@ -149,6 +173,8 @@ export class ContactComponent implements OnInit {
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
+      companyId: new FormControl(null),
+      vendorId: new FormControl(null),
       phone: new FormControl('', [Validators.required]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
@@ -159,6 +185,33 @@ export class ContactComponent implements OnInit {
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
+
+    // Show/hide company/vendor dropdown based on contact type
+    this.form.get('contactTypeId')?.valueChanges.subscribe(contactTypeId => {
+      const companyIdControl = this.form.get('companyId');
+      const vendorIdControl = this.form.get('vendorId');
+      
+      if (contactTypeId === EntityType.Company) {
+        companyIdControl?.setValidators([Validators.required]);
+        companyIdControl?.updateValueAndValidity();
+        vendorIdControl?.clearValidators();
+        vendorIdControl?.setValue(null);
+        vendorIdControl?.updateValueAndValidity();
+      } else if (contactTypeId === EntityType.Vendor) {
+        vendorIdControl?.setValidators([Validators.required]);
+        vendorIdControl?.updateValueAndValidity();
+        companyIdControl?.clearValidators();
+        companyIdControl?.setValue(null);
+        companyIdControl?.updateValueAndValidity();
+      } else {
+        companyIdControl?.clearValidators();
+        companyIdControl?.setValue(null);
+        companyIdControl?.updateValueAndValidity();
+        vendorIdControl?.clearValidators();
+        vendorIdControl?.setValue(null);
+        vendorIdControl?.updateValueAndValidity();
+      }
+    });
   }
 
   populateForm(): void {
@@ -167,11 +220,27 @@ export class ContactComponent implements OnInit {
         ? this.contact.isActive === 1 
         : Boolean(this.contact.isActive);
       
+      const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
+      let companyId = null;
+      let vendorId = null;
+      
+      // Set companyId or vendorId based on entityTypeId and entityId
+      if (contactTypeId === EntityType.Company && this.contact.entityId) {
+        companyId = this.contact.entityId;
+      } else if (contactTypeId === EntityType.Vendor && this.contact.entityId) {
+        vendorId = this.contact.entityId;
+      } else {
+        // Fallback to companyId if entityId is not set (for backward compatibility)
+        companyId = this.contact.companyId || null;
+      }
+
       this.form.patchValue({
         contactCode: this.contact.contactCode,
-        contactTypeId: this.contact.entityTypeId ?? EntityType.Unknown, // Map entityTypeId from response to contactTypeId in form
+        contactTypeId: contactTypeId, // Map entityTypeId from response to contactTypeId in form
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
+        companyId: companyId,
+        vendorId: vendorId,
         address1: this.contact.address1 || '',
         address2: this.contact.address2 || '',
         city: this.contact.city || '',
@@ -182,6 +251,27 @@ export class ContactComponent implements OnInit {
       notes: this.contact.notes || '',
       isActive: isActiveValue
       });
+
+      // Update companyId/vendorId validators based on contact type
+      const companyIdControl = this.form.get('companyId');
+      const vendorIdControl = this.form.get('vendorId');
+      
+      if (contactTypeId === EntityType.Company) {
+        companyIdControl?.setValidators([Validators.required]);
+        companyIdControl?.updateValueAndValidity();
+        vendorIdControl?.clearValidators();
+        vendorIdControl?.updateValueAndValidity();
+      } else if (contactTypeId === EntityType.Vendor) {
+        vendorIdControl?.setValidators([Validators.required]);
+        vendorIdControl?.updateValueAndValidity();
+        companyIdControl?.clearValidators();
+        companyIdControl?.updateValueAndValidity();
+      } else {
+        companyIdControl?.clearValidators();
+        companyIdControl?.updateValueAndValidity();
+        vendorIdControl?.clearValidators();
+        vendorIdControl?.updateValueAndValidity();
+      }
     }
   }
 
@@ -237,6 +327,36 @@ export class ContactComponent implements OnInit {
       }
       this.form.get('phone').setValue(formatted, { emitEvent: false });
     }
+  }
+
+  loadCompanies(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.companyService.getCompanies().pipe(take(1)).subscribe({
+      next: (companies: CompanyResponse[]) => {
+        this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Contact Component - Error loading companies:', err);
+        this.companies = [];
+      }
+    });
+  }
+
+  loadVendors(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.vendorService.getVendors().pipe(take(1)).subscribe({
+      next: (vendors: VendorResponse[]) => {
+        this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Contact Component - Error loading vendors:', err);
+        this.vendors = [];
+      }
+    });
   }
 
   // Utility helpers

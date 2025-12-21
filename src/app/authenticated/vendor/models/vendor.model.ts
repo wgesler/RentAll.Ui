@@ -1,9 +1,9 @@
 import { FileDetails } from "../../../shared/models/fileDetails";
 
-export interface CompanyRequest {
-  companyId?: string;
+export interface VendorRequest {
+  vendorId?: string;
   organizationId: string;
-  companyCode?: string;
+  vendorCode?: string;
   name: string;
   address1: string;
   address2?: string;
@@ -19,10 +19,10 @@ export interface CompanyRequest {
   isActive: boolean;
 }
 
-export interface CompanyResponse {
-  companyId: string;
+export interface VendorResponse {
+  vendorId: string;
   organizationId: string;
-  companyCode: string;
+  vendorCode: string;
   name: string;
   address1: string;
   address2?: string;
@@ -41,9 +41,9 @@ export interface CompanyResponse {
   modifiedBy: string;
 }
 
-export interface CompanyListDisplay {
-  companyId: string;
-  companyCode: string;
+export interface VendorListDisplay {
+  vendorId: string;
+  vendorCode: string;
   name: string;
   city: string;
   state: string;

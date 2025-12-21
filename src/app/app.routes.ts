@@ -3,6 +3,8 @@ import { LoginComponent } from './public/login/login.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
 import { CompanyComponent } from './authenticated/company/company/company.component';
 import { CompanyListComponent } from './authenticated/company/company-list/company-list.component';
+import { VendorComponent } from './authenticated/vendor/vendor/vendor.component';
+import { VendorListComponent } from './authenticated/vendor/vendor-list/vendor-list.component';
 import { PropertyComponent } from './authenticated/property/property/property.component';
 import { PropertyListComponent } from './authenticated/property/property-list/property-list.component';
 import { ContactComponent } from './authenticated/contact/contact/contact.component';
@@ -38,6 +40,8 @@ export enum RouterToken {
   RentalList = 'rentals',
   CompanyList = 'companies',
   Company = RouterToken.CompanyList + '/:id',
+  VendorList = 'vendors',
+  Vendor = RouterToken.VendorList + '/:id',
   ContactList = 'contacts',
   Contact = RouterToken.ContactList + '/:id',
   TenantList = 'tenants',
@@ -70,6 +74,8 @@ export enum RouterUrl {
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
   CompanyList           = `${RouterToken.Auth}/${RouterToken.CompanyList}`,
   Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
+  VendorList            = `${RouterToken.Auth}/${RouterToken.VendorList}`,
+  Vendor                = `${RouterToken.Auth}/${RouterToken.Vendor}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   TenantList            = `${RouterToken.Auth}/${RouterToken.TenantList}`,
@@ -109,6 +115,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CompanyList, component: CompanyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.VendorList, component: VendorListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Vendor, component: VendorComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ContactList, component: ContactListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.TenantList, component: PropertyListComponent, canActivate: [authRouteGuard] },

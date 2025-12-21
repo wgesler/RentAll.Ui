@@ -31,7 +31,7 @@
                 </mat-checkbox>
               </div>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Type</mat-label>
                 <mat-select formControlName="contactTypeId" required>
                   <mat-option value="">Select Contact Type</mat-option>
@@ -43,6 +43,36 @@
                   <mat-error>Contact Type is required</mat-error>
                 }
               </mat-form-field>
+
+              @if (form.get('contactTypeId')?.value === EntityType.Company) {
+                <mat-form-field appearance="outline" class="col-span-3">
+                  <mat-label>Company Name</mat-label>
+                  <mat-select formControlName="companyId" required>
+                    <mat-option [value]="null">Select Company</mat-option>
+                    @for (company of companies; track company.companyId) {
+                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('companyId')?.hasError('required') && form.get('companyId')?.touched) {
+                    <mat-error>Company Name is required</mat-error>
+                  }
+                </mat-form-field>
+              }
+
+              @if (form.get('contactTypeId')?.value === EntityType.Vendor) {
+                <mat-form-field appearance="outline" class="col-span-3">
+                  <mat-label>Vendor Name</mat-label>
+                  <mat-select formControlName="vendorId" required>
+                    <mat-option [value]="null">Select Vendor</mat-option>
+                    @for (vendor of vendors; track vendor.vendorId) {
+                      <mat-option [value]="vendor.vendorId">{{ vendor.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched) {
+                    <mat-error>Vendor Name is required</mat-error>
+                  }
+                </mat-form-field>
+              }
 
               <div class="col-span-4 flex items-center gap-x-1.5">
                 <mat-form-field appearance="outline" class="flex-1">

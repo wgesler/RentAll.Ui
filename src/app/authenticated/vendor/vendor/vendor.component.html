@@ -1,13 +1,13 @@
-@if (!isServiceError && !itemsToLoad.includes('company')) {
+@if (!isServiceError && !itemsToLoad.includes('vendor')) {
 
   
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">business</mat-icon>
+          <mat-icon class="flex-shrink-0">store</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Company' : 'Edit Company' }}
+            {{ isAddMode ? 'Add Vendor' : 'Edit Vendor' }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -16,7 +16,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCompany()"
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveVendor()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -25,7 +25,7 @@
       </div>
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveCompany()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveVendor()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
@@ -44,7 +44,7 @@
                 @if (!isAddMode) {
                   <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
                     <mat-label>Code</mat-label>
-                    <input matInput [value]="company?.companyCode || ''" readonly disabled>
+                    <input matInput [value]="vendor?.vendorCode || ''" readonly disabled>
                   </mat-form-field>
                 }
               </div>
@@ -119,14 +119,14 @@
 
             <mat-divider class="my-5"/>
 
-            <h3 class="pt-3">Company Logo</h3>
+            <h3 class="pt-3">Vendor Logo</h3>
             <div class="flex justify-start image-input items-center mb-4">
               <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
                 Choose Image
               </button>
               @if (fileName) {
                 <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ 'data:image/*;base64,' + fileDetails.file }}" />
+                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Vendor Logo" title="Vendor Logo" src="{{ 'data:image/*;base64,' + fileDetails.file }}" />
                   <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
                     <mat-icon>close</mat-icon>
                   </button>
@@ -135,7 +135,7 @@
               }
               @if (logoImgUrl && !fileName) {
                 <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Company Logo" title="Company Logo" src="{{ logoImgUrl }}" />
+                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Vendor Logo" title="Vendor Logo" src="{{ logoImgUrl }}" />
                   <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
                     <mat-icon>close</mat-icon>
                   </button>

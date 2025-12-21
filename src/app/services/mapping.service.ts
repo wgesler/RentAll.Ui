@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CompanyResponse, CompanyListDisplay } from '../authenticated/company/models/company.model';
+import { VendorResponse, VendorListDisplay } from '../authenticated/vendor/models/vendor.model';
 import { PropertyResponse, PropertyListDisplay } from '../authenticated/property/models/property.model';
 import { ContactResponse, ContactListDisplay } from '../authenticated/contact/models/contact.model';
 import { EntityType } from '../authenticated/contact/models/contact-type';
@@ -61,27 +62,31 @@ export class MappingService {
 
   mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
-      let contactName = '';
-      let contactId = '';
-      if (o.contactId && contacts) {
-        const contact = contacts.find(c => c.contactId === o.contactId);
-        if (contact) {
-          contactName = contact.firstName + ' ' + contact.lastName;
-          contactId = contact.contactId;
-        }
-      }
       return {
         companyId: o.companyId,
         companyCode: o.companyCode,
         name: o.name,
-        contact: contactName || '',
-        contactId: contactId || o.contactId || '',
         city: o.city,
         state: o.state,
         zip: o.zip,
         phone: this.formatPhoneNumber(o.phone),
         website: o.website,
         logoStorageId: o.logoStorageId,
+        isActive: o.isActive,
+      };
+    });
+  }
+
+  mapVendors(vendors: VendorResponse[]): VendorListDisplay[] {
+    return vendors.map<VendorListDisplay>((o: VendorResponse) => {
+      return {
+        vendorId: o.vendorId,
+        vendorCode: o.vendorCode,
+        name: o.name,
+        city: o.city,
+        state: o.state,
+        phone: this.formatPhoneNumber(o.phone),
+        website: o.website,
         isActive: o.isActive,
       };
     });

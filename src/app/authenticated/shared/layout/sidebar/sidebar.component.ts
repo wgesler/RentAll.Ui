@@ -59,6 +59,13 @@ export class SidebarComponent implements OnInit {
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },
     {
+      icon: 'store',
+      displayName: 'Vendors',
+      url: RouterToken.VendorList,
+      requiredRoles: [], // Available to all
+      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
+    },
+    {
       icon: 'contacts',
       displayName: 'Contacts',
       url: RouterToken.ContactList,
