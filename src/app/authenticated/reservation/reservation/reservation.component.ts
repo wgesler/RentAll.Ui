@@ -213,7 +213,47 @@ export class ReservationComponent implements OnInit {
         const propertyAddress = this.selectedProperty 
           ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim()
           : '';
-        this.form.patchValue({ propertyAddress: propertyAddress }, { emitEvent: false });
+        
+        // Pre-load property values into form fields
+        const patchValues: any = {
+          propertyAddress: propertyAddress
+        };
+        
+        if (this.selectedProperty) {
+          // Pre-load billing rate (as Monthly Fee)
+          if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
+            patchValues.billingRate = this.selectedProperty.monthlyRate.toFixed(2);
+          }
+          
+          // Pre-load checkout fee (departure fee)
+          if (this.selectedProperty.checkoutFee !== null && this.selectedProperty.checkoutFee !== undefined) {
+            patchValues.checkoutFee = this.selectedProperty.checkoutFee.toFixed(2);
+          }
+          
+          // Pre-load pet fee
+          if (this.selectedProperty.petFee !== null && this.selectedProperty.petFee !== undefined) {
+            patchValues.petFee = this.selectedProperty.petFee.toFixed(2);
+          }
+          
+          // Pre-load maid service fee
+          if (this.selectedProperty.maidServiceFee !== null && this.selectedProperty.maidServiceFee !== undefined) {
+            patchValues.maidServiceFee = this.selectedProperty.maidServiceFee.toFixed(2);
+          }
+          
+          // Pre-load deposit (default to 0 if not available on property)
+          patchValues.deposit = '0.00';
+          
+          // Pre-load taxes (default to 0 if not available on property)
+          patchValues.taxes = null;
+          
+          // Pre-load check-in time (default to 4:00 PM / FourPM)
+          patchValues.checkInTimeId = CheckinTimes.FourPM;
+          
+          // Pre-load check-out time (default to 11:00 AM / ElevenAM)
+          patchValues.checkOutTimeId = CheckoutTimes.ElevenAM;
+        }
+        
+        this.form.patchValue(patchValues, { emitEvent: false });
       } else {
         this.selectedProperty = null;
         this.form.patchValue({ propertyAddress: '' }, { emitEvent: false });
