@@ -144,6 +144,7 @@ export class ReservationComponent implements OnInit {
       extraFee: formValue.extraFee ? parseFloat(formValue.extraFee.toString()) : 0,
       extraFeeName: formValue.extraFeeName || '',
       taxes: formValue.taxes ? parseFloat(formValue.taxes.toString()) : 0,
+      notes: formValue.notes || '',
       isActive: formValue.isActive ?? true
     };
 
@@ -202,7 +203,8 @@ export class ReservationComponent implements OnInit {
       petFee: new FormControl<string>('0.00'),
       extraFee: new FormControl<string>('0.00'),
       extraFeeName: new FormControl(''),
-      taxes: new FormControl(null)
+      taxes: new FormControl(null),
+      notes: new FormControl('')
     });
 
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
@@ -272,6 +274,8 @@ export class ReservationComponent implements OnInit {
             control.setValue('', { emitEvent: false });
           } else if (key === 'taxes') {
             control.setValue(null, { emitEvent: false });
+          } else if (key === 'notes') {
+            control.setValue('', { emitEvent: false });
           } else {
             control.setValue('', { emitEvent: false });
           }
@@ -541,6 +545,7 @@ export class ReservationComponent implements OnInit {
               extraFee: (this.reservation.extraFee ?? 0).toFixed(2),
               extraFeeName: this.reservation.extraFeeName || '',
               taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
+              notes: this.reservation.notes || '',
               phone: this.formatterService.phoneNumber(contact?.phone) || '',
               email: contact?.email || ''
             }, { emitEvent: false });
@@ -698,7 +703,7 @@ export class ReservationComponent implements OnInit {
       { value: Frequency.NA, label: 'N/A' },
       { value: Frequency.OneTime, label: 'One Time' },
       { value: Frequency.Weekly, label: 'Weekly' },
-      { value: Frequency.BiMonthly, label: 'Bi-Monthly' },
+      { value: Frequency.EOW, label: 'EOW' },
       { value: Frequency.Monthly, label: 'Monthly' }
     ];
   }

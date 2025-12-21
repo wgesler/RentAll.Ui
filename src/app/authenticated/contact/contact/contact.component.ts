@@ -107,7 +107,8 @@ export class ContactComponent implements OnInit {
       city: formValue.city || '',
       state: formValue.state || '',
       zip: formValue.zip || '',
-      phone: this.stripPhoneFormatting(formValue.phone)
+      phone: this.stripPhoneFormatting(formValue.phone),
+      notes: formValue.notes || ''
     };
     // Remove contactTypeId from request since we're using entityTypeId
     delete (contactRequest as any).contactTypeId;
@@ -155,6 +156,7 @@ export class ContactComponent implements OnInit {
       city: new FormControl(''),
       state: new FormControl(''),
       zip: new FormControl(''),
+      notes: new FormControl(''),
       isActive: new FormControl(true)
     });
   }
@@ -174,10 +176,11 @@ export class ContactComponent implements OnInit {
         address2: this.contact.address2 || '',
         city: this.contact.city || '',
         state: this.contact.state || '',
-        zip: this.contact.zip || '',
-        phone: this.formatterService.phoneNumber(this.contact.phone),
-        email: this.contact.email,
-        isActive: isActiveValue
+      zip: this.contact.zip || '',
+      phone: this.formatterService.phoneNumber(this.contact.phone),
+      email: this.contact.email,
+      notes: this.contact.notes || '',
+      isActive: isActiveValue
       });
     }
   }

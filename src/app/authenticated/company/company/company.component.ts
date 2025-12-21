@@ -142,6 +142,7 @@ export class CompanyComponent implements OnInit {
       state: (formValue.state || '').trim(),
       zip: (formValue.zip || '').trim(),
       website: formValue.website || '',
+      notes: formValue.notes || '',
       phone: phoneDigits,
       logoStorageId: this.logoStorageId || null,
       fileDetails: this.fileDetails || undefined
@@ -245,6 +246,7 @@ export class CompanyComponent implements OnInit {
       zip: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required]),
       website: new FormControl(''),
+      notes: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -264,6 +266,7 @@ export class CompanyComponent implements OnInit {
         zip: this.company.zip,
         phone: this.formatterService.phoneNumber(this.company.phone),
         website: this.company.website || '',
+        notes: this.company.notes || '',
         isActive: this.company.isActive // Convert number to boolean for checkbox
       });
     }

@@ -284,8 +284,8 @@ export class PropertyComponent implements OnInit {
     
     // Handle optional nullable string fields - keep as undefined if empty
     const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 
-                                   'phone', 'view', 'mailbox', 'notes', 'amenities', 'alarmCode', 
-                                   'masterKeyCode', 'tenantKeyCode', 'trashRemoval', 'description'];
+                                   'phone', 'view', 'mailbox', 'amenities', 'alarmCode', 
+                                   'masterKeyCode', 'tenantKeyCode', 'trashRemoval', 'description', 'notes'];
     optionalStringFields.forEach(field => {
       if (propertyRequest[field] === '' || propertyRequest[field] === null) {
         propertyRequest[field] = undefined;
@@ -309,6 +309,12 @@ export class PropertyComponent implements OnInit {
     propertyRequest.regionCode = this.getIdToCode(formValue.regionId, this.regions, 'regionCode');
     propertyRequest.areaCode = this.getIdToCode(formValue.areaId, this.areas, 'areaCode');
     propertyRequest.buildingCode = this.getIdToCode(formValue.buildingId, this.buildings, 'buildingCode');
+    
+    // Map parkingNotes field (note: API expects lowercase 'parkingnotes' in request)
+    propertyRequest.parkingnotes = formValue.parkingNotes || '';
+    
+    // Explicitly set notes field from form
+    propertyRequest.notes = formValue.notes || '';
 
     if (this.isAddMode) {
       this.propertyService.createProperty(propertyRequest).pipe(
@@ -364,7 +370,7 @@ export class PropertyComponent implements OnInit {
       checkoutFee: new FormControl<string>('0.00'),
       maidServiceFee: new FormControl<string>('0.00'),
       petFee: new FormControl<string>('0.00'),
-      furnished: new FormControl(false),
+      unfurnished: new FormControl(false),
       
       // Details tab
       address1: new FormControl('', [Validators.required]),
@@ -417,11 +423,12 @@ export class PropertyComponent implements OnInit {
       elevator: new FormControl(false),
       keypadAccess: new FormControl(false),
       parking: new FormControl(false),
-      notes: new FormControl({ value: '', disabled: true }),
+      parkingNotes: new FormControl({ value: '', disabled: true }),
       
       // Amenities tab
       amenities: new FormControl(''),
       description: new FormControl(''),
+      notes: new FormControl(''),
       alarm: new FormControl(false),
       alarmCode: new FormControl({ value: '', disabled: true }),
       masterKeyCode: new FormControl({ value: '', disabled: true }),
@@ -481,11 +488,14 @@ export class PropertyComponent implements OnInit {
      
       // Handle string fields that might be null/undefined - convert to empty strings
       const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
-                           'trashRemoval', 'notes', 'amenities', 'alarmCode', 'masterKeyCode', 
-                           'tenantKeyCode', 'mailbox', 'phone', 'description'];
+                           'trashRemoval', 'amenities', 'alarmCode', 'masterKeyCode', 
+                           'tenantKeyCode', 'mailbox', 'phone', 'description', 'notes'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
+      
+      // Handle parkingNotes field (map from parkingNotes in response)
+      formData.parkingNotes = this.property.parkingNotes || '';
       
       // Handle phone - ensure empty string if null/undefined, then format if present
       formData.phone = this.property.phone || '';
@@ -618,15 +628,15 @@ export class PropertyComponent implements OnInit {
       }
     });
 
-    // Subscribe to parking checkbox changes to enable/disable notes field
+    // Subscribe to parking checkbox changes to enable/disable parkingNotes field
     this.form.get('parking')?.valueChanges.subscribe(value => {
-      const notesControl = this.form.get('notes');
-      if (notesControl) {
+      const parkingNotesControl = this.form.get('parkingNotes');
+      if (parkingNotesControl) {
         if (value) {
-          notesControl.enable();
+          parkingNotesControl.enable();
         } else {
-          notesControl.disable();
-          notesControl.setValue('', { emitEvent: false });
+          parkingNotesControl.disable();
+          parkingNotesControl.setValue('', { emitEvent: false });
         }
       }
     });
@@ -654,10 +664,10 @@ export class PropertyComponent implements OnInit {
     }
 
     if (parkingValue) {
-      this.form.get('notes')?.enable();
+      this.form.get('parkingNotes')?.enable();
     } else {
-      this.form.get('notes')?.disable();
-      this.form.get('notes')?.setValue('', { emitEvent: false });
+      this.form.get('parkingNotes')?.disable();
+      this.form.get('parkingNotes')?.setValue('', { emitEvent: false });
     }
   }
 

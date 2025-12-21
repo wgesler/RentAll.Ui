@@ -43,8 +43,14 @@ export interface PropertyRequest {
   view?: string;
   mailbox?: string;
   
+    // Location section
+  franchiseCode?: string | null;
+  regionCode?: string | null;
+  areaCode?: string | null;
+  buildingCode?: string | null;
+
   // Features & Security section
-  furnished: boolean;
+  unfurnished: boolean;
   heating: boolean;
   ac: boolean;
   elevator: boolean;
@@ -53,7 +59,7 @@ export interface PropertyRequest {
   petsAllowed: boolean;
   smoking: boolean;
   parking: boolean;
-  notes?: string;
+  parkingnotes?: string;
   alarm: boolean;
   alarmCode?: string;
   keypadAccess: boolean;
@@ -97,12 +103,7 @@ export interface PropertyRequest {
   // Additional Amenities section
   amenities?: string;
   description?: string;
-
-  // Location section
-  franchiseCode?: string | null;
-  regionCode?: string | null;
-  areaCode?: string | null;
-  buildingCode?: string | null;
+  notes?: string;
 }
 
 export interface PropertyResponse {
@@ -148,8 +149,14 @@ export interface PropertyResponse {
   view?: string;
   mailbox?: string;
   
+    // Location section
+  franchiseCode?: string | null;
+  regionCode?: string | null;
+  areaCode?: string | null;
+  buildingCode?: string | null;
+
   // Features & Security section
-  furnished: boolean;
+  unfurnished: boolean;
   heating: boolean;
   ac: boolean;
   elevator: boolean;
@@ -158,7 +165,7 @@ export interface PropertyResponse {
   petsAllowed: boolean;
   smoking: boolean;
   parking: boolean;
-  notes?: string;
+  parkingNotes?: string;
   alarm: boolean;
   alarmCode?: string;
   keypadAccess: boolean;
@@ -202,12 +209,7 @@ export interface PropertyResponse {
   // Additional Amenities section
   amenities?: string;
   description?: string;
-
-  // Location section
-  franchiseCode?: string | null;
-  regionCode?: string | null;
-  areaCode?: string | null;
-  buildingCode?: string | null;
+  notes?: string;
 }
 
 export interface PropertyListDisplay {

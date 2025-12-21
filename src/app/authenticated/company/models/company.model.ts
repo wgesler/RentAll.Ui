@@ -15,6 +15,7 @@ export interface CompanyRequest {
   phone: string;
   website?: string;
   logoStorageId?: string;
+  notes?: string;
   fileDetails?: FileDetails;
   isActive: boolean;
 }
@@ -34,6 +35,7 @@ export interface CompanyResponse {
   phone: string;
   website?: string;
   logoStorageId?: string;
+  notes?: string;
   isActive: boolean;
   createdOn: string;
   createdBy: string;

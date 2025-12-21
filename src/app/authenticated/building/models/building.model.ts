@@ -21,3 +21,4 @@ export interface BuildingListDisplay {
   isActive: boolean;
 }
 
+

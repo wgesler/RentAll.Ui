@@ -27,6 +27,6 @@ export enum Frequency {
   NA = 0,
   OneTime = 1,
   Weekly = 2,
-  BiMonthly = 3,
+  EOW = 3,
   Monthly = 4
 }

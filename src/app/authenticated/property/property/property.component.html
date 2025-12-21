@@ -362,7 +362,7 @@
                 <div class="col-span-4">
                   <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-start features-content">
-                    <mat-checkbox formControlName="furnished">Furnished</mat-checkbox>
+                    <mat-checkbox formControlName="unfurnished">Unfurnished</mat-checkbox>
                     <mat-checkbox formControlName="heating">Heating</mat-checkbox>
                     <mat-checkbox formControlName="ac">AC</mat-checkbox>
                     <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
@@ -374,8 +374,8 @@
                   <div class="flex items-center gap-3 mt-4 flex-wrap">
                     <mat-checkbox formControlName="parking">Parking</mat-checkbox>
                     <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
-                      <mat-label>Notes</mat-label>
-                      <input matInput formControlName="notes">
+                      <mat-label>Parking Notes</mat-label>
+                      <input matInput formControlName="parkingNotes">
                     </mat-form-field>
                     <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
                     <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 12ch; min-width: 12ch;">
@@ -536,6 +536,14 @@
               </div>
             </mat-expansion-panel>
             </mat-accordion>
+
+            <!-- Notes Section -->
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mt-4">
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Notes</mat-label>
+                <textarea matInput formControlName="notes" rows="3"></textarea>
+              </mat-form-field>
+            </div>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center">

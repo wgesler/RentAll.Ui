@@ -24,6 +24,7 @@ export interface ReservationRequest {
   extraFee: number;
   extraFeeName: string;
   taxes: number;
+  notes?: string;
   createdOn?: string;
   createdBy?: string;
   modifiedOn?: string;
@@ -61,6 +62,7 @@ export interface ReservationResponse {
   extraFee: number;
   extraFeeName: string;
   taxes: number;
+  notes?: string;
   isActive: boolean;
 }
 

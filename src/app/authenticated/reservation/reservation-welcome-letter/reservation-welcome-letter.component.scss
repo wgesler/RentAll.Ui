@@ -12,3 +12,28 @@
   flex-direction: column;
 }
 
+.welcome-letter-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.letter-content {
+  flex: 1;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 20px;
+  overflow: auto;
+}
+
+.letter-text {
+  font-family: 'Times New Roman', serif;
+  font-size: 12pt;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  color: #333;
+}
+

@@ -3,7 +3,7 @@
  * 
  * NULL Handling:
  * - All number fields (fromBeds, toBeds, etc.) are NOT NULL with DEFAULT 0, so always send a number (0 if not set)
- * - All boolean fields (furnished, cable, etc.) are NOT NULL with DEFAULT 0, so always send true/false
+ * - All boolean fields (unfurnished, cable, etc.) are NOT NULL with DEFAULT 0, so always send true/false
  * - String fields (propertyCode, city, state) are NULLABLE, so send null explicitly when empty/unset
  * 
  * Important: Use null (not undefined) for nullable fields so JSON.stringify includes them in the request
@@ -17,7 +17,7 @@ export interface PropertySelectionRequest {
   propertyCode: string | null;
   city: string | null;
   state: string | null;
-  furnished: boolean;
+  unfurnished: boolean;
   cable: boolean;
   streaming: boolean;
   pool: boolean;
@@ -50,7 +50,7 @@ export interface PropertySelectionResponse {
   propertyCode: string | null;
   city: string | null;
   state: string | null;
-  furnished: boolean;
+  unfurnished: boolean;
   cable: boolean;
   streaming: boolean;
   pool: boolean;

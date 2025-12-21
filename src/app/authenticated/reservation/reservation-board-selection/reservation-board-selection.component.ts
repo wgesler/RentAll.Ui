@@ -96,7 +96,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       propertyCode: this.toStringOrNull(v.propertyCode),
       city: this.toStringOrNull(v.city),
       state: this.toStringOrNull(v.state),
-      furnished: !!v.furnished,
+      unfurnished: !!v.unfurnished,
       cable: !!v.cable,
       streaming: !!v.streaming,
       pool: !!v.pool,
@@ -280,7 +280,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       city: new FormControl<string>(''),
       state: new FormControl<string>(''),
       maxRent: new FormControl<number | null>(null),
-      furnished: new FormControl<boolean>(false),
+      unfurnished: new FormControl<boolean>(false),
       cable: new FormControl<boolean>(false),
       streaming: new FormControl<boolean>(false),
       pool: new FormControl<boolean>(false),
@@ -299,14 +299,6 @@ export class ReservationBoardSelectionComponent implements OnInit {
 
   patchFormFromResponse(response: PropertySelectionResponse | null): void {
     if (!this.form) return;
-
-    // If response is null (new user), set default values including furnished = true
-    if (!response) {
-      this.form.patchValue({
-        furnished: true, // Default to true (1) for new users
-      });
-      return;
-    }
 
     // Convert codes from API to IDs for dropdowns (only if lookups are loaded)
     const franchiseId = this.franchises.length > 0 
@@ -331,7 +323,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       city: response.city ?? '',
       state: response.state ?? '',
 
-      furnished: response.furnished ?? false,
+      unfurnished: response.unfurnished ?? false,
       cable: response.cable ?? false,
       streaming: response.streaming ?? false,
       pool: response.pool ?? false,
@@ -449,6 +441,38 @@ export class ReservationBoardSelectionComponent implements OnInit {
 
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  resetForm(): void {
+    if (!this.form) return;
+    
+    this.form.reset({
+      propertyStatusId: '',
+      fromBeds: null,
+      toBeds: null,
+      accomodates: null,
+      propertyCode: '',
+      city: '',
+      state: '',
+      maxRent: null,
+      unfurnished: false,
+      cable: false,
+      streaming: false,
+      pool: false,
+      jacuzzi: false,
+      security: false,
+      parking: false,
+      pets: false,
+      smoking: false,
+      highSpeedInternet: false,
+      franchiseId: '',
+      regionId: '',
+      areaId: '',
+      buildingId: ''
+    });
+    
+    this.form.markAsUntouched();
+    this.form.markAsPristine();
   }
 }
 

@@ -12,6 +12,7 @@ export interface ContactRequest {
   zip?: string;
   phone: string;
   email: string;
+  notes?: string;
   isActive: boolean;
 }
 
@@ -29,6 +30,7 @@ export interface ContactResponse {
   zip?: string;
   phone: string;
   email: string;
+  notes?: string;
   isActive: boolean;
 }
 
