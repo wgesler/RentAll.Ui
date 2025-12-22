@@ -23,9 +23,7 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="0" class="reservation-tabs">
-          <mat-tab label="Reservation">
-            <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
@@ -94,7 +92,7 @@
 
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Pets</mat-label>
-                <mat-select formControlName="hasPets">
+                <mat-select formControlName="pets">
                   <mat-option [value]="false">No</mat-option>
                   <mat-option [value]="true">Yes</mat-option>
                 </mat-select>
@@ -137,12 +135,22 @@
               <!-- Line 4: Contact Name (1/4), Phone (1/4), Email (1/2) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
-                <mat-select formControlName="contactId" required>
-                  <mat-option value="">Select Contact</mat-option>
-                  @for (contact of filteredContacts; track contact.contactId) {
-                    <mat-option [value]="contact.contactId">{{ contact.firstName }} {{ contact.lastName }}</mat-option>
+                <input 
+                  type="text" 
+                  matInput 
+                  #contactInput
+                  [formControl]="contactSearchControl"
+                  [matAutocomplete]="contactAuto"
+                  (input)="filterContactsForAutocomplete(contactInput.value)"
+                  placeholder="Type to search..."
+                  required>
+                <mat-autocomplete #contactAuto="matAutocomplete" (optionSelected)="onContactSelected($event)">
+                  @for (contact of filteredContactsForAutocomplete; track contact.contactId) {
+                    <mat-option [value]="contact.contactId">
+                      {{ contact.firstName }} {{ contact.lastName }}
+                    </mat-option>
                   }
-                </mat-select>
+                </mat-autocomplete>
                 @if (form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
                   <mat-error>Contact Name is required</mat-error>
                 }
@@ -288,16 +296,6 @@
               </div>
             }
           </form>
-          </mat-tab>
-          
-          <mat-tab label="Welcome Letter">
-            <app-reservation-welcome-letter [reservationId]="reservationId"></app-reservation-welcome-letter>
-          </mat-tab>
-          
-          <mat-tab label="Lease">
-            <app-reservation-lease [reservationId]="reservationId"></app-reservation-lease>
-          </mat-tab>
-        </mat-tab-group>
       </mat-card>
     </section>
   </div>

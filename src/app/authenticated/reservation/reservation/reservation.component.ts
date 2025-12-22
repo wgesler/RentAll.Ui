@@ -22,13 +22,11 @@ import { ReservationType, ReservationStatus, BillingType, Frequency, Reservation
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { ReservationWelcomeLetterComponent } from '../reservation-welcome-letter/reservation-welcome-letter.component';
-import { ReservationLeaseComponent } from '../reservation-lease/reservation-lease.component';
 
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ReservationWelcomeLetterComponent, ReservationLeaseComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })
@@ -39,11 +37,13 @@ export class ReservationComponent implements OnInit {
   reservationId: string;
   reservation: ReservationResponse;
   form: FormGroup;
+  contactSearchControl: FormControl = new FormControl('');
   isSubmitting: boolean = false;
   isLoadError: boolean = false;
   isAddMode: boolean = false;
   contacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
+  filteredContactsForAutocomplete: ContactResponse[] = [];
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
   companies: CompanyResponse[] = [];
@@ -364,6 +364,19 @@ export class ReservationComponent implements OnInit {
       }
     });
 
+    // Sync contact search control with contactId
+    this.form.get('contactId')?.valueChanges.subscribe(contactId => {
+      if (contactId) {
+        const contact = this.filteredContacts.find(c => c.contactId === contactId) || this.contacts.find(c => c.contactId === contactId);
+        if (contact) {
+          const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+          this.contactSearchControl.setValue(contactName, { emitEvent: false });
+        }
+      } else {
+        this.contactSearchControl.setValue('', { emitEvent: false });
+      }
+    });
+
     // Auto-fill phone and email when client is selected
     this.form.get('contactId')?.valueChanges.subscribe(contactId => {
       if (contactId) {
@@ -541,6 +554,16 @@ export class ReservationComponent implements OnInit {
             
             if (contact) {
               this.selectedContact = contact;
+              // Initialize contact search control with contact name
+              const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+              this.contactSearchControl.setValue(contactName, { emitEvent: false });
+            } else if (contactId) {
+              // If contactId is set but contact not found, try to get name from filteredContacts
+              const foundContact = this.filteredContacts.find(c => c.contactId === contactId);
+              if (foundContact) {
+                const contactName = `${foundContact.firstName || ''} ${foundContact.lastName || ''}`.trim();
+                this.contactSearchControl.setValue(contactName, { emitEvent: false });
+              }
             }
           });
         },
@@ -558,6 +581,7 @@ export class ReservationComponent implements OnInit {
   filterContactsByClientType(reservationTypeId: number | null, callback?: () => void): void {
     if (reservationTypeId === null || reservationTypeId === undefined) {
       this.filteredContacts = [];
+      this.filteredContactsForAutocomplete = [];
       if (callback) callback();
       return;
     }
@@ -567,11 +591,13 @@ export class ReservationComponent implements OnInit {
       this.contactService.getAllTenantContacts().pipe(take(1)).subscribe({
         next: (tenants: ContactResponse[]) => {
           this.filteredContacts = tenants;
+          this.filteredContactsForAutocomplete = tenants;
           if (callback) callback();
         },
         error: (err) => {
           console.error('Error loading tenant contacts:', err);
           this.filteredContacts = [];
+          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
@@ -580,31 +606,66 @@ export class ReservationComponent implements OnInit {
       this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
         next: (companies: ContactResponse[]) => {
           this.filteredContacts = companies;
+          this.filteredContactsForAutocomplete = companies;
           if (callback) callback();
         },
         error: (err) => {
           console.error('Error loading company contacts:', err);
           this.filteredContacts = [];
+          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
           } else if (reservationTypeId === ReservationType.Owner) {
-      // Get companies
+      // Get owners
       this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
-        next: (companies: ContactResponse[]) => {
-          this.filteredContacts = companies;
+        next: (owners: ContactResponse[]) => {
+          this.filteredContacts = owners;
+          this.filteredContactsForAutocomplete = owners;
           if (callback) callback();
         },
         error: (err) => {
-          console.error('Error loading company contacts:', err);
+          console.error('Error loading owner contacts:', err);
           this.filteredContacts = [];
+          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
     } else {
       this.filteredContacts = [];
+      this.filteredContactsForAutocomplete = [];
       if (callback) callback();
     }
+  }
+
+  filterContactsForAutocomplete(searchText: string): void {
+    if (!searchText || searchText.trim() === '') {
+      this.filteredContactsForAutocomplete = this.filteredContacts;
+      return;
+    }
+
+    const searchLower = searchText.toLowerCase().trim();
+    this.filteredContactsForAutocomplete = this.filteredContacts.filter(contact => {
+      const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.toLowerCase();
+      const firstName = (contact.firstName || '').toLowerCase();
+      const lastName = (contact.lastName || '').toLowerCase();
+      return fullName.includes(searchLower) || 
+             firstName.includes(searchLower) || 
+             lastName.includes(searchLower);
+    });
+  }
+
+  displayContactName(contactId: string | null): string {
+    if (!contactId) return '';
+    const contact = this.filteredContacts.find(c => c.contactId === contactId) || 
+                    this.contacts.find(c => c.contactId === contactId);
+    return contact ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() : '';
+  }
+
+  onContactSelected(event: any): void {
+    const contactId = event.option.value;
+    this.form.get('contactId')?.setValue(contactId, { emitEvent: true });
+    // The contactId valueChanges will update the search control display
   }
 
   // Supporting data loads
