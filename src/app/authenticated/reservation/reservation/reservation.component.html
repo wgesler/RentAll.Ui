@@ -23,7 +23,9 @@
       </div>
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
+        <mat-tab-group [selectedIndex]="0" class="reservation-tabs">
+          <mat-tab label="Reservation">
+            <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
@@ -296,6 +298,12 @@
               </div>
             }
           </form>
+          </mat-tab>
+          
+          <mat-tab label="Lease">
+            <app-reservation-lease [reservationId]="isAddMode ? null : reservationId"></app-reservation-lease>
+          </mat-tab>
+        </mat-tab-group>
       </mat-card>
     </section>
   </div>

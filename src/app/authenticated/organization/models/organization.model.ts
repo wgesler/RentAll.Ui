@@ -11,6 +11,8 @@ export interface OrganizationRequest {
   phone: string;
   website?: string;
   logoStorageId?: string;
+  maintenanceEmail?: string;
+  afterHoursPhone?: string;
   isActive: boolean;
 }
 
@@ -27,6 +29,8 @@ export interface OrganizationResponse {
   phone: string;
   website?: string;
   logoStorageId?: string;
+  maintenanceEmail?: string;
+  afterHoursPhone?: string;
   isActive: boolean;
 }
 

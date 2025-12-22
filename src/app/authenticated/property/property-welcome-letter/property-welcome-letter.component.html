@@ -1,0 +1,329 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading welcome letter data...</p>
+  </div>
+} @else {
+  <div class="welcome-letter-form-container">
+    <form [formGroup]="form" (ngSubmit)="saveWelcomeLetter()" class="welcome-letter-form">
+      
+      <!-- Property and Reservation Selection Section -->
+      <section class="form-section">
+        <h2>Property & Reservation</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Property</mat-label>
+            <input matInput formControlName="propertyCode" readonly>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Reservation</mat-label>
+            <mat-select formControlName="reservationId">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of filteredReservations; track reservation.reservationId) {
+                <mat-option [value]="reservation.reservationId">
+                  {{ reservation.tenantName || reservation.contactName }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </section>
+      
+      <!-- Basic Information Section -->
+      <section class="form-section">
+        <h2>Basic Information</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Tenant Name</mat-label>
+            <input matInput formControlName="tenantName" required>
+            @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
+              <mat-error>Tenant Name is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Building Name</mat-label>
+            <input matInput formControlName="buildingName">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Arrival Date</mat-label>
+            <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
+            <mat-datepicker-toggle matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
+            <mat-datepicker #arrivalPicker></mat-datepicker>
+            @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {
+              <mat-error>Arrival Date is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Departure Date</mat-label>
+            <input matInput [matDatepicker]="departurePicker" formControlName="departureDate" required>
+            <mat-datepicker-toggle matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
+            <mat-datepicker #departurePicker></mat-datepicker>
+            @if (form.get('departureDate')?.hasError('required') && form.get('departureDate')?.touched) {
+              <mat-error>Departure Date is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Check-In Time</mat-label>
+            <mat-select formControlName="checkInTimeId" required>
+              @for (time of checkInTimes; track time.value) {
+                <mat-option [value]="time.value">{{ time.label }}</mat-option>
+              }
+            </mat-select>
+            @if (form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched) {
+              <mat-error>Check-In Time is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Check-Out Time</mat-label>
+            <mat-select formControlName="checkOutTimeId" required>
+              @for (time of checkOutTimes; track time.value) {
+                <mat-option [value]="time.value">{{ time.label }}</mat-option>
+              }
+            </mat-select>
+            @if (form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched) {
+              <mat-error>Check-Out Time is required</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Arrival Instructions Section -->
+      <section class="form-section">
+        <h2>Arrival Instructions</h2>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Arrival Instructions</mat-label>
+          <textarea matInput formControlName="arrivalInstructions" rows="4" required></textarea>
+          @if (form.get('arrivalInstructions')?.hasError('required') && form.get('arrivalInstructions')?.touched) {
+            <mat-error>Arrival Instructions are required</mat-error>
+          }
+        </mat-form-field>
+      </section>
+
+      <!-- Address Information Section -->
+      <section class="form-section">
+        <h2>Address Information</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Community Address</mat-label>
+            <input matInput formControlName="compmunityAddress">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Apartment Address</mat-label>
+            <input matInput formControlName="apartmentAddress" required>
+            @if (form.get('apartmentAddress')?.hasError('required') && form.get('apartmentAddress')?.touched) {
+              <mat-error>Apartment Address is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Size (Bedrooms)</mat-label>
+            <input matInput type="number" formControlName="size" required>
+            @if (form.get('size')?.hasError('required') && form.get('size')?.touched) {
+              <mat-error>Size is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Suite/Unit</mat-label>
+            <input matInput formControlName="suite" required>
+            @if (form.get('suite')?.hasError('required') && form.get('suite')?.touched) {
+              <mat-error>Suite is required</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Access & Mail Section -->
+      <section class="form-section">
+        <h2>Access & Mail Information</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Access</mat-label>
+            <input matInput formControlName="access" required>
+            @if (form.get('access')?.hasError('required') && form.get('access')?.touched) {
+              <mat-error>Access information is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Mailbox</mat-label>
+            <input matInput formControlName="mailbox" required>
+            @if (form.get('mailbox')?.hasError('required') && form.get('mailbox')?.touched) {
+              <mat-error>Mailbox is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Package Delivery</mat-label>
+            <input matInput formControlName="package" required>
+            @if (form.get('package')?.hasError('required') && form.get('package')?.touched) {
+              <mat-error>Package delivery information is required</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Parking Section -->
+      <section class="form-section">
+        <h2>Parking Information</h2>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Parking Information</mat-label>
+          <textarea matInput formControlName="PparkingInformation" rows="3" required></textarea>
+          @if (form.get('PparkingInformation')?.hasError('required') && form.get('PparkingInformation')?.touched) {
+            <mat-error>Parking information is required</mat-error>
+          }
+        </mat-form-field>
+      </section>
+
+      <!-- Amenities Section -->
+      <section class="form-section">
+        <h2>Amenities</h2>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Amenities</mat-label>
+          <textarea matInput formControlName="amenaties" rows="3" required></textarea>
+          @if (form.get('amenaties')?.hasError('required') && form.get('amenaties')?.touched) {
+            <mat-error>Amenities information is required</mat-error>
+          }
+        </mat-form-field>
+      </section>
+
+      <!-- Unit Features Section -->
+      <section class="form-section">
+        <h2>Unit Features</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Laundry</mat-label>
+            <input matInput formControlName="Laundry" required>
+            @if (form.get('Laundry')?.hasError('required') && form.get('Laundry')?.touched) {
+              <mat-error>Laundry information is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Trash Location</mat-label>
+            <input matInput formControlName="trashLocation" required>
+            @if (form.get('trashLocation')?.hasError('required') && form.get('trashLocation')?.touched) {
+              <mat-error>Trash location is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Provided Furnishings</mat-label>
+            <input matInput formControlName="providedFurnishings" required>
+            @if (form.get('providedFurnishings')?.hasError('required') && form.get('providedFurnishings')?.touched) {
+              <mat-error>Provided furnishings is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Housekeeping</mat-label>
+            <input matInput formControlName="housekeeping">
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Internet & TV Section -->
+      <section class="form-section">
+        <h2>Internet & Television</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Television Source</mat-label>
+            <input matInput formControlName="televisionSouce" required>
+            @if (form.get('televisionSouce')?.hasError('required') && form.get('televisionSouce')?.touched) {
+              <mat-error>Television source is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Service</mat-label>
+            <input matInput formControlName="internetService" required>
+            @if (form.get('internetService')?.hasError('required') && form.get('internetService')?.touched) {
+              <mat-error>Internet service is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Network</mat-label>
+            <input matInput formControlName="internetNetwork">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Password</mat-label>
+            <input matInput type="password" formControlName="internetPasword">
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Move Out Section -->
+      <section class="form-section">
+        <h2>Move Out Information</h2>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Key Return Instructions</mat-label>
+          <textarea matInput formControlName="keyReturn" rows="3" required></textarea>
+          @if (form.get('keyReturn')?.hasError('required') && form.get('keyReturn')?.touched) {
+            <mat-error>Key return instructions are required</mat-error>
+          }
+        </mat-form-field>
+      </section>
+
+      <!-- Contact Information Section -->
+      <section class="form-section">
+        <h2>Contact Information</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Support Contact</mat-label>
+            <input matInput formControlName="supportContact" required>
+            @if (form.get('supportContact')?.hasError('required') && form.get('supportContact')?.touched) {
+              <mat-error>Support contact is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Emergency Contact</mat-label>
+            <input matInput formControlName="emergencyContact" required>
+            @if (form.get('emergencyContact')?.hasError('required') && form.get('emergencyContact')?.touched) {
+              <mat-error>Emergency contact is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Emergency Contact Number</mat-label>
+            <input matInput formControlName="emergencyContactNumber" required>
+            @if (form.get('emergencyContactNumber')?.hasError('required') && form.get('emergencyContactNumber')?.touched) {
+              <mat-error>Emergency contact number is required</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Additional Notes Section -->
+      <section class="form-section">
+        <h2>Additional Notes</h2>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Additional Notes</mat-label>
+          <textarea matInput formControlName="additionalNotes" rows="4"></textarea>
+        </mat-form-field>
+      </section>
+
+      <!-- Submit Button -->
+      <div class="form-actions">
+        <button mat-raised-button type="submit" color="primary" [disabled]="isSubmitting || !form.valid">
+          @if (isSubmitting) {
+            <mat-spinner [diameter]="20" class="inline-spinner"></mat-spinner>
+            <span>Saving...</span>
+          } @else {
+            <mat-icon>save</mat-icon>
+            <span>Save Welcome Letter</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+}

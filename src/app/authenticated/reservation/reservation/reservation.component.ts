@@ -22,11 +22,12 @@ import { ReservationType, ReservationStatus, BillingType, Frequency, Reservation
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { ReservationLeaseComponent } from '../reservation-lease/reservation-lease.component';
 
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ReservationLeaseComponent],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })
