@@ -32,7 +32,17 @@
               </mat-checkbox>
             </div>
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <!-- Line 1: Property, Property Address, Agent -->
+              <!-- Line 1: Agent (1/4), Property (1/4), Property Address (1/2) -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Agent</mat-label>
+                <mat-select formControlName="agentId">
+                  <mat-option [value]="null">None</mat-option>
+                  @for (agent of agents; track agent.agentId) {
+                    <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Property</mat-label>
                 <mat-select formControlName="propertyId" required>
@@ -51,17 +61,46 @@
                 <input matInput formControlName="propertyAddress" readonly>
               </mat-form-field>
 
+              <!-- Line 2: Reservation Status, Reservation Notice, Number of People, Pets -->
               <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Agent</mat-label>
-                <mat-select formControlName="agentId">
-                  <mat-option [value]="null">None</mat-option>
-                  @for (agent of agents; track agent.agentId) {
-                    <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
+                <mat-label>Reservation Status</mat-label>
+                <mat-select formControlName="reservationStatusId" required>
+                  @for (status of availableReservationStatuses; track status.value) {
+                    <mat-option [value]="status.value">{{ status.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
+                  <mat-error>Reservation Status is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Reservation Notice</mat-label>
+                <mat-select formControlName="reservationNoticeId">
+                  <mat-option [value]="null">Select Notice</mat-option>
+                  @for (notice of availableReservationNotices; track notice.value) {
+                    <mat-option [value]="notice.value">{{ notice.label }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
 
-              <!-- Line 2: Reservation Type, Reservation Status, Tenant Name -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Number of People</mat-label>
+                <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
+                @if (form.get('numberOfPeople')?.hasError('required') && form.get('numberOfPeople')?.touched) {
+                  <mat-error>Number of People is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Pets</mat-label>
+                <mat-select formControlName="hasPets">
+                  <mat-option [value]="false">No</mat-option>
+                  <mat-option [value]="true">Yes</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Line 3: Reservation Type, Company Name (conditional), Tenant Name -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Reservation Type</mat-label>
                 <mat-select formControlName="reservationTypeId" required>
@@ -75,19 +114,19 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Reservation Status</mat-label>
-                <mat-select formControlName="reservationStatusId" required>
-                  @for (status of availableReservationStatuses; track status.value) {
-                    <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                  }
-                </mat-select>
-                @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
-                  <mat-error>Reservation Status is required</mat-error>
-                }
-              </mat-form-field>
+              @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Name</mat-label>
+                  <mat-select formControlName="companyId">
+                    <mat-option [value]="null">Select Company</mat-option>
+                    @for (company of companies; track company.companyId) {
+                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" [class.col-span-2]="form.get('reservationTypeId')?.value === ReservationType.Corporate" [class.col-span-3]="form.get('reservationTypeId')?.value !== ReservationType.Corporate">
                 <mat-label>Tenant Name(s)</mat-label>
                 <input matInput formControlName="tenantName" required>
                 @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
@@ -95,7 +134,7 @@
                 }
               </mat-form-field>
 
-              <!-- Line 3: Contact Name, Contact Phone, Contact Email, Number of People -->
+              <!-- Line 4: Contact Name (1/4), Phone (1/4), Email (1/2) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
                 <mat-select formControlName="contactId" required>
@@ -114,20 +153,12 @@
                 <input matInput formControlName="phone" maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
+              <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Contact Email</mat-label>
                 <input matInput type="email" formControlName="email">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Number of People</mat-label>
-                <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
-                @if (form.get('numberOfPeople')?.hasError('required') && form.get('numberOfPeople')?.touched) {
-                  <mat-error>Number of People is required</mat-error>
-                }
-              </mat-form-field>
-
-              <!-- Line 4: Arrival Date, Departure Date, Check-In Time, Check-Out Time -->
+              <!-- Line 5: Arrival Date, Departure Date, Check-In Time, Check-Out Time -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Arrival Date</mat-label>
                 <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>

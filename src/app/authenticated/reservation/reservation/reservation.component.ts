@@ -16,7 +16,9 @@ import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
 import { AgentService } from '../../agent/services/agent.service';
 import { AgentResponse } from '../../agent/models/agent.model';
-import { ReservationType, ReservationStatus, BillingType, Frequency } from '../models/reservation-enum';
+import { CompanyService } from '../../company/services/company.service';
+import { CompanyResponse } from '../../company/models/company.model';
+import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -44,6 +46,7 @@ export class ReservationComponent implements OnInit {
   filteredContacts: ContactResponse[] = [];
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
+  companies: CompanyResponse[] = [];
   selectedProperty: PropertyResponse | null = null;
   selectedContact: ContactResponse | null = null;
   departureDateStartAt: Date | null = null;
@@ -53,6 +56,8 @@ export class ReservationComponent implements OnInit {
   checkOutTimes: { value: number, label: string }[] = [];
   availableBillingTypes: { value: number, label: string }[] = [];
   availableFrequencies: { value: number, label: string }[] = [];
+  availableReservationNotices: { value: number, label: string }[] = [];
+  ReservationType = ReservationType; // Expose enum to template
 
   constructor(
     public reservationService: ReservationService,
@@ -63,6 +68,7 @@ export class ReservationComponent implements OnInit {
     private contactService: ContactService,
     private propertyService: PropertyService,
     private agentService: AgentService,
+    private companyService: CompanyService,
     private authService: AuthService,
     private formatterService: FormatterService
   ) {
@@ -74,6 +80,7 @@ export class ReservationComponent implements OnInit {
     this.loadContacts();
     this.loadAgents();
     this.loadProperties();
+    this.loadCompanies();
     
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -125,17 +132,19 @@ export class ReservationComponent implements OnInit {
       organizationId: user?.organizationId || '',
       propertyId: formValue.propertyId,
       agentId: formValue.agentId || null,
-      tenantName: formValue.tenantName || '',
       contactId: formValue.contactId,
       reservationTypeId: formValue.reservationTypeId ?? ReservationType.Private,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
+      reservationNoticeId: formValue.reservationNoticeId || null,
+      numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
+      hasPets: formValue.pets ?? false,
+      tenantName: formValue.tenantName || '',
       arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
       departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
       checkInTimeId: formValue.checkInTimeId ?? CheckinTimes.NA,
       checkOutTimeId: formValue.checkOutTimeId ?? CheckoutTimes.NA,
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
-      numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
       departureFee: formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
@@ -144,7 +153,7 @@ export class ReservationComponent implements OnInit {
       extraFee: formValue.extraFee ? parseFloat(formValue.extraFee.toString()) : 0,
       extraFeeName: formValue.extraFeeName || '',
       taxes: formValue.taxes ? parseFloat(formValue.taxes.toString()) : 0,
-      notes: formValue.notes || '',
+      notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
       isActive: formValue.isActive ?? true
     };
 
@@ -184,8 +193,10 @@ export class ReservationComponent implements OnInit {
       agentId: new FormControl(null, [Validators.required]),
       tenantName: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
       contactId: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
+      companyId: new FormControl(null),
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
+      reservationNoticeId: new FormControl(null),
       isActive: new FormControl(true),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required]),
@@ -194,6 +205,7 @@ export class ReservationComponent implements OnInit {
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
+      hasPets: new FormControl(false),
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       deposit: new FormControl<string>('0.00'),
@@ -220,9 +232,12 @@ export class ReservationComponent implements OnInit {
         };
         
         if (this.selectedProperty) {
-          // Pre-load billing rate (as Monthly Fee)
+          // Default Billing Type to Monthly and fill Billing Rate with Monthly Rate
+          patchValues.billingTypeId = BillingType.Monthly;
           if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
             patchValues.billingRate = this.selectedProperty.monthlyRate.toFixed(2);
+          } else {
+            patchValues.billingRate = '0.00';
           }
           
           // Pre-load departure fee
@@ -243,14 +258,29 @@ export class ReservationComponent implements OnInit {
           // Pre-load deposit (default to 0 if not available on property)
           patchValues.deposit = '0.00';
           
-          // Pre-load taxes (default to 0 if not available on property)
+          // Pre-load taxes (default to null if not available on property)
           patchValues.taxes = null;
           
-          // Pre-load check-in time (default to 4:00 PM / FourPM)
-          patchValues.checkInTimeId = CheckinTimes.FourPM;
+          // Pre-load check-in time from property (ensure it's a number for dropdown selection)
+          const checkInTime = this.selectedProperty.checkInTimeId;
+          patchValues.checkInTimeId = (checkInTime !== null && checkInTime !== undefined) 
+            ? Number(checkInTime) 
+            : CheckinTimes.FourPM;
           
-          // Pre-load check-out time (default to 11:00 AM / ElevenAM)
-          patchValues.checkOutTimeId = CheckoutTimes.ElevenAM;
+          // Pre-load check-out time from property (ensure it's a number for dropdown selection)
+          const checkOutTime = this.selectedProperty.checkOutTimeId;
+          patchValues.checkOutTimeId = (checkOutTime !== null && checkOutTime !== undefined) 
+            ? Number(checkOutTime) 
+            : CheckoutTimes.ElevenAM;
+          
+          // If Reservation Type is Owner, populate Tenant Name with Owner1's name
+          const reservationTypeId = this.form.get('reservationTypeId')?.value;
+          if (reservationTypeId === ReservationType.Owner && this.selectedProperty.owner1Id) {
+            const owner1 = this.contacts.find(c => c.contactId === this.selectedProperty.owner1Id);
+            if (owner1) {
+              patchValues.tenantName = `${owner1.firstName} ${owner1.lastName}`.trim();
+            }
+          }
         }
         
         this.form.patchValue(patchValues, { emitEvent: false });
@@ -274,127 +304,30 @@ export class ReservationComponent implements OnInit {
 
     // Filter contacts based on client type
     this.form.get('reservationTypeId')?.valueChanges.subscribe(reservationTypeId => {
-      // Save the selected reservation type
       const selectedReservationType = reservationTypeId;
       
-      // Clear form fields and errors (excluding propertyId, agentId, and reservationTypeId)
-      Object.keys(this.form.controls).forEach(key => {
-        const control = this.form.get(key);
-        if (control && key !== 'reservationTypeId' && key !== 'propertyId' && key !== 'agentId') {
-          // Reset control to default value based on field type
-          if (key === 'propertyAddress') {
-            control.setValue('', { emitEvent: false });
-          } else if (key === 'isActive') {
-            control.setValue(true, { emitEvent: false });
-          } else if (key === 'arrivalDate' || key === 'departureDate') {
-            control.setValue(null, { emitEvent: false });
-          } else if (key === 'checkInTimeId') {
-            control.setValue(CheckinTimes.NA, { emitEvent: false });
-          } else if (key === 'checkOutTimeId') {
-            control.setValue(CheckoutTimes.NA, { emitEvent: false });
-          } else if (key === 'billingTypeId') {
-            control.setValue(BillingType.Monthly, { emitEvent: false });
-          } else if (key === 'billingRate') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'numberOfPeople') {
-            control.setValue(1, { emitEvent: false });
-          } else if (key === 'deposit') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'departureFee') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'maidServiceFee') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'frequencyId') {
-            control.setValue(Frequency.NA, { emitEvent: false });
-          } else if (key === 'petFee') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'extraFee') {
-            control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'extraFeeName') {
-            control.setValue('', { emitEvent: false });
-          } else if (key === 'taxes') {
-            control.setValue(null, { emitEvent: false });
-          } else if (key === 'notes') {
-            control.setValue('', { emitEvent: false });
-          } else {
-            control.setValue('', { emitEvent: false });
-          }
-          // Clear validation errors
-          control.markAsUntouched();
-          control.markAsPristine();
-          control.updateValueAndValidity({ emitEvent: false });
-        }
-      });
-      
-      // Restore the selected reservation type
-      this.form.patchValue({ reservationTypeId: selectedReservationType }, { emitEvent: false });
-      
+      // Filter contacts based on reservation type
       this.filterContactsByClientType(selectedReservationType);
-      // Update available reservation statuses based on reservation type
-      this.updateAvailableReservationStatuses(selectedReservationType);
+      this.updateTenantNameValidator(selectedReservationType);
       
-      this.selectedContact = null;
-      // Disable tenantName, phone, and email when type changes - clear validators
-      this.disableFieldWithValidation('tenantName');
-      this.disableFieldWithValidation('phone');
-      this.disableFieldWithValidation('email');
-      // Enable/disable contactId based on whether type is selected
+      // Enable contactId field when a reservation type is selected
       if (selectedReservationType !== null && selectedReservationType !== undefined) {
         this.enableFieldWithValidation('contactId', [Validators.required]);
-        // Update tenantName required validator based on reservation type
-        this.updateTenantNameValidator(selectedReservationType);
-        // If Reservation Type is Owner, set Number of People to 0 and disable readonly fields
-        if (selectedReservationType === ReservationType.Owner) {
-          this.form.patchValue({ numberOfPeople: 0 }, { emitEvent: false });
-          // Make billing and fee fields readonly for Owner type - clear validators when disabling
-          this.disableFieldWithValidation('checkInTimeId');
-          this.disableFieldWithValidation('checkOutTimeId');
-          this.disableFieldWithValidation('billingTypeId');
-          this.disableFieldWithValidation('billingRate');
-          this.disableFieldWithValidation('deposit');
-          this.disableFieldWithValidation('departureFee');
-          this.disableFieldWithValidation('petFee');
-          this.disableFieldWithValidation('maidServiceFee');
-          this.disableFieldWithValidation('frequencyId');
-          this.disableFieldWithValidation('extraFee');
-          this.disableFieldWithValidation('extraFeeName');
-          this.disableFieldWithValidation('taxes');
-        } else {
-          // Enable all fields for non-Owner types - restore validators when enabling
-          this.enableFieldWithValidation('checkInTimeId');
-          this.enableFieldWithValidation('checkOutTimeId');
-          this.enableFieldWithValidation('billingTypeId', [Validators.required]);
-          this.enableFieldWithValidation('billingRate', [Validators.required]);
-          this.enableFieldWithValidation('deposit');
-          this.enableFieldWithValidation('departureFee', [Validators.required]);
-          this.enableFieldWithValidation('petFee');
-          this.enableFieldWithValidation('maidServiceFee');
-          this.enableFieldWithValidation('frequencyId');
-          this.enableFieldWithValidation('extraFee');
-          this.enableFieldWithValidation('extraFeeName');
-          this.enableFieldWithValidation('taxes');
-        }
       } else {
         this.disableFieldWithValidation('contactId');
-        // Enable all fields when type is cleared - restore validators
-        this.enableFieldWithValidation('checkInTimeId');
-        this.enableFieldWithValidation('checkOutTimeId');
-        this.enableFieldWithValidation('billingTypeId', [Validators.required]);
-        this.enableFieldWithValidation('billingRate', [Validators.required]);
-        this.enableFieldWithValidation('deposit');
-        this.enableFieldWithValidation('departureFee', [Validators.required]);
-        this.enableFieldWithValidation('petFee');
-        this.enableFieldWithValidation('maidServiceFee');
-        this.enableFieldWithValidation('frequencyId');
-        this.enableFieldWithValidation('extraFee');
-        this.enableFieldWithValidation('extraFeeName');
-        this.enableFieldWithValidation('taxes');
-        // tenantName validator will be updated by updateTenantNameValidator based on enabled state
       }
       
-      // Clear all form errors
-      this.form.markAsUntouched();
-      this.form.markAsPristine();
+      // ONLY clear Tenant Name, Contact Name, Contact Phone, and Contact Email when type changes
+      // Everything else should remain as is
+      this.form.patchValue({ 
+        tenantName: '',
+        contactId: '',
+        phone: '',
+        email: ''
+      }, { emitEvent: false });
+      
+      // Clear selected contact reference
+      this.selectedContact = null;
     });
 
     // Update Maid Service Fee required validator based on Frequency selection
@@ -413,6 +346,23 @@ export class ReservationComponent implements OnInit {
     
     // Initialize maidServiceFee validator based on initial frequencyId value
     this.updateMaidServiceFeeValidator(this.form.get('frequencyId')?.value);
+
+    // Update Billing Rate based on Billing Type selection
+    this.form.get('billingTypeId')?.valueChanges.subscribe(billingTypeId => {
+      if (this.selectedProperty && billingTypeId !== null && billingTypeId !== undefined) {
+        if (billingTypeId === BillingType.Monthly) {
+          // Use Monthly Rate
+          if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
+            this.form.get('billingRate')?.setValue(this.selectedProperty.monthlyRate.toFixed(2), { emitEvent: false });
+          }
+        } else if (billingTypeId === BillingType.Daily || billingTypeId === BillingType.Nightly) {
+          // Use Daily Rate for both Daily and Nightly
+          if (this.selectedProperty.dailyRate !== null && this.selectedProperty.dailyRate !== undefined) {
+            this.form.get('billingRate')?.setValue(this.selectedProperty.dailyRate.toFixed(2), { emitEvent: false });
+          }
+        }
+      }
+    });
 
     // Auto-fill phone and email when client is selected
     this.form.get('contactId')?.valueChanges.subscribe(contactId => {
@@ -440,9 +390,8 @@ export class ReservationComponent implements OnInit {
             email: contact.email || ''
           };
           
-          // If Reservation Type is Private, External, or Owner, populate tenantName with contact name
+          // If Reservation Type is Private, or Owner, populate tenantName with contact name
           if ((reservationTypeId === ReservationType.Private || 
-               reservationTypeId === ReservationType.External || 
                reservationTypeId === ReservationType.Owner) && contactName) {
             patchValues.tenantName = contactName;
           }
@@ -545,9 +494,7 @@ export class ReservationComponent implements OnInit {
             // Determine tenantName value
             // If Reservation Type is Private, External, or Owner and contact exists, use contact name; otherwise use saved value
             let tenantNameValue = this.reservation.tenantName || '';
-            if ((reservationTypeId === ReservationType.Private || 
-                 reservationTypeId === ReservationType.External || 
-                 reservationTypeId === ReservationType.Owner) && contact) {
+            if ((reservationTypeId === ReservationType.Private || reservationTypeId === ReservationType.Owner) && contact) {
               const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
               if (contactName) {
                 tenantNameValue = contactName;
@@ -569,6 +516,7 @@ export class ReservationComponent implements OnInit {
               contactId: contactId,
               reservationTypeId: reservationTypeId,
               reservationStatusId: reservationStatus,
+              reservationNoticeId: this.reservation.reservationNoticeId || null,
               isActive: isActiveValue,
               arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
               departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
@@ -586,6 +534,7 @@ export class ReservationComponent implements OnInit {
               extraFeeName: this.reservation.extraFeeName || '',
               taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
               notes: this.reservation.notes || '',
+              hasPets: this.reservation.hasPets ?? false,
               phone: this.formatterService.phoneNumber(contact?.phone) || '',
               email: contact?.email || ''
             }, { emitEvent: false });
@@ -613,7 +562,7 @@ export class ReservationComponent implements OnInit {
       return;
     }
 
-    if (reservationTypeId === ReservationType.Private || reservationTypeId === ReservationType.External) {
+    if (reservationTypeId === ReservationType.Private) {
       // Get tenants
       this.contactService.getAllTenantContacts().pipe(take(1)).subscribe({
         next: (tenants: ContactResponse[]) => {
@@ -626,7 +575,7 @@ export class ReservationComponent implements OnInit {
           if (callback) callback();
         }
       });
-    } else if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Government) {
+    } else if (reservationTypeId === ReservationType.Corporate) {
       // Get companies
       this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
         next: (companies: ContactResponse[]) => {
@@ -692,6 +641,7 @@ export class ReservationComponent implements OnInit {
   loadProperties(): void {
     this.propertyService.getProperties().pipe(take(1)).subscribe({
       next: (properties: PropertyResponse[]) => {
+        console.log('Properties loaded:', properties);
         this.properties = properties;
       },
       error: (err: HttpErrorResponse) => {
@@ -701,12 +651,25 @@ export class ReservationComponent implements OnInit {
     });
   }
 
+  loadCompanies(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.companyService.getCompanies().pipe(take(1)).subscribe({
+      next: (companies: CompanyResponse[]) => {
+        this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Reservation Component - Error loading companies:', err);
+        this.companies = [];
+      }
+    });
+  }
+
   initializeEnums(): void {
     this.availableClientTypes = [
       { value: ReservationType.Private, label: 'Private' },
       { value: ReservationType.Corporate, label: 'Corporate' },
-      { value: ReservationType.Government, label: 'Government' },
-      { value: ReservationType.External, label: 'External' },
       { value: ReservationType.Owner, label: 'Owner' }
     ];
 
@@ -745,6 +708,11 @@ export class ReservationComponent implements OnInit {
       { value: Frequency.Weekly, label: 'Weekly' },
       { value: Frequency.EOW, label: 'EOW' },
       { value: Frequency.Monthly, label: 'Monthly' }
+    ];
+
+    this.availableReservationNotices = [
+      { value: ReservationNotice.ThirtyDays, label: '30 Days' },
+      { value: ReservationNotice.FifteenDays, label: '15 Days' }
     ];
   }
 
@@ -834,9 +802,7 @@ export class ReservationComponent implements OnInit {
         return 0;
       });
     } else if (reservationTypeId === ReservationType.Private || 
-               reservationTypeId === ReservationType.Corporate || 
-               reservationTypeId === ReservationType.Government || 
-               reservationTypeId === ReservationType.External) {
+               reservationTypeId === ReservationType.Corporate ) {
       // For Private, Corporate, Government, or External: show all EXCEPT Maintenance and Owner Blocked
       this.availableReservationStatuses = allStatuses.filter(status => 
         status.value !== ReservationStatus.Maintenance && 

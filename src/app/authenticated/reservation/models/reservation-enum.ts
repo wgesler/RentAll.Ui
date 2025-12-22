@@ -12,9 +12,7 @@ export enum ReservationStatus {
 export enum ReservationType {
  	Private = 0,
 	Corporate = 1,
-	Government = 2,
-	External = 3,
-	Owner = 4
+	Owner = 2
 }
 
 export enum BillingType {
@@ -29,4 +27,9 @@ export enum Frequency {
   Weekly = 2,
   EOW = 3,
   Monthly = 4
+}
+
+export enum ReservationNotice {
+  ThirtyDays = 1,
+  FifteenDays = 2
 }

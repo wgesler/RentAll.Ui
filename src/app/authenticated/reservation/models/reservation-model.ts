@@ -5,17 +5,19 @@ export interface ReservationRequest {
   organizationId: string;
   agentId?: string | null;
   propertyId: string;
-  reservationTypeId: number;
   contactId: string;
-  tenantName: string;
+  reservationTypeId: number;
   reservationStatusId: number;
+  reservationNoticeId?: number;
+  numberOfPeople: number;
+  hasPets: boolean;
+  tenantName: string;
   arrivalDate: string;
   departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
   billingTypeId: number;
   billingRate: number;
-  numberOfPeople: number;
   deposit?: number | null;
   departureFee: number;
   maidServiceFee: number;
@@ -25,6 +27,7 @@ export interface ReservationRequest {
   extraFeeName: string;
   taxes: number;
   notes?: string;
+  pets?: boolean;
   createdOn?: string;
   createdBy?: string;
   modifiedOn?: string;
@@ -40,20 +43,22 @@ export interface ReservationResponse {
   contactId: string;
   reservationTypeId: number;
   reservationStatusId: number;
+  reservationNoticeId?: number;
+  numberOfPeople: number;
+  hasPets: boolean;
+  tenantName?: string;
   propertyCode: string;
   propertyAddress: string;
   propertyStatusId: number;
   contactName: string;
   contactPhone: string;
   contactEmail: string;
-  tenantName?: string;
   arrivalDate: string;
   departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
   billingTypeId: number;
   billingRate: number;
-  numberOfPeople: number;
   deposit?: number | null;
   departureFee: number;
   maidServiceFee: number;
@@ -63,6 +68,7 @@ export interface ReservationResponse {
   extraFeeName: string;
   taxes: number;
   notes?: string;
+  pets?: boolean;
   isActive: boolean;
 }
 
