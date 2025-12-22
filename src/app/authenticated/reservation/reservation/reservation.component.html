@@ -197,12 +197,12 @@
                 <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
 
-              <!-- Line 6: Checkout Fee, Pet Fee, Maid Service Fee, Frequency -->
+              <!-- Line 6: Departure Fee, Pet Fee, Maid Service Fee, Frequency -->
               <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Checkout Fee</mat-label>
-                <input matInput type="text" formControlName="checkoutFee" placeholder="0.00" (blur)="formatDecimal('checkoutFee')" (input)="onDecimalInput($event, 'checkoutFee')" (focus)="selectAllOnFocus($event)" required>
-                @if (form.get('checkoutFee')?.hasError('required') && form.get('checkoutFee')?.touched) {
-                  <mat-error>Checkout Fee is required</mat-error>
+                <mat-label>Departure Fee</mat-label>
+                <input matInput type="text" formControlName="departureFee" placeholder="0.00" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
+                @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
+                  <mat-error>Departure Fee is required</mat-error>
                 }
               </mat-form-field>
 

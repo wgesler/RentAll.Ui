@@ -15,7 +15,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
 import { MappingService } from '../../../services/mapping.service';
-import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType } from '../models/property-enums';
+import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FranchiseService } from '../../franchise/services/franchise.service';
 import { RegionService } from '../../region/services/region.service';
@@ -55,6 +55,8 @@ export class PropertyComponent implements OnInit {
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
   bedSizeTypes: { value: number, label: string }[] = [];
+  checkInTimes: { value: number, label: string }[] = [];
+  checkOutTimes: { value: number, label: string }[] = [];
 
   franchises: FranchiseResponse[] = [];
   regions: RegionResponse[] = [];
@@ -114,6 +116,7 @@ export class PropertyComponent implements OnInit {
     this.initializePropertyStatuses();
     this.initializePropertyTypes();
     this.initializeBedSizeTypes();
+    this.initializeTimeTypes();
     
     // Build form first so template can access it
     this.buildForm();
@@ -254,9 +257,13 @@ export class PropertyComponent implements OnInit {
     // Transform fields that need special handling
     propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
     propertyRequest.monthlyRate = formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0;
-    propertyRequest.checkoutFee = formValue.checkoutFee ? parseFloat(formValue.checkoutFee.toString()) : 0;
+    propertyRequest.departureFee = formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0;
     propertyRequest.maidServiceFee = formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0;
     propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
+    
+    // Ensure time fields are integers
+    propertyRequest.checkInTimeId = formValue.checkInTimeId !== null && formValue.checkInTimeId !== undefined ? Number(formValue.checkInTimeId) : CheckinTimes.NA;
+    propertyRequest.checkOutTimeId = formValue.checkOutTimeId !== null && formValue.checkOutTimeId !== undefined ? Number(formValue.checkOutTimeId) : CheckoutTimes.NA;
     
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
@@ -360,16 +367,17 @@ export class PropertyComponent implements OnInit {
       propertyCode: new FormControl('', codeValidators),
       owner1Id: new FormControl('', contactValidators),
       owner2Id: new FormControl(null),
+      owner3Id: new FormControl(null),
       propertyStyle: new FormControl<number>(PropertyStyle.Standard),
       propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed),
       propertyType: new FormControl<number>(PropertyType.Unspecified),
       phone: new FormControl(''),
       accomodates: new FormControl(0),
-      dailyRate: new FormControl<string>('0.00'),
-      monthlyRate: new FormControl<string>('0.00'),
-      checkoutFee: new FormControl<string>('0.00'),
-      maidServiceFee: new FormControl<string>('0.00'),
-      petFee: new FormControl<string>('0.00'),
+      dailyRate: new FormControl<string>('0.00', [Validators.required]),
+      monthlyRate: new FormControl<string>('0.00', [Validators.required]),
+      departureFee: new FormControl<string>('0.00', [Validators.required]),
+      maidServiceFee: new FormControl<string>('0.00', [Validators.required]),
+      petFee: new FormControl<string>('0.00', [Validators.required]),
       unfurnished: new FormControl(false),
       
       // Details tab
@@ -406,6 +414,8 @@ export class PropertyComponent implements OnInit {
       maxStay: new FormControl<number>(0),
       availableFrom: new FormControl<Date | null>(null),
       availableUntil: new FormControl<Date | null>(null),
+      checkInTimeId: new FormControl<number>(CheckinTimes.NA),
+      checkOutTimeId: new FormControl<number>(CheckoutTimes.NA),
       
       // Living tab
       view: new FormControl(''),
@@ -459,17 +469,20 @@ export class PropertyComponent implements OnInit {
       // Transform fields that need special handling
       formData.owner1Id = this.property.owner1Id || '';
       formData.owner2Id = this.property.owner2Id || null;
-      formData.dailyRate = (this.property.dailyRate ?? 0).toFixed(2);
-      formData.monthlyRate = (this.property.monthlyRate ?? 0).toFixed(2);
-      formData.checkoutFee = (this.property.checkoutFee ?? 0).toFixed(2);
-      formData.maidServiceFee = (this.property.maidServiceFee ?? 0).toFixed(2);
-      formData.petFee = (this.property.petFee ?? 0).toFixed(2);
+      formData.owner3Id = this.property.owner3Id || null;
+      formData.dailyRate = this.property.dailyRate !== null && this.property.dailyRate !== undefined ? this.property.dailyRate.toFixed(2) : '0.00';
+      formData.monthlyRate = this.property.monthlyRate !== null && this.property.monthlyRate !== undefined ? this.property.monthlyRate.toFixed(2) : '0.00';
+      formData.departureFee = this.property.departureFee !== null && this.property.departureFee !== undefined ? this.property.departureFee.toFixed(2) : '0.00';
+      formData.maidServiceFee = this.property.maidServiceFee !== null && this.property.maidServiceFee !== undefined ? this.property.maidServiceFee.toFixed(2) : '0.00';
+      formData.petFee = this.property.petFee !== null && this.property.petFee !== undefined ? this.property.petFee.toFixed(2) : '0.00';
       formData.minStay = this.property.minStay ?? 0;
       formData.maxStay = this.property.maxStay ?? 0;
       
       // Convert date strings to Date objects
       formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
       formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
+      formData.checkInTimeId = this.property.checkInTimeId ?? CheckinTimes.NA;
+      formData.checkOutTimeId = this.property.checkOutTimeId ?? CheckoutTimes.NA;
       
       // Handle enum Id fields as numbers (map from Id fields)
       const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
@@ -710,6 +723,28 @@ export class PropertyComponent implements OnInit {
         value: BedSizeType[key],
         label: this.formatBedSizeTypeLabel(key)
       }));
+  }
+
+  initializeTimeTypes(): void {
+    this.checkInTimes = [
+      { value: CheckinTimes.NA, label: 'N/A' },
+      { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
+      { value: CheckinTimes.OnePM, label: '1:00 PM' },
+      { value: CheckinTimes.TwoPM, label: '2:00 PM' },
+      { value: CheckinTimes.ThreePM, label: '3:00 PM' },
+      { value: CheckinTimes.FourPM, label: '4:00 PM' },
+      { value: CheckinTimes.FivePM, label: '5:00 PM' }
+    ];
+
+    this.checkOutTimes = [
+      { value: CheckoutTimes.NA, label: 'N/A' },
+      { value: CheckoutTimes.EightAM, label: '8:00 AM' },
+      { value: CheckoutTimes.NineAM, label: '9:00 AM' },
+      { value: CheckoutTimes.TenAM, label: '10:00 AM' },
+      { value: CheckoutTimes.ElevenAM, label: '11:00 AM' },
+      { value: CheckoutTimes.TwelvePM, label: '12:00 PM' },
+      { value: CheckoutTimes.OnePM, label: '1:00 PM' }
+    ];
   }
 
   // Formatting enum labels

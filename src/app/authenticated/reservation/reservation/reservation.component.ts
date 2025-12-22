@@ -137,7 +137,7 @@ export class ReservationComponent implements OnInit {
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
-      checkoutFee: formValue.checkoutFee ? parseFloat(formValue.checkoutFee.toString()) : 0,
+      departureFee: formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
       frequencyId: formValue.frequencyId ?? Frequency.NA,
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
@@ -197,7 +197,7 @@ export class ReservationComponent implements OnInit {
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       deposit: new FormControl<string>('0.00'),
-      checkoutFee: new FormControl<string>('0.00', [Validators.required]),
+      departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00'),
       frequencyId: new FormControl(Frequency.NA),
       petFee: new FormControl<string>('0.00'),
@@ -225,9 +225,9 @@ export class ReservationComponent implements OnInit {
             patchValues.billingRate = this.selectedProperty.monthlyRate.toFixed(2);
           }
           
-          // Pre-load checkout fee (departure fee)
-          if (this.selectedProperty.checkoutFee !== null && this.selectedProperty.checkoutFee !== undefined) {
-            patchValues.checkoutFee = this.selectedProperty.checkoutFee.toFixed(2);
+          // Pre-load departure fee
+          if (this.selectedProperty.departureFee !== null && this.selectedProperty.departureFee !== undefined) {
+            patchValues.departureFee = this.selectedProperty.departureFee.toFixed(2);
           }
           
           // Pre-load pet fee
@@ -300,7 +300,7 @@ export class ReservationComponent implements OnInit {
             control.setValue(1, { emitEvent: false });
           } else if (key === 'deposit') {
             control.setValue('0.00', { emitEvent: false });
-          } else if (key === 'checkoutFee') {
+          } else if (key === 'departureFee') {
             control.setValue('0.00', { emitEvent: false });
           } else if (key === 'maidServiceFee') {
             control.setValue('0.00', { emitEvent: false });
@@ -352,7 +352,7 @@ export class ReservationComponent implements OnInit {
           this.disableFieldWithValidation('billingTypeId');
           this.disableFieldWithValidation('billingRate');
           this.disableFieldWithValidation('deposit');
-          this.disableFieldWithValidation('checkoutFee');
+          this.disableFieldWithValidation('departureFee');
           this.disableFieldWithValidation('petFee');
           this.disableFieldWithValidation('maidServiceFee');
           this.disableFieldWithValidation('frequencyId');
@@ -366,7 +366,7 @@ export class ReservationComponent implements OnInit {
           this.enableFieldWithValidation('billingTypeId', [Validators.required]);
           this.enableFieldWithValidation('billingRate', [Validators.required]);
           this.enableFieldWithValidation('deposit');
-          this.enableFieldWithValidation('checkoutFee', [Validators.required]);
+          this.enableFieldWithValidation('departureFee', [Validators.required]);
           this.enableFieldWithValidation('petFee');
           this.enableFieldWithValidation('maidServiceFee');
           this.enableFieldWithValidation('frequencyId');
@@ -382,7 +382,7 @@ export class ReservationComponent implements OnInit {
         this.enableFieldWithValidation('billingTypeId', [Validators.required]);
         this.enableFieldWithValidation('billingRate', [Validators.required]);
         this.enableFieldWithValidation('deposit');
-        this.enableFieldWithValidation('checkoutFee', [Validators.required]);
+        this.enableFieldWithValidation('departureFee', [Validators.required]);
         this.enableFieldWithValidation('petFee');
         this.enableFieldWithValidation('maidServiceFee');
         this.enableFieldWithValidation('frequencyId');
@@ -516,7 +516,7 @@ export class ReservationComponent implements OnInit {
               this.disableFieldWithValidation('billingTypeId');
               this.disableFieldWithValidation('billingRate');
               this.disableFieldWithValidation('deposit');
-              this.disableFieldWithValidation('checkoutFee');
+              this.disableFieldWithValidation('departureFee');
               this.disableFieldWithValidation('petFee');
               this.disableFieldWithValidation('maidServiceFee');
               this.disableFieldWithValidation('frequencyId');
@@ -530,7 +530,7 @@ export class ReservationComponent implements OnInit {
               this.enableFieldWithValidation('billingTypeId', [Validators.required]);
               this.enableFieldWithValidation('billingRate', [Validators.required]);
               this.enableFieldWithValidation('deposit');
-              this.enableFieldWithValidation('checkoutFee', [Validators.required]);
+              this.enableFieldWithValidation('departureFee', [Validators.required]);
               this.enableFieldWithValidation('petFee');
               this.enableFieldWithValidation('maidServiceFee');
               this.enableFieldWithValidation('frequencyId');
@@ -578,7 +578,7 @@ export class ReservationComponent implements OnInit {
               billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
               numberOfPeople: numberOfPeopleValue,
               deposit: this.reservation.deposit ? this.reservation.deposit.toFixed(2) : '0.00',
-              checkoutFee: (this.reservation.checkoutFee ?? 0).toFixed(2),
+              departureFee: (this.reservation.departureFee ?? 0).toFixed(2),
               maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
               frequencyId: this.reservation.frequencyId ?? Frequency.NA,
               petFee: (this.reservation.petFee ?? 0).toFixed(2),

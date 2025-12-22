@@ -266,7 +266,7 @@ Internet Service: ${getInternetService()}
 Internet Network: Upstream5F18FB-5GHZ 	Password: 8A77095F18FB
 Move Out Information
 Departure Date: ${formatDate(r.departureDate)} (Written notice required)
-Departure Time: ${formatTime(r.checkOutTimeId, false)}
+Check-Out Time: ${formatTime(r.checkOutTimeId, false)}
 Key Return: Please leave all keys and access cards/FOBs in the unit on the kitchen counter. Lock yourself out of the unit.
 Service Support / Contacts
 Concierge/Front Desk- 9th Floor:  720-457-7559 

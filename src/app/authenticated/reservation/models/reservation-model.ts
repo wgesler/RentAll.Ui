@@ -17,7 +17,7 @@ export interface ReservationRequest {
   billingRate: number;
   numberOfPeople: number;
   deposit?: number | null;
-  checkoutFee: number;
+  departureFee: number;
   maidServiceFee: number;
   frequencyId: number;
   petFee: number;
@@ -55,7 +55,7 @@ export interface ReservationResponse {
   billingRate: number;
   numberOfPeople: number;
   deposit?: number | null;
-  checkoutFee: number;
+  departureFee: number;
   maidServiceFee: number;
   frequencyId: number;
   petFee: number;

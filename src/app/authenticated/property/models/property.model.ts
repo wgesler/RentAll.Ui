@@ -6,11 +6,14 @@ export interface PropertyRequest {
   propertyCode: string;
   owner1Id: string;
   owner2Id?: string;
+  owner3Id?: string;
   isActive: boolean;
   
   // Availability section
   availableFrom?: string;
   availableUntil?: string;
+  checkInTimeId: number;
+  checkOutTimeId: number;
   minStay: number;
   maxStay: number;
   propertyStyleId: number;
@@ -18,7 +21,7 @@ export interface PropertyRequest {
   propertyStatusId: number;
   monthlyRate: number;
   dailyRate: number;
-  checkoutFee: number;
+  departureFee: number;
   maidServiceFee: number;
   petFee: number;
   bedrooms: number;
@@ -112,11 +115,14 @@ export interface PropertyResponse {
   propertyCode: string;
   owner1Id: string;
   owner2Id?: string;
+  owner3Id?: string;
   isActive: boolean;
    
   // Availability section
   availableFrom?: string;
   availableUntil?: string;
+  checkInTimeId: number;
+  checkOutTimeId: number;
   minStay: number;
   maxStay: number;
   propertyStyleId: number;
@@ -124,7 +130,7 @@ export interface PropertyResponse {
   propertyStatusId: number;
   monthlyRate: number;
   dailyRate: number;
-  checkoutFee: number;
+  departureFee: number;
   maidServiceFee: number;
   petFee: number;
   bedrooms: number;
@@ -218,6 +224,7 @@ export interface PropertyListDisplay {
   owner: string;
   owner1Id?: string;
   owner2Id?: string;
+  owner3Id?: string;
   accomodates: number;
   bedrooms: number;
   bathrooms: number;

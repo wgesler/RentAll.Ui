@@ -150,6 +150,7 @@ export class MappingService {
         owner: ownerName || '',
         owner1Id: owner1Id || o.owner1Id || '',
         owner2Id: o.owner2Id || '',
+        owner3Id: o.owner3Id || '',
         accomodates: o.accomodates,
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,

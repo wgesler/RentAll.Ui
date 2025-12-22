@@ -252,6 +252,11 @@ export class ContactComponent implements OnInit {
       isActive: isActiveValue
       });
 
+      // Disable contact type when editing (not in add mode)
+      if (!this.isAddMode) {
+        this.form.get('contactTypeId')?.disable();
+      }
+
       // Update companyId/vendorId validators based on contact type
       const companyIdControl = this.form.get('companyId');
       const vendorIdControl = this.form.get('vendorId');
