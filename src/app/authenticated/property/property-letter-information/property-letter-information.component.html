@@ -1,0 +1,146 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading letter information...</p>
+  </div>
+} @else {
+  <div class="letter-information-form-container">
+    <form [formGroup]="form" class="letter-information-form">
+      
+      <!-- Save Button at Top -->
+      <div class="form-actions top-actions">
+        <div class="flex gap-2 justify-end">
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="savePropertyLetter()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <!-- Form Fields in Expansion Panels -->
+      <mat-accordion multi="true">
+        <!-- Move In Information -->
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Move In Information</mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="form-fields">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Arrival Instructions</mat-label>
+              <textarea matInput formControlName="arrivalInstructions" rows="4"></textarea>
+            </mat-form-field>
+          </div>
+        </mat-expansion-panel>
+
+        <!-- Property Information -->
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Property Information</mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="form-fields">
+            <div class="grid grid-cols-2">
+              <mat-form-field appearance="outline">
+                <mat-label>Mailbox Instructions</mat-label>
+                <textarea matInput formControlName="mailboxInstructions" rows="3"></textarea>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Package Instructions</mat-label>
+                <textarea matInput formControlName="packageInstructions" rows="3"></textarea>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Parking Information</mat-label>
+              <textarea matInput formControlName="parkingInformation" rows="3"></textarea>
+            </mat-form-field>
+
+            <div class="grid grid-cols-3">
+              <mat-form-field appearance="outline">
+                <mat-label>Laundry</mat-label>
+                <input matInput formControlName="laundry">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Furnishings</mat-label>
+                <input matInput formControlName="providedFurnishings">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Housekeeping</mat-label>
+                <input matInput formControlName="housekeeping">
+              </mat-form-field>
+            </div>
+
+            <div class="grid grid-cols-2">
+              <mat-form-field appearance="outline">
+                <mat-label>Television Source</mat-label>
+                <input matInput formControlName="televisionSource">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Internet Service</mat-label>
+                <input matInput formControlName="internetService">
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Amenities</mat-label>
+              <textarea matInput formControlName="amenities" rows="3"></textarea>
+            </mat-form-field>
+          </div>
+        </mat-expansion-panel>
+
+        <!-- Move Out Information -->
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Move Out Information</mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="form-fields">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Key Return Instructions</mat-label>
+              <textarea matInput formControlName="keyReturn" rows="3"></textarea>
+            </mat-form-field>
+          </div>
+        </mat-expansion-panel>
+
+        <!-- Support Services -->
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Support Services</mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="form-fields">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Concierge</mat-label>
+              <input matInput formControlName="concierge">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Maintenance Email</mat-label>
+              <input matInput type="email" formControlName="emergencyContact" readonly>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>After Hours Phone</mat-label>
+              <input matInput formControlName="emergencyContactNumber" maxlength="14"
+                (blur)="formatPhone()"
+                (input)="onPhoneInput($event)"
+                placeholder="(555) 123-4567"
+                readonly>
+            </mat-form-field>
+          </div>
+        </mat-expansion-panel>
+      </mat-accordion>
+
+      <!-- Additional Notes (outside accordion) -->
+      <div class="form-fields mt-4">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Additional Notes</mat-label>
+          <textarea matInput formControlName="additionalNotes" rows="4"></textarea>
+        </mat-form-field>
+      </div>
+    </form>
+  </div>
+}
+

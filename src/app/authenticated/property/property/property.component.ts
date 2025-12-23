@@ -26,6 +26,7 @@ import { RegionResponse } from '../../region/models/region.model';
 import { AreaResponse } from '../../area/models/area.model';
 import { BuildingResponse } from '../../building/models/building.model';
 import { PropertyWelcomeLetterComponent } from '../property-welcome-letter/property-welcome-letter.component';
+import { PropertyLetterInformationComponent } from '../property-letter-information/property-letter-information.component';
 
 @Component({
   selector: 'app-property',
@@ -35,10 +36,11 @@ import { PropertyWelcomeLetterComponent } from '../property-welcome-letter/prope
     MaterialModule, 
     FormsModule, 
     ReactiveFormsModule,
-    PropertyWelcomeLetterComponent
+    PropertyWelcomeLetterComponent,
+    PropertyLetterInformationComponent
   ],
   templateUrl: './property.component.html',
-  styleUrl: './property.component.scss'
+  styleUrls: ['./property.component.scss']
 })
 
 export class PropertyComponent implements OnInit {
@@ -67,7 +69,7 @@ export class PropertyComponent implements OnInit {
   
   // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = {
-    availability: false,
+    basic: false,
     address: false,
     location: false,
     features: false,
@@ -146,7 +148,7 @@ export class PropertyComponent implements OnInit {
         // In Add Mode: all panels open, In Edit Mode: all panels closed
         const allExpanded = this.isAddMode;
         this.expandedSections = {
-          availability: allExpanded,
+          basic: allExpanded,
           address: allExpanded,
           location: allExpanded,
           features: allExpanded,
@@ -187,42 +189,6 @@ export class PropertyComponent implements OnInit {
     this.setupConditionalFields();
     
 
-  }
-
-  private loadLocationLookups(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
-
-    forkJoin({
-      franchises: this.franchiseService.getFranchises().pipe(take(1)),
-      regions: this.regionService.getRegions().pipe(take(1)),
-      areas: this.areaService.getAreas().pipe(take(1)),
-      buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1)).subscribe({
-      next: ({ franchises, regions, areas, buildings }) => {
-        this.franchises = (franchises || []).filter(f => f.organizationId === orgId && f.isActive);
-        this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
-        this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
-        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
-        
-        // If property is already loaded, update location fields in form
-        if (this.property && this.form) {
-          this.form.patchValue({
-            franchiseId: this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode'),
-            regionId: this.getCodeToId(this.property.regionCode, this.regions, 'regionCode'),
-            areaId: this.getCodeToId(this.property.areaCode, this.areas, 'areaCode'),
-            buildingId: this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode'),
-          });
-        }
-      },
-      error: (err) => {
-        console.error('Property Component - Error loading location lookups:', err);
-        this.franchises = [];
-        this.regions = [];
-        this.areas = [];
-        this.buildings = [];
-      }
-    });
   }
 
   getProperty(): void {
@@ -412,6 +378,8 @@ export class PropertyComponent implements OnInit {
       cable: new FormControl(false),
       streaming: new FormControl(false),
       fastInternet: new FormControl(false),
+      internetNetwork: new FormControl(''),
+      internetPassword: new FormControl(''),
       minStay: new FormControl<number>(0),
       maxStay: new FormControl<number>(0),
       availableFrom: new FormControl<Date | null>(null),
@@ -687,7 +655,6 @@ export class PropertyComponent implements OnInit {
   }
 
   initializePropertyStyles(): void {
-    // Build propertyStyles from the PropertyStyle enum
     this.propertyStyles = Object.keys(PropertyStyle)
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
       .map(key => ({
@@ -697,7 +664,6 @@ export class PropertyComponent implements OnInit {
   }
 
   initializePropertyStatuses(): void {
-    // Build propertyStatuses from the PropertyStatus enum
     this.propertyStatuses = Object.keys(PropertyStatus)
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
       .map(key => ({
@@ -707,9 +673,7 @@ export class PropertyComponent implements OnInit {
   }
 
   initializePropertyTypes(): void {
-    // Build propertyTypes from the PropertyType enum
-    // Include all types including Unspecified (0)
-    this.propertyTypes = Object.keys(PropertyType)
+     this.propertyTypes = Object.keys(PropertyType)
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
       .map(key => ({
         value: PropertyType[key],
@@ -794,9 +758,7 @@ export class PropertyComponent implements OnInit {
     return isNaN(parsed) ? null : parsed;
   }
 
-  // Convert ID from dropdown to Code for API
-  // Returns null if ID is null/empty/0 (meaning "All" or not selected)
-  private getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
+  getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
     if (id === null || id === undefined || id === '' || id === 0) {
       return null;
     }
@@ -809,15 +771,50 @@ export class PropertyComponent implements OnInit {
     return item?.[codeField] || null;
   }
 
-  // Convert Code from API to ID for dropdown
-  // Returns null if code is null/empty (meaning not set)
-  private getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
+  getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
     if (!code || code.trim() === '') {
       return null;
     }
     const idField = codeField.replace('Code', 'Id');
     const item = list.find(item => item[codeField] === code);
     return item?.[idField] || null;
+  }
+
+  // Load Supporting Data Methods
+  loadLocationLookups(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    forkJoin({
+      franchises: this.franchiseService.getFranchises().pipe(take(1)),
+      regions: this.regionService.getRegions().pipe(take(1)),
+      areas: this.areaService.getAreas().pipe(take(1)),
+      buildings: this.buildingService.getBuildings().pipe(take(1)),
+    }).pipe(take(1)).subscribe({
+      next: ({ franchises, regions, areas, buildings }) => {
+        this.franchises = (franchises || []).filter(f => f.organizationId === orgId && f.isActive);
+        this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+        this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        
+        // If property is already loaded, update location fields in form
+        if (this.property && this.form) {
+          this.form.patchValue({
+            franchiseId: this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode'),
+            regionId: this.getCodeToId(this.property.regionCode, this.regions, 'regionCode'),
+            areaId: this.getCodeToId(this.property.areaCode, this.areas, 'areaCode'),
+            buildingId: this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode'),
+          });
+        }
+      },
+      error: (err) => {
+        console.error('Property Component - Error loading location lookups:', err);
+        this.franchises = [];
+        this.regions = [];
+        this.areas = [];
+        this.buildings = [];
+      }
+    });
   }
 
   loadStates(): void {

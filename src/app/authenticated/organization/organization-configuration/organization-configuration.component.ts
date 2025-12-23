@@ -97,12 +97,6 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
     this.loadOrganization();
   }
 
-  buildForm(): FormGroup {
-    return this.fb.group({
-      mantenanceEmail: new FormControl(''),
-      afterHoursPhone: new FormControl('')
-    });
-  }
 
   loadOrganization(): void {
     const user = this.authService.getUser();
@@ -126,16 +120,7 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
     });
   }
 
-  populateForm(): void {
-    if (!this.organization) return;
-
-    this.organizationForm.patchValue({
-      maintenanceEmail: this.organization.maintenanceEmail || '',
-      afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || ''
-    });
-  }
-
-  saveOrganizationInformation(): void {
+    saveOrganizationInformation(): void {
     if (!this.organizationForm.valid) {
       this.organizationForm.markAllAsTouched();
       return;
@@ -192,12 +177,51 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Form Methods
+  buildForm(): FormGroup {
+    return this.fb.group({
+      maintenanceEmail: new FormControl(''),
+      afterHoursPhone: new FormControl('')
+    });
+  }
+
+  populateForm(): void {
+    if (!this.organization) return;
+
+    this.organizationForm.patchValue({
+      maintenanceEmail: this.organization.maintenanceEmail || '',
+      afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || ''
+    });
+  }
+
+  // Phone input formatting (matches Contact page behavior)
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let digits = input.value.replace(/\D/g, '');
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10);
+    }
+
+    let formatted = digits;
+    if (digits.length > 6) {
+      formatted = `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+    } else if (digits.length > 3) {
+      formatted = `(${digits.substring(0, 3)}) ${digits.substring(3)}`;
+    } else if (digits.length > 0) {
+      formatted = `(${digits}`;
+    } else {
+      formatted = '';
+    }
+
+    this.organizationForm.get('afterHoursPhone')?.setValue(formatted, { emitEvent: false });
+  }
+
   stripPhoneFormatting(phone: string): string {
     if (!phone) return '';
     return phone.replace(/\D/g, '');
   }
 
-  formatAfterHoursPhone(): void {
+  formatPhone(): void {
     const phoneControl = this.organizationForm.get('afterHoursPhone');
     if (phoneControl && phoneControl.value) {
       const phone = phoneControl.value.replace(/\D/g, '');
@@ -208,27 +232,7 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
     }
   }
 
-  onAfterHoursPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.organizationForm.get('afterHoursPhone')?.setValue(formatted, { emitEvent: false });
-    }
-  }
-
-  ngOnDestroy(): void {
-    // Clear context when leaving settings page
-    this.navigationContext.clearContext();
-  }
-
+  // Event handlers for child components
   onAgentSelected(agentId: string | null): void {
     this.agentId = agentId;
     this.isEditingAgent = agentId !== null;
@@ -318,5 +322,11 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }
+
+  ngOnDestroy(): void {
+    // Clear context when leaving settings page
+    this.navigationContext.clearContext();
+  }
+
 }
 

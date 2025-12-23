@@ -85,6 +85,8 @@ export interface PropertyRequest {
   dvd: boolean;
   streaming: boolean;
   fastInternet: boolean;
+  internetNetwork?: string;
+  internetPassword?: string;
   
   // Outdoor Spaces section
   deck: boolean;
@@ -194,7 +196,9 @@ export interface PropertyResponse {
   dvd: boolean;
   streaming: boolean;
   fastInternet: boolean;
-  
+  internetNetwork?: string;
+  internetPassword?: string;
+ 
   // Outdoor Spaces section
   deck: boolean;
   patio: boolean;

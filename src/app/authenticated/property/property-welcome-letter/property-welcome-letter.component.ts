@@ -1,290 +1,460 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
-import { FormBuilder, FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { PropertyService } from '../services/property.service';
-import { ReservationService } from '../../reservation/services/reservation.service';
-import { PropertyResponse } from '../models/property.model';
-import { ReservationResponse } from '../../reservation/models/reservation-model';
-import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
-import { CheckinTimes, CheckoutTimes } from '../models/property-enums';
+import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
-import { take } from 'rxjs';
+import { PropertyService } from '../services/property.service';
+import { PropertyResponse } from '../models/property.model';
+import { ReservationService } from '../../reservation/services/reservation.service';
+import { ReservationResponse } from '../../reservation/models/reservation-model';
+import { PropertyWelcomeService } from '../services/property-welcome.service';
+import { PropertyWelcomeRequest, PropertyWelcomeResponse } from '../models/property-welcome.model';
+import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyLetterResponse } from '../models/property-letter.model';
+import { OrganizationService } from '../../organization/services/organization.service';
+import { OrganizationResponse } from '../../organization/models/organization.model';
+import { CheckinTimes, CheckoutTimes, TrashDays } from '../models/property-enums';
+import { MatDialog } from '@angular/material/dialog';
+import { WelcomeLetterPreviewDialogComponent, WelcomeLetterPreviewData } from './welcome-letter-preview-dialog.component';
+import { finalize, take } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { ToastrService } from 'ngx-toastr';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-property-welcome-letter',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
   templateUrl: './property-welcome-letter.component.html',
-  styleUrl: './property-welcome-letter.component.scss'
+  styleUrls: ['./property-welcome-letter.component.scss']
 })
 export class PropertyWelcomeLetterComponent implements OnInit {
   @Input() propertyId: string | null = null;
   
-  property: PropertyResponse | null = null;
-  reservations: ReservationResponse[] = [];
-  filteredReservations: ReservationResponse[] = [];
   isLoading: boolean = true;
   isSubmitting: boolean = false;
   form: FormGroup;
-  
-  checkInTimes: { value: number, label: string }[] = [];
-  checkOutTimes: { value: number, label: string }[] = [];
+  property: PropertyResponse | null = null;
+  welcomeLetter: PropertyWelcomeResponse | null = null;
+  propertyLetter: PropertyLetterResponse | null = null;
+  organization: OrganizationResponse | null = null;
+  reservations: ReservationResponse[] = [];
+  selectedReservation: ReservationResponse | null = null;
+  itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization'];
 
   constructor(
+    private propertyWelcomeService: PropertyWelcomeService,
+    private propertyLetterService: PropertyLetterService,
     private propertyService: PropertyService,
+    private organizationService: OrganizationService,
     private reservationService: ReservationService,
     private authService: AuthService,
-    private fb: FormBuilder
+    private toastr: ToastrService,
+    private fb: FormBuilder,
+    private dialog: MatDialog
   ) {
-    this.initializeTimeOptions();
     this.form = this.buildForm();
-    this.setupReservationChangeHandler();
   }
 
   ngOnInit(): void {
-    if (this.propertyId) {
-      this.loadPropertyData();
-    } else {
+    if (!this.propertyId) {
       this.isLoading = false;
+      return;
     }
-  }
-
-  initializeTimeOptions(): void {
-    this.checkInTimes = [
-      { value: CheckinTimes.NA, label: 'N/A' },
-      { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckinTimes.OnePM, label: '1:00 PM' },
-      { value: CheckinTimes.TwoPM, label: '2:00 PM' },
-      { value: CheckinTimes.ThreePM, label: '3:00 PM' },
-      { value: CheckinTimes.FourPM, label: '4:00 PM' },
-      { value: CheckinTimes.FivePM, label: '5:00 PM' }
-    ];
-
-    this.checkOutTimes = [
-      { value: CheckoutTimes.NA, label: 'N/A' },
-      { value: CheckoutTimes.EightAM, label: '8:00 AM' },
-      { value: CheckoutTimes.NineAM, label: '9:00 AM' },
-      { value: CheckoutTimes.TenAM, label: '10:00 AM' },
-      { value: CheckoutTimes.ElevenAM, label: '11:00 AM' },
-      { value: CheckoutTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckoutTimes.OnePM, label: '1:00 PM' }
-    ];
-  }
-
-  buildForm(): FormGroup {
-    return this.fb.group({
-      propertyCode: new FormControl({ value: '', disabled: true }),
-      reservationId: new FormControl(null),
-      tenantName: new FormControl('', [Validators.required]),
-      buildingName: new FormControl(''),
-      arrivalDate: new FormControl(null, [Validators.required]),
-      departureDate: new FormControl(null, [Validators.required]),
-      checkInTimeId: new FormControl(CheckinTimes.FourPM, [Validators.required]),
-      checkOutTimeId: new FormControl(CheckoutTimes.ElevenAM, [Validators.required]),
-      arrivalInstructions: new FormControl('', [Validators.required]),
-      compmunityAddress: new FormControl(''),
-      apartmentAddress: new FormControl('', [Validators.required]),
-      size: new FormControl(1, [Validators.required]),
-      suite: new FormControl('', [Validators.required]),
-      access: new FormControl('', [Validators.required]),
-      mailbox: new FormControl('', [Validators.required]),
-      package: new FormControl('', [Validators.required]),
-      PparkingInformation: new FormControl('', [Validators.required]),
-      amenaties: new FormControl('', [Validators.required]),
-      Laundry: new FormControl('', [Validators.required]),
-      trashLocation: new FormControl('', [Validators.required]),
-      providedFurnishings: new FormControl('', [Validators.required]),
-      housekeeping: new FormControl(''),
-      televisionSouce: new FormControl('', [Validators.required]),
-      internetService: new FormControl('', [Validators.required]),
-      internetNetwork: new FormControl(''),
-      internetPasword: new FormControl(''),
-      keyReturn: new FormControl('', [Validators.required]),
-      supportContact: new FormControl('', [Validators.required]),
-      emergencyContact: new FormControl('', [Validators.required]),
-      emergencyContactNumber: new FormControl('', [Validators.required]),
-      additionalNotes: new FormControl('')
+    
+    // Load organization, property, reservations, welcome letter, and property letter information
+    this.loadOrganizationSettings(() => {
+      this.loadPropertyData(() => {
+        this.loadReservations(() => {
+          this.getWelcomeLetter();
+          this.loadPropertyLetterInformation();
+        });
+      });
     });
   }
 
-  loadPropertyData(): void {
-    if (!this.propertyId) return;
-
-    this.propertyService.getProperties().pipe(take(1)).subscribe({
-      next: (properties: PropertyResponse[]) => {
-        this.property = properties.find(p => p.propertyId === this.propertyId) || null;
-        if (this.property) {
-          this.form.patchValue({ propertyCode: this.property.propertyCode });
-        }
-        this.loadReservations();
-      },
-      error: (err) => {
-        console.error('Error loading property:', err);
-        this.isLoading = false;
-      }
-    });
-  }
-
-  loadReservations(): void {
-    this.reservationService.getReservations().pipe(take(1)).subscribe({
-      next: (reservations: ReservationResponse[]) => {
-        this.reservations = reservations;
-        // Filter reservations for this property
-        if (this.propertyId) {
-          this.filteredReservations = reservations.filter(r => r.propertyId === this.propertyId);
-        } else {
-          this.filteredReservations = [];
-        }
-        this.isLoading = false;
-        this.populateFormFromProperty();
-      },
-      error: (err) => {
-        console.error('Error loading reservations:', err);
-        this.isLoading = false;
-        this.populateFormFromProperty();
-      }
-    });
-  }
-
-  setupReservationChangeHandler(): void {
-    this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
-      if (reservationId) {
-        const reservation = this.filteredReservations.find(r => r.reservationId === reservationId);
-        if (reservation) {
-          this.populateFormFromReservation(reservation);
-        }
-      }
-    });
-  }
-
-  populateFormFromReservation(reservation: ReservationResponse): void {
-    const formValues: any = {
-      tenantName: reservation.tenantName || reservation.contactName || '',
-      arrivalDate: reservation.arrivalDate ? new Date(reservation.arrivalDate) : null,
-      departureDate: reservation.departureDate ? new Date(reservation.departureDate) : null,
-      checkInTimeId: reservation.checkInTimeId ?? CheckinTimes.FourPM,
-      checkOutTimeId: reservation.checkOutTimeId ?? CheckoutTimes.ElevenAM
-    };
-
-    this.form.patchValue(formValues, { emitEvent: false });
-  }
-
-  populateFormFromProperty(): void {
-    if (!this.property) return;
-
-    const formValues: any = {
-      buildingName: this.property.buildingCode || '',
-      compmunityAddress: this.getFullPropertyAddress(),
-      apartmentAddress: this.getApartmentAddress(),
-      size: this.property.bedrooms || 1,
-      suite: this.property.suite || '',
-      mailbox: this.property.mailbox || '',
-      PparkingInformation: this.property.parkingNotes || '',
-      Laundry: this.property.washerDryer ? 'Washer and dryer in unit' : '',
-      trashLocation: 'Located on the unit floor',
-      providedFurnishings: this.property.unfurnished ? 'Unfurnished' : 'Furniture & Housewares',
-      televisionSouce: this.property.cable ? 'Cable' : '',
-      internetService: this.property.fastInternet ? 'High-Speed Wireless' : '',
-      internetNetwork: this.property.amenities || '',
-      supportContact: this.property.phone || '',
-      checkInTimeId: this.property.checkInTimeId ?? CheckinTimes.FourPM,
-      checkOutTimeId: this.property.checkOutTimeId ?? CheckoutTimes.ElevenAM
-    };
-
-    // Set default values for required fields if empty
-    formValues.arrivalInstructions = formValues.arrivalInstructions || 'Temporarily find parking along the street. Go inside the front door.';
-    formValues.access = formValues.access || '1 Unit Key, 1 Mail Key, 1 FOB';
-    formValues.package = formValues.package || 'Delivered to Luxor One lockers or mailroom.';
-    formValues.amenaties = formValues.amenaties || 'Use FOB to access: Fitness Center, The Zone, 9th Floor Lounge, Café Lounge, Two Pools, Two Hot Tubs, Fire Pit, Grill Terrace, and Zen Garden.';
-    formValues.keyReturn = formValues.keyReturn || 'Leave all keys and access cards/FOBs on the kitchen counter and lock yourself out of the unit.';
-    formValues.supportContact = formValues.supportContact || '720-457-7559';
-    formValues.emergencyContact = formValues.emergencyContact || 'AvenueWest (After Hours)';
-    formValues.emergencyContactNumber = formValues.emergencyContactNumber || '800-928-1592';
-
-    this.form.patchValue(formValues);
-  }
-
-  getFullPropertyAddress(): string {
-    if (!this.property) return '';
-    const addressParts = [
-      this.property.address1,
-      this.property.address2,
-      this.property.suite
-    ].filter(p => p);
-    const address = addressParts.join(' ');
-    const cityState = `${this.property.city}, ${this.property.state}`;
-    return [address, cityState].filter(p => p).join(' ');
-  }
-
-  getApartmentAddress(): string {
-    if (!this.property) return '';
-    const addressParts = [
-      this.property.address1,
-      this.property.address2,
-      this.property.suite ? `#${this.property.suite}` : ''
-    ].filter(p => p);
-    const address = addressParts.join(' ');
-    const cityState = `${this.property.city}, ${this.property.state}`;
-    return [address, cityState].filter(p => p).join(' ');
-  }
-
-  saveWelcomeLetter(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
+  getWelcomeLetter(): void {
+    if (!this.propertyId) {
+      this.isLoading = false;
       return;
     }
 
+    this.propertyWelcomeService.getPropertyWelcomeByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('welcomeLetter'); })).subscribe({
+      next: (response: PropertyWelcomeResponse) => {
+        if (response) {
+          this.welcomeLetter = response;
+          this.form.patchValue({
+            welcomeLetter: response.welcomeLetter || ''
+          });
+
+          // Check if organizationId or propertyId is empty GUID (default letter)
+          const emptyGuid = '00000000-0000-0000-0000-000000000000';
+          const hasEmptyGuid = response.propertyId === emptyGuid ||  response.organizationId === emptyGuid ||
+                              (this.property && response.propertyId !== this.propertyId);
+          
+          if (hasEmptyGuid && this.property) {
+            // Update with actual propertyId (backend will set organizationId from property)
+            const updateRequest: PropertyWelcomeRequest = {
+              propertyId: this.propertyId,
+              organizationId: this.organization?.organizationId || '',
+              welcomeLetter: response.welcomeLetter || ''
+            };
+            
+            this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
+              next: (updatedResponse) => {
+                this.welcomeLetter = updatedResponse;
+              },
+              error: (err) => {
+                console.error('Error updating welcome letter with property/organization IDs:', err);
+              }
+            });
+          }
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.removeLoadItem('welcomeLetter');
+        this.isLoading = false;
+      }
+    });
+  }
+
+  saveWelcomeLetter(): void {
     if (!this.propertyId) {
       console.error('No property ID available');
       return;
     }
 
     this.isSubmitting = true;
-
-    const user = this.authService.getUser();
     const formValue = this.form.getRawValue();
 
-    const propertyLetterRequest: PropertyLetterRequest = {
-      propertyId: this.propertyId,
-      organizationId: user?.organizationId || this.property?.organizationId || '',
-      tenantName: formValue.tenantName,
-      buildingName: formValue.buildingName || undefined,
-      arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
-      departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
-      checkInTimeId: formValue.checkInTimeId ?? CheckinTimes.FourPM,
-      checkOutTimeId: formValue.checkOutTimeId ?? CheckoutTimes.ElevenAM,
-      arrivalInstructions: formValue.arrivalInstructions || '',
-      compmunityAddress: formValue.compmunityAddress || undefined,
-      apartmentAddress: formValue.apartmentAddress || '',
-      size: formValue.size ? Number(formValue.size) : 1,
-      suite: formValue.suite || '',
-      access: formValue.access || '',
-      mailbox: formValue.mailbox || '',
-      package: formValue.package || '',
-      PparkingInformation: formValue.PparkingInformation || '',
-      amenaties: formValue.amenaties || '',
-      Laundry: formValue.Laundry || '',
-      trashLocation: formValue.trashLocation || '',
-      providedFurnishings: formValue.providedFurnishings || '',
-      housekeeping: formValue.housekeeping || '',
-      televisionSouce: formValue.televisionSouce || '',
-      internetService: formValue.internetService || '',
-      internetNetwork: formValue.internetNetwork || '',
-      internetPasword: formValue.internetPasword || '',
-      keyReturn: formValue.keyReturn || '',
-      supportContact: formValue.supportContact || '',
-      emergencyContact: formValue.emergencyContact || '',
-      emergencyContactNumber: formValue.emergencyContactNumber || '',
-      additionalNotes: formValue.additionalNotes || ''
-    };
+    // If welcome letter exists, update it
+    if (this.welcomeLetter) {
+      const updateRequest: PropertyWelcomeRequest = {
+        propertyId: this.propertyId,
+        organizationId: this.organization?.organizationId || '',
+        welcomeLetter: formValue.welcomeLetter || ''
+      };
+      
+      this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
+        next: (response) => {
+          this.toastr.success('Welcome letter saved successfully', 'Success');
+          this.welcomeLetter = response;
+          this.isSubmitting = false;
+        },
+        error: (err) => {
+          console.error('Error updating welcome letter:', err);
+          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.isSubmitting = false;
+        }
+      });
+    } else {
+      // Welcome letter doesn't exist, create it
+      const createRequest: PropertyWelcomeRequest = {
+        propertyId: this.propertyId,
+        organizationId: this.organization?.organizationId || '',
+        welcomeLetter: formValue.welcomeLetter || ''
+      };
+      
+      this.propertyWelcomeService.createPropertyWelcome(createRequest).pipe(take(1)).subscribe({
+        next: (response) => {
+          this.toastr.success('Welcome letter saved successfully', 'Success');
+          this.welcomeLetter = response;
+          this.isSubmitting = false;
+        },
+        error: (err) => {
+          console.error('Error creating welcome letter:', err);
+          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.isSubmitting = false;
+        }
+      });
+    }
+  }
 
-    // TODO: Call service to save property letter
-    // this.propertyLetterService.savePropertyLetter(propertyLetterRequest).subscribe(...)
+  // Form building function
+  buildForm(): FormGroup {
+    return this.fb.group({
+      welcomeLetter: new FormControl(''),
+      selectedReservationId: new FormControl(null)
+    });
+  }
+
+  // Load property, reservations, and property letter data
+  loadPropertyData(next: () => void): void {
+    if (!this.propertyId) {
+      next();
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
+      next: (response: PropertyResponse) => {
+        this.property = response;
+        next();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.removeLoadItem('property');
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        next();
+      }
+    });
+  }
+
+  loadReservations(next: () => void): void {
+    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (response: ReservationResponse[]) => {
+        // Filter reservations by propertyId
+        if (this.propertyId) {
+          this.reservations = response.filter(r => r.propertyId === this.propertyId);
+          // Sort by tenant name
+          this.reservations.sort((a, b) => {
+            const nameA = (a.tenantName || '').toLowerCase();
+            const nameB = (b.tenantName || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+          });
+        }
+        next();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.removeLoadItem('reservations');
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservations at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        next();
+      }
+    });
+  }
+
+
+  loadOrganizationSettings(next: () => void): void {
+    const orgId = this.authService.getUser()?.organizationId;
+    if (!orgId) {
+      next();
+      return;
+    }
+
+    this.organizationService.getOrganizationByGuid(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+      next: (org: OrganizationResponse) => {
+        this.organization = org;
+        next();
+      },
+      error: () => {
+        this.removeLoadItem('organization');
+        next();
+      }
+    });
+  }
+
+  loadPropertyLetterInformation(): void {
+    if (!this.propertyId) {
+      this.isLoading = false;
+      return;
+    }
+
+    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyLetter'); })).subscribe({
+      next: (response: PropertyLetterResponse) => {
+        if (response) {
+          this.propertyLetter = response;
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.removeLoadItem('propertyLetter');
+        this.isLoading = false;
+      }
+    });
+  }
+
+  onReservationSelected(reservationId: string | null): void {
+    if (reservationId) {
+      this.selectedReservation = this.reservations.find(r => r.reservationId === reservationId) || null;
+    } else {
+      this.selectedReservation = null;
+    }
+  }
+
+  previewWelcomeLetter(): void {
+    const formValue = this.form.getRawValue();
+    const welcomeLetterHtml = formValue.welcomeLetter || '';
     
-    console.log('Property Letter Request:', propertyLetterRequest);
-    this.isSubmitting = false;
+    if (!welcomeLetterHtml.trim()) {
+      this.toastr.warning('Please enter a welcome letter to preview', 'No Content');
+      return;
+    }
+
+    // Replace placeholders with actual data
+    const previewHtml = this.replacePlaceholders(welcomeLetterHtml);
+
+    // Open preview dialog
+    this.dialog.open(WelcomeLetterPreviewDialogComponent, {
+      width: '90%',
+      maxWidth: '1200px',
+      maxHeight: '90vh',
+      data: {
+        html: previewHtml
+      } as WelcomeLetterPreviewData
+    });
+  }
+
+  replacePlaceholders(html: string): string {
+    let result = html;
+
+    // Replace reservation placeholders
+    if (this.selectedReservation) {
+      result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
+      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatDate(this.selectedReservation.arrivalDate) || '');
+      result = result.replace(/\{\{departureDate\}\}/g, this.formatDate(this.selectedReservation.departureDate) || '');
+      result = result.replace(/\{\{checkInTime\}\}/g, this.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = result.replace(/\{\{checkOutTime\}\}/g, this.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+    }
+
+    // Replace property placeholders
+    if (this.property) {
+      result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
+      result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
+      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
+      result = result.replace(/\{\{building\}\}/g, this.property.buildingCode || 'N/A');
+      result = result.replace(/\{\{size\}\}/g, this.property.bedrooms?.toString() || 'N/A');
+      result = result.replace(/\{\{phone\}\}/g, this.property.phone || 'N/A');
+      result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
+      result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
+      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
+      result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
+    }
+
+    // Replace property letter placeholders
+    if (this.propertyLetter) {
+      result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyLetter.arrivalInstructions || '');
+      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyLetter.mailboxInstructions || '');
+      result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyLetter.packageInstructions || '');
+      result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyLetter.parkingInformation || '');
+      result = result.replace(/\{\{laundry\}\}/g, this.propertyLetter.laundry || '');
+      result = result.replace(/\{\{providedFurnishings\}\}/g, this.propertyLetter.providedFurnishings || '');
+      result = result.replace(/\{\{housekeeping\}\}/g, this.propertyLetter.housekeeping || '');
+      result = result.replace(/\{\{televisionSource\}\}/g, this.propertyLetter.televisionSource || '');
+      result = result.replace(/\{\{internetService\}\}/g, this.propertyLetter.internetService || '');
+      result = result.replace(/\{\{keyReturn\}\}/g, this.propertyLetter.keyReturn || '');
+      result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
+    }
+
+    // Replace organization placeholders
+    if (this.organization) {
+      const maintenanceEmail = (this.organization as any).maintenanceEmail || this.propertyLetter?.emergencyContact || '';
+      const afterHoursPhone = (this.organization as any).afterHoursPhone || this.propertyLetter?.emergencyContactNumber || '';
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, afterHoursPhone);
+    } else if (this.propertyLetter) {
+      // Fallback to property letter if organization not loaded
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyLetter.emergencyContact || '');
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.propertyLetter.emergencyContactNumber || '');
+    }
+
+    // Replace any remaining placeholders with empty string
+    result = result.replace(/\{\{[^}]+\}\}/g, '');
+
+    return result;
+  }
+
+  getCommunityAddress(): string {
+    if (!this.property) return '';
+    const parts = [
+      this.property.address1,
+      this.property.city,
+      this.property.state,
+      this.property.zip
+    ].filter(p => p);
+    return parts.join(', ');
+  }
+
+  getApartmentAddress(): string {
+    if (!this.property) return '';
+    const parts = [
+      this.property.address1,
+      this.property.suite ? `#${this.property.suite}` : '',
+      this.property.city,
+      this.property.state,
+      this.property.zip
+    ].filter(p => p);
+    return parts.join(', ');
+  }
+
+  formatDate(dateString: string | undefined): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return dateString;
+    }
+  }
+
+  getCheckInTime(checkInTimeId: number | undefined): string {
+    if (!checkInTimeId) return '';
     
-    // For now, just log the request. You'll need to implement the service call.
+    const timeMap: { [key: number]: string } = {
+      [CheckinTimes.NA]: 'N/A',
+      [CheckinTimes.TwelvePM]: '12:00 PM',
+      [CheckinTimes.OnePM]: '1:00 PM',
+      [CheckinTimes.TwoPM]: '2:00 PM',
+      [CheckinTimes.ThreePM]: '3:00 PM',
+      [CheckinTimes.FourPM]: '4:00 PM',
+      [CheckinTimes.FivePM]: '5:00 PM'
+    };
+    
+    return timeMap[checkInTimeId] || '';
+  }
+
+  getCheckOutTime(checkOutTimeId: number | undefined): string {
+    if (!checkOutTimeId) return '';
+    
+    const timeMap: { [key: number]: string } = {
+      [CheckoutTimes.NA]: 'N/A',
+      [CheckoutTimes.EightAM]: '8:00 AM',
+      [CheckoutTimes.NineAM]: '9:00 AM',
+      [CheckoutTimes.TenAM]: '10:00 AM',
+      [CheckoutTimes.ElevenAM]: '11:00 AM',
+      [CheckoutTimes.TwelvePM]: '12:00 PM',
+      [CheckoutTimes.OnePM]: '1:00 PM'
+    };
+    
+    return timeMap[checkOutTimeId] || '';
+  }
+
+  getTrashLocation(): string {
+    if (!this.property) return 'N/A';
+    
+    const trashPickupDay = this.getTrashPickupDay(this.property.trashPickupId);
+    const removalLocation = this.property.trashRemoval || 'N/A';
+    
+    if (trashPickupDay && removalLocation !== 'N/A') {
+      return `Trash is picked up on ${trashPickupDay}. The Location is: ${removalLocation}.`;
+    } else if (trashPickupDay) {
+      return `Trash is picked up on ${trashPickupDay}.`;
+    } else if (removalLocation !== 'N/A') {
+      return `The Removal location is: ${removalLocation}.`;
+    }
+    
+    return 'N/A';
+  }
+
+  getTrashPickupDay(trashPickupId: number | undefined): string {
+    if (!trashPickupId) return '';
+    
+    const dayMap: { [key: number]: string } = {
+      [TrashDays.Monday]: 'Monday',
+      [TrashDays.Tuesday]: 'Tuesday',
+      [TrashDays.Wednesday]: 'Wednesday',
+      [TrashDays.Thursday]: 'Thursday',
+      [TrashDays.Friday]: 'Friday',
+      [TrashDays.Saturday]: 'Saturday',
+      [TrashDays.Sunday]: 'Sunday'
+    };
+    
+    return dayMap[trashPickupId] || '';
+  }
+
+  removeLoadItem(itemToRemove: string): void {
+    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }

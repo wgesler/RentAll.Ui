@@ -245,11 +245,11 @@ export class ContactComponent implements OnInit {
         address2: this.contact.address2 || '',
         city: this.contact.city || '',
         state: this.contact.state || '',
-      zip: this.contact.zip || '',
-      phone: this.formatterService.phoneNumber(this.contact.phone),
-      email: this.contact.email,
-      notes: this.contact.notes || '',
-      isActive: isActiveValue
+        zip: this.contact.zip || '',
+        phone: this.formatterService.phoneNumber(this.contact.phone),
+        email: this.contact.email,
+        notes: this.contact.notes || '',
+        isActive: isActiveValue
       });
 
       // Disable contact type when editing (not in add mode)

@@ -30,16 +30,16 @@
                   <div class="grid grid-cols-2 gap-4 mb-4">
                     <mat-form-field appearance="outline">
                       <mat-label>Maintenance Email</mat-label>
-                      <input matInput type="email" formControlName="mantenanceEmail" placeholder="maintenance@example.com">
+                      <input matInput type="email" formControlName="maintenanceEmail" placeholder="maintenance@example.com">
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline">
-                      <mat-label>After Hours Phone</mat-label>
-                      <input matInput formControlName="afterHoursPhone" maxlength="14" 
-                        (blur)="formatAfterHoursPhone()" 
-                        (input)="onAfterHoursPhoneInput($event)"
-                        placeholder="(555) 123-4567">
-                    </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>After Hours Phone</mat-label>
+                    <input matInput formControlName="afterHoursPhone" maxlength="14"
+                      (blur)="formatPhone()" 
+                      (input)="onPhoneInput($event)"
+                      placeholder="(555) 123-4567">
+                  </mat-form-field>
                   </div>
 
                   <div class="flex justify-end gap-2">

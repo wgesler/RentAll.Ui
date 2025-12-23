@@ -158,6 +158,8 @@ export class OrganizationComponent implements OnInit {
       zip: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required]),
       website: new FormControl(''),
+      maintenanceEmail: new FormControl(''),
+      afterHoursPhone: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -175,6 +177,8 @@ export class OrganizationComponent implements OnInit {
         zip: this.organization.zip,
         phone: this.formatterService.phoneNumber(this.organization.phone),
         website: this.organization.website || '',
+        maintenanceEmail: this.organization.maintenanceEmail || '',
+        afterHoursPhone: this.organization.afterHoursPhone || '',
         isActive: this.organization.isActive
       });
     }

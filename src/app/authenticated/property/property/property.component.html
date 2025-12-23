@@ -14,11 +14,6 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || !form.valid">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
         </div>
       </div>
         
@@ -26,11 +21,16 @@
         <mat-tab-group [selectedIndex]="0" class="property-tabs">
           <mat-tab label="Property">
             <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
-            <!-- First line: IsActive right justified -->
-            <div class="mb-4 flex justify-end">
-              <mat-checkbox formControlName="isActive" color="primary" class="mr-3">
+            <!-- First line: IsActive and save button right justified -->
+            <div class="mb-4 flex justify-end items-center gap-3">
+              <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || !form.valid">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
             </div>
             
             <!-- Second line: PropertyCode, Owner1, Owner2, Owner3 - filling card width -->
@@ -75,10 +75,10 @@
             </div>
 
             <mat-accordion multi="true">
-            <!-- Availability Section -->
-            <mat-expansion-panel [expanded]="expandedSections.availability" (opened)="onPanelOpened('availability')" (closed)="onPanelClosed('availability')" class="mb-4">
+            <!-- Basic Rental Information Section -->
+            <mat-expansion-panel [expanded]="expandedSections.basic" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
               <mat-expansion-panel-header>
-                <mat-panel-title>Availability</mat-panel-title>
+                <mat-panel-title>Basic Rental Information</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="features-container">
                 <!-- Row 1: AvailableFrom, AvailableUntil, Check-In, Check-Out, Min-Stay, Max-Stay -->
@@ -478,6 +478,16 @@
                     </div>
                   </div>
                 </div>
+                <div class="col-span-4 grid grid-cols-2 gap-x-1.5">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Internet Network</mat-label>
+                    <input matInput formControlName="internetNetwork">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Internet Password</mat-label>
+                    <input matInput formControlName="internetPassword">
+                  </mat-form-field>
+                </div>
               </div>
             </mat-expansion-panel>
 
@@ -594,6 +604,10 @@
               </div>
             }
         </form>
+          </mat-tab>
+          
+          <mat-tab label="Letter Information">
+            <app-property-letter-information [propertyId]="isAddMode ? null : propertyId"></app-property-letter-information>
           </mat-tab>
           
           <mat-tab label="Welcome Letter">

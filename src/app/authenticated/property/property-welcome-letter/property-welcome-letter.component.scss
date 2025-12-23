@@ -1,58 +1,39 @@
-.welcome-letter-form-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+.welcome-letter-container {
+  padding: 1.5rem;
 }
 
 .welcome-letter-form {
-  .form-section {
-    margin-bottom: 30px;
-    padding: 20px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 
-    h2 {
-      font-size: 20px;
-      margin-bottom: 20px;
-      color: #333;
-      font-weight: 600;
-    }
-  }
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 
-  .grid {
-    display: grid;
-    gap: 16px;
-  }
+.property-code-field {
+  width: 18ch;
+  min-width: 18ch;
+  max-width: 18ch;
+}
 
-  .grid-cols-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.reservation-dropdown {
+  min-width: 300px;
+  width: 100%;
+  max-width: 400px;
+}
 
-  .full-width {
-    width: 100%;
-    grid-column: 1 / -1;
-  }
+.editor-section {
+  width: 100%;
+}
 
-  mat-form-field {
-    width: 100%;
-  }
-
-  .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    padding: 20px 0;
-    margin-top: 20px;
-    border-top: 1px solid #e0e0e0;
-
-    button {
-      min-width: 150px;
-    }
-  }
-
-  .inline-spinner {
-    display: inline-block;
-    margin-right: 8px;
-  }
+.full-width {
+  width: 100%;
 }
 
 .loading-container {
@@ -60,23 +41,18 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
-  text-align: center;
+  padding: 3rem;
+  gap: 1rem;
 
   p {
-    margin-top: 20px;
+    margin-top: 1rem;
     color: #666;
   }
 }
 
-@media (max-width: 768px) {
-  .welcome-letter-form-container {
-    padding: 10px;
-  }
-
-  .welcome-letter-form {
-    .grid-cols-2 {
-      grid-template-columns: 1fr;
-    }
-  }
+// Ensure textarea has proper styling
+textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
 }
