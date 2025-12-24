@@ -25,8 +25,8 @@ import { FranchiseResponse } from '../../franchise/models/franchise.model';
 import { RegionResponse } from '../../region/models/region.model';
 import { AreaResponse } from '../../area/models/area.model';
 import { BuildingResponse } from '../../building/models/building.model';
-import { PropertyWelcomeLetterComponent } from '../property-welcome-letter/property-welcome-letter.component';
-import { PropertyLetterInformationComponent } from '../property-letter-information/property-letter-information.component';
+import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
+import { PropertyLetterInformationComponent } from '../property-information/property-letter-information.component';
 
 @Component({
   selector: 'app-property',
