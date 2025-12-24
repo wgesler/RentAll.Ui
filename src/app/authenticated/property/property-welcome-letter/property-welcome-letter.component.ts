@@ -20,6 +20,7 @@ import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -51,7 +52,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private formatterService: FormatterService
   ) {
     this.form = this.buildForm();
   }
@@ -316,11 +318,15 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{building\}\}/g, this.property.buildingCode || 'N/A');
       result = result.replace(/\{\{size\}\}/g, this.property.bedrooms?.toString() || 'N/A');
-      result = result.replace(/\{\{phone\}\}/g, this.property.phone || 'N/A');
+      result = result.replace(/\{\{unitFloorLevel\}\}/g, this.property.suite || 'N/A');
+      result = result.replace(/\{\{buildingInfo\}\}/g, this.getBuildingInfo());
+      result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
-      result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
+      result = result.replace(/\{\{keypadAccess\}\}/g, this.property.tenantKeyCode || '');
+      result = result.replace(/\{\{alarmCode\}\}/g, this.property.alarmCode || '');
+
     }
 
     // Replace property letter placeholders
@@ -329,6 +335,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyLetter.mailboxInstructions || '');
       result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyLetter.packageInstructions || '');
       result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyLetter.parkingInformation || '');
+      result = result.replace(/\{\{access\}\}/g, this.propertyLetter.access || '');
+      result = result.replace(/\{\{amenities\}\}/g, this.propertyLetter.amenities || '');
       result = result.replace(/\{\{laundry\}\}/g, this.propertyLetter.laundry || '');
       result = result.replace(/\{\{providedFurnishings\}\}/g, this.propertyLetter.providedFurnishings || '');
       result = result.replace(/\{\{housekeeping\}\}/g, this.propertyLetter.housekeeping || '');
@@ -338,16 +346,27 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
     }
 
+    // Handle logo first - remove img tag if no logo exists, before other replacements
+    const logoDataUrl = this.organization?.fileDetails?.dataUrl;
+    if (!logoDataUrl) {
+      // Remove img tags that contain the logoBase64 placeholder (before replacement)
+      result = result.replace(/<img[^>]*\{\{logoBase64\}\}[^>]*\s*\/?>/gi, '');
+    }
+
     // Replace organization placeholders
     if (this.organization) {
       const maintenanceEmail = (this.organization as any).maintenanceEmail || this.propertyLetter?.emergencyContact || '';
       const afterHoursPhone = (this.organization as any).afterHoursPhone || this.propertyLetter?.emergencyContactNumber || '';
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, afterHoursPhone);
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
+      // Replace logo placeholder with dataUrl if it exists
+      if (logoDataUrl) {
+        result = result.replace(/\{\{logoBase64\}\}/g, logoDataUrl);
+      }
     } else if (this.propertyLetter) {
       // Fallback to property letter if organization not loaded
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyLetter.emergencyContact || '');
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.propertyLetter.emergencyContactNumber || '');
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyLetter.emergencyContactNumber) || '');
     }
 
     // Replace any remaining placeholders with empty string
@@ -452,6 +471,16 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     };
     
     return dayMap[trashPickupId] || '';
+  }
+
+  getBuildingInfo(): string {
+    if (!this.property) return 'Building: N/A\t\tSize: N/A\t\t\tUnit Floor level: N/A';
+    
+    const building = this.property.buildingCode || 'N/A';
+    const size = this.property.bedrooms?.toString() || 'N/A';
+    const unitFloorLevel = this.property.suite || 'N/A'; // Using suite as unit/floor level, adjust if needed
+    
+    return `Building: ${building}\t\tSize: ${size}\t\t\tUnit Floor level: ${unitFloorLevel}`;
   }
 
   removeLoadItem(itemToRemove: string): void {

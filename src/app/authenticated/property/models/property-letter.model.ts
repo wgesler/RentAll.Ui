@@ -5,6 +5,7 @@ export interface PropertyLetterRequest {
   mailboxInstructions?: string;
   packageInstructions?: string;
   parkingInformation?: string;  
+  access?: string;
   amenities?: string;
   laundry?: string;
   providedFurnishings?: string;
@@ -28,6 +29,7 @@ export interface PropertyLetterResponse {
   mailboxInstructions?: string;
   packageInstructions?: string;
   parkingInformation?: string;  
+  access?: string;
   amenities?: string;
   laundry?: string;
   providedFurnishings?: string;
@@ -56,7 +58,7 @@ export interface PropertyLetterFormData {
   apartmentAddress: string;
   size: number;
   suite: string;
-  access: string;
+  keypadAccess: string;
   trashLocation: string;
   
   // API fields (sent to/from API - these map to PropertyLetterRequest/Response)
@@ -64,6 +66,7 @@ export interface PropertyLetterFormData {
   mailbox: string | null;
   package: string | null;
   parkingInformation: string | null;
+  access: string | null;
   amenaties: string | null;
   laundry: string | null;
   providedFurnishings: string | null;

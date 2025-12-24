@@ -154,7 +154,7 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
       zip: this.organization.zip,
       phone: this.organization.phone,
       website: this.organization.website || '',
-      logoStorageId: this.organization.logoStorageId || undefined,
+      logoPath: this.organization.logoPath || undefined,
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       afterHoursPhone: afterHoursPhoneDigits || undefined,
       isActive: this.organization.isActive

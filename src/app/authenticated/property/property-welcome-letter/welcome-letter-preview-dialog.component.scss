@@ -13,10 +13,6 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-.close-button {
-  margin-left: auto;
-}
-
 .preview-content {
   flex: 1;
   overflow: auto;
@@ -33,13 +29,15 @@
   :deep(*) {
     max-width: 100%;
   }
+
+  // Fix heading underlines to only extend to text width, not full line
+  :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+    display: inline-block;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+    width: fit-content;
+  }
 }
 
-.preview-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e0e0;
-  background-color: #f5f5f5;
-}
 

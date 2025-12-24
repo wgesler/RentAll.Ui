@@ -4,17 +4,11 @@
       <mat-icon color="primary">preview</mat-icon>
       <span class="text-xl font-medium">Welcome Letter Preview</span>
     </div>
-    <button mat-icon-button mat-dialog-close class="close-button" (click)="onClose()">
-      <mat-icon>close</mat-icon>
-    </button>
+    <button mat-raised-button color="primary" mat-dialog-close (click)="onClose()">Close</button>
   </div>
 
   <mat-dialog-content class="preview-content">
     <div class="preview-html-wrapper" [innerHTML]="data.html | safe_html"></div>
   </mat-dialog-content>
-
-  <mat-dialog-actions class="preview-actions">
-    <button mat-raised-button color="primary" (click)="onClose()">Close</button>
-  </mat-dialog-actions>
 </div>
 

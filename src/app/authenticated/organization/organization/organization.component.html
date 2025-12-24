@@ -123,7 +123,7 @@
 
             <mat-form-field appearance="outline" class="col-span-2">
               <mat-label>After Hours Phone</mat-label>
-              <input matInput formControlName="afterHoursPhone" maxlength="20">
+              <input matInput formControlName="afterHoursPhone" maxlength="14" (blur)="formatAfterHoursPhone()" (input)="onAfterHoursPhoneInput($event)">
             </mat-form-field>
             </div>
 
@@ -131,25 +131,35 @@
 
             <h3 class="pt-3">Organization Logo</h3>
             <div class="flex justify-start image-input items-center mb-4">
-              <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                Choose Image
-              </button>
-              @if (fileName) {
-                <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Organization Logo" title="Organization Logo" src="{{ 'data:image/*;base64,' + fileDetails.file }}" />
-                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
-                    <mat-icon>close</mat-icon>
+              @if (fileDetails && fileDetails.file) {
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Organization Logo" title="Organization Logo" [src]="'data:' + fileDetails.contentType + ';base64,' + fileDetails.file" />
+                <div class="flex flex-col gap-2 ml-4">
+                  @if (fileName) {
+                    <span class="text-sm font-semibold">{{ fileName }}</span>
+                  }
+                  <div class="flex flex-col gap-2">
+                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                      Choose Image
+                    </button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                      Delete Image
+                    </button>
+                  </div>
+                </div>
+              } @else if (logoPath && !fileDetails) {
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Organization Logo" title="Organization Logo" [src]="logoPath" />
+                <div class="flex flex-col gap-2 ml-4">
+                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                    Choose Image
+                  </button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                    Delete Image
                   </button>
                 </div>
-                <span class="text-sm font-semibold ml-2">{{ fileName }}</span>
-              }
-              @if (logoImgUrl && !fileName) {
-                <div class="relative inline-block ml-2">
-                  <img class="object-scale-down h-44 w-80" id="profile-image" alt="Organization Logo" title="Organization Logo" src="{{ logoImgUrl }}" />
-                  <button type="button" mat-icon-button color="warn" class="absolute top-0 right-0 bg-white rounded-full shadow-md" (click)="removeLogo()" matTooltip="Remove logo">
-                    <mat-icon>close</mat-icon>
-                  </button>
-                </div>
+              } @else {
+                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                  Choose Image
+                </button>
               }
               <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
             </div>

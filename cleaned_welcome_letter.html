@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Arrival & Apartment Information</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      color: #000;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      position: relative;
+      margin-bottom: 0;
+      min-height: 80px;
+    }
+
+    .logo {
+      position: absolute;
+      top: 0;
+      left: 0;
+      max-height: 60px;
+      max-width: 200px;
+      display: block;
+    }
+
+    .content {
+      margin-top: 120px;
+    }
+
+    h1, h3 {
+      color: #2c3e50;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #000;
+      text-decoration-line: underline;
+      text-decoration-color: #111;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .label {
+      font-weight: 800;
+    }
+
+    .separator-label {
+      margin-left: 2rem;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Logo Header -->
+  <div class="header">
+    <img
+      src="{{logoBase64}}"
+      alt="Company Logo"
+      class="logo"
+    />
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- First Content Block -->
+    <div class="text-center">
+      <h1>Arrival Information</h1>
+
+      <div class="section">
+        <p><span class="label">Guest:</span> {{tenantName}}</p>
+        <p><span class="label">Community:</span> {{building}}</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Move-In Information / Check-In</h2>
+      <p><span class="label">Arrival Date:</span> {{arrivalDate}}</p>
+      <p><span class="label">Check-In Time:</span> {{checkInTime}}</p>
+      <p><span class="label">Arrival Instructions:</span> {{arrivalInstructions}}</p>
+    </div>
+
+    <div class="section">
+      <h2>Apartment Information</h2>
+
+      <p><span class="label">Community Address:</span> {{communityAddress}}</p>
+      <p><span class="label">Your Apartment Address:</span> {{apartmentAddress}}</p>
+
+      <p>
+        <span class="label">Building:</span> {{building}}
+        <span class="label separator-label">Size:</span> {{size}}
+        <span class="label separator-label">Unit Floor Level:</span> {{unitFloorLevel}}
+      </p>
+
+      <p>
+        <span class="label">Access:</span> {{access}}
+        <span class="label separator-label">Alarm:</span> {{alarmCode}}
+        <span class="label separator-label">Keypad Access:</span> {{keypadAccess}}
+      </p>
+
+      <p><span class="label">Phone Number:</span> {{phone}}</p>
+      <p><span class="label">Mailbox:</span> {{mailboxInstructions}}</p>
+      <p><span class="label">Packages:</span> {{packageInstructions}}</p>
+      <p><span class="label">Parking Information:</span> {{parkingInformation}}</p>
+      <p><span class="label">Amenities:</span> {{amenities}}</p>
+      <p><span class="label">Laundry:</span> {{laundry}}</p>
+      <p><span class="label">Trash Location:</span> {{trashLocation}}</p>
+      <p><span class="label">Provided Furnishings:</span> {{providedFurnishings}}</p>
+      <p><span class="label">Television Source:</span> {{televisionSource}}</p>
+
+      <p><span class="label">Internet Service:</span> {{internetService}}</p>
+      <p>
+        <span class="label">Network:</span> {{internetNetwork}}
+        <span class="label separator-label">Password:</span> {{internetPassword}}
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>Move-Out Information</h2>
+      <p><span class="label">Departure Date:</span> {{departureDate}}</p>
+      <p><span class="label">Departure Time:</span> {{checkOutTime}}</p>
+      <p><span class="label">Key Return:</span> {{keyReturn}}</p>
+    </div>
+
+    <div class="section">
+      <h2>Service Support / Contacts</h2>
+      <p><span class="label">Concierge / Front Desk:</span> {{concierge}}</p>
+      <p><span class="label">Guest Service / Maintenance:</span> {{maintenanceEmail}}</p>
+      <p><span class="label">After Hours:</span> {{afterHoursPhone}}</p>
+    </div>
+  </div>
+</body>
+</html>
+

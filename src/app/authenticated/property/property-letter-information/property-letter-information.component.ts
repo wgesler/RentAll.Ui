@@ -70,6 +70,7 @@ export class PropertyLetterInformationComponent implements OnInit {
         if (response) {
           this.form.patchValue({
             arrivalInstructions: response.arrivalInstructions || '',
+            access: response.access || '',
             mailboxInstructions: response.mailboxInstructions || '',
             packageInstructions: response.packageInstructions || '',
             parkingInformation: response.parkingInformation || '',
@@ -115,6 +116,7 @@ export class PropertyLetterInformationComponent implements OnInit {
       propertyId: this.propertyId,
       organizationId: user?.organizationId || '',
       arrivalInstructions: formValue.arrivalInstructions || undefined,
+      access: formValue.access || undefined,
       mailboxInstructions: formValue.mailboxInstructions || undefined,
       packageInstructions: formValue.packageInstructions || undefined,
       parkingInformation: formValue.parkingInformation || undefined,
@@ -202,6 +204,7 @@ export class PropertyLetterInformationComponent implements OnInit {
   buildForm(): FormGroup {
     return this.fb.group({
       arrivalInstructions: new FormControl(''),
+      access: new FormControl(''),
       mailboxInstructions: new FormControl(''),
       packageInstructions: new FormControl(''),
       parkingInformation: new FormControl(''),

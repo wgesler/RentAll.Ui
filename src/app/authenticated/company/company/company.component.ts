@@ -6,13 +6,12 @@ import { take, finalize, filter } from 'rxjs';
 import { CompanyService } from '../services/company.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts, emptyGuid } from '../../../enums/common-message.enum';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { CompanyResponse, CompanyListDisplay, CompanyRequest } from '../models/company.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
-import { ExternalStorageService } from '../../../services/external-storage.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
@@ -34,8 +33,9 @@ export class CompanyComponent implements OnInit {
   form: FormGroup;
   fileDetails: FileDetails = null;
   fileName: string = null;
-  logoImgUrl: string = null;
-  logoStorageId?: string = null;
+  hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
+  logoPath: string = null;
+  originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
   isLoadError: boolean = false;
   isUploadingLogo: boolean = false;
@@ -48,7 +48,6 @@ export class CompanyComponent implements OnInit {
     public fb: FormBuilder,
     private route: ActivatedRoute,
     private toastr: ToastrService,
-    private externalStorageService: ExternalStorageService,
     private commonService: CommonService,
     private formatterService: FormatterService,
     private authService: AuthService
@@ -79,7 +78,15 @@ export class CompanyComponent implements OnInit {
     this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.removeLoadItem('company'); })).subscribe({
       next: (response: CompanyResponse) => {
         this.company = response;
-        this.getStoragePublicUrl(this.company.logoStorageId);
+        // Load logo from fileDetails if present (contains base64 image data)
+        if (response.fileDetails && response.fileDetails.file) {
+          this.fileDetails = response.fileDetails;
+          this.hasNewFileUpload = false; // FileDetails from API, not a new upload
+        } else if (response.logoPath) {
+          // Fallback to logoPath if fileDetails not available
+          this.logoPath = response.logoPath;
+          this.originalLogoPath = response.logoPath; // Track original for removal detection
+        }
         this.buildForm();
         this.populateForm();
       },
@@ -117,8 +124,10 @@ export class CompanyComponent implements OnInit {
       website: formValue.website || '',
       notes: formValue.notes || '',
       phone: phoneDigits,
-      logoStorageId: this.logoStorageId || null,
-      fileDetails: this.fileDetails || undefined
+      // Only send fileDetails if a new file was uploaded (not from API response)
+      // Otherwise: send logoPath (existing path, or null if logo was removed)
+      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
+      logoPath: this.hasNewFileUpload ? undefined : this.logoPath
     };
 
     // Defensive guard: required fields must remain non-empty
@@ -165,44 +174,28 @@ export class CompanyComponent implements OnInit {
       this.fileName = file.name;
       this.form.patchValue({ fileUpload: file });
       this.form.get('fileUpload').updateValueAndValidity();
-      this.logoStorageId = null;
+      this.logoPath = null; // Clear existing logo path when new file is selected
+      this.hasNewFileUpload = true; // Mark that this is a new file upload
 
       this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '' });
       const fileReader = new FileReader();
       fileReader.onload = (): void => {
+        // Convert file to base64 string for preview and upload
         this.fileDetails.file = btoa(fileReader.result as string);
+        this.isUploadingLogo = false;
       };
       fileReader.readAsBinaryString(file);
     }
   }
 
   removeLogo(): void {
-    this.logoImgUrl = null;
-    this.logoStorageId = null;
+    this.logoPath = null;
     this.fileName = null;
     this.fileDetails = null;
+    this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
     this.form.get('fileUpload').updateValueAndValidity();
-  }
-
-  getStoragePublicUrl(fileStorageGuid: string): void {
-    if (fileStorageGuid && fileStorageGuid !== null && fileStorageGuid !== '' && fileStorageGuid !== emptyGuid) {
-      this.logoStorageId = fileStorageGuid;
-      this.externalStorageService.getPublicFileUrl(fileStorageGuid)
-        .pipe(take(1), finalize(() => this.removeLoadItem('logo'))).subscribe({
-          next: (response: string) => {
-            this.logoImgUrl = response;
-          },
-          error: (err: HttpErrorResponse) => {
-            this.isLoadError = true;
-            if (err.status !== 400) {
-              this.toastr.error('Could not get stored logo.', CommonMessage.ServiceError);
-            }
-          }
-        });
-    } else {
-      this.removeLoadItem('logo');
-    }
+    // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
 
     // Form methods

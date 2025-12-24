@@ -71,7 +71,6 @@ export class MappingService {
         zip: o.zip,
         phone: this.formatPhoneNumber(o.phone),
         website: o.website,
-        logoStorageId: o.logoStorageId,
         isActive: o.isActive,
       };
     });
@@ -126,7 +125,6 @@ export class MappingService {
       zip: org.zip,
       phone: this.formatPhoneNumber(org.phone),
       website: org.website,
-      logoStorageId: org.logoStorageId,
       isActive: org.isActive
     }));
   }

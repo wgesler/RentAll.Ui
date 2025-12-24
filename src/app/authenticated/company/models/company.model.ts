@@ -13,9 +13,9 @@ export interface CompanyRequest {
   zip: string;
   phone: string;
   website?: string;
-  logoStorageId?: string;
+  logoPath?: string; // File path (e.g., '/images/logos/company-logo.png')
   notes?: string;
-  fileDetails?: FileDetails;
+  fileDetails?: FileDetails; // Used for upload - contains base64 image data
   isActive: boolean;
 }
 
@@ -32,7 +32,8 @@ export interface CompanyResponse {
   zip: string;
   phone: string;
   website?: string;
-  logoStorageId?: string;
+  logoPath?: string; // File path (e.g., '/images/logos/company-logo.png')
+  fileDetails?: FileDetails; // Contains base64 image data for display
   notes?: string;
   isActive: boolean;
   createdOn: string;
