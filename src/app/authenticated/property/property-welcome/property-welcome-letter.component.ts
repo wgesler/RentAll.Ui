@@ -288,13 +288,23 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     // Replace placeholders with actual data
     const previewHtml = this.replacePlaceholders(welcomeLetterHtml);
 
+    // Get tenant email from selected reservation
+    const tenantEmail = this.selectedReservation?.contactEmail || '';
+    // Get organization name
+    const organizationName = this.organization?.name || '';
+    // Get tenant name
+    const tenantName = this.selectedReservation?.tenantName || '';
+
     // Open preview dialog
     this.dialog.open(WelcomeLetterPreviewDialogComponent, {
       width: '90%',
       maxWidth: '1200px',
       maxHeight: '90vh',
       data: {
-        html: previewHtml
+        html: previewHtml,
+        email: tenantEmail,
+        organizationName: organizationName,
+        tenantName: tenantName
       } as WelcomeLetterPreviewData
     });
   }

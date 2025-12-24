@@ -25,6 +25,8 @@
     "@material/dialog": "^15.0.0-canary.7f224ddd4.0",
     "@ng-idle/core": "14.0.0",
     "@ng-idle/keepalive": "14.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "moment": "^2.30.1",
     "ngx-mask": "^17.0.7",
     "ngx-toastr": "^18.0.0",
