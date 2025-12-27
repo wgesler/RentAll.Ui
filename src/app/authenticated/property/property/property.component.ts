@@ -12,19 +12,20 @@ import { PropertyResponse, PropertyRequest } from '../models/property.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
 import { MappingService } from '../../../services/mapping.service';
 import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
-import { FranchiseService } from '../../franchise/services/franchise.service';
-import { RegionService } from '../../region/services/region.service';
-import { AreaService } from '../../area/services/area.service';
-import { BuildingService } from '../../building/services/building.service';
-import { FranchiseResponse } from '../../franchise/models/franchise.model';
-import { RegionResponse } from '../../region/models/region.model';
-import { AreaResponse } from '../../area/models/area.model';
-import { BuildingResponse } from '../../building/models/building.model';
+import { FranchiseService } from '../../organization-configuration/franchise/services/franchise.service';
+import { RegionService } from '../../organization-configuration/region/services/region.service';
+import { AreaService } from '../../organization-configuration/area/services/area.service';
+import { BuildingService } from '../../organization-configuration/building/services/building.service';
+import { FranchiseResponse } from '../../organization-configuration/franchise/models/franchise.model';
+import { RegionResponse } from '../../organization-configuration/region/models/region.model';
+import { AreaResponse } from '../../organization-configuration/area/models/area.model';
+import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterInformationComponent } from '../property-information/property-letter-information.component';
 
@@ -104,7 +105,8 @@ export class PropertyComponent implements OnInit {
     private franchiseService: FranchiseService,
     private regionService: RegionService,
     private areaService: AreaService,
-    private buildingService: BuildingService
+    private buildingService: BuildingService,
+    public utilityService: UtilityService
   ) {
       //this.itemsToLoad.push('property');
       this.loadStates();
@@ -177,7 +179,7 @@ export class PropertyComponent implements OnInit {
         codeControl?.updateValueAndValidity();
 
         if (this.isAddMode) {
-          this.removeLoadItem('property');
+          this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'property');
         } else {
           this.itemsToLoad.push('property');
           this.getProperty();
@@ -193,7 +195,7 @@ export class PropertyComponent implements OnInit {
 
   getProperty(): void {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1),
-    finalize(() => { this.removeLoadItem('property') })).subscribe({
+    finalize(() => { this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'property') })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         this.populateForm();
@@ -230,8 +232,8 @@ export class PropertyComponent implements OnInit {
     propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
     
     // Ensure time fields are integers
-    propertyRequest.checkInTimeId = formValue.checkInTimeId !== null && formValue.checkInTimeId !== undefined ? Number(formValue.checkInTimeId) : CheckinTimes.NA;
-    propertyRequest.checkOutTimeId = formValue.checkOutTimeId !== null && formValue.checkOutTimeId !== undefined ? Number(formValue.checkOutTimeId) : CheckoutTimes.NA;
+    propertyRequest.checkInTimeId = this.utilityService.normalizeCheckInTimeId(formValue.checkInTimeId);
+    propertyRequest.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(formValue.checkOutTimeId);
     
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
@@ -269,7 +271,7 @@ export class PropertyComponent implements OnInit {
     
     // Handle phone formatting
     if (formValue.phone) {
-      propertyRequest.phone = this.stripPhoneFormatting(formValue.phone);
+      propertyRequest.phone = this.formatterService.stripPhoneFormatting(formValue.phone);
     } else {
       propertyRequest.phone = '';
     }
@@ -451,8 +453,8 @@ export class PropertyComponent implements OnInit {
       // Convert date strings to Date objects
       formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
       formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
-      formData.checkInTimeId = this.property.checkInTimeId ?? CheckinTimes.NA;
-      formData.checkOutTimeId = this.property.checkOutTimeId ?? CheckoutTimes.NA;
+      formData.checkInTimeId = this.utilityService.normalizeCheckInTimeId(this.property.checkInTimeId);
+      formData.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(this.property.checkOutTimeId);
       
       // Handle enum Id fields as numbers (map from Id fields)
       const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
@@ -507,66 +509,20 @@ export class PropertyComponent implements OnInit {
   }
 
   // Formatting handlers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
   formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
   formatDecimal(fieldName: string): void {
-    const control = this.form.get(fieldName);
-    if (control && control.value !== null && control.value !== '') {
-      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
-      if (!isNaN(value)) {
-        const formatted = value.toFixed(2);
-        control.setValue(formatted, { emitEvent: false });
-      } else {
-        control.setValue('0.00', { emitEvent: false });
-      }
-    } else {
-      control?.setValue('0.00', { emitEvent: false });
-    }
+    this.formatterService.formatDecimalControl(this.form.get(fieldName));
   }
 
   onDecimalInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/[^0-9.]/g, '');
-    
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
-    }
-    
-    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
+    this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
   }
 
   selectAllOnFocus(event: Event): void {
@@ -692,25 +648,8 @@ export class PropertyComponent implements OnInit {
   }
 
   initializeTimeTypes(): void {
-    this.checkInTimes = [
-      { value: CheckinTimes.NA, label: 'N/A' },
-      { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckinTimes.OnePM, label: '1:00 PM' },
-      { value: CheckinTimes.TwoPM, label: '2:00 PM' },
-      { value: CheckinTimes.ThreePM, label: '3:00 PM' },
-      { value: CheckinTimes.FourPM, label: '4:00 PM' },
-      { value: CheckinTimes.FivePM, label: '5:00 PM' }
-    ];
-
-    this.checkOutTimes = [
-      { value: CheckoutTimes.NA, label: 'N/A' },
-      { value: CheckoutTimes.EightAM, label: '8:00 AM' },
-      { value: CheckoutTimes.NineAM, label: '9:00 AM' },
-      { value: CheckoutTimes.TenAM, label: '10:00 AM' },
-      { value: CheckoutTimes.ElevenAM, label: '11:00 AM' },
-      { value: CheckoutTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckoutTimes.OnePM, label: '1:00 PM' }
-    ];
+    this.checkInTimes = this.utilityService.getCheckInTimes();
+    this.checkOutTimes = this.utilityService.getCheckOutTimes();
   }
 
   // Formatting enum labels
@@ -748,9 +687,6 @@ export class PropertyComponent implements OnInit {
   }
 
   // Utility Methods
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 
   toNumberOrNull(value: any): number | null {
     if (value === null || value === undefined || value === '') return null;

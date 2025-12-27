@@ -22,10 +22,27 @@ export class CommonService {
     private toastrService: ToastrService) {
   }
 
+  // Daily Quote Methods
   getDailyQuote(): Observable<DailyQuote> {
     return this.dailyQuote$;
   }
 
+  loadDailyQuote(): void {
+    this.http.get<DailyQuote>(this.controller + 'daily-quote').pipe(take(1)).subscribe({
+      next: (response) => {
+        this.dailyQuote$.next(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Daily Quote Error:', err);
+        if (err.status !== 400) {
+          this.toastrService.error('Unable to load Daily Quote', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  
+  // State Methods
   getStates(): Observable<string[]> {
     return this.validStates$;
   }
@@ -48,20 +65,6 @@ export class CommonService {
 
   getValidStatesValue(): string[] {
     return this.validStates$.value;
-  }
-
-  loadDailyQuote(): void {
-    this.http.get<DailyQuote>(this.controller + 'daily-quote').pipe(take(1)).subscribe({
-      next: (response) => {
-        this.dailyQuote$.next(response);
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Daily Quote Error:', err);
-        if (err.status !== 400) {
-          this.toastrService.error('Unable to load Daily Quote', CommonMessage.ServiceError);
-        }
-      }
-    });
   }
 
   loadStates(): void {

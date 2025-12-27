@@ -14,8 +14,8 @@ import { ReservationStatus } from '../models/reservation-enum';
 import { RouterUrl } from '../../../app.routes';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
-import { ColorService } from '../../color/services/color.service';
-import { ColorResponse } from '../../color/models/color.model';
+import { ColorService } from '../../organization-configuration/color/services/color.service';
+import { ColorResponse } from '../../organization-configuration/color/models/color.model';
 import { AuthService } from '../../../services/auth.service';
 import { PropertySelectionResponse } from '../models/reservation-selection-model';
 

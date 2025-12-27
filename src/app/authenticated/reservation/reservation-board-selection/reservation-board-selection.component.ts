@@ -12,14 +12,14 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonService } from '../../../services/common.service';
-import { FranchiseService } from '../../franchise/services/franchise.service';
-import { RegionService } from '../../region/services/region.service';
-import { AreaService } from '../../area/services/area.service';
-import { BuildingService } from '../../building/services/building.service';
-import { FranchiseResponse } from '../../franchise/models/franchise.model';
-import { RegionResponse } from '../../region/models/region.model';
-import { AreaResponse } from '../../area/models/area.model';
-import { BuildingResponse } from '../../building/models/building.model';
+import { FranchiseService } from '../../organization-configuration/franchise/services/franchise.service';
+import { RegionService } from '../../organization-configuration/region/services/region.service';
+import { AreaService } from '../../organization-configuration/area/services/area.service';
+import { BuildingService } from '../../organization-configuration/building/services/building.service';
+import { FranchiseResponse } from '../../organization-configuration/franchise/models/franchise.model';
+import { RegionResponse } from '../../organization-configuration/region/models/region.model';
+import { AreaResponse } from '../../organization-configuration/area/models/area.model';
+import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { PropertyStatus } from '../../property/models/property-enums';
 
 @Component({

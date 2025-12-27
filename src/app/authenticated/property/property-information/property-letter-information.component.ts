@@ -13,6 +13,7 @@ import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormatterService } from '../../../services/formatter-service';
 
 
 @Component({
@@ -39,7 +40,8 @@ export class PropertyLetterInformationComponent implements OnInit {
     private organizationService: OrganizationService,
     private authService: AuthService,
     private toastr: ToastrService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private formatterService: FormatterService
   ) {
     this.form = this.buildForm();
   }
@@ -280,41 +282,12 @@ export class PropertyLetterInformationComponent implements OnInit {
   }
   
    // Phone helpers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
   formatPhone(): void {
-    const control = this.form.get('emergencyContactNumber');
-    if (control && control.value) {
-      const digits = control.value.replace(/\D/g, '');
-      if (digits.length === 10) {
-        const formatted = `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
-        control.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    let digits = input.value.replace(/\D/g, '');
-    if (digits.length > 10) {
-      digits = digits.substring(0, 10);
-    }
-
-    let formatted = digits;
-    if (digits.length > 6) {
-      formatted = `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
-    } else if (digits.length > 3) {
-      formatted = `(${digits.substring(0, 3)}) ${digits.substring(3)}`;
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`;
-    } else {
-      formatted = '';
-    }
-
-    this.form.get('emergencyContactNumber')?.setValue(formatted, { emitEvent: false });
+    this.formatterService.formatPhoneInput(event, this.form.get('emergencyContactNumber'));
   }
 
 

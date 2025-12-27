@@ -13,7 +13,7 @@ import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { OrganizationService } from '../../organization/services/organization.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
-import { CheckinTimes, CheckoutTimes, TrashDays } from '../models/property-enums';
+import { TrashDays } from '../models/property-enums';
 import { MatDialog } from '@angular/material/dialog';
 import { WelcomeLetterPreviewDialogComponent, WelcomeLetterPreviewData } from './welcome-letter-preview-dialog.component';
 import { finalize, take } from 'rxjs';
@@ -21,6 +21,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -53,7 +54,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private toastr: ToastrService,
     private fb: FormBuilder,
     private dialog: MatDialog,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private utilityService: UtilityService
   ) {
     this.form = this.buildForm();
   }
@@ -315,10 +317,10 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     // Replace reservation placeholders
     if (this.selectedReservation) {
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
-      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatDate(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDate\}\}/g, this.formatDate(this.selectedReservation.departureDate) || '');
-      result = result.replace(/\{\{checkInTime\}\}/g, this.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{checkOutTime\}\}/g, this.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
+      result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
+      result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
     }
 
     // Replace property placeholders
@@ -408,47 +410,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     return parts.join(', ');
   }
 
-  formatDate(dateString: string | undefined): string {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch {
-      return dateString;
-    }
-  }
 
-  getCheckInTime(checkInTimeId: number | undefined): string {
-    if (!checkInTimeId) return '';
-    
-    const timeMap: { [key: number]: string } = {
-      [CheckinTimes.NA]: 'N/A',
-      [CheckinTimes.TwelvePM]: '12:00 PM',
-      [CheckinTimes.OnePM]: '1:00 PM',
-      [CheckinTimes.TwoPM]: '2:00 PM',
-      [CheckinTimes.ThreePM]: '3:00 PM',
-      [CheckinTimes.FourPM]: '4:00 PM',
-      [CheckinTimes.FivePM]: '5:00 PM'
-    };
-    
-    return timeMap[checkInTimeId] || '';
-  }
-
-  getCheckOutTime(checkOutTimeId: number | undefined): string {
-    if (!checkOutTimeId) return '';
-    
-    const timeMap: { [key: number]: string } = {
-      [CheckoutTimes.NA]: 'N/A',
-      [CheckoutTimes.EightAM]: '8:00 AM',
-      [CheckoutTimes.NineAM]: '9:00 AM',
-      [CheckoutTimes.TenAM]: '10:00 AM',
-      [CheckoutTimes.ElevenAM]: '11:00 AM',
-      [CheckoutTimes.TwelvePM]: '12:00 PM',
-      [CheckoutTimes.OnePM]: '1:00 PM'
-    };
-    
-    return timeMap[checkOutTimeId] || '';
-  }
 
   getTrashLocation(): string {
     if (!this.property) return 'N/A';

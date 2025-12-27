@@ -129,7 +129,7 @@ export class ContactComponent implements OnInit {
       city: formValue.city || '',
       state: formValue.state || '',
       zip: formValue.zip || '',
-      phone: this.stripPhoneFormatting(formValue.phone),
+      phone: this.formatterService.stripPhoneFormatting(formValue.phone),
       notes: formValue.notes || '',
       companyId: formValue.companyId || undefined
     };
@@ -302,36 +302,12 @@ export class ContactComponent implements OnInit {
   }
   
   // Phone helpers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
   formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
   loadCompanies(): void {

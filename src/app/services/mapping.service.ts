@@ -8,12 +8,12 @@ import { UserResponse, UserListDisplay } from '../authenticated/user/models/user
 import { UserGroups } from '../authenticated/user/models/user-type';
 import { ReservationResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
 import { ReservationStatus } from '../authenticated/reservation/models/reservation-enum';
-import { AgentResponse, AgentListDisplay } from '../authenticated/agent/models/agent.model';
-import { AreaResponse, AreaListDisplay } from '../authenticated/area/models/area.model';
-import { BuildingResponse, BuildingListDisplay } from '../authenticated/building/models/building.model';
-import { FranchiseResponse, FranchiseListDisplay } from '../authenticated/franchise/models/franchise.model';
-import { RegionResponse, RegionListDisplay } from '../authenticated/region/models/region.model';
-import { ColorResponse, ColorListDisplay } from '../authenticated/color/models/color.model';
+import { AgentResponse, AgentListDisplay } from '../authenticated/organization-configuration/agent/models/agent.model';
+import { AreaResponse, AreaListDisplay } from '../authenticated/organization-configuration/area/models/area.model';
+import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization-configuration/building/models/building.model';
+import { FranchiseResponse, FranchiseListDisplay } from '../authenticated/organization-configuration/franchise/models/franchise.model';
+import { RegionResponse, RegionListDisplay } from '../authenticated/organization-configuration/region/models/region.model';
+import { ColorResponse, ColorListDisplay } from '../authenticated/organization-configuration/color/models/color.model';
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
 import { FormatterService } from './formatter-service';
 
@@ -197,8 +197,8 @@ export class MappingService {
         propertyCode: propertyCode, 
         contactId: o.contactId || '',
         contactName: contactName || '',
-        arrivalDate: this.formatDate(o.arrivalDate),
-        departureDate: this.formatDate(o.departureDate),
+        arrivalDate: this.formatter.formatDateString(o.arrivalDate),
+        departureDate: this.formatter.formatDateString(o.departureDate),
         reservationStatus: this.formatReservationStatus(o.reservationStatusId),
         reservationStatusId: o.reservationStatusId, // Added for proper sorting
         isActive: o.isActive
@@ -237,21 +237,6 @@ export class MappingService {
     return typeLabels[contactTypeId] || 'Unknown';
   }
 
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return '';
-      }
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      const year = date.getFullYear();
-      return `${month}/${day}/${year}`;
-    } catch {
-      return '';
-    }
-  }
 
   formatPhoneNumber(phone?: string): string {
     if (!phone) return phone || '';

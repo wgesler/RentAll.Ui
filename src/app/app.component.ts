@@ -5,7 +5,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
 import { ContactService } from './authenticated/contact/services/contact.service';
-import { OrganizationListService } from './services/organization-list.service';
+import { OrganizationListService } from './authenticated/organization/services/organization-list.service';
 import { OrganizationService } from './authenticated/organization/services/organization.service';
 import { UserService } from './authenticated/user/services/user.service';
 import { Observable, filter, take } from 'rxjs';

@@ -14,14 +14,15 @@ import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { AgentService } from '../../agent/services/agent.service';
-import { AgentResponse } from '../../agent/models/agent.model';
+import { AgentService } from '../../organization-configuration/agent/services/agent.service';
+import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 import { ReservationLeaseComponent } from '../reservation-lease/reservation-lease.component';
 
 @Component({
@@ -71,7 +72,8 @@ export class ReservationComponent implements OnInit {
     private agentService: AgentService,
     private companyService: CompanyService,
     private authService: AuthService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private utilityService: UtilityService
   ) {
     this.itemsToLoad.push('reservation');
   }
@@ -142,8 +144,8 @@ export class ReservationComponent implements OnInit {
       tenantName: formValue.tenantName || '',
       arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
       departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
-      checkInTimeId: formValue.checkInTimeId ?? CheckinTimes.NA,
-      checkOutTimeId: formValue.checkOutTimeId ?? CheckoutTimes.NA,
+      checkInTimeId: this.utilityService.normalizeCheckInTimeId(formValue.checkInTimeId),
+      checkOutTimeId: this.utilityService.normalizeCheckOutTimeId(formValue.checkOutTimeId),
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
@@ -262,17 +264,13 @@ export class ReservationComponent implements OnInit {
           // Pre-load taxes (default to null if not available on property)
           patchValues.taxes = null;
           
-          // Pre-load check-in time from property (ensure it's a number for dropdown selection)
-          const checkInTime = this.selectedProperty.checkInTimeId;
-          patchValues.checkInTimeId = (checkInTime !== null && checkInTime !== undefined) 
-            ? Number(checkInTime) 
-            : CheckinTimes.FourPM;
+          // Pre-load check-in time from property (defaults to FourPM if property doesn't have one)
+          const checkInTime = this.utilityService.normalizeCheckInTimeId(this.selectedProperty.checkInTimeId);
+          patchValues.checkInTimeId = checkInTime !== CheckinTimes.NA ? checkInTime : CheckinTimes.FourPM;
           
-          // Pre-load check-out time from property (ensure it's a number for dropdown selection)
-          const checkOutTime = this.selectedProperty.checkOutTimeId;
-          patchValues.checkOutTimeId = (checkOutTime !== null && checkOutTime !== undefined) 
-            ? Number(checkOutTime) 
-            : CheckoutTimes.ElevenAM;
+          // Pre-load check-out time from property (defaults to ElevenAM if property doesn't have one)
+          const checkOutTime = this.utilityService.normalizeCheckOutTimeId(this.selectedProperty.checkOutTimeId);
+          patchValues.checkOutTimeId = checkOutTime !== CheckoutTimes.NA ? checkOutTime : CheckoutTimes.ElevenAM;
           
           // If Reservation Type is Owner, populate Tenant Name with Owner1's name
           const reservationTypeId = this.form.get('reservationTypeId')?.value;
@@ -534,8 +532,8 @@ export class ReservationComponent implements OnInit {
               isActive: isActiveValue,
               arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
               departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
-              checkInTimeId: Number(this.reservation.checkInTimeId ?? CheckinTimes.NA),
-              checkOutTimeId: Number(this.reservation.checkOutTimeId ?? CheckoutTimes.NA),
+              checkInTimeId: this.utilityService.normalizeCheckInTimeId(this.reservation.checkInTimeId),
+              checkOutTimeId: this.utilityService.normalizeCheckOutTimeId(this.reservation.checkOutTimeId),
               billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
               billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
               numberOfPeople: numberOfPeopleValue,
@@ -738,25 +736,8 @@ export class ReservationComponent implements OnInit {
     // Initialize with all statuses, will be filtered based on reservation type
     this.updateAvailableReservationStatuses(null);
 
-    this.checkInTimes = [
-      { value: CheckinTimes.NA, label: 'N/A' },
-      { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckinTimes.OnePM, label: '1:00 PM' },
-      { value: CheckinTimes.TwoPM, label: '2:00 PM' },
-      { value: CheckinTimes.ThreePM, label: '3:00 PM' },
-      { value: CheckinTimes.FourPM, label: '4:00 PM' },
-      { value: CheckinTimes.FivePM, label: '5:00 PM' }
-    ];
-
-    this.checkOutTimes = [
-      { value: CheckoutTimes.NA, label: 'N/A' },
-      { value: CheckoutTimes.EightAM, label: '8:00 AM' },
-      { value: CheckoutTimes.NineAM, label: '9:00 AM' },
-      { value: CheckoutTimes.TenAM, label: '10:00 AM' },
-      { value: CheckoutTimes.ElevenAM, label: '11:00 AM' },
-      { value: CheckoutTimes.TwelvePM, label: '12:00 PM' },
-      { value: CheckoutTimes.OnePM, label: '1:00 PM' }
-    ];
+    this.checkInTimes = this.utilityService.getCheckInTimes();
+    this.checkOutTimes = this.utilityService.getCheckOutTimes();
 
     this.availableBillingTypes = [
       { value: BillingType.Monthly, label: 'Monthly' },
@@ -888,33 +869,15 @@ export class ReservationComponent implements OnInit {
 
   // Format Methods
   formatDecimal(fieldName: string): void {
-    const control = this.form.get(fieldName);
-    if (control && control.value !== null && control.value !== '') {
-      const value = parseFloat(control.value.toString().replace(/[^0-9.]/g, ''));
-      if (!isNaN(value)) {
-        const formatted = value.toFixed(2);
-        control.setValue(formatted, { emitEvent: false });
-      } else {
-        control.setValue('0.00', { emitEvent: false });
-      }
-    } else {
-      control?.setValue('0.00', { emitEvent: false });
-    }
+    this.formatterService.formatDecimalControl(this.form.get(fieldName));
   }
 
   onDecimalInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/[^0-9.]/g, '');
-    
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
-    }
-    
-    this.form.get(fieldName)?.setValue(input.value, { emitEvent: false });
+    this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+
+  selectAllOnFocus(event: Event): void {
+    (event.target as HTMLInputElement).select();
   }
 
   onIntegerInput(event: Event, fieldName: string): void {
@@ -925,36 +888,12 @@ export class ReservationComponent implements OnInit {
   }
 
   // Phone helpers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
   formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone')?.setValue(formatted, { emitEvent: false });
-    }
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
   // Utility methods
@@ -962,9 +901,6 @@ export class ReservationComponent implements OnInit {
     this.router.navigateByUrl(RouterUrl.ReservationList);
   }
   
-  selectAllOnFocus(event: Event): void {
-    (event.target as HTMLInputElement).select();
-  }
 
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);

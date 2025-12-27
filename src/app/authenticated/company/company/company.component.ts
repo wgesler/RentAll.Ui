@@ -14,6 +14,7 @@ import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
 
@@ -50,7 +51,8 @@ export class CompanyComponent implements OnInit {
     private toastr: ToastrService,
     private commonService: CommonService,
     private formatterService: FormatterService,
-    private authService: AuthService
+    private authService: AuthService,
+    private utilityService: UtilityService
   ) {
     this.itemsToLoad.push('company');
     this.loadStates();
@@ -62,7 +64,7 @@ export class CompanyComponent implements OnInit {
         this.companyId = paramMap.get('id');
         this.isAddMode = this.companyId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('company');
+          this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'company');
           this.buildForm();
         } else {
           this.getCompany();
@@ -75,7 +77,7 @@ export class CompanyComponent implements OnInit {
   }
 
   getCompany(): void {
-    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.removeLoadItem('company'); })).subscribe({
+    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'company'); })).subscribe({
       next: (response: CompanyResponse) => {
         this.company = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -109,7 +111,7 @@ export class CompanyComponent implements OnInit {
 
     // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
-    const phoneDigits = this.stripPhoneFormatting(formValue.phone);
+    const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const user = this.authService.getUser();
 
     const companyRequest: CompanyRequest = {
@@ -237,36 +239,12 @@ export class CompanyComponent implements OnInit {
   }
 
   // Phone helpers
-  stripPhoneFormatting(phone: string): string {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');
-  }
-
   formatPhone(): void {
-    const phoneControl = this.form.get('phone');
-    if (phoneControl && phoneControl.value) {
-      const phone = phoneControl.value.replace(/\D/g, '');
-      if (phone.length === 10) {
-        const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-        phoneControl.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const phone = input.value.replace(/\D/g, '');
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      this.form.get('phone').setValue(formatted, { emitEvent: false });
-    }
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
   // Utility helpers
@@ -287,9 +265,6 @@ export class CompanyComponent implements OnInit {
     });
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.CompanyList);

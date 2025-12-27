@@ -11,7 +11,7 @@ import { RouterUrl } from '../../../app.routes';
 import { UserResponse, UserRequest } from '../models/user.model';
 import { UserGroups } from '../models/user-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
-import { OrganizationListService } from '../../../services/organization-list.service';
+import { OrganizationListService } from '../../organization/services/organization-list.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 
 @Component({
