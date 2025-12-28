@@ -31,18 +31,15 @@
                 Is Active
               </mat-checkbox>
             </div>
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <!-- Line 1: Agent (1/4), Property (1/4), Property Address (1/2) -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Agent</mat-label>
-                <mat-select formControlName="agentId">
-                  <mat-option [value]="null">None</mat-option>
-                  @for (agent of agents; track agent.agentId) {
-                    <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
+            
+            <mat-accordion>
+              <!-- Property Section -->
+              <mat-expansion-panel [expanded]="propertyPanelOpen" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Property</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <!-- Line 1: Property (1/4), Property Address (3/4) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Property</mat-label>
                 <mat-select formControlName="propertyId" required>
@@ -56,12 +53,12 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-3">
                 <mat-label>Property Address</mat-label>
                 <input matInput formControlName="propertyAddress" readonly>
               </mat-form-field>
 
-              <!-- Line 2: Reservation Status, Reservation Notice, Number of People, Pets -->
+              <!-- Line 2: Reservation Status, Reservation Type, Reservation Notice, Agent -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Reservation Status</mat-label>
                 <mat-select formControlName="reservationStatusId" required>
@@ -71,6 +68,19 @@
                 </mat-select>
                 @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
                   <mat-error>Reservation Status is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Reservation Type</mat-label>
+                <mat-select formControlName="reservationTypeId" required>
+                  <mat-option value="">Select Reservation Type</mat-option>
+                  @for (clientType of availableClientTypes; track clientType.value) {
+                    <mat-option [value]="clientType.value">{{ clientType.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
+                  <mat-error>Reservation Type is required</mat-error>
                 }
               </mat-form-field>
 
@@ -85,56 +95,16 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Number of People</mat-label>
-                <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
-                @if (form.get('numberOfPeople')?.hasError('required') && form.get('numberOfPeople')?.touched) {
-                  <mat-error>Number of People is required</mat-error>
-                }
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Pets</mat-label>
-                <mat-select formControlName="pets">
-                  <mat-option [value]="false">No</mat-option>
-                  <mat-option [value]="true">Yes</mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Line 3: Reservation Type, Company Name (conditional), Tenant Name -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Reservation Type</mat-label>
-                <mat-select formControlName="reservationTypeId" required>
-                  <mat-option value="">Select Reservation Type</mat-option>
-                  @for (clientType of availableClientTypes; track clientType.value) {
-                    <mat-option [value]="clientType.value">{{ clientType.label }}</mat-option>
+                <mat-label>Agent</mat-label>
+                <mat-select formControlName="agentId">
+                  <mat-option [value]="null">None</mat-option>
+                  @for (agent of agents; track agent.agentId) {
+                    <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
-                  <mat-error>Reservation Type is required</mat-error>
-                }
               </mat-form-field>
 
-              @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Company Name</mat-label>
-                  <mat-select formControlName="companyId">
-                    <mat-option [value]="null">Select Company</mat-option>
-                    @for (company of companies; track company.companyId) {
-                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
-
-              <mat-form-field appearance="outline" [class.col-span-2]="form.get('reservationTypeId')?.value === ReservationType.Corporate" [class.col-span-3]="form.get('reservationTypeId')?.value !== ReservationType.Corporate">
-                <mat-label>Tenant Name(s)</mat-label>
-                <input matInput formControlName="tenantName" required>
-                @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
-                  <mat-error>Tenant Name(s) is required</mat-error>
-                }
-              </mat-form-field>
-
-              <!-- Line 4: Contact Name (1/4), Phone (1/4), Email (1/2) -->
+              <!-- Line 3: Contact Name, Phone, Email -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
                 <input 
@@ -166,6 +136,35 @@
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Contact Email</mat-label>
                 <input matInput type="email" formControlName="email">
+              </mat-form-field>
+
+              <!-- Line 4: Company Name (if Corporate), Number of People, Tenant Name(s) -->
+              @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Name</mat-label>
+                  <mat-select formControlName="companyId">
+                    <mat-option [value]="null">Select Company</mat-option>
+                    @for (company of companies; track company.companyId) {
+                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Number of People</mat-label>
+                <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
+                @if (form.get('numberOfPeople')?.hasError('required') && form.get('numberOfPeople')?.touched) {
+                  <mat-error>Number of People is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" [class.col-span-2]="form.get('reservationTypeId')?.value === ReservationType.Corporate" [class.col-span-3]="form.get('reservationTypeId')?.value !== ReservationType.Corporate">
+                <mat-label>Tenant Name(s)</mat-label>
+                <input matInput formControlName="tenantName" required>
+                @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
+                  <mat-error>Tenant Name(s) is required</mat-error>
+                }
               </mat-form-field>
 
               <!-- Line 5: Arrival Date, Departure Date, Check-In Time, Check-Out Time -->
@@ -206,9 +205,17 @@
                   }
                 </mat-select>
               </mat-form-field>
+                </div>
+              </mat-expansion-panel>
 
-              <!-- Line 5: Billing Type, Billing Rate, Deposit, Taxes -->
-              <mat-form-field appearance="outline" class="col-span-1">
+              <!-- Billing and Fees Section -->
+              <mat-expansion-panel [expanded]="billingPanelOpen" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Billing and Fees</mat-panel-title>
+                </mat-expansion-panel-header>
+                <!-- Line 6: Billing Type, Billing Rate, Deposit, DepositType, Departure Fee (all 5 on one line) -->
+                <div class="flex gap-x-1.5 mb-1">
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
                   @for (billingType of availableBillingTypes; track billingType.value) {
@@ -220,7 +227,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Rate</mat-label>
                 <input matInput type="text" formControlName="billingRate" placeholder="0.00" (blur)="formatDecimal('billingRate')" (input)="onDecimalInput($event, 'billingRate')" (focus)="selectAllOnFocus($event)" required>
                 @if (form.get('billingRate')?.hasError('required') && form.get('billingRate')?.touched) {
@@ -228,32 +235,81 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Deposit</mat-label>
                 <input matInput type="text" formControlName="deposit" placeholder="0.00" (blur)="formatDecimal('deposit')" (input)="onDecimalInput($event, 'deposit')" (focus)="selectAllOnFocus($event)">
+                @if (form.get('deposit')?.hasError('required') && form.get('deposit')?.touched) {
+                  <mat-error>Deposit is required</mat-error>
+                }
+                @if (form.get('deposit')?.hasError('mustBeGreaterThanZero') && form.get('deposit')?.touched) {
+                  <mat-error>Deposit must be greater than 0</mat-error>
+                }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Taxes</mat-label>
-                <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>DepositType</mat-label>
+                <mat-select formControlName="depositType">
+                  @for (depositType of availableDepositTypes; track depositType.value) {
+                    <mat-option [value]="depositType.value">{{ depositType.label }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
 
-              <!-- Line 6: Departure Fee, Pet Fee, Maid Service Fee, Frequency -->
-              <mat-form-field appearance="outline" class="col-span-1">
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Departure Fee</mat-label>
                 <input matInput type="text" formControlName="departureFee" placeholder="0.00" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
                 @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
                   <mat-error>Departure Fee is required</mat-error>
                 }
               </mat-form-field>
+            </div>
 
-              <mat-form-field appearance="outline" class="col-span-1">
+            <!-- Line 7: All Pet fields (Pets, Pet Fee, Number of Pets, Pet(s) Description) -->
+            <div class="flex gap-x-1.5 mb-1">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Pets</mat-label>
+                <mat-select formControlName="pets">
+                  <mat-option [value]="false">No</mat-option>
+                  <mat-option [value]="true">Yes</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Pet Fee</mat-label>
                 <input matInput type="text" formControlName="petFee" placeholder="0.00" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Maid Service Fee</mat-label>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Number of Pets</mat-label>
+                <mat-select formControlName="numberOfPets">
+                  <mat-option [value]="1">1</mat-option>
+                  <mat-option [value]="2">2</mat-option>
+                  <mat-option [value]="3">3</mat-option>
+                  <mat-option [value]="4">4</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Pet(s) Description</mat-label>
+                <input matInput type="text" formControlName="petDescription" placeholder="">
+                @if (form.get('petDescription')?.hasError('required') && form.get('petDescription')?.touched) {
+                  <mat-error>Pet Description is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <!-- Line 8: All Maid Service fields and Taxes (MaidService, Maid Fee, Frequency, Taxes) -->
+            <div class="flex gap-x-1.5 mb-1">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>MaidService</mat-label>
+                <mat-select formControlName="maidService">
+                  <mat-option [value]="false">No</mat-option>
+                  <mat-option [value]="true">Yes</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Maid Fee</mat-label>
                 <input matInput type="text" formControlName="maidServiceFee" placeholder="0.00" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')" (focus)="selectAllOnFocus($event)">
                 @if (form.get('maidServiceFee')?.hasError('required') && form.get('maidServiceFee')?.touched) {
                   <mat-error>Maid Service Fee is required</mat-error>
@@ -263,32 +319,61 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Frequency</mat-label>
                 <mat-select formControlName="frequencyId">
                   @for (frequency of availableFrequencies; track frequency.value) {
                     <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
                   }
                 </mat-select>
+                @if (form.get('frequencyId')?.hasError('mustNotBeNA') && form.get('frequencyId')?.touched) {
+                  <mat-error>Frequency must be selected when MaidService is Yes</mat-error>
+                }
               </mat-form-field>
 
-              <!-- Line 7: Extra Fee, Extra Fee Name -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Extra Fee</mat-label>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Taxes</mat-label>
+                <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+            </div>
+
+            <!-- Line 9: Extra Fee 1, Extra Fee 1 Name, Extra Fee 2, Extra Fee 2 Name (4 fields on one line) -->
+            <div class="flex gap-x-1.5 mb-1">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Extra Fee 1</mat-label>
                 <input matInput type="text" formControlName="extraFee" placeholder="0.00" (blur)="formatDecimal('extraFee')" (input)="onDecimalInput($event, 'extraFee')" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-3">
-                <mat-label>Extra Fee Name</mat-label>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Extra Fee 1 Name</mat-label>
                 <input matInput formControlName="extraFeeName" placeholder="Enter extra fee description">
+                @if (form.get('extraFeeName')?.hasError('required') && form.get('extraFeeName')?.touched) {
+                  <mat-error>Extra Fee 1 Name is required</mat-error>
+                }
               </mat-form-field>
 
-              <!-- Line 8: Notes -->
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Extra Fee 2</mat-label>
+                <input matInput type="text" formControlName="extraFee2" placeholder="0.00" (blur)="formatDecimal('extraFee2')" (input)="onDecimalInput($event, 'extraFee2')" (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Extra Fee 2 Name</mat-label>
+                <input matInput formControlName="extraFee2Name" placeholder="Enter extra fee description">
+                @if (form.get('extraFee2Name')?.hasError('required') && form.get('extraFee2Name')?.touched) {
+                  <mat-error>Extra Fee 2 Name is required</mat-error>
+                }
+              </mat-form-field>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+
+            <!-- Notes Section -->
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mt-4">
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Notes</mat-label>
                 <textarea matInput formControlName="notes" rows="3"></textarea>
               </mat-form-field>
-
             </div>
 
             @if (isSubmitting) {

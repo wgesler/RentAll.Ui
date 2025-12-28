@@ -23,8 +23,12 @@ export interface ReservationRequest {
   maidServiceFee: number;
   frequencyId: number;
   petFee: number;
+  numberOfPets?: number;
+  petDescription?: string;
   extraFee: number;
   extraFeeName: string;
+  extraFee2?: number;
+  extraFee2Name?: string;
   taxes: number;
   notes?: string;
   pets?: boolean;
@@ -64,8 +68,12 @@ export interface ReservationResponse {
   maidServiceFee: number;
   frequencyId: number;
   petFee: number;
+  numberOfPets?: number;
+  petDescription?: string;
   extraFee: number;
   extraFeeName: string;
+  extraFee2?: number;
+  extraFee2Name?: string;
   taxes: number;
   notes?: string;
   pets?: boolean;

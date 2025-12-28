@@ -31,5 +31,10 @@ export enum Frequency {
 
 export enum ReservationNotice {
   ThirtyDays = 1,
-  FifteenDays = 2
+  FourteenDays = 2
+}
+
+export enum DepositType {
+  FlatFee = 0,
+  IncludedInRent = 1
 }
