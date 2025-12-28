@@ -1,4 +1,4 @@
-import { SessionData } from '../../../models/session-data';
+import { SessionData } from '../../../shared/models/session-data';
 
 export class SessionDataResponse {
     sessionGuid: string = '';
