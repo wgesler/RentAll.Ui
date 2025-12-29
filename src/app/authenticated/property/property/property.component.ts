@@ -281,11 +281,11 @@ export class PropertyComponent implements OnInit {
       propertyRequest.yard = false;
     }
 
-    // Convert location IDs from dropdowns to codes for API
-    propertyRequest.franchiseCode = this.getIdToCode(formValue.franchiseId, this.franchises, 'franchiseCode');
-    propertyRequest.regionCode = this.getIdToCode(formValue.regionId, this.regions, 'regionCode');
-    propertyRequest.areaCode = this.getIdToCode(formValue.areaId, this.areas, 'areaCode');
-    propertyRequest.buildingCode = this.getIdToCode(formValue.buildingId, this.buildings, 'buildingCode');
+    // Assign location IDs directly (now GUIDs)
+    propertyRequest.franchiseId = formValue.franchiseId || null;
+    propertyRequest.regionId = formValue.regionId || null;
+    propertyRequest.areaId = formValue.areaId || null;
+    propertyRequest.buildingId = formValue.buildingId || null;
     
     // Map parkingNotes field (note: API expects lowercase 'parkingnotes' in request)
     propertyRequest.parkingnotes = formValue.parkingNotes || '';
@@ -488,20 +488,11 @@ export class PropertyComponent implements OnInit {
         formData.phone = this.formatterService.phoneNumber(formData.phone);
       }
 
-      // Convert location codes from API to IDs for dropdowns
-      // Wait for location lookups to be loaded before converting
-      if (this.franchises.length > 0 && this.regions.length > 0 && this.areas.length > 0 && this.buildings.length > 0) {
-        formData.franchiseId = this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode');
-        formData.regionId = this.getCodeToId(this.property.regionCode, this.regions, 'regionCode');
-        formData.areaId = this.getCodeToId(this.property.areaCode, this.areas, 'areaCode');
-        formData.buildingId = this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode');
-      } else {
-        // Set to null if lookups aren't loaded yet (will be updated when lookups load)
-        formData.franchiseId = null;
-        formData.regionId = null;
-        formData.areaId = null;
-        formData.buildingId = null;
-      }
+      // Assign location IDs directly from API (now GUIDs)
+      formData.franchiseId = this.property.franchiseId || null;
+      formData.regionId = this.property.regionId || null;
+      formData.areaId = this.property.areaId || null;
+      formData.buildingId = this.property.buildingId || null;
       
       // Set all values at once
       this.form.patchValue(formData);
@@ -736,10 +727,10 @@ export class PropertyComponent implements OnInit {
         // If property is already loaded, update location fields in form
         if (this.property && this.form) {
           this.form.patchValue({
-            franchiseId: this.getCodeToId(this.property.franchiseCode, this.franchises, 'franchiseCode'),
-            regionId: this.getCodeToId(this.property.regionCode, this.regions, 'regionCode'),
-            areaId: this.getCodeToId(this.property.areaCode, this.areas, 'areaCode'),
-            buildingId: this.getCodeToId(this.property.buildingCode, this.buildings, 'buildingCode'),
+            franchiseId: this.property.franchiseId || null,
+            regionId: this.property.regionId || null,
+            areaId: this.property.areaId || null,
+            buildingId: this.property.buildingId || null,
           });
         }
       },

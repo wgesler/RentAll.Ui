@@ -47,10 +47,10 @@ export interface PropertyRequest {
   mailbox?: string;
   
     // Location section
-  franchiseCode?: string | null;
-  regionCode?: string | null;
-  areaCode?: string | null;
-  buildingCode?: string | null;
+  franchiseId?: number | null;
+  regionId?: number | null;
+  areaId?: number | null;
+  buildingId?: number | null;
 
   // Features & Security section
   unfurnished: boolean;
@@ -158,10 +158,10 @@ export interface PropertyResponse {
   mailbox?: string;
   
     // Location section
-  franchiseCode?: string | null;
-  regionCode?: string | null;
-  areaCode?: string | null;
-  buildingCode?: string | null;
+  franchiseId?: number | null;
+  regionId?: number | null;
+  areaId?: number | null;
+  buildingId?: number | null;
 
   // Features & Security section
   unfurnished: boolean;

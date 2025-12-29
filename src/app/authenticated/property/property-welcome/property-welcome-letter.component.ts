@@ -24,6 +24,8 @@ import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
+import { BuildingService } from '../../organization-configuration/building/services/building.service';
+import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -45,6 +47,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   reservations: ReservationResponse[] = [];
   selectedReservation: ReservationResponse | null = null;
   contacts: ContactResponse[] = [];
+  buildings: BuildingResponse[] = [];
   itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization'];
 
   constructor(
@@ -59,7 +62,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private fb: FormBuilder,
     private dialog: MatDialog,
     private formatterService: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private buildingService: BuildingService
   ) {
     this.form = this.buildForm();
   }
@@ -72,6 +76,9 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     
     // Load contacts first
     this.loadContacts();
+    
+    // Load buildings for building code lookup
+    this.loadBuildings();
     
     // Load organization, property, reservations, welcome letter, and property letter information
     this.loadOrganizationSettings(() => {
@@ -224,6 +231,23 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
+  loadBuildings(): void {
+    const orgId = this.authService.getUser()?.organizationId;
+    if (!orgId) {
+      return;
+    }
+
+    this.buildingService.getBuildings().pipe(take(1)).subscribe({
+      next: (buildings: BuildingResponse[]) => {
+        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property Welcome Letter Component - Error loading buildings:', err);
+        this.buildings = [];
+      }
+    });
+  }
+
   loadReservations(next: () => void): void {
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
@@ -353,7 +377,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
-      result = result.replace(/\{\{building\}\}/g, this.property.buildingCode || 'N/A');
+      result = result.replace(/\{\{building\}\}/g, this.getBuildingDescription() || 'N/A');
       result = result.replace(/\{\{size\}\}/g, this.property.bedrooms?.toString() || 'N/A');
       result = result.replace(/\{\{unitFloorLevel\}\}/g, this.property.suite || 'N/A');
       result = result.replace(/\{\{buildingInfo\}\}/g, this.getBuildingInfo());
@@ -473,11 +497,20 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   getBuildingInfo(): string {
     if (!this.property) return 'Building: N/A\t\tSize: N/A\t\t\tUnit Floor level: N/A';
     
-    const building = this.property.buildingCode || 'N/A';
-    const size = this.property.bedrooms?.toString() || 'N/A';
+    const building = this.getBuildingDescription() || 'N/A';
+    const size = this.property.bedrooms && this.property.bathrooms ? `${this.property.bedrooms} / ${this.property.bathrooms}` : 'N/A';
     const unitFloorLevel = this.property.suite || 'N/A'; // Using suite as unit/floor level, adjust if needed
     
     return `Building: ${building}\t\tSize: ${size}\t\t\tUnit Floor level: ${unitFloorLevel}`;
+  }
+
+  getBuildingDescription(): string | null {
+    if (!this.property?.buildingId || !this.buildings || this.buildings.length === 0) {
+      return null;
+    }
+
+    const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
+    return building?.description || null;
   }
 
   removeLoadItem(itemToRemove: string): void {
