@@ -378,7 +378,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{building\}\}/g, this.getBuildingDescription() || 'N/A');
-      result = result.replace(/\{\{size\}\}/g, this.property.bedrooms?.toString() || 'N/A');
+      result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
       result = result.replace(/\{\{unitFloorLevel\}\}/g, this.property.suite || 'N/A');
       result = result.replace(/\{\{buildingInfo\}\}/g, this.getBuildingInfo());
       result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
@@ -498,7 +498,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     if (!this.property) return 'Building: N/A\t\tSize: N/A\t\t\tUnit Floor level: N/A';
     
     const building = this.getBuildingDescription() || 'N/A';
-    const size = this.property.bedrooms && this.property.bathrooms ? `${this.property.bedrooms} / ${this.property.bathrooms}` : 'N/A';
+    const size = this.property.bedrooms && this.property.bathrooms ? `${this.property.bedrooms}/${this.property.bathrooms}` : 'N/A';
     const unitFloorLevel = this.property.suite || 'N/A'; // Using suite as unit/floor level, adjust if needed
     
     return `Building: ${building}\t\tSize: ${size}\t\t\tUnit Floor level: ${unitFloorLevel}`;
