@@ -18,6 +18,7 @@ import { AgentService } from '../../organization-configuration/agent/services/ag
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
+import { EntityType } from '../../contact/models/contact-type';
 import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
@@ -39,7 +40,6 @@ export class ReservationComponent implements OnInit {
   reservationId: string;
   reservation: ReservationResponse;
   form: FormGroup;
-  contactSearchControl: FormControl = new FormControl('');
   isSubmitting: boolean = false;
   isLoadError: boolean = false;
   isAddMode: boolean = false;
@@ -47,12 +47,13 @@ export class ReservationComponent implements OnInit {
   billingPanelOpen: boolean = false;
   contacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
-  filteredContactsForAutocomplete: ContactResponse[] = [];
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
   companies: CompanyResponse[] = [];
   selectedProperty: PropertyResponse | null = null;
   selectedContact: ContactResponse | null = null;
+  selectedCompanyName: string = '';
+  EntityType = EntityType; // Expose enum to template
   departureDateStartAt: Date | null = null;
   availableClientTypes: { value: number, label: string }[] = [];
   availableReservationStatuses: { value: number, label: string }[] = [];
@@ -115,9 +116,7 @@ export class ReservationComponent implements OnInit {
 
   getReservation(): void {
     this.reservationService.getReservationByGuid(this.reservationId).pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('reservation'); })
-    ).subscribe({
+      take(1), finalize(() => { this.removeLoadItem('reservation'); }) ).subscribe({
       next: (response: ReservationResponse) => {
         this.reservation = response;
         this.buildForm();
@@ -147,7 +146,7 @@ export class ReservationComponent implements OnInit {
       propertyId: formValue.propertyId,
       agentId: formValue.agentId || null,
       contactId: formValue.contactId,
-      reservationTypeId: formValue.reservationTypeId ?? ReservationType.Private,
+      reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Private,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
       reservationNoticeId: formValue.reservationNoticeId || null,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
@@ -161,6 +160,7 @@ export class ReservationComponent implements OnInit {
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
       departureFee: formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0,
+      maidService: formValue.maidService ?? false,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
       frequencyId: formValue.frequencyId ?? Frequency.NA,
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
@@ -184,10 +184,7 @@ export class ReservationComponent implements OnInit {
       ? this.reservationService.createReservation(reservationRequest)
       : this.reservationService.updateReservation(this.reservationId, reservationRequest);
 
-    save$.pipe(
-      take(1),
-      finalize(() => this.isSubmitting = false)
-    ).subscribe({
+    save$.pipe(take(1),  finalize(() => this.isSubmitting = false) ).subscribe({
       next: () => {
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
@@ -211,7 +208,7 @@ export class ReservationComponent implements OnInit {
       agentId: new FormControl(null, [Validators.required]),
       tenantName: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
       contactId: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
-      companyId: new FormControl(null),
+      entityCompanyName: new FormControl({ value: '', disabled: true }), // Display Company name if EntityTypeId is Company
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(null),
@@ -325,6 +322,27 @@ export class ReservationComponent implements OnInit {
 
     // contactId starts disabled - will be enabled when reservationTypeId is selected
 
+    // Handle contact selection and update entity names
+    this.form.get('contactId')?.valueChanges.subscribe(contactId => {
+      if (contactId) {
+        const contact = this.filteredContacts.find(c => c.contactId === contactId) || 
+                        this.contacts.find(c => c.contactId === contactId);
+        if (contact) {
+          this.selectedContact = contact;
+          this.updateContactFields(contact);
+          this.updateEntityNames(contact);
+        }
+      } else {
+        this.selectedContact = null;
+        this.form.patchValue({ 
+          phone: '',
+          email: '',
+          entityCompanyName: ''
+        }, { emitEvent: false });
+        this.selectedCompanyName = '';
+      }
+    });
+
     // Filter contacts based on client type
     this.form.get('reservationTypeId')?.valueChanges.subscribe(reservationTypeId => {
       const selectedReservationType = reservationTypeId;
@@ -346,11 +364,13 @@ export class ReservationComponent implements OnInit {
         tenantName: '',
         contactId: '',
         phone: '',
-        email: ''
+        email: '',
+        entityCompanyName: ''
       }, { emitEvent: false });
       
-      // Clear selected contact reference
+      // Clear selected contact reference and entity names
       this.selectedContact = null;
+      this.selectedCompanyName = '';
     });
 
     // Update Maid Service Fee required validator based on Frequency selection
@@ -611,91 +631,6 @@ export class ReservationComponent implements OnInit {
     });
   }
 
-  updateDepositValidator(depositType: number | null): void {
-    const depositControl = this.form?.get('deposit');
-    if (depositControl) {
-      if (depositType === DepositType.FlatFee) {
-        // Set deposit to 3000 as default when FlatFee is selected (only if current value is 0)
-        const currentDeposit = parseFloat(depositControl.value || '0');
-        if (currentDeposit === 0) {
-          depositControl.setValue('3000.00', { emitEvent: false });
-        }
-        // Make deposit required, editable, and must be greater than 0
-        depositControl.enable({ emitEvent: false });
-        depositControl.setValidators([
-          Validators.required,
-          (control: AbstractControl): ValidationErrors | null => {
-            const value = control.value;
-            if (value === null || value === undefined || value === '') {
-              return { required: true };
-            }
-            const numValue = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
-            if (isNaN(numValue) || numValue <= 0) {
-              return { mustBeGreaterThanZero: true };
-            }
-            return null;
-          }
-        ]);
-        depositControl.updateValueAndValidity({ emitEvent: false });
-      } else if (depositType === DepositType.IncludedInRent) {
-        // Set deposit to 0 and make it disabled (greyed out and read-only)
-        depositControl.setValue('0.00', { emitEvent: false });
-        depositControl.disable({ emitEvent: false });
-        depositControl.clearValidators();
-        depositControl.updateValueAndValidity({ emitEvent: false });
-      }
-    }
-  }
-
-  updateMaidServiceFields(hasMaidService: boolean | null): void {
-    const maidServiceFeeControl = this.form.get('maidServiceFee');
-    const frequencyControl = this.form.get('frequencyId');
-    
-    if (hasMaidService === false) {
-      // Set maid service fee to 0 and disable when maid service is NO
-      if (maidServiceFeeControl) {
-        maidServiceFeeControl.setValue('0.00', { emitEvent: false });
-        maidServiceFeeControl.disable({ emitEvent: false });
-      }
-      // Set frequency to NA when maid service is NO
-      if (frequencyControl) {
-        frequencyControl.setValue(Frequency.NA, { emitEvent: false });
-        frequencyControl.disable({ emitEvent: false });
-        frequencyControl.clearValidators();
-        frequencyControl.updateValueAndValidity({ emitEvent: false });
-      }
-    } else {
-      // Enable maid service fee when maid service is YES and set default from property
-      if (maidServiceFeeControl) {
-        // Set maid service fee from selected property if available, otherwise keep current value
-        if (this.selectedProperty && this.selectedProperty.maidServiceFee !== null && this.selectedProperty.maidServiceFee !== undefined) {
-          maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
-        }
-        maidServiceFeeControl.enable({ emitEvent: false });
-      }
-      // Enable frequency when maid service is YES, set default to Once, and add validator
-      if (frequencyControl) {
-        // Only set to Once if current value is NA (to avoid overwriting user input)
-        const currentFrequency = frequencyControl.value;
-        if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
-          frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
-        }
-        frequencyControl.enable({ emitEvent: false });
-        // Frequency must not be NA when MaidService is Yes
-        frequencyControl.setValidators([
-          (control: AbstractControl): ValidationErrors | null => {
-            const value = control.value;
-            if (value === null || value === undefined || value === Frequency.NA) {
-              return { mustNotBeNA: true };
-            }
-            return null;
-          }
-        ]);
-        frequencyControl.updateValueAndValidity({ emitEvent: false });
-      }
-    }
-  }
-
   populateForm(): void {
     if (this.reservation && this.form) {
       const isActiveValue = typeof this.reservation.isActive === 'number' 
@@ -726,7 +661,7 @@ export class ReservationComponent implements OnInit {
           this.filterContactsByClientType(reservationTypeId, () => {
             const contact = this.filteredContacts.find(c => c.contactId === contactId) || allContacts.find(c => c.contactId === contactId);
             
-            // Enable phone and email when contact is found
+            // Phone and email remain disabled (read-only) - values are set via updateContactFields
             // Only enable tenantName if Reservation Type is NOT Maintenance and NOT Owner
             if (contactId) {
               if ( reservationTypeId !== ReservationType.Owner) {
@@ -734,8 +669,11 @@ export class ReservationComponent implements OnInit {
                 // Update validator when enabling - tenantName is required when editable
                 this.updateTenantNameValidator(reservationTypeId);
               }
-              this.enableFieldWithValidation('phone');
-              this.enableFieldWithValidation('email');
+              
+              // Update entity names if contact has entityId
+              if (contact) {
+                this.updateEntityNames(contact);
+              }
             }
             
             // Update tenantName validator based on reservation type
@@ -1048,15 +986,15 @@ export class ReservationComponent implements OnInit {
             
             if (contact) {
               this.selectedContact = contact;
-              // Initialize contact search control with contact name
-              const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
-              this.contactSearchControl.setValue(contactName, { emitEvent: false });
+              this.updateContactFields(contact);
+              this.updateEntityNames(contact);
             } else if (contactId) {
-              // If contactId is set but contact not found, try to get name from filteredContacts
+              // If contactId is set but contact not found, try to get from filteredContacts
               const foundContact = this.filteredContacts.find(c => c.contactId === contactId);
               if (foundContact) {
-                const contactName = `${foundContact.firstName || ''} ${foundContact.lastName || ''}`.trim();
-                this.contactSearchControl.setValue(contactName, { emitEvent: false });
+                this.selectedContact = foundContact;
+                this.updateContactFields(foundContact);
+                this.updateEntityNames(foundContact);
               }
             }
           });
@@ -1072,10 +1010,10 @@ export class ReservationComponent implements OnInit {
     }
   }
 
+  // Dynamic Form Adjustment Methods
   filterContactsByClientType(reservationTypeId: number | null, callback?: () => void): void {
     if (reservationTypeId === null || reservationTypeId === undefined) {
       this.filteredContacts = [];
-      this.filteredContactsForAutocomplete = [];
       if (callback) callback();
       return;
     }
@@ -1085,13 +1023,11 @@ export class ReservationComponent implements OnInit {
       this.contactService.getAllTenantContacts().pipe(take(1)).subscribe({
         next: (tenants: ContactResponse[]) => {
           this.filteredContacts = tenants;
-          this.filteredContactsForAutocomplete = tenants;
           if (callback) callback();
         },
         error: (err) => {
           console.error('Error loading tenant contacts:', err);
           this.filteredContacts = [];
-          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
@@ -1100,13 +1036,11 @@ export class ReservationComponent implements OnInit {
       this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
         next: (companies: ContactResponse[]) => {
           this.filteredContacts = companies;
-          this.filteredContactsForAutocomplete = companies;
           if (callback) callback();
         },
         error: (err) => {
           console.error('Error loading company contacts:', err);
           this.filteredContacts = [];
-          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
@@ -1115,54 +1049,134 @@ export class ReservationComponent implements OnInit {
       this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
         next: (owners: ContactResponse[]) => {
           this.filteredContacts = owners;
-          this.filteredContactsForAutocomplete = owners;
           if (callback) callback();
         },
         error: (err) => {
           console.error('Error loading owner contacts:', err);
           this.filteredContacts = [];
-          this.filteredContactsForAutocomplete = [];
           if (callback) callback();
         }
       });
     } else {
       this.filteredContacts = [];
-      this.filteredContactsForAutocomplete = [];
       if (callback) callback();
     }
   }
 
-  filterContactsForAutocomplete(searchText: string): void {
-    if (!searchText || searchText.trim() === '') {
-      this.filteredContactsForAutocomplete = this.filteredContacts;
-      return;
+  updateContactFields(contact: ContactResponse): void {
+    // Phone and email remain disabled (read-only) - just update their values
+    this.form.patchValue({
+      phone: this.formatterService.phoneNumber(contact.phone) || '',
+      email: contact.email || ''
+    }, { emitEvent: false });
+  }
+
+  updateEntityNames(contact: ContactResponse): void {
+    if (contact.entityTypeId === EntityType.Company && contact.entityId) {
+      const company = this.companies.find(c => c.companyId === contact.entityId);
+      if (company) {
+        this.selectedCompanyName = company.name;
+        this.form.patchValue({ 
+          entityCompanyName: company.name
+        }, { emitEvent: false });
+      } else {
+        this.selectedCompanyName = '';
+        this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
+      }
+    } else {
+      this.selectedCompanyName = '';
+      this.form.patchValue({ 
+        entityCompanyName: ''
+      }, { emitEvent: false });
     }
-
-    const searchLower = searchText.toLowerCase().trim();
-    this.filteredContactsForAutocomplete = this.filteredContacts.filter(contact => {
-      const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.toLowerCase();
-      const firstName = (contact.firstName || '').toLowerCase();
-      const lastName = (contact.lastName || '').toLowerCase();
-      return fullName.includes(searchLower) || 
-             firstName.includes(searchLower) || 
-             lastName.includes(searchLower);
-    });
   }
 
-  displayContactName(contactId: string | null): string {
-    if (!contactId) return '';
-    const contact = this.filteredContacts.find(c => c.contactId === contactId) || 
-                    this.contacts.find(c => c.contactId === contactId);
-    return contact ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() : '';
+  updateDepositValidator(depositType: number | null): void {
+    const depositControl = this.form?.get('deposit');
+    if (depositControl) {
+      if (depositType === DepositType.FlatFee) {
+        // Set deposit to 3000 as default when FlatFee is selected (only if current value is 0)
+        const currentDeposit = parseFloat(depositControl.value || '0');
+        if (currentDeposit === 0) {
+          depositControl.setValue('3000.00', { emitEvent: false });
+        }
+        // Make deposit required, editable, and must be greater than 0
+        depositControl.enable({ emitEvent: false });
+        depositControl.setValidators([
+          Validators.required,
+          (control: AbstractControl): ValidationErrors | null => {
+            const value = control.value;
+            if (value === null || value === undefined || value === '') {
+              return { required: true };
+            }
+            const numValue = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+            if (isNaN(numValue) || numValue <= 0) {
+              return { mustBeGreaterThanZero: true };
+            }
+            return null;
+          }
+        ]);
+        depositControl.updateValueAndValidity({ emitEvent: false });
+      } else if (depositType === DepositType.IncludedInRent) {
+        // Set deposit to 0 and make it disabled (greyed out and read-only)
+        depositControl.setValue('0.00', { emitEvent: false });
+        depositControl.disable({ emitEvent: false });
+        depositControl.clearValidators();
+        depositControl.updateValueAndValidity({ emitEvent: false });
+      }
+    }
   }
 
-  onContactSelected(event: any): void {
-    const contactId = event.option.value;
-    this.form.get('contactId')?.setValue(contactId, { emitEvent: true });
-    // The contactId valueChanges will update the search control display
+  updateMaidServiceFields(hasMaidService: boolean | null): void {
+    const maidServiceFeeControl = this.form.get('maidServiceFee');
+    const frequencyControl = this.form.get('frequencyId');
+    
+    if (hasMaidService === false) {
+      // Set maid service fee to 0 and disable when maid service is NO
+      if (maidServiceFeeControl) {
+        maidServiceFeeControl.setValue('0.00', { emitEvent: false });
+        maidServiceFeeControl.disable({ emitEvent: false });
+      }
+      // Set frequency to NA when maid service is NO
+      if (frequencyControl) {
+        frequencyControl.setValue(Frequency.NA, { emitEvent: false });
+        frequencyControl.disable({ emitEvent: false });
+        frequencyControl.clearValidators();
+        frequencyControl.updateValueAndValidity({ emitEvent: false });
+      }
+    } else {
+      // Enable maid service fee when maid service is YES and set default from property
+      if (maidServiceFeeControl) {
+        // Set maid service fee from selected property if available, otherwise keep current value
+        if (this.selectedProperty && this.selectedProperty.maidServiceFee !== null && this.selectedProperty.maidServiceFee !== undefined) {
+          maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
+        }
+        maidServiceFeeControl.enable({ emitEvent: false });
+      }
+      // Enable frequency when maid service is YES, set default to Once, and add validator
+      if (frequencyControl) {
+        // Only set to Once if current value is NA (to avoid overwriting user input)
+        const currentFrequency = frequencyControl.value;
+        if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
+          frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
+        }
+        frequencyControl.enable({ emitEvent: false });
+        // Frequency must not be NA when MaidService is Yes
+        frequencyControl.setValidators([
+          (control: AbstractControl): ValidationErrors | null => {
+            const value = control.value;
+            if (value === null || value === undefined || value === Frequency.NA) {
+              return { mustNotBeNA: true };
+            }
+            return null;
+          }
+        ]);
+        frequencyControl.updateValueAndValidity({ emitEvent: false });
+      }
+    }
   }
 
-  // Supporting data loads
+  // Supporting Data Loads
   loadContacts(): void {
     this.contactService.getContacts().pipe(take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
@@ -1196,8 +1210,7 @@ export class ReservationComponent implements OnInit {
   loadProperties(): void {
     this.propertyService.getProperties().pipe(take(1)).subscribe({
       next: (properties: PropertyResponse[]) => {
-        console.log('Properties loaded:', properties);
-        this.properties = properties;
+         this.properties = properties;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Reservation Component - Error loading properties:', err);
@@ -1401,7 +1414,6 @@ export class ReservationComponent implements OnInit {
     this.router.navigateByUrl(RouterUrl.ReservationList);
   }
   
-
   removeLoadItem(itemToRemove: string): void {
     if (this.itemsToLoad) {
       this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);

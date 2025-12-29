@@ -183,9 +183,9 @@ export class MappingService {
         contactName = o.tenantName;
       }
 
-      // Get propertyCode from reservation response, or look it up from properties if missing
-      let propertyCode = o.propertyCode || '';
-      if (!propertyCode && o.propertyId && properties) {
+      // Get propertyCode by looking it up from properties using propertyId
+      let propertyCode = '';
+      if (o.propertyId && properties) {
         const property = properties.find(p => p.propertyId === o.propertyId);
         if (property) {
           propertyCode = property.propertyCode || '';

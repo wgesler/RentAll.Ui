@@ -7,6 +7,8 @@ import { PropertyService } from '../services/property.service';
 import { PropertyResponse } from '../models/property.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationResponse } from '../../reservation/models/reservation-model';
+import { ContactService } from '../../contact/services/contact.service';
+import { ContactResponse } from '../../contact/models/contact.model';
 import { PropertyWelcomeService } from '../services/property-welcome.service';
 import { PropertyWelcomeRequest, PropertyWelcomeResponse } from '../models/property-welcome.model';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -42,6 +44,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   organization: OrganizationResponse | null = null;
   reservations: ReservationResponse[] = [];
   selectedReservation: ReservationResponse | null = null;
+  contacts: ContactResponse[] = [];
   itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization'];
 
   constructor(
@@ -50,6 +53,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private propertyService: PropertyService,
     private organizationService: OrganizationService,
     private reservationService: ReservationService,
+    private contactService: ContactService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -65,6 +69,9 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       this.isLoading = false;
       return;
     }
+    
+    // Load contacts first
+    this.loadContacts();
     
     // Load organization, property, reservations, welcome letter, and property letter information
     this.loadOrganizationSettings(() => {
@@ -205,6 +212,18 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
+  loadContacts(): void {
+    this.contactService.getContacts().pipe(take(1)).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property Welcome Letter Component - Error loading contacts:', err);
+        this.contacts = [];
+      }
+    });
+  }
+
   loadReservations(next: () => void): void {
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
@@ -290,8 +309,14 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     // Replace placeholders with actual data
     const previewHtml = this.replacePlaceholders(welcomeLetterHtml);
 
-    // Get tenant email from selected reservation
-    const tenantEmail = this.selectedReservation?.contactEmail || '';
+    // Get tenant email by looking up contact from contactId
+    let tenantEmail = '';
+    if (this.selectedReservation?.contactId) {
+      const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId);
+      if (contact) {
+        tenantEmail = contact.email || '';
+      }
+    }
     // Get organization name
     const organizationName = this.organization?.name || '';
     // Get tenant name

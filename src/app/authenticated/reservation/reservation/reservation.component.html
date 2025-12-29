@@ -107,22 +107,14 @@
               <!-- Line 3: Contact Name, Phone, Email -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
-                <input 
-                  type="text" 
-                  matInput 
-                  #contactInput
-                  [formControl]="contactSearchControl"
-                  [matAutocomplete]="contactAuto"
-                  (input)="filterContactsForAutocomplete(contactInput.value)"
-                  placeholder="Type to search..."
-                  required>
-                <mat-autocomplete #contactAuto="matAutocomplete" (optionSelected)="onContactSelected($event)">
-                  @for (contact of filteredContactsForAutocomplete; track contact.contactId) {
+                <mat-select formControlName="contactId" required>
+                  <mat-option value="">Select Contact</mat-option>
+                  @for (contact of filteredContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">
                       {{ contact.firstName }} {{ contact.lastName }}
                     </mat-option>
                   }
-                </mat-autocomplete>
+                </mat-select>
                 @if (form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
                   <mat-error>Contact Name is required</mat-error>
                 }
@@ -130,24 +122,20 @@
 
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Phone</mat-label>
-                <input matInput formControlName="phone" maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
+                <input matInput formControlName="phone" readonly>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Contact Email</mat-label>
-                <input matInput type="email" formControlName="email">
+                <input matInput type="email" formControlName="email" readonly>
               </mat-form-field>
 
-              <!-- Line 4: Company Name (if Corporate), Number of People, Tenant Name(s) -->
-              @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
+              <!-- Line 4: Company Name, Number of People, Tenant Name(s) -->
+              <!-- Display Company Name if selected contact has EntityTypeId = Company -->
+              @if (selectedContact && selectedContact.entityTypeId === EntityType.Company && selectedContact.entityId) {
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Company Name</mat-label>
-                  <mat-select formControlName="companyId">
-                    <mat-option [value]="null">Select Company</mat-option>
-                    @for (company of companies; track company.companyId) {
-                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
-                    }
-                  </mat-select>
+                  <input matInput formControlName="entityCompanyName" readonly>
                 </mat-form-field>
               }
 
@@ -159,7 +147,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" [class.col-span-2]="form.get('reservationTypeId')?.value === ReservationType.Corporate" [class.col-span-3]="form.get('reservationTypeId')?.value !== ReservationType.Corporate">
+              <mat-form-field appearance="outline" [class.col-span-2]="selectedContact && selectedContact.entityTypeId === EntityType.Company && selectedContact.entityId" [class.col-span-3]="!(selectedContact && selectedContact.entityTypeId === EntityType.Company && selectedContact.entityId)">
                 <mat-label>Tenant Name(s)</mat-label>
                 <input matInput formControlName="tenantName" required>
                 @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
