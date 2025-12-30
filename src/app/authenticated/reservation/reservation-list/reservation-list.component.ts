@@ -33,6 +33,7 @@ export class ReservationListComponent implements OnInit {
   showInactive: boolean = false;
 
   reservationsDisplayedColumns: ColumnSet = {
+    'reservationCode': { displayAs: 'Reservation Code', maxWidth: '20ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property Code', maxWidth: '20ch', sortType: 'natural' },
     'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '30ch' },

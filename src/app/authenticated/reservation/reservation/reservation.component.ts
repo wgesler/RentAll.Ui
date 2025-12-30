@@ -25,11 +25,12 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ReservationLeaseComponent } from '../reservation-lease/reservation-lease.component';
+import { ReservationLeaseInformationComponent } from '../reservation-lease-information/reservation-lease-information.component';
 
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ReservationLeaseComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ReservationLeaseComponent, ReservationLeaseInformationComponent],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })
@@ -203,6 +204,8 @@ export class ReservationComponent implements OnInit {
   // Form methods
   buildForm(): void {
     this.form = this.fb.group({
+      reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
+      propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
       propertyId: new FormControl('', [Validators.required]),
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       agentId: new FormControl(null, [Validators.required]),
@@ -246,9 +249,11 @@ export class ReservationComponent implements OnInit {
         const propertyAddress = this.selectedProperty 
           ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim()
           : '';
+        const propertyCode = this.selectedProperty?.propertyCode || '';
         
         // Pre-load property values into form fields
         const patchValues: any = {
+          propertyCode: propertyCode,
           propertyAddress: propertyAddress
         };
         
@@ -306,7 +311,7 @@ export class ReservationComponent implements OnInit {
         this.form.patchValue(patchValues, { emitEvent: false });
       } else {
         this.selectedProperty = null;
-        this.form.patchValue({ propertyAddress: '' }, { emitEvent: false });
+        this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
       }
     });
 
@@ -641,6 +646,7 @@ export class ReservationComponent implements OnInit {
       const propertyAddress = selectedProp 
         ? `${selectedProp.address1}${selectedProp.suite ? ' ' + selectedProp.suite : ''}`.trim()
         : '';
+      const propertyCode = selectedProp?.propertyCode || '';
       
       // Load contacts first to populate phone/email
       this.contactService.getContacts().pipe(take(1)).subscribe({
@@ -830,6 +836,8 @@ export class ReservationComponent implements OnInit {
             }
             
             this.form.patchValue({
+              reservationCode: this.reservation.reservationCode || '',
+              propertyCode: propertyCode,
               propertyId: this.reservation.propertyId,
               propertyAddress: propertyAddress,
               agentId: this.reservation.agentId || null,

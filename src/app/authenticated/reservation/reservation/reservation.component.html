@@ -14,11 +14,6 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReservation()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
         </div>
       </div>
         
@@ -26,20 +21,41 @@
         <mat-tab-group [selectedIndex]="0" class="reservation-tabs">
           <mat-tab label="Reservation">
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReservation()"
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
             </div>
             
             <mat-accordion>
-              <!-- Property Section -->
+              <!-- Reservation Section -->
               <mat-expansion-panel [expanded]="propertyPanelOpen" class="mb-4">
                 <mat-expansion-panel-header>
-                  <mat-panel-title>Property</mat-panel-title>
+                  <mat-panel-title>Reservation</mat-panel-title>
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <!-- Line 1: Property (1/4), Property Address (3/4) -->
+              <!-- Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (2/4) -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Reservation Code</mat-label>
+                <input matInput formControlName="reservationCode" readonly>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Property Code</mat-label>
+                <input matInput formControlName="propertyCode" readonly>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Property Address</mat-label>
+                <input matInput formControlName="propertyAddress" readonly>
+              </mat-form-field>
+
+              <!-- Line 2: Property (1/4) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Property</mat-label>
                 <mat-select formControlName="propertyId" required>
@@ -53,12 +69,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-3">
-                <mat-label>Property Address</mat-label>
-                <input matInput formControlName="propertyAddress" readonly>
-              </mat-form-field>
-
-              <!-- Line 2: Reservation Status, Reservation Type, Reservation Notice, Agent -->
+              <!-- Line 3: Reservation Status, Reservation Type, Reservation Notice, Agent -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Reservation Status</mat-label>
                 <mat-select formControlName="reservationStatusId" required>
@@ -374,11 +385,11 @@
           </mat-tab>
           
           <mat-tab label="Lease Information">
-            <div class="info-form mb-8 pt-5">
-              <div class="flex justify-center items-center" style="min-height: 500px;">
-                <p class="text-gray-500 text-lg">Lease Information content will be added here</p>
-              </div>
-            </div>
+            <app-reservation-lease-information 
+              [reservationId]="isAddMode ? null : reservationId"
+              [propertyId]="reservation?.propertyId || form.get('propertyId')?.value || null"
+              [contactId]="reservation?.contactId || form.get('contactId')?.value || null">
+            </app-reservation-lease-information>
           </mat-tab>
           
           <mat-tab label="Lease">

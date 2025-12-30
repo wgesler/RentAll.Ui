@@ -1,5 +1,53 @@
-<div class="reservation-lease-container">
-  <p>Lease content will go here.</p>
-</div>
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading lease...</p>
+  </div>
+} @else {
+  <div class="lease-container">
+    <form [formGroup]="form" class="lease-form">
+      
+      <!-- Top Buttons Section -->
+      <div class="top-controls">
+        <div class="flex gap-3 items-center">
+          <!-- Property Code (readonly) -->
+          <mat-form-field appearance="outline" class="property-code-field">
+            <mat-label>Property Code</mat-label>
+            <input matInput [value]="property?.propertyCode || ''" readonly>
+          </mat-form-field>
+        </div>
 
+        <!-- Action Buttons -->
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="preview-button" (click)="previewLease()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="!reservation">
+            <mat-icon>preview</mat-icon>
+            Preview
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLease()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
 
+      <!-- Lease Editor -->
+      <div class="editor-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Lease (HTML)</mat-label>
+          <textarea 
+            matInput 
+            formControlName="lease" 
+            rows="20"
+            [placeholder]="'Enter your lease HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
+          </textarea>
+          <mat-hint>
+            Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the lease.
+          </mat-hint>
+        </mat-form-field>
+      </div>
+
+    </form>
+  </div>
+}

@@ -282,10 +282,12 @@ export class ContactComponent implements OnInit {
 
   initializeContactTypes(): void {
     // Build availableContactTypes from the EntityType enum
-    // Exclude Unknown (0) from the list
+    // Exclude Unknown (0), Organization (1), and Reservation (6) from the list
     this.availableContactTypes = Object.keys(EntityType)
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
       .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
+      .filter(key => EntityType[key] !== EntityType.Organization) // Exclude Organization
+      .filter(key => EntityType[key] !== EntityType.Reservation) // Exclude Reservation
       .map(key => ({
         value: EntityType[key],
         label: this.formatContactTypeLabel(key)

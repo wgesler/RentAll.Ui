@@ -1,5 +1,52 @@
-.reservation-lease-container {
-  padding: 20px;
+.lease-container {
+  padding: 1.5rem;
 }
 
+.lease-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.property-code-field {
+  width: 18ch;
+  min-width: 18ch;
+  max-width: 18ch;
+}
+
+.editor-section {
+  width: 100%;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+// Ensure textarea has proper styling
+textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}

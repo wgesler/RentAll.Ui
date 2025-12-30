@@ -194,6 +194,7 @@ export class MappingService {
 
       return {
         reservationId: o.reservationId,
+        reservationCode: o.reservationCode,
         propertyCode: propertyCode, 
         contactId: o.contactId || '',
         contactName: contactName || '',

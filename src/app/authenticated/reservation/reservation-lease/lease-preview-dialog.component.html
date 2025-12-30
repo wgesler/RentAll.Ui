@@ -1,0 +1,28 @@
+<div class="preview-dialog-container">
+  <div class="preview-dialog-header">
+    <div class="flex items-center gap-2">
+      <mat-icon color="primary">preview</mat-icon>
+      <span class="text-xl font-medium">Lease Preview</span>
+    </div>
+    <div class="flex gap-2">
+      <button mat-raised-button color="accent" (click)="onPrint()">
+        <mat-icon>print</mat-icon>
+        Print
+      </button>
+      <button mat-raised-button color="accent" (click)="onEmail()" [disabled]="!data.email">
+        <mat-icon>email</mat-icon>
+        Email
+      </button>
+      <button mat-raised-button color="accent" (click)="onDownload()" [disabled]="isDownloading">
+        <mat-icon>download</mat-icon>
+        {{ isDownloading ? 'Downloading...' : 'Download' }}
+      </button>
+      <button mat-raised-button color="primary" mat-dialog-close (click)="onClose()">Close</button>
+    </div>
+  </div>
+
+  <mat-dialog-content class="preview-content">
+    <div class="preview-html-wrapper" [innerHTML]="data.html | safe_html"></div>
+  </mat-dialog-content>
+</div>
+

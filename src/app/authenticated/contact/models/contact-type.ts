@@ -4,6 +4,7 @@ export enum EntityType {
   Company = 2,
   Owner = 3,
   Tenant = 4,
-  Vendor = 5
+  Vendor = 5,
+  Reservation = 6
 }
 

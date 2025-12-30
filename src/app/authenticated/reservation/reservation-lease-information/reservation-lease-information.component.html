@@ -1,0 +1,196 @@
+<div class="reservation-lease-information-container">
+  <form [formGroup]="form" class="lease-information-form">
+    <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
+      <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLeaseInformation()"
+        class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </div>
+    <mat-accordion multi="true">
+      <!-- Financial Information -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Financial Information</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Rental Payment</mat-label>
+            <textarea matInput formControlName="rentalPayment" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Security Deposit</mat-label>
+            <textarea matInput formControlName="securityDeposit" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Partial Month</mat-label>
+            <textarea matInput formControlName="partialMonth" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Departure Notification</mat-label>
+            <textarea matInput formControlName="departureNotification" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Holdover</mat-label>
+            <textarea matInput formControlName="holdover" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Departure Service Fee</mat-label>
+            <textarea matInput formControlName="departureServiceFee" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Policies & Procedures -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Policies & Procedures</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Cancellation Policy</mat-label>
+            <textarea matInput formControlName="cancellationPolicy" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Checkout Procedure</mat-label>
+            <textarea matInput formControlName="checkoutProcedure" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Rules and Regulations</mat-label>
+            <textarea matInput formControlName="rulesAndRegulations" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Property Access -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Property Access</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Key Pick Up / Drop Off</mat-label>
+            <textarea matInput formControlName="keyPickUpDropOff" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Parking</mat-label>
+            <textarea matInput formControlName="parking" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Tenant & Property Use -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Tenant & Property Use</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Occupying Tenants</mat-label>
+            <textarea matInput formControlName="occupyingTenants" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Property Use</mat-label>
+            <textarea matInput formControlName="propertyUse" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Services & Allowances -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Services & Allowances</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Utility Allowance</mat-label>
+            <textarea matInput formControlName="utilityAllowance" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Maid Service</mat-label>
+            <textarea matInput formControlName="maidService" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Property Restrictions -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Property Restrictions</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Pets</mat-label>
+            <textarea matInput formControlName="pets" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Smoking</mat-label>
+            <textarea matInput formControlName="smoking" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Legal & Liability -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Legal & Liability</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Emergencies</mat-label>
+            <textarea matInput formControlName="emergencies" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Homeowners Association</mat-label>
+            <textarea matInput formControlName="homeownersAssociation" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Indemnification</mat-label>
+            <textarea matInput formControlName="indemnification" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Default Clause</mat-label>
+            <textarea matInput formControlName="defaultClause" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Attorney Collection Fees</mat-label>
+            <textarea matInput formControlName="attorneyCollectionFees" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Reserved Rights</mat-label>
+            <textarea matInput formControlName="reservedRights" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Miscellaneous -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Miscellaneous</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Miscellaneous</mat-label>
+            <textarea matInput formControlName="miscellaneous" rows="4"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </form>
+</div>

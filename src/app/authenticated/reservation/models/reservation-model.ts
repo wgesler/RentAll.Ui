@@ -6,6 +6,7 @@ export interface ReservationRequest {
   agentId?: string | null;
   propertyId: string;
   contactId: string;
+  reservationCode?: string;
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId?: number;
@@ -42,6 +43,7 @@ export interface ReservationResponse {
   agentId?: string | null;
   propertyId: string;
   contactId: string;
+  reservationCode: string;
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId?: number;
@@ -74,6 +76,7 @@ export interface ReservationResponse {
 
 export interface ReservationListDisplay {
   reservationId: string;
+  reservationCode: string;
   propertyCode: string;
   contactId: string;
   contactName: string;

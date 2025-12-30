@@ -1,0 +1,25 @@
+.reservation-lease-information-container {
+  padding: 20px;
+}
+
+.lease-information-form {
+  width: 100%;
+}
+
+.form-fields {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+::ng-deep {
+  .mat-mdc-expansion-panel {
+    margin-bottom: 8px;
+  }
+}
+

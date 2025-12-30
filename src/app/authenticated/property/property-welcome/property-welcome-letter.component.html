@@ -20,10 +20,9 @@
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Select Reservation</mat-label>
             <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
-              <mat-option [value]="null">No Reservation Selected</mat-option>
               @for (reservation of reservations; track reservation.reservationId) {
                 <mat-option [value]="reservation.reservationId">
-                  {{ reservation.tenantName || 'Unnamed Tenant' }}
+                  {{ reservation.reservationCode || 'N/A' }}: <span style="font-weight: 600;">{{ reservation.tenantName || 'Unnamed Tenant' }}</span>
                 </mat-option>
               }
             </mat-select>
