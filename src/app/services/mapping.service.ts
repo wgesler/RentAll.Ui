@@ -108,6 +108,7 @@ export class MappingService {
       franchiseId: o.franchiseId,
       franchiseCode: o.franchiseCode,
       description: o.description,
+      phone: this.formatter.phoneNumber(o.phone),
       isActive: o.isActive
     }));
   }

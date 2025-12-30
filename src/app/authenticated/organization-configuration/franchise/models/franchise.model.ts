@@ -3,6 +3,7 @@ export interface FranchiseRequest {
   organizationId: string;
   franchiseCode: string;
   description: string;
+  phone: string;
   isActive: boolean;
 }
 
@@ -11,6 +12,7 @@ export interface FranchiseResponse {
   organizationId: string;
   franchiseCode: string;
   description: string;
+  phone: string;
   isActive: boolean;
 }
 
@@ -18,6 +20,7 @@ export interface FranchiseListDisplay {
   franchiseId: number;
   franchiseCode: string;
   description: string;
+  phone: string;
   isActive: boolean;
 }
 

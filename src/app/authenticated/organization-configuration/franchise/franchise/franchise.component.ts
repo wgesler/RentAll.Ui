@@ -138,6 +138,7 @@ export class FranchiseComponent implements OnInit, OnChanges {
       organizationId: user?.organizationId || '',
       franchiseCode: formValue.franchiseCode,
       description: formValue.description,
+      phone: formValue.phone,
       isActive: formValue.isActive
     };
 

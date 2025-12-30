@@ -15,6 +15,12 @@
             <mat-label>Property Code</mat-label>
             <input matInput [value]="property?.propertyCode || ''" readonly>
           </mat-form-field>
+
+          <!-- Reservation (readonly) -->
+          <mat-form-field appearance="outline" class="reservation-field">
+            <mat-label>Reservation</mat-label>
+            <input matInput [value]="getReservationDisplay()" readonly>
+          </mat-form-field>
         </div>
 
         <!-- Action Buttons -->

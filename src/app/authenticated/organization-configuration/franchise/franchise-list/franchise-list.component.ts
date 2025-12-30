@@ -32,7 +32,8 @@ export class FranchiseListComponent implements OnInit {
 
   franchisesDisplayedColumns: ColumnSet = {
     'franchiseCode': { displayAs: 'Franchise Code', maxWidth: '30ch' },
-    'description': { displayAs: 'Description', maxWidth: '40ch' },
+    'description': { displayAs: 'Description', maxWidth: '30ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allFranchises: FranchiseListDisplay[] = [];

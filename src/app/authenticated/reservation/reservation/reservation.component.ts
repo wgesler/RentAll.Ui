@@ -179,6 +179,7 @@ export class ReservationComponent implements OnInit {
     if (!this.isAddMode) {
       reservationRequest.reservationId = this.reservationId;
       reservationRequest.organizationId = this.reservation?.organizationId || user?.organizationId || '';
+      reservationRequest.reservationCode = this.reservation?.reservationCode || formValue.reservationCode || '';
     }
 
     const save$ = this.isAddMode
@@ -836,7 +837,7 @@ export class ReservationComponent implements OnInit {
             }
             
             this.form.patchValue({
-              reservationCode: this.reservation.reservationCode || '',
+              reservationCode: this.reservation?.reservationCode || '',
               propertyCode: propertyCode,
               propertyId: this.reservation.propertyId,
               propertyAddress: propertyAddress,
