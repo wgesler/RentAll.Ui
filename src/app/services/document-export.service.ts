@@ -35,7 +35,7 @@ export class DocumentExportService {
       iframe.style.position = 'fixed';
       iframe.style.right = '0';
       iframe.style.bottom = '0';
-      iframe.style.width = '800px';
+      iframe.style.width = '8.5in'; // Match the lease template width
       iframe.style.height = '10000px';
       iframe.style.border = '0';
       iframe.style.overflow = 'visible';
@@ -43,93 +43,64 @@ export class DocumentExportService {
 
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
       if (iframeDoc) {
-        // Extract styles from HTML content if it has a style tag
-        let extractedStyles = '';
-        const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-        if (styleMatch) {
-          extractedStyles = styleMatch[1];
+        // Check if htmlContent is a complete HTML document (starts with <!DOCTYPE or <html>)
+        const isFullDocument = /^\s*<!DOCTYPE/i.test(htmlContent) || /^\s*<html/i.test(htmlContent);
+        
+        if (isFullDocument) {
+          // For full HTML documents (like lease templates), write directly to iframe
+          // This preserves the complete structure including all three documents
+          iframeDoc.open();
+          iframeDoc.write(htmlContent);
+          iframeDoc.close();
+        } else {
+          // For partial HTML (just body content), wrap it with styles
+          // Extract ALL styles from HTML content - there may be multiple style blocks
+          let extractedStyles = '';
+          const styleMatches = htmlContent.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+          for (const match of styleMatches) {
+            if (match[1]) {
+              extractedStyles += match[1] + '\n';
+            }
+          }
+          
+          // Remove all style tags from body but keep everything else
+          const htmlWithoutStyles = htmlContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+          
+          iframeDoc.open();
+          iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Document</title>
+                <style>
+                  * {
+                    box-sizing: border-box;
+                  }
+                  html, body {
+                    margin: 0; 
+                    padding: 0;
+                    width: 100%;
+                  }
+                  ${extractedStyles || `
+                  body {
+                    font-family: Arial, Helvetica, sans-serif;
+                    line-height: 1.6;
+                    color: #000;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 10px;
+                  }
+                  `}
+                </style>
+              </head>
+              <body>
+                ${htmlWithoutStyles}
+              </body>
+            </html>
+          `);
+          iframeDoc.close();
         }
         
-        iframeDoc.open();
-        iframeDoc.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Document</title>
-              <style>
-                * {
-                  box-sizing: border-box;
-                }
-                html, body {
-                  margin: 0; 
-                  padding: 0;
-                  font-family: Arial, Helvetica, sans-serif;
-                  width: 100%;
-                }
-                ${extractedStyles || `
-                body {
-                  font-family: Arial, Helvetica, sans-serif;
-                  line-height: 1.6;
-                  color: #000;
-                  max-width: 800px;
-                  margin: 0 auto;
-                  padding: 10px;
-                }
-                .header {
-                  position: relative;
-                  margin-bottom: 0;
-                  min-height: 0px;
-                }
-                .logo {
-                  position: absolute;
-                  top: 0;
-                  left: 0;
-                  max-height: 100px;
-                  max-width: 200px;
-                  display: block;
-                }
-                .content {
-                  margin-top: 120px;
-                }
-                h1, h3 {
-                  color: #2c3e50;
-                }
-                h2 {
-                  font-size: 1rem;
-                  font-weight: 900;
-                  color: #000;
-                  text-decoration-line: underline;
-                  text-decoration-color: #111;
-                  text-decoration-thickness: 2px;
-                  text-underline-offset: 4px;
-                }
-                .section {
-                  margin-bottom: 24px;
-                }
-                p {
-                  margin: 0.5em 0;
-                  padding-left: 0;
-                }
-                .label, .separator-label {
-                  font-weight: 800;
-                  vertical-align: middle;
-                  margin-right: 0.5em;
-                }
-                .separator-label {
-                  margin-left: 1.5rem;
-                }
-                .text-center {
-                  text-align: center;
-                }
-                `}
-              </style>
-            </head>
-            <body>
-              ${htmlContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')}
-            </body>
-          </html>
-        `);
-        iframeDoc.close();
         targetElement = iframeDoc.body;
         
         // Wait for iframe to load

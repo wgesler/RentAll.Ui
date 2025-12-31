@@ -1059,7 +1059,6 @@ export class ReservationLeaseComponent implements OnInit {
   </tr>
 
   <p class="breakhere"></p>
-  <br><br>
 
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -1264,7 +1263,6 @@ export class ReservationLeaseComponent implements OnInit {
   </html>
 
   <p class="breakhere"></p>
-  <br><br>
 
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
