@@ -157,6 +157,16 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
       logoPath: this.organization.logoPath || undefined,
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       afterHoursPhone: afterHoursPhoneDigits || undefined,
+      defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : undefined,
+      utilityOneBed: formValue.utilityOneBed ? parseFloat(formValue.utilityOneBed.toString()) : undefined,
+      utilityTwoBed: formValue.utilityTwoBed ? parseFloat(formValue.utilityTwoBed.toString()) : undefined,
+      utilityThreeBed: formValue.utilityThreeBed ? parseFloat(formValue.utilityThreeBed.toString()) : undefined,
+      utilityFourBed: formValue.utilityFourBed ? parseFloat(formValue.utilityFourBed.toString()) : undefined,
+      utilityHouse: formValue.utilityHouse ? parseFloat(formValue.utilityHouse.toString()) : undefined,
+      maidOneBed: formValue.maidOneBed ? parseFloat(formValue.maidOneBed.toString()) : undefined,
+      maidTwoBed: formValue.maidTwoBed ? parseFloat(formValue.maidTwoBed.toString()) : undefined,
+      maidThreeBed: formValue.maidThreeBed ? parseFloat(formValue.maidThreeBed.toString()) : undefined,
+      maidFourBed: formValue.maidFourBed ? parseFloat(formValue.maidFourBed.toString()) : undefined,
       isActive: this.organization.isActive
     };
 
@@ -181,7 +191,17 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
   buildForm(): FormGroup {
     return this.fb.group({
       maintenanceEmail: new FormControl(''),
-      afterHoursPhone: new FormControl('')
+      afterHoursPhone: new FormControl(''),
+      defaultDeposit: new FormControl<string>('0.00'),
+      utilityOneBed: new FormControl<string>('0.00'),
+      utilityTwoBed: new FormControl<string>('0.00'),
+      utilityThreeBed: new FormControl<string>('0.00'),
+      utilityFourBed: new FormControl<string>('0.00'),
+      utilityHouse: new FormControl<string>('0.00'),
+      maidOneBed: new FormControl<string>('0.00'),
+      maidTwoBed: new FormControl<string>('0.00'),
+      maidThreeBed: new FormControl<string>('0.00'),
+      maidFourBed: new FormControl<string>('0.00')
     });
   }
 
@@ -190,7 +210,17 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
 
     this.organizationForm.patchValue({
       maintenanceEmail: this.organization.maintenanceEmail || '',
-      afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || ''
+      afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || '',
+      defaultDeposit: this.organization.defaultDeposit !== null && this.organization.defaultDeposit !== undefined ? this.organization.defaultDeposit.toFixed(2) : '0.00',
+      utilityOneBed: this.organization.utilityOneBed !== null && this.organization.utilityOneBed !== undefined ? this.organization.utilityOneBed.toFixed(2) : '0.00',
+      utilityTwoBed: this.organization.utilityTwoBed !== null && this.organization.utilityTwoBed !== undefined ? this.organization.utilityTwoBed.toFixed(2) : '0.00',
+      utilityThreeBed: this.organization.utilityThreeBed !== null && this.organization.utilityThreeBed !== undefined ? this.organization.utilityThreeBed.toFixed(2) : '0.00',
+      utilityFourBed: this.organization.utilityFourBed !== null && this.organization.utilityFourBed !== undefined ? this.organization.utilityFourBed.toFixed(2) : '0.00',
+      utilityHouse: this.organization.utilityHouse !== null && this.organization.utilityHouse !== undefined ? this.organization.utilityHouse.toFixed(2) : '0.00',
+      maidOneBed: this.organization.maidOneBed !== null && this.organization.maidOneBed !== undefined ? this.organization.maidOneBed.toFixed(2) : '0.00',
+      maidTwoBed: this.organization.maidTwoBed !== null && this.organization.maidTwoBed !== undefined ? this.organization.maidTwoBed.toFixed(2) : '0.00',
+      maidThreeBed: this.organization.maidThreeBed !== null && this.organization.maidThreeBed !== undefined ? this.organization.maidThreeBed.toFixed(2) : '0.00',
+      maidFourBed: this.organization.maidFourBed !== null && this.organization.maidFourBed !== undefined ? this.organization.maidFourBed.toFixed(2) : '0.00'
     });
   }
 
@@ -201,6 +231,19 @@ export class OrganizationConfigurationComponent implements OnInit, OnDestroy {
 
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.organizationForm.get('afterHoursPhone'));
+  }
+
+  // Decimal input formatting
+  formatDecimal(fieldName: string): void {
+    this.formatterService.formatDecimalControl(this.organizationForm.get(fieldName));
+  }
+
+  onDecimalInput(event: Event, fieldName: string): void {
+    this.formatterService.formatDecimalInput(event, this.organizationForm.get(fieldName));
+  }
+
+  selectAllOnFocus(event: Event): void {
+    (event.target as HTMLInputElement).select();
   }
 
   // Event handlers for child components

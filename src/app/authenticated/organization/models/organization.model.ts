@@ -16,6 +16,16 @@ export interface OrganizationRequest {
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
   maintenanceEmail?: string;
   afterHoursPhone?: string;
+  defaultDeposit?: number;
+  utilityOneBed?: number;
+  utilityTwoBed?: number;
+  utilityThreeBed?: number;
+  utilityFourBed?: number;
+  utilityHouse?: number;
+  maidOneBed?: number;
+  maidTwoBed?: number;
+  maidThreeBed?: number;
+  maidFourBed?: number;
   isActive: boolean;
 }
 
@@ -35,6 +45,16 @@ export interface OrganizationResponse {
   fileDetails?: FileDetails; // Contains base64 image data for display
   maintenanceEmail?: string;
   afterHoursPhone?: string;
+  defaultDeposit?: number;
+  utilityOneBed?: number;
+  utilityTwoBed?: number;
+  utilityThreeBed?: number;
+  utilityFourBed?: number;
+  utilityHouse?: number;
+  maidOneBed?: number;
+  maidTwoBed?: number;
+  maidThreeBed?: number;
+  maidFourBed?: number;
   isActive: boolean;
 }
 

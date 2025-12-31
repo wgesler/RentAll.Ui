@@ -18,6 +18,8 @@ import { AgentService } from '../../organization-configuration/agent/services/ag
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
+import { OrganizationService } from '../../organization/services/organization.service';
+import { OrganizationResponse } from '../../organization/models/organization.model';
 import { EntityType } from '../../contact/models/contact-type';
 import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
@@ -51,6 +53,7 @@ export class ReservationComponent implements OnInit {
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
   companies: CompanyResponse[] = [];
+  organization: OrganizationResponse | null = null;
   selectedProperty: PropertyResponse | null = null;
   selectedContact: ContactResponse | null = null;
   selectedCompanyName: string = '';
@@ -76,6 +79,7 @@ export class ReservationComponent implements OnInit {
     private propertyService: PropertyService,
     private agentService: AgentService,
     private companyService: CompanyService,
+    private organizationService: OrganizationService,
     private authService: AuthService,
     private formatterService: FormatterService,
     private utilityService: UtilityService
@@ -85,6 +89,7 @@ export class ReservationComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeEnums();
+    this.loadOrganization();
     this.loadContacts();
     this.loadAgents();
     this.loadProperties();
@@ -160,6 +165,7 @@ export class ReservationComponent implements OnInit {
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
+      depositTypeId: formValue.depositType !== null && formValue.depositType !== undefined ? Number(formValue.depositType) : undefined,
       departureFee: formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0,
       maidService: formValue.maidService ?? false,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
@@ -173,6 +179,7 @@ export class ReservationComponent implements OnInit {
       extraFee2Name: formValue.extraFee2Name || '',
       taxes: formValue.taxes ? parseFloat(formValue.taxes.toString()) : 0,
       notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
+      allowExtensions: formValue.allowExtensions ?? false,
       isActive: formValue.isActive ?? true
     };
 
@@ -217,6 +224,7 @@ export class ReservationComponent implements OnInit {
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(null),
       isActive: new FormControl(true),
+      allowExtensions: new FormControl(true),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required]),
       checkInTimeId: new FormControl<number>(CheckinTimes.NA),
@@ -232,7 +240,7 @@ export class ReservationComponent implements OnInit {
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       depositType: new FormControl(DepositType.FlatFee),
-      deposit: new FormControl<string>('0.00'),
+      deposit: new FormControl<string>(this.getDefaultDeposit()),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00'),
       frequencyId: new FormControl(Frequency.NA),
@@ -848,6 +856,7 @@ export class ReservationComponent implements OnInit {
               reservationStatusId: reservationStatus,
               reservationNoticeId: this.reservation.reservationNoticeId || null,
               isActive: isActiveValue,
+              allowExtensions: this.reservation.allowExtensions ?? true,
               arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
               departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
               checkInTimeId: this.utilityService.normalizeCheckInTimeId(this.reservation.checkInTimeId),
@@ -855,7 +864,7 @@ export class ReservationComponent implements OnInit {
               billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
               billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
               numberOfPeople: numberOfPeopleValue,
-              depositType: DepositType.FlatFee,
+              depositType: this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.FlatFee,
               deposit: this.reservation.deposit ? this.reservation.deposit.toFixed(2) : '0.00',
               departureFee: (this.reservation.departureFee ?? 0).toFixed(2),
               maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
@@ -876,9 +885,9 @@ export class ReservationComponent implements OnInit {
               email: contact?.email || ''
             }, { emitEvent: false });
             
-            // Update disabled state based on loaded depositType (default to FlatFee)
+            // Update disabled state based on loaded depositType
             // Use the updateDepositValidator method to set correct validators
-            const loadedDepositType = DepositType.FlatFee;
+            const loadedDepositType = this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.FlatFee;
             this.updateDepositValidator(loadedDepositType);
 
             // Update pets and maidService field states after loading
@@ -1100,14 +1109,23 @@ export class ReservationComponent implements OnInit {
     }
   }
 
+  getDefaultDeposit(): string {
+    const defaultDeposit = this.organization?.defaultDeposit;
+    if (defaultDeposit !== null && defaultDeposit !== undefined) {
+      return defaultDeposit.toFixed(2);
+    }
+    return '0.00';
+  }
+
   updateDepositValidator(depositType: number | null): void {
     const depositControl = this.form?.get('deposit');
     if (depositControl) {
       if (depositType === DepositType.FlatFee) {
-        // Set deposit to 3000 as default when FlatFee is selected (only if current value is 0)
+        // Set deposit to organization defaultDeposit when FlatFee is selected (only if current value is 0)
         const currentDeposit = parseFloat(depositControl.value || '0');
         if (currentDeposit === 0) {
-          depositControl.setValue('3000.00', { emitEvent: false });
+          const defaultDeposit = this.getDefaultDeposit();
+          depositControl.setValue(defaultDeposit, { emitEvent: false });
         }
         // Make deposit required, editable, and must be greater than 0
         depositControl.enable({ emitEvent: false });
@@ -1127,9 +1145,8 @@ export class ReservationComponent implements OnInit {
         ]);
         depositControl.updateValueAndValidity({ emitEvent: false });
       } else if (depositType === DepositType.IncludedInRent) {
-        // Set deposit to 0 and make it disabled (greyed out and read-only)
-        depositControl.setValue('0.00', { emitEvent: false });
-        depositControl.disable({ emitEvent: false });
+        // Clear validators for IncludedInRent, but keep field enabled and value unchanged
+        depositControl.enable({ emitEvent: false });
         depositControl.clearValidators();
         depositControl.updateValueAndValidity({ emitEvent: false });
       }
@@ -1224,6 +1241,28 @@ export class ReservationComponent implements OnInit {
       error: (err: HttpErrorResponse) => {
         console.error('Reservation Component - Error loading properties:', err);
         this.properties = [];
+      }
+    });
+  }
+
+  loadOrganization(): void {
+    const user = this.authService.getUser();
+    if (!user?.organizationId) return;
+
+    this.organizationService.getOrganizationByGuid(user.organizationId).pipe(take(1)).subscribe({
+      next: (organization: OrganizationResponse) => {
+        this.organization = organization;
+        // Update deposit default if form exists and deposit is 0.00
+        if (this.form) {
+          const depositControl = this.form.get('deposit');
+          if (depositControl && depositControl.value === '0.00') {
+            const defaultDeposit = this.getDefaultDeposit();
+            depositControl.setValue(defaultDeposit, { emitEvent: false });
+          }
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Reservation Component - Error loading organization:', err);
       }
     });
   }

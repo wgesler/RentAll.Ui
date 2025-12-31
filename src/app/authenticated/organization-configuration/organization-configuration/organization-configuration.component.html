@@ -33,13 +33,101 @@
                       <input matInput type="email" formControlName="maintenanceEmail" placeholder="maintenance@example.com">
                     </mat-form-field>
 
-                  <mat-form-field appearance="outline">
-                    <mat-label>After Hours Phone</mat-label>
-                    <input matInput formControlName="afterHoursPhone" maxlength="14"
-                      (blur)="formatPhone()" 
-                      (input)="onPhoneInput($event)"
-                      placeholder="(555) 123-4567">
-                  </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>After Hours Phone</mat-label>
+                      <input matInput formControlName="afterHoursPhone" maxlength="14"
+                        (blur)="formatPhone()" 
+                        (input)="onPhoneInput($event)"
+                        placeholder="(555) 123-4567">
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Default Deposit -->
+                  <div class="mb-4">
+                    <mat-form-field appearance="outline" style="width: 300px;">
+                      <mat-label>Default Deposit</mat-label>
+                      <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00"
+                        (blur)="formatDecimal('defaultDeposit')"
+                        (input)="onDecimalInput($event, 'defaultDeposit')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Utility Charges Subsection -->
+                  <div class="mb-4">
+                    <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Fees</h3>
+                    <div class="flex gap-4">
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>1 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="utilityOneBed" placeholder="0.00"
+                          (blur)="formatDecimal('utilityOneBed')"
+                          (input)="onDecimalInput($event, 'utilityOneBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>2 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="utilityTwoBed" placeholder="0.00"
+                          (blur)="formatDecimal('utilityTwoBed')"
+                          (input)="onDecimalInput($event, 'utilityTwoBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>3 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="utilityThreeBed" placeholder="0.00"
+                          (blur)="formatDecimal('utilityThreeBed')"
+                          (input)="onDecimalInput($event, 'utilityThreeBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>4 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="utilityFourBed" placeholder="0.00"
+                          (blur)="formatDecimal('utilityFourBed')"
+                          (input)="onDecimalInput($event, 'utilityFourBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>House</mat-label>
+                        <input matInput type="text" formControlName="utilityHouse" placeholder="0.00"
+                          (blur)="formatDecimal('utilityHouse')"
+                          (input)="onDecimalInput($event, 'utilityHouse')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                    </div>
+                  </div>
+
+                  <!-- Maid Charges Subsection -->
+                  <div class="mb-4">
+                    <h3 class="text-lg font-bold mb-3 text-black">Default Lease Maid Fees</h3>
+                    <div class="flex gap-4">
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>1 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="maidOneBed" placeholder="0.00"
+                          (blur)="formatDecimal('maidOneBed')"
+                          (input)="onDecimalInput($event, 'maidOneBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>2 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="maidTwoBed" placeholder="0.00"
+                          (blur)="formatDecimal('maidTwoBed')"
+                          (input)="onDecimalInput($event, 'maidTwoBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>3 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="maidThreeBed" placeholder="0.00"
+                          (blur)="formatDecimal('maidThreeBed')"
+                          (input)="onDecimalInput($event, 'maidThreeBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>4 Bedroom</mat-label>
+                        <input matInput type="text" formControlName="maidFourBed" placeholder="0.00"
+                          (blur)="formatDecimal('maidFourBed')"
+                          (input)="onDecimalInput($event, 'maidFourBed')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                    </div>
                   </div>
 
                   <div class="flex justify-end gap-2">

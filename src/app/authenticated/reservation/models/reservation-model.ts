@@ -34,7 +34,8 @@ export interface ReservationRequest {
   extraFee2?: number;
   extraFee2Name?: string;
   notes?: string;
-  isActive: boolean;
+  allowExtensions: boolean;
+  isActive: boolean; 
 }
 
 export interface ReservationResponse {
@@ -71,7 +72,12 @@ export interface ReservationResponse {
   extraFee2?: number;
   extraFee2Name?: string;
   notes?: string;
+  allowExtensions: boolean;
   isActive: boolean;
+  createdOn?: string;
+  createdBy?: string;
+  modifiedOn?: string;
+  modifiedBy?: string; 
 }
 
 export interface ReservationListDisplay {
