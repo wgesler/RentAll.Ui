@@ -500,11 +500,13 @@ export class ReservationLeaseComponent implements OnInit {
     if(!this.property || !this.organization) return '';
 
     const bedrooms = this.property.bedrooms;
+    console.log('Property Bedrooms:', bedrooms);
     let utilityFee: number | undefined;
 
     switch(bedrooms) {
       case 1:
         utilityFee = this.organization.utilityOneBed;
+        console.log('Utility Fee for 1 Bed:', utilityFee);
         break;
       case 2:
         utilityFee = this.organization.utilityTwoBed;
@@ -657,41 +659,7 @@ export class ReservationLeaseComponent implements OnInit {
       result = result.replace(/\{\{attorneyCollectionFees\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.attorneyCollectionFees || ''));
       result = result.replace(/\{\{reservedRights\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.reservedRights || ''));
       result = result.replace(/\{\{propertyUse\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.propertyUse || ''));
-      
-      // Convert miscellaneous list items to paragraphs
-      let miscellaneousText = this.leaseInformation.miscellaneous || '';
-      if (miscellaneousText) {
-        // First, handle HTML list items if present
-        miscellaneousText = miscellaneousText.replace(/<LI[^>]*>/gi, '<P>');
-        miscellaneousText = miscellaneousText.replace(/<\/LI>/gi, '</P>');
-        miscellaneousText = miscellaneousText.replace(/<\/?OL[^>]*>/gi, '');
-        miscellaneousText = miscellaneousText.replace(/<\/?UL[^>]*>/gi, '');
-        miscellaneousText = miscellaneousText.replace(/<\/?SPAN[^>]*>/gi, '');
-        
-        // Handle plain text with letter prefixes (I., J., K., L., M., etc.)
-        // Split on pattern: letter + period + space at start of line or after newline
-        // This handles both single-line and multi-line formats
-        if (!miscellaneousText.includes('<P>') && !miscellaneousText.includes('<LI>')) {
-          // Only process if not already HTML formatted
-          // Split on uppercase letter followed by period and space (at start or after newline)
-          const items = miscellaneousText.split(/(?=[A-Z]\.\s)/);
-          if (items.length > 1) {
-            miscellaneousText = items
-              .filter(item => item.trim().length > 0)
-              .map(item => {
-                const trimmed = item.trim();
-                // Match the letter prefix (I., J., etc.) and the rest
-                const match = trimmed.match(/^([A-Z]\.)\s+(.+)$/s);
-                if (match) {
-                  return `<P><strong>${match[1]}</strong> ${match[2].trim()}</P>`;
-                }
-                return `<P>${trimmed}</P>`;
-              })
-              .join('\n');
-          }
-        }
-      }
-      result = result.replace(/\{\{miscellaneous\}\}/g, this.replacePlaceholdersInText(miscellaneousText));
+      result = result.replace(/\{\{miscellaneous\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.miscellaneous || ''));
     }
 
     // Handle logo
@@ -727,8 +695,9 @@ export class ReservationLeaseComponent implements OnInit {
     let result = text;
 
     // Replace organization/franchise name
-    const organizationName = this.organization?.name || '';
-    result = result.replace(/\{\{organization-franchise\}\}/g, organizationName);
+    if (this.organization) {
+      result = result.replace(/\{\{organization-franchise\}\}/g,this.getOrganizationName());
+    }
 
     // Replace reservation placeholders
     if (this.reservation) {
@@ -806,12 +775,12 @@ export class ReservationLeaseComponent implements OnInit {
     }
 
     p {
-      font-size: 9pt;
+      font-size: 10pt;
       line-height: 150%;
     }
 
     #terms p, #terms li {
-      font-size: 8.5pt;
+      font-size: 10pt;
       margin-top: 0;
       max-width: 100% !important;
       word-wrap: break-word;
@@ -848,8 +817,8 @@ export class ReservationLeaseComponent implements OnInit {
     }
 
     #terms h2 {
-      font-size: 9pt;
-      font-weight: 600;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
       color: #000;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
@@ -866,8 +835,8 @@ export class ReservationLeaseComponent implements OnInit {
     }
 
     h2 {
-      font-size: 9pt;
-      font-weight: 600;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
       color: #000;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
@@ -1079,7 +1048,7 @@ export class ReservationLeaseComponent implements OnInit {
               <td align="center">
                 <span style="font-weight: bold">{{organization-franchise}}</span><br>
                 {{organizationAddress}}<br>
-                <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
+                <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
                 <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
               </td>
             </tr>
@@ -1090,6 +1059,7 @@ export class ReservationLeaseComponent implements OnInit {
   </tr>
 
   <p class="breakhere"></p>
+  <br><br>
 
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -1239,9 +1209,9 @@ export class ReservationLeaseComponent implements OnInit {
                     <i class="smgraytext">Signature</i>
                   </p>
 
-                  <table width="50%" cellpadding="0" cellspacing="0" align="center">
+                  <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
-                      <td width="50%" align="center">
+                      <td width="60%" align="center">
                         <hr noshade class="grayline">
                         <i class="smgraytext">Title</i>
                       </td>
@@ -1285,8 +1255,8 @@ export class ReservationLeaseComponent implements OnInit {
         <td align="center">
           <span style="font-weight: bold">{{organization-franchise}}</span><br>
           {{organizationAddress}}<br>
-        <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
-          <a style="color: rgb(255,255,255)" href="{{organizationHref}}">{{organizationWebsite}}</a>
+            <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
         </td>
       </tr>
     </table>
@@ -1294,6 +1264,7 @@ export class ReservationLeaseComponent implements OnInit {
   </html>
 
   <p class="breakhere"></p>
+  <br><br>
 
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -1387,7 +1358,7 @@ export class ReservationLeaseComponent implements OnInit {
           <td width="50%">
             <div style="margin-left: 5px" class="border">
               <p>
-                <span style="font-weight: bold">From:</span> {{companyName}}<br>
+                <span style="font-weight: bold">From:</span> {{responsibleParty}}<br>
                 <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}
               </p>
             </div>
@@ -1397,6 +1368,7 @@ export class ReservationLeaseComponent implements OnInit {
         <tr valign="top">
           <td colspan="2">
             <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+              <br>
               <p>
                 <span style="font-weight: bold">Today's Date:</span> <span class="grayline">__________________</span><br>
               </p>
@@ -1479,16 +1451,13 @@ export class ReservationLeaseComponent implements OnInit {
           <td align="center">
             <span style="font-weight: bold">{{organization-franchise}}</span><br>
             {{organizationAddress}}<br>
-            <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
-            <a style="color: rgb(255,255,255)" href="{{organizationHref}}">{{organizationWebsite}}</a>
+              <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+              <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
           </td>
         </tr>
       </tbody>
     </table>
   </body>
-  </html>
-
-</body>
-</html>`;
+  </html>`;
   }
 }

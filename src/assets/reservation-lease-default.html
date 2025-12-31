@@ -50,12 +50,12 @@
     }
 
     p {
-      font-size: 9pt;
+      font-size: 10pt;
       line-height: 150%;
     }
 
     #terms p, #terms li {
-      font-size: 8.5pt;
+      font-size: 10pt;
       margin-top: 0;
       max-width: 100% !important;
       word-wrap: break-word;
@@ -92,8 +92,8 @@
     }
 
     #terms h2 {
-      font-size: 9pt;
-      font-weight: 600;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
       color: #000;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
@@ -110,8 +110,8 @@
     }
 
     h2 {
-      font-size: 9pt;
-      font-weight: 600;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
       color: #000;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
@@ -323,7 +323,7 @@
               <td align="center">
                 <span style="font-weight: bold">{{organization-franchise}}</span><br>
                 {{organizationAddress}}<br>
-                <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
+                <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
                 <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
               </td>
             </tr>
@@ -334,6 +334,7 @@
   </tr>
 
   <p class="breakhere"></p>
+  <br><br>
 
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -483,9 +484,9 @@
                     <i class="smgraytext">Signature</i>
                   </p>
 
-                  <table width="50%" cellpadding="0" cellspacing="0" align="center">
+                  <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
-                      <td width="50%" align="center">
+                      <td width="60%" align="center">
                         <hr noshade class="grayline">
                         <i class="smgraytext">Title</i>
                       </td>
@@ -529,8 +530,8 @@
         <td align="center">
           <span style="font-weight: bold">{{organization-franchise}}</span><br>
           {{organizationAddress}}<br>
-        <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
-          <a style="color: rgb(255,255,255)" href="{{organizationHref}}">{{organizationWebsite}}</a>
+            <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
         </td>
       </tr>
     </table>
@@ -538,6 +539,7 @@
   </html>
 
   <p class="breakhere"></p>
+  <br><br>
 
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
@@ -724,8 +726,8 @@
           <td align="center">
             <span style="font-weight: bold">{{organization-franchise}}</span><br>
             {{organizationAddress}}<br>
-            <span>P:</span> {{organizationPhone}} <span>F:</span> {{franchisePhone}}
-            <a style="color: rgb(255,255,255)" href="{{organizationHref}}">{{organizationWebsite}}</a>
+              <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+              <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
           </td>
         </tr>
       </tbody>
@@ -733,5 +735,3 @@
   </body>
   </html>
 
-</body>
-</html>

@@ -107,7 +107,7 @@ export class OrganizationComponent implements OnInit {
     // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
-
+    const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
     const afterHoursPhoneDigits = this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone);
 
     const organizationRequest: OrganizationRequest = {
@@ -120,6 +120,7 @@ export class OrganizationComponent implements OnInit {
       zip: (formValue.zip || '').trim(),
       website: formValue.website || '',
       phone: phoneDigits,
+      fax: faxDigits || undefined,
       afterHoursPhone: afterHoursPhoneDigits || undefined,
       // Only send fileDetails if a new file was uploaded (not from API response)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
@@ -170,6 +171,7 @@ export class OrganizationComponent implements OnInit {
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required]),
+      fax: new FormControl(''),
       website: new FormControl(''),
       maintenanceEmail: new FormControl(''),
       afterHoursPhone: new FormControl(''),
@@ -189,6 +191,7 @@ export class OrganizationComponent implements OnInit {
         state: this.organization.state,
         zip: this.organization.zip,
         phone: this.formatterService.phoneNumber(this.organization.phone),
+        fax: this.formatterService.phoneNumber(this.organization.fax) || '',
         website: this.organization.website || '',
         maintenanceEmail: this.organization.maintenanceEmail || '',
         afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || '',
@@ -246,6 +249,14 @@ export class OrganizationComponent implements OnInit {
 
   onAfterHoursPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('afterHoursPhone'));
+  }
+
+  formatFax(): void {
+    this.formatterService.formatPhoneControl(this.form.get('fax'));
+  }
+
+  onFaxInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('fax'));
   }
 
   // Utility helpers

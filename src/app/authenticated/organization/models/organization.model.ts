@@ -11,6 +11,7 @@ export interface OrganizationRequest {
   state: string;
   zip: string;
   phone: string;
+  fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
@@ -40,6 +41,7 @@ export interface OrganizationResponse {
   state: string;
   zip: string;
   phone: string;
+  fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display

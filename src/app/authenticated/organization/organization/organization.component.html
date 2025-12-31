@@ -103,18 +103,25 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
-                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                  <mat-error>Phone is required</mat-error>
-                }
-              </mat-form-field>
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Phone</mat-label>
+                  <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
+                  @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
+                    <mat-error>Phone is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Website</mat-label>
-                <input matInput formControlName="website" type="url">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Fax</mat-label>
+                  <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Website</mat-label>
+                  <input matInput formControlName="website" type="url">
+                </mat-form-field>
+              </div>
 
             <mat-form-field appearance="outline" class="col-span-2">
               <mat-label>Maintenance Email</mat-label>
