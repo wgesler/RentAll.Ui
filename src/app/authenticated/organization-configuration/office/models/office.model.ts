@@ -1,26 +1,9 @@
-import { FileDetails } from '../../../shared/models/fileDetails';
+import { FileDetails } from "../../../../shared/models/fileDetails";
 
-export interface OrganizationRequest {
-  organizationId?: string;
-  organizationCode?: string;
-  name: string;
-  address1: string;
-  address2?: string;
-  suite?: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
-  fax?: string;
-  website?: string;
-  logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
-  fileDetails?: FileDetails; // Used for upload - contains base64 image data
-  isActive: boolean;
-}
-
-export interface OrganizationResponse {
+export interface OfficeRequest {
+  officeId?: number;
   organizationId: string;
-  organizationCode: string;
+  officeCode: string;
   name: string;
   address1: string;
   address2?: string;
@@ -36,9 +19,10 @@ export interface OrganizationResponse {
   isActive: boolean;
 }
 
-export interface OrganizationListDisplay {
+export interface OfficeResponse {
+  officeId: number;
   organizationId: string;
-  organizationCode: string;
+  officeCode: string;
   name: string;
   address1: string;
   address2?: string;
@@ -47,8 +31,22 @@ export interface OrganizationListDisplay {
   state: string;
   zip: string;
   phone: string;
+  fax?: string;
+  website?: string;
+  logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
+  fileDetails?: FileDetails; // Contains base64 image data for display
+  isActive: boolean;
+}
+
+export interface OfficeListDisplay {
+  officeId: number;
+  officeCode: string;
+  name: string;
+  phone: string;
+  fax?: string;
   website?: string;
   isActive: boolean;
 }
+
 
 

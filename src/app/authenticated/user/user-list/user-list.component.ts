@@ -5,11 +5,13 @@ import { MaterialModule } from '../../../material.module';
 import { UserResponse, UserListDisplay } from '../models/user.model';
 import { UserGroups } from '../models/user-type';
 import { UserService } from '../services/user.service';
+import { OrganizationService } from '../../organization/services/organization.service';
+import { OrganizationResponse } from '../../organization/models/organization.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, forkJoin } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -30,6 +32,7 @@ export class UserListComponent implements OnInit {
   showInactive: boolean = false;
 
   usersDisplayedColumns: ColumnSet = {
+    'organizationName': { displayAs: 'Organization', maxWidth: '30ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '30ch' },
     'email': { displayAs: 'Email', maxWidth: '35ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '35ch'},
@@ -40,6 +43,7 @@ export class UserListComponent implements OnInit {
 
   constructor(
     public userService: UserService,
+    private organizationService: OrganizationService,
     public toastr: ToastrService,
     public route: ActivatedRoute,
     public router: Router,
@@ -57,9 +61,40 @@ export class UserListComponent implements OnInit {
   }
 
   getUsers(): void {
-    this.userService.getUsers().pipe(take(1), finalize(() => { this.removeLoadItem('users') })).subscribe({
-      next: (response: UserResponse[]) => {
-        this.allUsers = this.mappingService.mapUsers(response);
+    forkJoin({
+      users: this.userService.getUsers().pipe(take(1)),
+      organizations: this.organizationService.getOrganizations().pipe(take(1))
+    }).pipe(
+      take(1),
+      finalize(() => { this.removeLoadItem('users') })
+    ).subscribe({
+      next: ({ users, organizations }) => {
+        // Create lookup map for organizations
+        const orgMap = new Map<string, string>();
+        organizations.forEach(org => {
+          orgMap.set(org.organizationId, org.name);
+        });
+
+        // Map users with organization names
+        this.allUsers = users.map<UserListDisplay>((user: UserResponse) => {
+          const userGroups = user.userGroups || [];
+          const groupLabels: { [key: string]: string } = {
+            'SuperAdmin': 'Super Admin',
+            'Admin': 'Admin',
+            'User': 'User',
+            'Unknown': 'Unknown'
+          };
+          const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
+          return {
+            userId: user.userId,
+            fullName: user.firstName + ' ' + user.lastName,
+            email: user.email,
+            organizationName: orgMap.get(user.organizationId) || '',
+            userGroups: userGroups,
+            userGroupsDisplay: userGroupsDisplay,
+            isActive: user.isActive
+          };
+        });
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

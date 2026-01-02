@@ -56,18 +56,33 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Region Code</mat-label>
-                <input matInput formControlName="regionCode" required>
+                <input matInput formControlName="regionCode" required (input)="onCodeInput($event)">
                 @if (form.get('regionCode')?.hasError('required') && form.get('regionCode')?.touched) {
                   <mat-error>Region Code is required</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Description</mat-label>
-                <input matInput formControlName="description" required>
-                @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
-                  <mat-error>Description is required</mat-error>
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name" required>
+                @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                  <mat-error>Name is required</mat-error>
                 }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Office</mat-label>
+                <mat-select formControlName="officeId">
+                  <mat-option [value]="null">Select Office</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
             </div>
 

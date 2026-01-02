@@ -510,7 +510,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     }
 
     const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
-    return building?.description || null;
+    return building?.name || null;
   }
 
   removeLoadItem(itemToRemove: string): void {

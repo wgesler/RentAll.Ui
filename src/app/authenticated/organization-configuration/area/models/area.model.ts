@@ -1,23 +1,30 @@
 export interface AreaRequest {
   areaId?: number;
   organizationId: string;
+  officeId?: string;
   areaCode: string;
-  description: string;
+  name: string;
+  description?: string;
   isActive: boolean;
 }
 
 export interface AreaResponse {
   areaId: number;
   organizationId: string;
+  officeId?: string;
   areaCode: string;
-  description: string;
+  name: string;
+  description?: string;
   isActive: boolean;
 }
 
 export interface AreaListDisplay {
   areaId: number;
   areaCode: string;
-  description: string;
+  officeId?: string;
+  officeName?: string;
+  name: string;
+  description?: string;
   isActive: boolean;
 }
 

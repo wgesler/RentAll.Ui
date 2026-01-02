@@ -175,7 +175,7 @@ export class ContactComponent implements OnInit {
       lastName: new FormControl('', [Validators.required]),
       companyId: new FormControl(null),
       vendorId: new FormControl(null),
-      phone: new FormControl('', [Validators.required]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
       address2: new FormControl(''),
@@ -287,7 +287,7 @@ export class ContactComponent implements OnInit {
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
       .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
       .filter(key => EntityType[key] !== EntityType.Organization) // Exclude Organization
-      .filter(key => EntityType[key] !== EntityType.Reservation) // Exclude Reservation
+      .filter(key => EntityType[key] !== EntityType.Hoa) // Exclude Hoa
       .map(key => ({
         value: EntityType[key],
         label: this.formatContactTypeLabel(key)

@@ -13,6 +13,8 @@ import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-area-list',
@@ -31,12 +33,15 @@ export class AreaListComponent implements OnInit {
   showInactive: boolean = false;
 
   areasDisplayedColumns: ColumnSet = {
-    'areaCode': { displayAs: 'Area Code', maxWidth: '30ch' },
-    'description': { displayAs: 'Description', maxWidth: '40ch' },
+    'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'name': { displayAs: 'Name', maxWidth: '30ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allAreas: AreaListDisplay[] = [];
   areasDisplay: AreaListDisplay[] = [];
+  private offices: OfficeResponse[] = [];
 
   constructor(
     public areaService: AreaService,
@@ -44,12 +49,27 @@ export class AreaListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
       this.itemsToLoad.push('areas');
   }
 
   ngOnInit(): void {
-    this.getAreas();
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
+        this.getAreas();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Area List Component - Error loading offices:', err);
+        this.offices = [];
+        this.getAreas();
+      }
+    });
   }
 
   addArea(): void {
@@ -64,7 +84,7 @@ export class AreaListComponent implements OnInit {
   getAreas(): void {
     this.areaService.getAreas().pipe(take(1), finalize(() => { this.removeLoadItem('areas') })).subscribe({
       next: (response: AreaResponse[]) => {
-        this.allAreas = this.mappingService.mapAreas(response);
+        this.allAreas = this.mappingService.mapAreas(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

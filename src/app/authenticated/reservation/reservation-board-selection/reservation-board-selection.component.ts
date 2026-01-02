@@ -12,11 +12,11 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonService } from '../../../services/common.service';
-import { FranchiseService } from '../../organization-configuration/franchise/services/franchise.service';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { RegionService } from '../../organization-configuration/region/services/region.service';
 import { AreaService } from '../../organization-configuration/area/services/area.service';
 import { BuildingService } from '../../organization-configuration/building/services/building.service';
-import { FranchiseResponse } from '../../organization-configuration/franchise/models/franchise.model';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { RegionResponse } from '../../organization-configuration/region/models/region.model';
 import { AreaResponse } from '../../organization-configuration/area/models/area.model';
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
@@ -36,7 +36,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
   isServiceError: boolean = false;
 
   states: string[] = [];
-  franchises: FranchiseResponse[] = [];
+  offices: OfficeResponse[] = [];
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -50,7 +50,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
     private authService: AuthService,
     private toastr: ToastrService,
     private commonService: CommonService,
-    private franchiseService: FranchiseService,
+    private officeService: OfficeService,
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService
@@ -109,7 +109,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       propertyStatusId: this.toNumber(v.propertyStatusId, 0),
       // Convert IDs from dropdowns to codes for API
       // If "All" or empty is selected, send null
-      franchiseCode: this.getIdToCode(v.franchiseId, this.franchises, 'franchiseCode'),
+      officeCode: this.getIdToCode(v.officeId, this.offices, 'officeCode'),
       buildingCode: this.getIdToCode(v.buildingId, this.buildings, 'buildingCode'),
       regionCode: this.getIdToCode(v.regionId, this.regions, 'regionCode'),
       areaCode: this.getIdToCode(v.areaId, this.areas, 'areaCode'),
@@ -222,13 +222,13 @@ export class ReservationBoardSelectionComponent implements OnInit {
     }
 
     forkJoin({
-      franchises: this.franchiseService.getFranchises().pipe(take(1)),
+      offices: this.officeService.getOffices().pipe(take(1)),
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
     }).pipe(take(1)).subscribe({
-      next: ({ franchises, regions, areas, buildings }) => {
-        this.franchises = (franchises || []).filter(f => f.organizationId === orgId && f.isActive);
+      next: ({ offices, regions, areas, buildings }) => {
+        this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
         this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
@@ -236,13 +236,13 @@ export class ReservationBoardSelectionComponent implements OnInit {
         // If selection is already loaded, update location fields in form
         // This handles the case where lookups load after the selection response
         if (this.form && this.preloadedSelection) {
-          const franchiseId = this.getCodeToId(this.preloadedSelection.franchiseCode, this.franchises, 'franchiseCode');
+          const officeId = this.getCodeToId(this.preloadedSelection.officeCode, this.offices, 'officeCode');
           const regionId = this.getCodeToId(this.preloadedSelection.regionCode, this.regions, 'regionCode');
           const areaId = this.getCodeToId(this.preloadedSelection.areaCode, this.areas, 'areaCode');
           const buildingId = this.getCodeToId(this.preloadedSelection.buildingCode, this.buildings, 'buildingCode');
           
           this.form.patchValue({
-            franchiseId: franchiseId ?? '',
+            officeId: officeId ?? '',
             regionId: regionId ?? '',
             areaId: areaId ?? '',
             buildingId: buildingId ?? '',
@@ -271,7 +271,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
   // Form Methods
   buildForm(): void {
     this.form = this.fb.group({
-      // Use '' to match other dropdowns (e.g. Franchise) where All is selected by default
+      // Use '' to match other dropdowns (e.g. Office) where All is selected by default
       propertyStatusId: new FormControl<number | ''>(''),
       fromBeds: new FormControl<number | null>(null),
       toBeds: new FormControl<number | null>(null),
@@ -290,7 +290,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       pets: new FormControl<boolean>(false),
       smoking: new FormControl<boolean>(false),
       highSpeedInternet: new FormControl<boolean>(false),
-      franchiseId: new FormControl<number | ''>(''),
+      officeId: new FormControl<number | ''>(''),
       regionId: new FormControl<number | ''>(''),
       areaId: new FormControl<number | ''>(''),
       buildingId: new FormControl<number | ''>(''),
@@ -301,8 +301,8 @@ export class ReservationBoardSelectionComponent implements OnInit {
     if (!this.form) return;
 
     // Convert codes from API to IDs for dropdowns (only if lookups are loaded)
-    const franchiseId = this.franchises.length > 0 
-      ? (this.getCodeToId(response.franchiseCode, this.franchises, 'franchiseCode') ?? '')
+    const officeId = this.offices.length > 0 
+      ? (this.getCodeToId(response.officeCode, this.offices, 'officeCode') ?? '')
       : '';
     const regionId = this.regions.length > 0
       ? (this.getCodeToId(response.regionCode, this.regions, 'regionCode') ?? '')
@@ -337,16 +337,16 @@ export class ReservationBoardSelectionComponent implements OnInit {
       propertyStatusId: response.propertyStatusId === 0 ? '' : (response.propertyStatusId ?? ''),
       // Convert codes from API to IDs for dropdowns
       // If code is null/empty, set to '' for "All" option
-      franchiseId: franchiseId as number | '',
+      officeId: officeId as number | '',
       regionId: regionId as number | '',
       areaId: areaId as number | '',
       buildingId: buildingId as number | '',
     });
   }
 
-  private getFranchiseCode(franchiseId?: number): string | undefined {
-    if (!franchiseId) return undefined;
-    return this.franchises.find(f => f.franchiseId === franchiseId)?.franchiseCode;
+  private getOfficeCode(officeId?: number): string | undefined {
+    if (!officeId) return undefined;
+    return this.offices.find(f => f.officeId === officeId)?.officeCode;
   }
 
   private getRegionCode(regionId?: number): string | undefined {
@@ -364,10 +364,10 @@ export class ReservationBoardSelectionComponent implements OnInit {
     return this.buildings.find(b => b.buildingId === buildingId)?.buildingCode;
   }
 
-  private findFranchiseIdFromCode(code?: string): number | undefined {
+  private findOfficeIdFromCode(code?: string): number | undefined {
     const c = (code || '').trim();
     if (!c) return undefined;
-    return this.franchises.find(f => f.franchiseCode === c)?.franchiseId;
+    return this.offices.find(f => f.officeCode === c)?.officeId;
   }
 
   private findRegionIdFromCode(code?: string): number | undefined {
@@ -465,7 +465,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       pets: false,
       smoking: false,
       highSpeedInternet: false,
-      franchiseId: '',
+      officeId: '',
       regionId: '',
       areaId: '',
       buildingId: ''

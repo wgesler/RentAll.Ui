@@ -208,7 +208,7 @@ export class VendorComponent implements OnInit {
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
@@ -219,7 +219,7 @@ export class VendorComponent implements OnInit {
   populateForm(): void {
     if (this.vendor && this.form) {
       this.form.patchValue({
-        vendorCode: this.vendor.vendorCode,
+        vendorCode: this.vendor.vendorCode?.toUpperCase() || '',
         name: this.vendor.name,
         address1: this.vendor.address1,
         address2: this.vendor.address2 || '',

@@ -133,11 +133,11 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Franchise</mat-label>
-              <mat-select formControlName="franchiseId">
+              <mat-label>Office</mat-label>
+              <mat-select formControlName="officeId">
                 <mat-option value="">All</mat-option>
-                @for (f of franchises; track f.franchiseId) {
-                  <mat-option [value]="f.franchiseId">{{ f.franchiseCode }} - {{ f.description }}</mat-option>
+                @for (f of offices; track f.officeId) {
+                  <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -147,7 +147,7 @@
               <mat-select formControlName="regionId">
                 <mat-option value="">All</mat-option>
                 @for (r of regions; track r.regionId) {
-                  <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.description }}</mat-option>
+                  <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -157,7 +157,7 @@
               <mat-select formControlName="areaId">
                 <mat-option value="">All</mat-option>
                 @for (a of areas; track a.areaId) {
-                  <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.description }}</mat-option>
+                  <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -167,7 +167,7 @@
               <mat-select formControlName="buildingId">
                 <mat-option value="">All</mat-option>
                 @for (b of buildings; track b.buildingId) {
-                  <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.description }}</mat-option>
+                  <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>

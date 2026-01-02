@@ -18,11 +18,11 @@ import { ContactResponse, ContactListDisplay } from '../../contact/models/contac
 import { MappingService } from '../../../services/mapping.service';
 import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
-import { FranchiseService } from '../../organization-configuration/franchise/services/franchise.service';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { RegionService } from '../../organization-configuration/region/services/region.service';
 import { AreaService } from '../../organization-configuration/area/services/area.service';
 import { BuildingService } from '../../organization-configuration/building/services/building.service';
-import { FranchiseResponse } from '../../organization-configuration/franchise/models/franchise.model';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { RegionResponse } from '../../organization-configuration/region/models/region.model';
 import { AreaResponse } from '../../organization-configuration/area/models/area.model';
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
@@ -63,7 +63,7 @@ export class PropertyComponent implements OnInit {
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
 
-  franchises: FranchiseResponse[] = [];
+  offices: OfficeResponse[] = [];
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -102,7 +102,7 @@ export class PropertyComponent implements OnInit {
     private contactService: ContactService,
     private mappingService: MappingService,
     private authService: AuthService,
-    private franchiseService: FranchiseService,
+    private officeService: OfficeService,
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService,
@@ -209,6 +209,13 @@ export class PropertyComponent implements OnInit {
     });
   }
   
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
   saveProperty(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -282,7 +289,7 @@ export class PropertyComponent implements OnInit {
     }
 
     // Assign location IDs directly (now GUIDs)
-    propertyRequest.franchiseId = formValue.franchiseId || null;
+    propertyRequest.officeId = formValue.officeId || null;
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
     propertyRequest.buildingId = formValue.buildingId || null;
@@ -341,7 +348,7 @@ export class PropertyComponent implements OnInit {
       propertyStyle: new FormControl<number>(PropertyStyle.Standard),
       propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed),
       propertyType: new FormControl<number>(PropertyType.Unspecified),
-      phone: new FormControl(''),
+      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
       accomodates: new FormControl(0),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),
@@ -424,7 +431,7 @@ export class PropertyComponent implements OnInit {
       petsAllowed: new FormControl(false),
 
       // Location section
-      franchiseId: new FormControl<number | null>(null),
+      officeId: new FormControl<number | null>(null),
       regionId: new FormControl<number | null>(null),
       areaId: new FormControl<number | null>(null),
       buildingId: new FormControl<number | null>(null),
@@ -439,6 +446,8 @@ export class PropertyComponent implements OnInit {
       const formData: any = { ...this.property };
       
       // Transform fields that need special handling
+      // Convert propertyCode to uppercase
+      formData.propertyCode = this.property.propertyCode?.toUpperCase() || '';
       formData.owner1Id = this.property.owner1Id || '';
       formData.owner2Id = this.property.owner2Id || null;
       formData.owner3Id = this.property.owner3Id || null;
@@ -489,7 +498,7 @@ export class PropertyComponent implements OnInit {
       }
 
       // Assign location IDs directly from API (now GUIDs)
-      formData.franchiseId = this.property.franchiseId || null;
+      formData.officeId = this.property.officeId || null;
       formData.regionId = this.property.regionId || null;
       formData.areaId = this.property.areaId || null;
       formData.buildingId = this.property.buildingId || null;
@@ -713,13 +722,13 @@ export class PropertyComponent implements OnInit {
     if (!orgId) return;
 
     forkJoin({
-      franchises: this.franchiseService.getFranchises().pipe(take(1)),
+      offices: this.officeService.getOffices().pipe(take(1)),
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
     }).pipe(take(1)).subscribe({
-      next: ({ franchises, regions, areas, buildings }) => {
-        this.franchises = (franchises || []).filter(f => f.organizationId === orgId && f.isActive);
+      next: ({ offices, regions, areas, buildings }) => {
+        this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
         this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
@@ -727,7 +736,7 @@ export class PropertyComponent implements OnInit {
         // If property is already loaded, update location fields in form
         if (this.property && this.form) {
           this.form.patchValue({
-            franchiseId: this.property.franchiseId || null,
+            officeId: this.property.officeId || null,
             regionId: this.property.regionId || null,
             areaId: this.property.areaId || null,
             buildingId: this.property.buildingId || null,
@@ -736,7 +745,7 @@ export class PropertyComponent implements OnInit {
       },
       error: (err) => {
         console.error('Property Component - Error loading location lookups:', err);
-        this.franchises = [];
+        this.offices = [];
         this.regions = [];
         this.areas = [];
         this.buildings = [];

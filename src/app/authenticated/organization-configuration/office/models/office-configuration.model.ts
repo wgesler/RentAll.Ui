@@ -1,0 +1,40 @@
+export interface OfficeConfigurationRequest {
+  officeId: number;
+  maintenanceEmail?: string;
+  afterHoursPhone?: string;
+  afterHoursInstructions?: string;
+  defaultDeposit: number;
+  utilityOneBed: number;
+  utilityTwoBed: number;
+  utilityThreeBed: number;
+  utilityFourBed: number;
+  utilityHouse: number;
+  maidOneBed: number;
+  maidTwoBed: number;
+  maidThreeBed: number;
+  maidFourBed: number;
+  parkingLowEnd: number;
+  parkingHighEnd: number;
+  isActive: boolean;
+}
+
+export interface OfficeConfigurationResponse {
+  officeId: number;
+  maintenanceEmail?: string;
+  afterHoursPhone?: string;
+  afterHoursInstructions?: string;
+  defaultDeposit: number;
+  utilityOneBed: number;
+  utilityTwoBed: number;
+  utilityThreeBed: number;
+  utilityFourBed: number;
+  utilityHouse: number;
+  maidOneBed: number;
+  maidTwoBed: number;
+  maidThreeBed: number;
+  maidFourBed: number;
+  parkingLowEnd: number;
+  parkingHighEnd: number;
+  isActive: boolean;
+}
+

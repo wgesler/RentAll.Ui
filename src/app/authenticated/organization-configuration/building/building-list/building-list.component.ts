@@ -13,6 +13,8 @@ import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-building-list',
@@ -31,12 +33,15 @@ export class BuildingListComponent implements OnInit {
   showInactive: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {
-    'buildingCode': { displayAs: 'Building Code', maxWidth: '30ch' },
-    'description': { displayAs: 'Description', maxWidth: '40ch' },
+    'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'name': { displayAs: 'Name', maxWidth: '25ch' },
+    'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allBuildings: BuildingListDisplay[] = [];
   buildingsDisplay: BuildingListDisplay[] = [];
+  private offices: OfficeResponse[] = [];
 
   constructor(
     public buildingService: BuildingService,
@@ -44,12 +49,27 @@ export class BuildingListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
       this.itemsToLoad.push('buildings');
   }
 
   ngOnInit(): void {
-    this.getBuildings();
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
+        this.getBuildings();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Building List Component - Error loading offices:', err);
+        this.offices = [];
+        this.getBuildings();
+      }
+    });
   }
 
   addBuilding(): void {
@@ -64,7 +84,7 @@ export class BuildingListComponent implements OnInit {
   getBuildings(): void {
     this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.removeLoadItem('buildings') })).subscribe({
       next: (response: BuildingResponse[]) => {
-        this.allBuildings = this.mappingService.mapBuildings(response);
+        this.allBuildings = this.mappingService.mapBuildings(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

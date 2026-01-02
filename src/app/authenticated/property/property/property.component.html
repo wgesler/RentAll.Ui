@@ -37,7 +37,7 @@
             <div class="mb-4 flex items-center gap-3">
               <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
                 <mat-label>Property Code</mat-label>
-                <input matInput formControlName="propertyCode" maxlength="15">
+                <input matInput formControlName="propertyCode" maxlength="15" (input)="onCodeInput($event)">
                 @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
                   <mat-error>Property Code is required</mat-error>
                 }
@@ -315,7 +315,10 @@
 
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>Phone</mat-label>
-                    <input matInput formControlName="phone" (input)="onPhoneInput($event)" (blur)="formatPhone()" maxlength="14">
+                    <input matInput formControlName="phone" (input)="onPhoneInput($event)" (blur)="formatPhone()" maxlength="14" placeholder="(555) 555-5555">
+                    @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched) {
+                      <mat-error>Invalid phone format</mat-error>
+                    }
                   </mat-form-field>
                 </div>
 
@@ -353,11 +356,11 @@
               <div class="features-container">
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 features-content">
                   <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Franchise</mat-label>
-                    <mat-select formControlName="franchiseId">
-                      <mat-option [value]="null">Select Franchise</mat-option>
-                      @for (f of franchises; track f.franchiseId) {
-                        <mat-option [value]="f.franchiseId">{{ f.franchiseCode }} - {{ f.description }}</mat-option>
+                    <mat-label>Office</mat-label>
+                    <mat-select formControlName="officeId">
+                      <mat-option [value]="null">Select Office</mat-option>
+                      @for (f of offices; track f.officeId) {
+                        <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
@@ -367,7 +370,7 @@
                     <mat-select formControlName="regionId">
                       <mat-option [value]="null">Select Region</mat-option>
                       @for (r of regions; track r.regionId) {
-                        <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.description }}</mat-option>
+                        <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.name }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
@@ -377,7 +380,7 @@
                     <mat-select formControlName="areaId">
                       <mat-option [value]="null">Select Area</mat-option>
                       @for (a of areas; track a.areaId) {
-                        <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.description }}</mat-option>
+                        <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.name }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
@@ -387,7 +390,7 @@
                     <mat-select formControlName="buildingId">
                       <mat-option [value]="null">Select Building</mat-option>
                       @for (b of buildings; track b.buildingId) {
-                        <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.description }}</mat-option>
+                        <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.name }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>

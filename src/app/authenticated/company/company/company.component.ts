@@ -211,7 +211,7 @@ export class CompanyComponent implements OnInit {
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
@@ -222,7 +222,7 @@ export class CompanyComponent implements OnInit {
   populateForm(): void {
     if (this.company && this.form) {
       this.form.patchValue({
-        companyCode: this.company.companyCode,
+        companyCode: this.company.companyCode?.toUpperCase() || '',
         name: this.company.name,
         address1: this.company.address1,
         address2: this.company.address2 || '',

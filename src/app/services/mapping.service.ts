@@ -11,7 +11,7 @@ import { ReservationStatus } from '../authenticated/reservation/models/reservati
 import { AgentResponse, AgentListDisplay } from '../authenticated/organization-configuration/agent/models/agent.model';
 import { AreaResponse, AreaListDisplay } from '../authenticated/organization-configuration/area/models/area.model';
 import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization-configuration/building/models/building.model';
-import { FranchiseResponse, FranchiseListDisplay } from '../authenticated/organization-configuration/franchise/models/franchise.model';
+import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization-configuration/office/models/office.model';
 import { RegionResponse, RegionListDisplay } from '../authenticated/organization-configuration/region/models/region.model';
 import { ColorResponse, ColorListDisplay } from '../authenticated/organization-configuration/color/models/color.model';
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
@@ -24,31 +24,63 @@ import { FormatterService } from './formatter-service';
 export class MappingService {
   constructor(private formatter: FormatterService) { }
   
-  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
-    return agents.map<AgentListDisplay>((o: AgentResponse) => ({
-      agentId: o.agentId,
-      agentCode: o.agentCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
+  mapAgents(agents: AgentResponse[], offices?: OfficeResponse[]): AgentListDisplay[] {
+    return agents.map<AgentListDisplay>((o: AgentResponse) => {
+      let officeName = '';
+      if (o.officeId && offices) {
+        const office = offices.find(off => off.officeId === o.officeId);
+        officeName = office?.name || '';
+      }
+      return {
+        agentId: o.agentId,
+        agentCode: o.agentCode,
+        officeId: o.officeId,
+        officeName: officeName || undefined,
+        name: o.name,
+        isActive: o.isActive
+      };
+    });
   }
 
-  mapAreas(areas: AreaResponse[]): AreaListDisplay[] {
-    return areas.map<AreaListDisplay>((o: AreaResponse) => ({
-      areaId: o.areaId,
-      areaCode: o.areaCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
+  mapAreas(areas: AreaResponse[], offices?: OfficeResponse[]): AreaListDisplay[] {
+    return areas.map<AreaListDisplay>((o: AreaResponse) => {
+      let officeName = '';
+      if (o.officeId && offices) {
+        const office = offices.find(off => String(off.officeId) === String(o.officeId));
+        officeName = office?.name || '';
+      }
+      return {
+        areaId: o.areaId,
+        areaCode: o.areaCode,
+        officeId: o.officeId,
+        officeName: officeName || undefined,
+        name: o.name,
+        description: o.description,
+        isActive: o.isActive
+      };
+    });
   }
 
-  mapBuildings(buildings: BuildingResponse[]): BuildingListDisplay[] {
-    return buildings.map<BuildingListDisplay>((o: BuildingResponse) => ({
-      buildingId: o.buildingId,
-      buildingCode: o.buildingCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
+  mapBuildings(buildings: BuildingResponse[], offices?: OfficeResponse[]): BuildingListDisplay[] {
+    return buildings.map<BuildingListDisplay>((o: BuildingResponse) => {
+      let officeName = '';
+      if (o.officeId && offices) {
+        const office = offices.find(off => String(off.officeId) === String(o.officeId));
+        officeName = office?.name || '';
+      }
+      return {
+        buildingId: o.buildingId,
+        buildingCode: o.buildingCode,
+        name: o.name,
+        description: o.description,
+        officeId: o.officeId,
+        officeName: officeName || undefined,
+        hoaName: o.hoaName,
+        hoaPhone: o.hoaPhone,
+        hoaEmail: o.hoaEmail,
+        isActive: o.isActive
+      };
+    });
   }
 
   mapColors(colors: ColorResponse[]): ColorListDisplay[] {
@@ -103,12 +135,20 @@ export class MappingService {
     }));
   }
 
-  mapFranchises(franchises: FranchiseResponse[]): FranchiseListDisplay[] {
-    return franchises.map<FranchiseListDisplay>((o: FranchiseResponse) => ({
-      franchiseId: o.franchiseId,
-      franchiseCode: o.franchiseCode,
-      description: o.description,
-      phone: this.formatter.phoneNumber(o.phone),
+  mapOffices(offices: OfficeResponse[]): OfficeListDisplay[] {
+    return offices.map<OfficeListDisplay>((o: OfficeResponse) => ({
+      officeId: o.officeId,
+      officeCode: o.officeCode,
+      name: o.name,
+      address1: o.address1,
+      address2: o.address2,
+      suite: o.suite,
+      city: o.city,
+      state: o.state,
+      zip: o.zip,
+      phone: this.formatPhoneNumber(o.phone),
+      fax: this.formatPhoneNumber(o.fax),
+      website: o.website,
       isActive: o.isActive
     }));
   }
@@ -160,13 +200,23 @@ export class MappingService {
     });
   }
 
-  mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
-    return regions.map<RegionListDisplay>((o: RegionResponse) => ({
-      regionId: o.regionId,
-      regionCode: o.regionCode,
-      description: o.description,
-      isActive: o.isActive
-    }));
+  mapRegions(regions: RegionResponse[], offices?: OfficeResponse[]): RegionListDisplay[] {
+    return regions.map<RegionListDisplay>((o: RegionResponse) => {
+      let officeName = '';
+      if (o.officeId && offices) {
+        const office = offices.find(off => String(off.officeId) === String(o.officeId));
+        officeName = office?.name || '';
+      }
+      return {
+        regionId: o.regionId,
+        regionCode: o.regionCode,
+        officeId: o.officeId,
+        officeName: officeName || undefined,
+        name: o.name,
+        description: o.description,
+        isActive: o.isActive
+      };
+    });
   }
 
   mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[]): ReservationListDisplay[] {
@@ -213,6 +263,7 @@ export class MappingService {
       const userGroups = o.userGroups || [];
       return {
         userId: o.userId,
+        organizationName: o.organizationName,
         firstName: o.firstName,
         lastName: o.lastName,
         fullName: o.firstName + ' ' + o.lastName,

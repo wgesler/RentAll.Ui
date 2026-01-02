@@ -12,13 +12,30 @@
     <mat-card>
       <div class="info-form mb-8 pt-5">
         <mat-accordion multi="true">
+          <!-- Offices Section -->
+          <mat-expansion-panel [expanded]="expandedSections.offices" 
+            (opened)="onPanelOpened('offices')" 
+            (closed)="onPanelClosed('offices')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Offices</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingOffice && officeId) {
+                <app-office [id]="officeId" [embeddedMode]="true" (backEvent)="onOfficeBack()"></app-office>
+              } @else {
+                <app-office-list [embeddedInSettings]="true" (officeSelected)="onOfficeSelected($event)"></app-office-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
           <!-- Organization Information Section -->
           <mat-expansion-panel [expanded]="expandedSections.organizationInformation" 
             (opened)="onPanelOpened('organizationInformation')" 
             (closed)="onPanelClosed('organizationInformation')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Organization Information</mat-panel-title>
+              <mat-panel-title>Leases</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="p-4">
               @if (isLoading) {
@@ -26,26 +43,42 @@
                   <mat-spinner [diameter]="30"></mat-spinner>
                 </div>
               } @else {
-                <form [formGroup]="organizationForm" (ngSubmit)="saveOrganizationInformation()" class="organization-info-form">
-                  <div class="grid grid-cols-2 gap-4 mb-4">
-                    <mat-form-field appearance="outline">
-                      <mat-label>Maintenance Email</mat-label>
-                      <input matInput type="email" formControlName="maintenanceEmail" placeholder="maintenance@example.com">
-                    </mat-form-field>
-
-                    <mat-form-field appearance="outline">
-                      <mat-label>After Hours Phone</mat-label>
-                      <input matInput formControlName="afterHoursPhone" maxlength="14"
-                        (blur)="formatPhone()" 
-                        (input)="onPhoneInput($event)"
-                        placeholder="(555) 123-4567">
-                    </mat-form-field>
+                <form [formGroup]="officeConfigurationForm" (ngSubmit)="saveOfficeConfiguration()" class="organization-info-form">
+                  <!-- Save Button -->
+                  <div class="flex justify-end gap-2 mb-4">
+                    <button mat-raised-button type="submit" color="primary" id="save-button"
+                      class="scale-90 text-nowrap flex-shrink-0" 
+                      [disabled]="isSubmitting || !officeConfigurationForm.valid || !selectedOfficeId">
+                      <mat-icon>save</mat-icon>
+                      Save
+                    </button>
                   </div>
+                  
+                  <!-- Instructions -->
+                  <p class="mb-4 text-gray-700">Select the Office for which to configure defaults</p>
+                  @if (isSubmitting) {
+                    <div class="flex justify-start gap-3 items-center mb-4">
+                      <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+                      <span>Saving...</span>
+                    </div>
+                  }
 
-                  <!-- Default Deposit -->
-                  <div class="mb-4">
-                    <mat-form-field appearance="outline" style="width: 300px;">
-                      <mat-label>Default Deposit</mat-label>
+                  <!-- First Row: Office, Default Rental Deposit -->
+                  <div class="flex gap-4 mb-4">
+                    <!-- Office Selection -->
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Office</mat-label>
+                      <mat-select [value]="selectedOfficeId" (selectionChange)="onOfficeDropdownSelected($event.value)">
+                        <mat-option [value]="null">Select Office</mat-option>
+                        @for (office of offices; track office.officeId) {
+                          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <!-- Default Rental Deposit -->
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Default Rental Deposit</mat-label>
                       <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00"
                         (blur)="formatDecimal('defaultDeposit')"
                         (input)="onDecimalInput($event, 'defaultDeposit')"
@@ -53,9 +86,33 @@
                     </mat-form-field>
                   </div>
 
+                  <!-- Second Row: Maintenance Email, After Hours Phone -->
+                  <div class="flex gap-4 mb-4">
+                    <!-- Maintenance Email -->
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Maintenance Email</mat-label>
+                      <input matInput type="email" formControlName="maintenanceEmail" placeholder="email@example.com">
+                    </mat-form-field>
+
+                    <!-- After Hours Phone -->
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>After Hours Phone</mat-label>
+                      <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555"
+                        maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
+                    </mat-form-field>
+                  </div>
+
+                  <!-- After Hours Instructions -->
+                  <div class="mb-4">
+                    <mat-form-field appearance="outline" style="width: 100%;">
+                      <mat-label>After Hours Instructions</mat-label>
+                      <textarea matInput formControlName="afterHoursInstructions" rows="3" placeholder="Instructions..."></textarea>
+                    </mat-form-field>
+                  </div>
+
                   <!-- Utility Charges Subsection -->
                   <div class="mb-4">
-                    <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Fees</h3>
+                    <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Ceilings</h3>
                     <div class="flex gap-4">
                       <mat-form-field appearance="outline" class="flex-1">
                         <mat-label>1 Bedroom</mat-label>
@@ -130,38 +187,27 @@
                     </div>
                   </div>
 
-                  <div class="flex justify-end gap-2">
-                    <button mat-raised-button type="submit" color="primary" id="save-button"
-                      class="scale-90 text-nowrap flex-shrink-0" 
-                      [disabled]="isSubmitting || !organizationForm.valid">
-                      <mat-icon>save</mat-icon>
-                      Save
-                    </button>
-                  </div>
-                  @if (isSubmitting) {
-                    <div class="flex justify-start gap-3 items-center mt-2">
-                      <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
-                      <span>Saving...</span>
+                  <!-- Parking Charges Subsection -->
+                  <div class="mb-4">
+                    <h3 class="text-lg font-bold mb-3 text-black">Default Parking Penalty Range Fees</h3>
+                    <div class="flex gap-4">
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>Low End</mat-label>
+                        <input matInput type="text" formControlName="parkingLowEnd" placeholder="0.00"
+                          (blur)="formatDecimal('parkingLowEnd')"
+                          (input)="onDecimalInput($event, 'parkingLowEnd')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>High End</mat-label>
+                        <input matInput type="text" formControlName="parkingHighEnd" placeholder="0.00"
+                          (blur)="formatDecimal('parkingHighEnd')"
+                          (input)="onDecimalInput($event, 'parkingHighEnd')"
+                          (focus)="selectAllOnFocus($event)">
+                      </mat-form-field>
                     </div>
-                  }
+                  </div>
                 </form>
-              }
-            </div>
-          </mat-expansion-panel>
-
-          <!-- Color Section -->
-          <mat-expansion-panel [expanded]="expandedSections.color" 
-            (opened)="onPanelOpened('color')" 
-            (closed)="onPanelClosed('color')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Color</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingColor && colorId) {
-                <app-color [id]="colorId" [embeddedMode]="true" (backEvent)="onColorBack()"></app-color>
-              } @else {
-                <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
               }
             </div>
           </mat-expansion-panel>
@@ -172,7 +218,7 @@
             (closed)="onPanelClosed('agents')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Agent</mat-panel-title>
+              <mat-panel-title>Agents</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingAgent && agentId) {
@@ -183,30 +229,13 @@
             </div>
           </mat-expansion-panel>
 
-          <!-- Franchises Section -->
-          <mat-expansion-panel [expanded]="expandedSections.franchises" 
-            (opened)="onPanelOpened('franchises')" 
-            (closed)="onPanelClosed('franchises')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Franchise</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingFranchise && franchiseId) {
-                <app-franchise [id]="franchiseId" [embeddedMode]="true" (backEvent)="onFranchiseBack()"></app-franchise>
-              } @else {
-                <app-franchise-list [embeddedInSettings]="true" (franchiseSelected)="onFranchiseSelected($event)"></app-franchise-list>
-              }
-            </div>
-          </mat-expansion-panel>
-
           <!-- Regions Section -->
           <mat-expansion-panel [expanded]="expandedSections.regions" 
             (opened)="onPanelOpened('regions')" 
             (closed)="onPanelClosed('regions')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Region</mat-panel-title>
+              <mat-panel-title>Regions</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingRegion && regionId) {
@@ -223,7 +252,7 @@
             (closed)="onPanelClosed('area')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Area</mat-panel-title>
+              <mat-panel-title>Areas</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingArea && areaId) {
@@ -240,13 +269,30 @@
             (closed)="onPanelClosed('building')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Building</mat-panel-title>
+              <mat-panel-title>Buildings</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingBuilding && buildingId) {
                 <app-building [id]="buildingId" [embeddedMode]="true" (backEvent)="onBuildingBack()"></app-building>
               } @else {
                 <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
+          <!-- Color Section -->
+          <mat-expansion-panel [expanded]="expandedSections.color" 
+            (opened)="onPanelOpened('color')" 
+            (closed)="onPanelClosed('color')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Colors</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingColor && colorId) {
+                <app-color [id]="colorId" [embeddedMode]="true" (backEvent)="onColorBack()"></app-color>
+              } @else {
+                <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
               }
             </div>
           </mat-expansion-panel>

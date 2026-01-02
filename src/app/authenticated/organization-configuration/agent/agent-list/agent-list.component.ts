@@ -13,6 +13,8 @@ import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-agent-list',
@@ -31,12 +33,14 @@ export class AgentListComponent implements OnInit {
   showInactive: boolean = false;
 
   agentsDisplayedColumns: ColumnSet = {
-    'agentCode': { displayAs: 'Agent Code', maxWidth: '30ch' },
-    'description': { displayAs: 'Description', maxWidth: '40ch' },
+    'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'name': { displayAs: 'Name', maxWidth: '30ch' },
+    'officeName': { displayAs: 'Primary Office', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allAgents: AgentListDisplay[] = [];
   agentsDisplay: AgentListDisplay[] = [];
+  private offices: OfficeResponse[] = [];
 
   constructor(
     public agentService: AgentService,
@@ -44,12 +48,27 @@ export class AgentListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
       this.itemsToLoad.push('agents');
   }
 
   ngOnInit(): void {
-    this.getAgents();
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
+        this.getAgents();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Agent List Component - Error loading offices:', err);
+        this.offices = [];
+        this.getAgents();
+      }
+    });
   }
 
   addAgent(): void {
@@ -64,7 +83,7 @@ export class AgentListComponent implements OnInit {
   getAgents(): void {
     this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents') })).subscribe({
       next: (response: AgentResponse[]) => {
-        this.allAgents = this.mappingService.mapAgents(response);
+        this.allAgents = this.mappingService.mapAgents(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

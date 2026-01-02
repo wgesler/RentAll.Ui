@@ -12,6 +12,8 @@ import { AgentResponse, AgentRequest } from '../models/agent.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { NavigationContextService } from '../../../../services/navigation-context.service';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-agent',
@@ -35,6 +37,7 @@ export class AgentComponent implements OnInit, OnChanges {
   isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
+  offices: OfficeResponse[] = [];
 
   constructor(
     public agentService: AgentService,
@@ -43,12 +46,14 @@ export class AgentComponent implements OnInit, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private officeService: OfficeService
   ) {
     this.itemsToLoad.push('agent');
   }
 
   ngOnInit(): void {
+    this.loadOffices();
     // Check for returnTo query parameter
     this.route.queryParams.subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
@@ -83,6 +88,21 @@ export class AgentComponent implements OnInit, OnChanges {
         }
       }
     }
+  }
+
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Agent Component - Error loading offices:', err);
+        this.offices = [];
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -120,6 +140,13 @@ export class AgentComponent implements OnInit, OnChanges {
     });
   }
 
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ agentCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
   saveAgent(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -132,7 +159,8 @@ export class AgentComponent implements OnInit, OnChanges {
     const agentRequest: AgentRequest = {
       organizationId: user?.organizationId || '',
       agentCode: formValue.agentCode,
-      description: formValue.description,
+      name: formValue.name,
+      officeId: formValue.officeId ? Number(formValue.officeId) : undefined,
       isActive: formValue.isActive
     };
 
@@ -187,7 +215,8 @@ export class AgentComponent implements OnInit, OnChanges {
   buildForm(): void {
     this.form = this.fb.group({
       agentCode: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      name: new FormControl('', [Validators.required]),
+      officeId: new FormControl(null),
       isActive: new FormControl(true)
     });
   }
@@ -195,8 +224,9 @@ export class AgentComponent implements OnInit, OnChanges {
   populateForm(): void {
     if (this.agent && this.form) {
       this.form.patchValue({
-        agentCode: this.agent.agentCode,
-        description: this.agent.description,
+        agentCode: this.agent.agentCode?.toUpperCase() || '',
+        name: this.agent.name,
+        officeId: this.agent.officeId || null,
         isActive: this.agent.isActive
       });
     }
@@ -218,3 +248,5 @@ export class AgentComponent implements OnInit, OnChanges {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
+
+

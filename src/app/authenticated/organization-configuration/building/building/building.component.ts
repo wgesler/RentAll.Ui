@@ -12,6 +12,9 @@ import { BuildingResponse, BuildingRequest } from '../models/building.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { NavigationContextService } from '../../../../services/navigation-context.service';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
+import { FormatterService } from '../../../../services/formatter-service';
 
 @Component({
   selector: 'app-building',
@@ -35,6 +38,7 @@ export class BuildingComponent implements OnInit, OnChanges {
   isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
+  offices: OfficeResponse[] = [];
 
   constructor(
     public buildingService: BuildingService,
@@ -43,12 +47,15 @@ export class BuildingComponent implements OnInit, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private officeService: OfficeService,
+    private formatterService: FormatterService
   ) {
     this.itemsToLoad.push('building');
   }
 
   ngOnInit(): void {
+    this.loadOffices();
     // Check for returnTo query parameter
     this.route.queryParams.subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
@@ -83,6 +90,21 @@ export class BuildingComponent implements OnInit, OnChanges {
         }
       }
     }
+  }
+
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Building Component - Error loading offices:', err);
+        this.offices = [];
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -125,6 +147,13 @@ export class BuildingComponent implements OnInit, OnChanges {
     });
   }
 
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ buildingCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
   saveBuilding(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -137,7 +166,12 @@ export class BuildingComponent implements OnInit, OnChanges {
     const buildingRequest: BuildingRequest = {
       organizationId: user?.organizationId || '',
       buildingCode: formValue.buildingCode,
-      description: formValue.description,
+      name: formValue.name,
+      description: formValue.description || undefined,
+      officeId: formValue.officeId ? formValue.officeId.toString() : undefined,
+      hoaName: formValue.hoaName || undefined,
+      hoaPhone: formValue.hoaPhone ? this.formatterService.stripPhoneFormatting(formValue.hoaPhone) : undefined,
+      hoaEmail: formValue.hoaEmail || undefined,
       isActive: formValue.isActive
     };
 
@@ -197,7 +231,14 @@ export class BuildingComponent implements OnInit, OnChanges {
   buildForm(): void {
     this.form = this.fb.group({
       buildingCode: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      name: new FormControl('', [Validators.required]),
+      description: new FormControl(''),
+      officeId: new FormControl(null),
+      hoaName: new FormControl(''),
+      hoaPhone: new FormControl('', [
+        Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)
+      ]),
+      hoaEmail: new FormControl('', [Validators.email]),
       isActive: new FormControl(true)
     });
   }
@@ -205,8 +246,13 @@ export class BuildingComponent implements OnInit, OnChanges {
   populateForm(): void {
     if (this.building && this.form) {
       this.form.patchValue({
-        buildingCode: this.building.buildingCode,
-        description: this.building.description,
+        buildingCode: this.building.buildingCode?.toUpperCase() || '',
+        name: this.building.name,
+        description: this.building.description || '',
+        officeId: this.building.officeId ? parseInt(this.building.officeId, 10) : null,
+        hoaName: this.building.hoaName || '',
+        hoaPhone: this.formatterService.phoneNumber(this.building.hoaPhone) || '',
+        hoaEmail: this.building.hoaEmail || '',
         isActive: this.building.isActive
       });
     }
@@ -226,6 +272,15 @@ export class BuildingComponent implements OnInit, OnChanges {
 
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  // Phone formatting methods
+  formatHoaPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('hoaPhone'));
+  }
+
+  onHoaPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('hoaPhone'));
   }
 }
 

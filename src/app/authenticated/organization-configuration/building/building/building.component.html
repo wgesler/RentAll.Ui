@@ -56,19 +56,59 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Building Code</mat-label>
-                <input matInput formControlName="buildingCode" required>
+                <input matInput formControlName="buildingCode" required (input)="onCodeInput($event)">
                 @if (form.get('buildingCode')?.hasError('required') && form.get('buildingCode')?.touched) {
                   <mat-error>Building Code is required</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Description</mat-label>
-                <input matInput formControlName="description" required>
-                @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
-                  <mat-error>Description is required</mat-error>
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name" required>
+                @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                  <mat-error>Name is required</mat-error>
                 }
               </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Office</mat-label>
+                <mat-select formControlName="officeId">
+                  <mat-option [value]="null">Select Office</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <!-- HOA Fields on same line -->
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>HOA Name</mat-label>
+                  <input matInput formControlName="hoaName">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>HOA Phone</mat-label>
+                  <input matInput formControlName="hoaPhone" placeholder="(555) 555-5555"
+                    maxlength="14" (blur)="formatHoaPhone()" (input)="onHoaPhoneInput($event)">
+                  @if (form.get('hoaPhone')?.hasError('pattern') && form.get('hoaPhone')?.touched) {
+                    <mat-error>Invalid phone format</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>HOA Email</mat-label>
+                  <input matInput type="email" formControlName="hoaEmail" placeholder="email@example.com">
+                  @if (form.get('hoaEmail')?.hasError('email') && form.get('hoaEmail')?.touched) {
+                    <mat-error>Invalid email format</mat-error>
+                  }
+                </mat-form-field>
+              </div>
             </div>
 
             @if (isSubmitting) {

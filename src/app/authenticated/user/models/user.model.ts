@@ -12,6 +12,7 @@ export interface UserRequest {
 export interface UserResponse {
   userId: string;
   organizationId: string;
+  organizationName: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -22,6 +23,7 @@ export interface UserResponse {
 
 export interface UserListDisplay {
   userId: string;
+  organizationName: string;
   fullName: string;
   email: string;
   userGroups: string[];

@@ -27,8 +27,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ReservationNotice, BillingType, DepositType } from '../models/reservation-enum';
-import { FranchiseService } from '../../organization-configuration/franchise/services/franchise.service';
-import { FranchiseResponse } from '../../organization-configuration/franchise/models/franchise.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-reservation-lease',
@@ -50,7 +50,7 @@ export class ReservationLeaseComponent implements OnInit {
   contact: ContactResponse | null = null;
   company: CompanyResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
-  franchise: FranchiseResponse | null = null;
+  office: OfficeResponse | null = null;
   organizationName: string | null = null;
 
   constructor(
@@ -61,7 +61,7 @@ export class ReservationLeaseComponent implements OnInit {
     private companyService: CompanyService,
     private organizationService: OrganizationService,
     private leaseInformationService: ReservationLeaseInformationService,
-    private franchiseService: FranchiseService,
+    private officeService: OfficeService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -135,13 +135,13 @@ export class ReservationLeaseComponent implements OnInit {
             take(1),
             switchMap((company: CompanyResponse) => {
               this.company = company;
-              // Load franchise after company is loaded
-              return this.loadFranchiseData();
+              // Load office after company is loaded
+              return this.loadOfficeData();
             })
           );
         }
-        // Load franchise if no company to load
-        return this.loadFranchiseData();
+        // Load office if no company to load
+        return this.loadOfficeData();
       }),
       finalize(() => {
         this.isLoading = false;
@@ -371,21 +371,21 @@ export class ReservationLeaseComponent implements OnInit {
     });
   }
 
-  loadFranchiseData(): Observable<null> {
-    if (!this.property || !this.property.franchiseId) {
-      this.franchise = null;
+  loadOfficeData(): Observable<null> {
+    if (!this.property || !this.property.officeId) {
+      this.office = null;
       return of(null);
     }
 
-    return this.franchiseService.getFranchiseById(this.property.franchiseId).pipe(
+    return this.officeService.getOfficeById(this.property.officeId).pipe(
       take(1),
-      switchMap((franchise: FranchiseResponse) => {
-        this.franchise = franchise;
+      switchMap((office: OfficeResponse) => {
+        this.office = office;
         return of(null);
       }),
       catchError((err: HttpErrorResponse) => {
-        console.error('Error loading franchise:', err);
-        this.franchise = null;
+        console.error('Error loading office:', err);
+        this.office = null;
         return of(null);
       })
     );
@@ -465,8 +465,8 @@ export class ReservationLeaseComponent implements OnInit {
 
   getOrganizationName(): string {  
     this.organizationName = this.organization.name;
-    if(this.franchise) 
-      this.organizationName = this.organization.name + ' ' + this.franchise.description;
+    if(this.office) 
+      this.organizationName = this.organization.name + ' ' + this.office.name;
     return this.organizationName;
   }
 
@@ -628,9 +628,9 @@ export class ReservationLeaseComponent implements OnInit {
       result = result.replace(/\{\{propertyParking\}\}/g, this.property.parkingNotes || '');
     }
 
-    if (this.franchise) {
-      result = result.replace(/\{\{franchiseDescription\}\}/g, this.franchise.description || '');
-      result = result.replace(/\{\{franchisePhone\}\}/g, this.formatterService.phoneNumber(this.franchise.phone) || 'N/A');
+    if (this.office) {
+      result = result.replace(/\{\{officeDescription\}\}/g, this.office.name || '');
+      result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.office.phone) || 'N/A');
     } 
 
     // Replace lease information placeholders
@@ -670,9 +670,7 @@ export class ReservationLeaseComponent implements OnInit {
 
     // Replace organization placeholders
     if (this.organization) {
-      result = result.replace(/\{\{organization-franchise\}\}/g, this.getOrganizationName());
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.organization.maintenanceEmail || '');
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.organization.afterHoursPhone) || '');
+      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
       result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');
@@ -694,9 +692,9 @@ export class ReservationLeaseComponent implements OnInit {
     if (!text) return '';
     let result = text;
 
-    // Replace organization/franchise name
+    // Replace organization/office name
     if (this.organization) {
-      result = result.replace(/\{\{organization-franchise\}\}/g,this.getOrganizationName());
+      result = result.replace(/\{\{organization-office\}\}/g,this.getOrganizationName());
     }
 
     // Replace reservation placeholders
@@ -1027,7 +1025,7 @@ export class ReservationLeaseComponent implements OnInit {
               <span style="font-style: italic">Tenant Signature</span>
               <p><br></p>
               <hr class="grayline" noshade>
-              <span style="font-style: italic">{{organization-franchise}}</span>
+              <span style="font-style: italic">{{organization-office}}</span>
             </td>
             <td style="padding-left: 10px" width="40%" align="center">
               <hr class="grayline" noshade>
@@ -1046,9 +1044,9 @@ export class ReservationLeaseComponent implements OnInit {
           <tbody>
             <tr valign="top">
               <td align="center">
-                <span style="font-weight: bold">{{organization-franchise}}</span><br>
+                <span style="font-weight: bold">{{organization-office}}</span><br>
                 {{organizationAddress}}<br>
-                <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+                <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
                 <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
               </td>
             </tr>
@@ -1138,7 +1136,7 @@ export class ReservationLeaseComponent implements OnInit {
           <div class="border">
             <p>
               <strong>Date: </strong>{{reservationDate}}<br>
-              <strong>To: </strong>{{organization-franchise}}<br>
+              <strong>To: </strong>{{organization-office}}<br>
               <strong>From: </strong>{{responsibleParty}}<br>
             </p>
           </div>
@@ -1223,7 +1221,7 @@ export class ReservationLeaseComponent implements OnInit {
                   <br>
                 </td>
                 <td width="50%" style="padding-left: 5px" align="center">
-                  <strong>{{organization-franchise}}</strong><br>
+                  <strong>{{organization-office}}</strong><br>
                   <i class="smgraytext">(Property Manager)</i>
                   <p><br>
                     <hr noshade class="grayline">
@@ -1252,9 +1250,9 @@ export class ReservationLeaseComponent implements OnInit {
     <table width="648" cellpadding="0" cellspacing="0" id="footer" align="center">
       <tr valign="top">
         <td align="center">
-          <span style="font-weight: bold">{{organization-franchise}}</span><br>
+          <span style="font-weight: bold">{{organization-office}}</span><br>
           {{organizationAddress}}<br>
-            <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+            <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
             <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
         </td>
       </tr>
@@ -1348,7 +1346,7 @@ export class ReservationLeaseComponent implements OnInit {
           <td width="50%">
             <div style="margin-right: 5px" class="border">
               <p>
-                <span style="font-weight: bold">To: </span>{{organization-franchise}}<br>
+                <span style="font-weight: bold">To: </span>{{organization-office}}<br>
                 <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
               </p>
             </div>
@@ -1384,7 +1382,7 @@ export class ReservationLeaseComponent implements OnInit {
                 <span style="font-weight: bold">My departure date will be:</span> <span class="grayline">________________________</span>
               </p>
               <p>
-                I understand that check-out is at {{checkOutTime}} on my departure date. The date given above is a definite date to vacate, and no change in the move-out date will be made without written approval of {{organization-franchise}}.
+                I understand that check-out is at {{checkOutTime}} on my departure date. The date given above is a definite date to vacate, and no change in the move-out date will be made without written approval of {{organization-office}}.
               </p>
               <p>
                 <span style="font-weight: bold">Forwarding address:</span> <span style="font-style: italic"> (Needed for deposit refund)</span>
@@ -1420,7 +1418,7 @@ export class ReservationLeaseComponent implements OnInit {
 
             <div class="border">
               <p>
-                <span style="font-weight: bold">Acknowledged by {{organization-franchise}}:</span>
+                <span style="font-weight: bold">Acknowledged by {{organization-office}}:</span>
               </p>
               <br>
               <table cellspacing="0" cellpadding="0" width="100%" align="center">
@@ -1447,9 +1445,9 @@ export class ReservationLeaseComponent implements OnInit {
       <tbody>
         <tr valign="top">
           <td align="center">
-            <span style="font-weight: bold">{{organization-franchise}}</span><br>
+            <span style="font-weight: bold">{{organization-office}}</span><br>
             {{organizationAddress}}<br>
-              <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{franchisePhone}} &nbsp;&nbsp;&nbsp;
+              <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
               <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
           </td>
         </tr>

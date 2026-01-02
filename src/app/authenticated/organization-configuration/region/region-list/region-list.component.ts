@@ -13,6 +13,8 @@ import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-region-list',
@@ -31,12 +33,15 @@ export class RegionListComponent implements OnInit {
   showInactive: boolean = false;
 
   regionsDisplayedColumns: ColumnSet = {
-    'regionCode': { displayAs: 'Region Code', maxWidth: '30ch' },
-    'description': { displayAs: 'Description', maxWidth: '40ch' },
+    'regionCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'name': { displayAs: 'Name', maxWidth: '30ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '30ch' },
+    'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   private allRegions: RegionListDisplay[] = [];
   regionsDisplay: RegionListDisplay[] = [];
+  private offices: OfficeResponse[] = [];
 
   constructor(
     public regionService: RegionService,
@@ -44,12 +49,27 @@ export class RegionListComponent implements OnInit {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
       this.itemsToLoad.push('regions');
   }
 
   ngOnInit(): void {
-    this.getRegions();
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
+        this.getRegions();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Region List Component - Error loading offices:', err);
+        this.offices = [];
+        this.getRegions();
+      }
+    });
   }
 
   addRegion(): void {
@@ -64,7 +84,7 @@ export class RegionListComponent implements OnInit {
   getRegions(): void {
     this.regionService.getRegions().pipe(take(1), finalize(() => { this.removeLoadItem('regions') })).subscribe({
       next: (response: RegionResponse[]) => {
-        this.allRegions = this.mappingService.mapRegions(response);
+        this.allRegions = this.mappingService.mapRegions(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

@@ -47,7 +47,7 @@ export interface PropertyRequest {
   mailbox?: string;
   
     // Location section
-  franchiseId?: number | null;
+  officeId?: number | null;
   regionId?: number | null;
   areaId?: number | null;
   buildingId?: number | null;
@@ -158,7 +158,7 @@ export interface PropertyResponse {
   mailbox?: string;
   
     // Location section
-  franchiseId?: number | null;
+  officeId?: number | null;
   regionId?: number | null;
   areaId?: number | null;
   buildingId?: number | null;

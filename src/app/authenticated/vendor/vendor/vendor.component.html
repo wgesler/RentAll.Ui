@@ -100,9 +100,12 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)">
+                <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
                 @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
                   <mat-error>Phone is required</mat-error>
+                }
+                @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
+                  <mat-error>Invalid phone format</mat-error>
                 }
               </mat-form-field>
 

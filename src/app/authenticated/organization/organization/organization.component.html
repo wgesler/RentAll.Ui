@@ -123,15 +123,6 @@
                 </mat-form-field>
               </div>
 
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>Maintenance Email</mat-label>
-              <input matInput formControlName="maintenanceEmail" type="email">
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>After Hours Phone</mat-label>
-              <input matInput formControlName="afterHoursPhone" maxlength="14" (blur)="formatAfterHoursPhone()" (input)="onAfterHoursPhoneInput($event)">
-            </mat-form-field>
             </div>
 
             <mat-divider class="my-5"/>
@@ -139,7 +130,7 @@
             <h3 class="pt-3">Organization Logo</h3>
             <div class="flex justify-start image-input items-center mb-4">
               @if (fileDetails && fileDetails.file) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Organization Logo" title="Organization Logo" [src]="'data:' + fileDetails.contentType + ';base64,' + fileDetails.file" />
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Organization Logo" title="Organization Logo" [src]="fileDetails.dataUrl" />
                 <div class="flex flex-col gap-2 ml-4">
                   @if (fileName) {
                     <span class="text-sm font-semibold">{{ fileName }}</span>

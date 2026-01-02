@@ -12,6 +12,8 @@ import { AreaResponse, AreaRequest } from '../models/area.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { NavigationContextService } from '../../../../services/navigation-context.service';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
 
 @Component({
   selector: 'app-area',
@@ -35,6 +37,7 @@ export class AreaComponent implements OnInit, OnChanges {
   isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
+  offices: OfficeResponse[] = [];
 
   constructor(
     public areaService: AreaService,
@@ -43,12 +46,14 @@ export class AreaComponent implements OnInit, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private officeService: OfficeService
   ) {
     this.itemsToLoad.push('area');
   }
 
   ngOnInit(): void {
+    this.loadOffices();
     // Check for returnTo query parameter
     this.route.queryParams.subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
@@ -83,6 +88,21 @@ export class AreaComponent implements OnInit, OnChanges {
         }
       }
     }
+  }
+
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Area Component - Error loading offices:', err);
+        this.offices = [];
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -125,6 +145,13 @@ export class AreaComponent implements OnInit, OnChanges {
     });
   }
 
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ areaCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
   saveArea(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -137,7 +164,9 @@ export class AreaComponent implements OnInit, OnChanges {
     const areaRequest: AreaRequest = {
       organizationId: user?.organizationId || '',
       areaCode: formValue.areaCode,
-      description: formValue.description,
+      name: formValue.name,
+      description: formValue.description || undefined,
+      officeId: formValue.officeId ? formValue.officeId.toString() : undefined,
       isActive: formValue.isActive
     };
 
@@ -197,7 +226,9 @@ export class AreaComponent implements OnInit, OnChanges {
   buildForm(): void {
     this.form = this.fb.group({
       areaCode: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      name: new FormControl('', [Validators.required]),
+      description: new FormControl(''),
+      officeId: new FormControl(null),
       isActive: new FormControl(true)
     });
   }
@@ -205,8 +236,10 @@ export class AreaComponent implements OnInit, OnChanges {
   populateForm(): void {
     if (this.area && this.form) {
       this.form.patchValue({
-        areaCode: this.area.areaCode,
-        description: this.area.description,
+        areaCode: this.area.areaCode?.toUpperCase() || '',
+        name: this.area.name,
+        description: this.area.description || '',
+        officeId: this.area.officeId ? parseInt(this.area.officeId, 10) : null,
         isActive: this.area.isActive
       });
     }

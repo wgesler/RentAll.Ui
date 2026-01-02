@@ -1,13 +1,12 @@
-@if (!isServiceError && !itemsToLoad.includes('company')) {
-
-  
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+@if (!isServiceError && !itemsToLoad.includes('office')) {
+  <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+      @if (!embeddedMode) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">business</mat-icon>
+          <mat-icon class="flex-shrink-0">store</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Company' : 'Edit Company' }}
+            {{ isAddMode ? 'Add Office' : 'Edit Office' }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -16,23 +15,52 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCompany()"
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
           </button>
         </div>
-      </div>
-        
+        </div>
+      }
+      @if (embeddedMode) {
+        <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
+          <span class="flex flex-column items-center gap-2">
+            <mat-icon class="flex-shrink-0">store</mat-icon>
+            <span class="flex-shrink-0 text-lg font-medium">
+              {{ isAddMode ? 'Add Office' : 'Edit Office' }}
+            </span>
+          </span>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      }
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveCompany()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveOffice()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
             </div>
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex items-center gap-x-1.5">
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-[0.5]">
+                  <mat-label>Office Code</mat-label>
+                  <input matInput formControlName="officeCode" required (input)="onCodeInput($event)">
+                  @if (form.get('officeCode')?.hasError('required') && form.get('officeCode')?.touched) {
+                    <mat-error>Office Code is required</mat-error>
+                  }
+                </mat-form-field>
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Name</mat-label>
                   <input matInput formControlName="name" required>
@@ -40,13 +68,6 @@
                     <mat-error>Name is required</mat-error>
                   }
                 </mat-form-field>
-
-                @if (!isAddMode) {
-                  <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
-                    <mat-label>Code</mat-label>
-                    <input matInput [value]="company?.companyCode || ''" readonly disabled>
-                  </mat-form-field>
-                }
               </div>
 
               <div class="col-span-4 flex gap-x-1.5">
@@ -91,47 +112,53 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Zip Code</mat-label>
+                <mat-label>Zip</mat-label>
                 <input matInput formControlName="zip" required>
                 @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
-                  <mat-error>Zip Code is required</mat-error>
+                  <mat-error>Zip is required</mat-error>
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
-                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                  <mat-error>Phone is required</mat-error>
-                }
-                @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
-                  <mat-error>Invalid phone format</mat-error>
-                }
-              </mat-form-field>
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Phone</mat-label>
+                  <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
+                  @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
+                    <mat-error>Phone is required</mat-error>
+                  }
+                  @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
+                    <mat-error>Invalid phone format</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Website</mat-label>
-                <input matInput formControlName="website" type="url">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Fax</mat-label>
+                  <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
+                  @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
+                    <mat-error>Invalid phone format</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Notes</mat-label>
-                <textarea matInput formControlName="notes" rows="3"></textarea>
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Website</mat-label>
+                  <input matInput formControlName="website" type="url">
+                </mat-form-field>
+              </div>
+
             </div>
 
             <mat-divider class="my-5"/>
 
-            <h3 class="pt-3">Company Logo</h3>
+            <h3 class="pt-3">Office Logo</h3>
             <div class="flex justify-start image-input items-center mb-4">
               @if (fileDetails && fileDetails.file) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Company Logo" title="Company Logo" [src]="'data:' + fileDetails.contentType + ';base64,' + fileDetails.file" />
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
                 <div class="flex flex-col gap-2 ml-4">
                   @if (fileName) {
                     <span class="text-sm font-semibold">{{ fileName }}</span>
                   }
                   <div class="flex flex-col gap-2">
-                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
                       Choose Image
                     </button>
                     <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
@@ -140,7 +167,7 @@
                   </div>
                 </div>
               } @else if (logoPath && !fileDetails) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Company Logo" title="Company Logo" [src]="logoPath" />
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
                 <div class="flex flex-col gap-2 ml-4">
                   <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
                     Choose Image

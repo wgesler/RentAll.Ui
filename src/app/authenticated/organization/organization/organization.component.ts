@@ -78,6 +78,10 @@ export class OrganizationComponent implements OnInit {
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
+          // Construct dataUrl from base64 file if not already set
+          if (!this.fileDetails.dataUrl && this.fileDetails.contentType && this.fileDetails.file) {
+            this.fileDetails.dataUrl = `data:${this.fileDetails.contentType};base64,${this.fileDetails.file}`;
+          }
           this.hasNewFileUpload = false; // FileDetails from API, not a new upload
         } else if (response.logoPath) {
           // Fallback to logoPath if fileDetails not available
@@ -108,7 +112,6 @@ export class OrganizationComponent implements OnInit {
     const formValue = this.form.getRawValue();
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
-    const afterHoursPhoneDigits = this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone);
 
     const organizationRequest: OrganizationRequest = {
       ...formValue,
@@ -121,7 +124,6 @@ export class OrganizationComponent implements OnInit {
       website: formValue.website || '',
       phone: phoneDigits,
       fax: faxDigits || undefined,
-      afterHoursPhone: afterHoursPhoneDigits || undefined,
       // Only send fileDetails if a new file was uploaded (not from API response)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
@@ -173,8 +175,6 @@ export class OrganizationComponent implements OnInit {
       phone: new FormControl('', [Validators.required]),
       fax: new FormControl(''),
       website: new FormControl(''),
-      maintenanceEmail: new FormControl(''),
-      afterHoursPhone: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -193,8 +193,6 @@ export class OrganizationComponent implements OnInit {
         phone: this.formatterService.phoneNumber(this.organization.phone),
         fax: this.formatterService.phoneNumber(this.organization.fax) || '',
         website: this.organization.website || '',
-        maintenanceEmail: this.organization.maintenanceEmail || '',
-        afterHoursPhone: this.formatterService.phoneNumber(this.organization.afterHoursPhone) || '',
         isActive: this.organization.isActive
       });
     }
@@ -213,11 +211,14 @@ export class OrganizationComponent implements OnInit {
       this.logoPath = null; // Clear existing logo path when new file is selected
       this.hasNewFileUpload = true; // Mark that this is a new file upload
 
-      this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '' });
+      this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '', dataUrl: '' });
       const fileReader = new FileReader();
       fileReader.onload = (): void => {
         // Convert file to base64 string for preview and upload
-        this.fileDetails.file = btoa(fileReader.result as string);
+        const base64String = btoa(fileReader.result as string);
+        this.fileDetails.file = base64String;
+        // Construct dataUrl for display
+        this.fileDetails.dataUrl = `data:${file.type};base64,${base64String}`;
         this.isUploadingLogo = false;
       };
       fileReader.readAsBinaryString(file);
@@ -239,16 +240,8 @@ export class OrganizationComponent implements OnInit {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
-  formatAfterHoursPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('afterHoursPhone'));
-  }
-
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
-  }
-
-  onAfterHoursPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('afterHoursPhone'));
   }
 
   formatFax(): void {

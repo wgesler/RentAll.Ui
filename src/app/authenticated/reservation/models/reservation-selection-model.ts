@@ -28,7 +28,7 @@ export interface PropertySelectionRequest {
   smoking: boolean;
   highSpeedInternet: boolean;
   propertyStatusId: number;
-  franchiseCode: string | null;
+  officeCode: string | null;
   buildingCode: string | null;
   regionCode: string | null;
   areaCode: string | null;
@@ -37,9 +37,9 @@ export interface PropertySelectionRequest {
 /**
  * PropertySelectionResponse - Matches the database table structure
  * 
- * The Response may include computed/joined fields (franchise, region, area, building)
+ * The Response may include computed/joined fields (office, region, area, building)
  * for display purposes, but these are not stored in the database table.
- * Only the ID fields (franchiseId, regionId, areaId, buildingId) are stored.
+ * Only the ID fields (officeId, regionId, areaId, buildingId) are stored.
  */
 export interface PropertySelectionResponse {
   userId: string;
@@ -61,7 +61,7 @@ export interface PropertySelectionResponse {
   smoking: boolean;
   highSpeedInternet: boolean;
   propertyStatusId: number;
-  franchiseCode: string | null;
+  officeCode: string | null;
   buildingCode: string | null;
   regionCode: string | null;
   areaCode: string | null;
