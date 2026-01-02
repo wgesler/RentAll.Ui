@@ -30,6 +30,7 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
+import { DocumentExportService } from '../../../services/document-export.service';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -58,6 +59,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   iframeKey: number = 0;
+  isDownloading: boolean = false;
   itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices'];
 
   constructor(
@@ -75,7 +77,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
-    private officeConfigurationService: OfficeConfigurationService
+    private officeConfigurationService: OfficeConfigurationService,
+    private documentExportService: DocumentExportService
   ) {
     this.form = this.buildForm();
   }
@@ -708,9 +711,6 @@ export class PropertyWelcomeLetterComponent implements OnInit {
         iframeHead.appendChild(styleElement);
       }
       
-      // Debug: Log the injected styles to console (can be removed later)
-      console.log('Injected styles into iframe:', this.previewIframeStyles);
-      
       // Force a reflow to ensure styles are applied
       if (iframeDoc.body) {
         iframeDoc.body.offsetHeight;
@@ -719,5 +719,287 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       // Cross-origin or other security error - this is expected in some cases
       console.warn('Could not inject styles into iframe:', e);
     }
+  }
+
+  async onDownload(): Promise<void> {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
+      return;
+    }
+
+    this.isDownloading = true;
+    
+    try {
+      // Get the HTML with print styles applied directly (for PDF generation)
+      const htmlWithStyles = this.getPdfHtmlWithStyles();
+      
+      // Generate filename
+      const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      // Use the service to download PDF
+      await this.documentExportService.downloadPDF(
+        htmlWithStyles,
+        fileName
+      );
+      
+      this.isDownloading = false;
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      this.isDownloading = false;
+      this.toastr.error('Error generating PDF. Please try again.', 'Error');
+    }
+  }
+
+  onPrint(): void {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
+      return;
+    }
+
+    // Get the HTML with styles injected
+    const htmlWithStyles = this.getPreviewHtmlWithStyles();
+    this.documentExportService.printHTML(htmlWithStyles);
+  }
+
+  async onEmail(): Promise<void> {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
+      return;
+    }
+
+    // Get tenant email by looking up contact from contactId
+    let tenantEmail = '';
+    if (this.selectedReservation?.contactId) {
+      const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId);
+      if (contact) {
+        tenantEmail = contact.email || '';
+      }
+    }
+
+    if (!tenantEmail) {
+      this.toastr.warning('No email address found for this reservation', 'No Email');
+      return;
+    }
+
+    try {
+      // Get the HTML with print styles applied directly (for PDF generation)
+      const htmlWithStyles = this.getPdfHtmlWithStyles();
+      
+      await this.documentExportService.emailWithPDF({
+        recipientEmail: tenantEmail,
+        subject: 'Your Upcoming Visit',
+        organizationName: this.organization?.name,
+        tenantName: this.selectedReservation?.tenantName,
+        htmlContent: htmlWithStyles
+      });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      this.toastr.error('Error generating PDF for email. Please try the Download button first, then attach it manually to your email.', 'Error');
+    }
+  }
+
+  private getPreviewHtmlWithStyles(): string {
+    // Extract body content from previewIframeHtml (it's already a complete HTML document)
+    // The previewIframeHtml already has the styles removed, so we need to add them back
+    let bodyContent = this.previewIframeHtml;
+    
+    // If it's a complete document, extract just the body content
+    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch && bodyMatch[1]) {
+      bodyContent = bodyMatch[1].trim();
+    } else {
+      // If it's not a complete document, it might already be just body content
+      // Remove any html/head tags if present
+      bodyContent = bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    }
+
+    // Add print-specific styles to fix print/PDF issues
+    const printStyles = `
+      /* Print and PDF specific styles */
+      @media print {
+        /* Ensure proper margins for printing - let text flow naturally to bottom */
+        /* @page applies to ALL pages, including second page and beyond */
+        @page {
+          size: letter;
+          margin: 0.75in;
+        }
+        
+        body {
+          margin: 0;
+          font-size: 11pt !important;
+          line-height: 1.4 !important;
+          padding: 0 !important;
+        }
+        
+        /* Logo positioning for print - ensure it's at the top */
+        /* No padding/margin at top - logo starts at page margin */
+        .header {
+          position: relative !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+          margin-bottom: 1rem !important;
+        }
+        
+        /* Ensure content on subsequent pages starts at the top margin */
+        .content {
+          margin-top: 0 !important;
+        }
+        
+        .logo {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          max-height: 100px !important;
+          max-width: 200px !important;
+          display: block !important;
+          margin-bottom: 1rem !important;
+        }
+        
+        /* Adjust content margin for print - remove the large top margin since logo is now relative */
+        .content {
+          margin-top: 0 !important;
+        }
+        
+        /* Adjust heading sizes for print */
+        h1 {
+          font-size: 18pt !important;
+        }
+        
+        h2 {
+          font-size: 14pt !important;
+        }
+        
+        h3 {
+          font-size: 12pt !important;
+        }
+        
+        /* Adjust paragraph spacing for print */
+        p {
+          margin: 0.3em 0 !important;
+        }
+        
+        /* Prevent widows and orphans - but allow natural page breaks */
+        p, li {
+          orphans: 2;
+          widows: 2;
+        }
+      }
+      
+    `;
+
+    // Combine the HTML with the styles to create a complete document
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+${this.previewIframeStyles}
+${printStyles}
+  </style>
+</head>
+<body>
+${bodyContent}
+</body>
+</html>`;
+  }
+
+  private getPdfHtmlWithStyles(): string {
+    // Extract body content from previewIframeHtml
+    let bodyContent = this.previewIframeHtml;
+    
+    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch && bodyMatch[1]) {
+      bodyContent = bodyMatch[1].trim();
+    } else {
+      bodyContent = bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    }
+
+    // Apply print styles directly (not in media query) for PDF generation
+    // PDF generators often don't respect @media print, so we apply styles directly
+    const pdfStyles = `
+      /* PDF styles - applied directly to match print output exactly */
+      body {
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      
+      /* Page margins for PDF */
+      @page {
+        size: letter;
+        margin: 0.75in;
+      }
+      
+      /* Logo positioning for PDF - ensure it's at the top */
+      /* No padding/margin at top - logo starts at page margin */
+      .header {
+        position: relative !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      .logo {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        max-height: 100px !important;
+        max-width: 200px !important;
+        display: block !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      /* Adjust content margin for PDF - remove the large top margin since logo is now relative */
+      .content {
+        margin-top: 0 !important;
+      }
+      
+      /* Adjust heading sizes for PDF */
+      h1 {
+        font-size: 18pt !important;
+      }
+      
+      h2 {
+        font-size: 14pt !important;
+      }
+      
+      h3 {
+        font-size: 12pt !important;
+      }
+      
+      /* Adjust paragraph spacing for PDF */
+      p {
+        margin: 0.3em 0 !important;
+      }
+      
+      /* Prevent widows and orphans - but allow natural page breaks */
+      p, li {
+        orphans: 2;
+        widows: 2;
+      }
+    `;
+
+    // Combine the HTML with the styles to create a complete document for PDF
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+${this.previewIframeStyles}
+${pdfStyles}
+  </style>
+</head>
+<body>
+${bodyContent}
+</body>
+</html>`;
   }
 }

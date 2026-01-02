@@ -216,24 +216,58 @@ export class DocumentExportService {
       console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
       console.log('Element height:', elementHeight);
 
-      // Calculate PDF dimensions (A4 size with margins)
-      // Match the print margins: print uses 70px which is about 18.5mm, but for PDF we'll use 20mm for readability
-      // If user wants exactly 70mm, that leaves only 70mm for content which is too narrow
-      const pdfWidth = 210; // A4 width in mm
-      const pdfHeight = 297; // A4 height in mm
-      const margin = 20; // 20mm margins (standard, leaves 170mm for content)
-      const contentWidth = pdfWidth - (margin * 2); // 170mm content width
-      const contentHeight = pdfHeight - (margin * 2); // 257mm content height per page
+      // Calculate PDF dimensions (Letter size to match print)
+      // Letter size: 8.5in x 11in = 215.9mm x 279.4mm
+      // Margins: 0.75in = 19.05mm (all sides) - matching print settings
+      const pdfWidth = 215.9; // Letter width in mm (8.5in)
+      const pdfHeight = 279.4; // Letter height in mm (11in)
+      const marginTop = 19.05; // 0.75in in mm
+      const marginRight = 19.05; // 0.75in in mm
+      const marginBottom = 19.05; // 0.75in in mm
+      const marginLeft = 19.05; // 0.75in in mm
+      const contentWidth = pdfWidth - (marginLeft + marginRight); // Content width
+      const contentHeight = pdfHeight - (marginTop + marginBottom); // Content height per page
       
-      // Calculate image dimensions to fit content width while maintaining aspect ratio
-      // The canvas was captured at 2x scale, so we need to account for that
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Calculate image dimensions - use actual element size, not forced to contentWidth
+      // The canvas was captured at 2x scale, so canvas.width = 2 * elementWidth (in pixels)
+      // Convert element dimensions from pixels to mm: 1in = 96px at 96 DPI, so 1px = 25.4/96 = 0.264583mm
+      // The iframe is 8.5in = 816px = 215.9mm
+      const pixelsToMm = 0.264583; // 1px = 0.264583mm at 96 DPI
+      const html2canvasScale = 2; // html2canvas scale factor
       
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const totalHeight = imgHeight;
-      let yPosition = margin;
+      // Convert actual element dimensions to mm (divide canvas by scale to get element size)
+      const actualElementWidthPx = canvas.width / html2canvasScale;
+      const actualElementHeightPx = canvas.height / html2canvasScale;
+      
+      // Convert to mm - this is the actual rendered size
+      const imgWidth = actualElementWidthPx * pixelsToMm; // Should be ~215.9mm (8.5in)
+      const imgHeight = actualElementHeightPx * pixelsToMm;
+      
+      // Now we need to scale to fit within margins if needed, but preserve aspect ratio
+      // Calculate available width after margins
+      const availableWidth = pdfWidth - (marginLeft + marginRight);
+      
+      // Only scale down if content is wider than available space
+      let finalImgWidth = imgWidth;
+      let finalImgHeight = imgHeight;
+      if (imgWidth > availableWidth) {
+        const scaleFactor = availableWidth / imgWidth;
+        finalImgWidth = availableWidth;
+        finalImgHeight = imgHeight * scaleFactor;
+      }
+      
+      // Use final dimensions
+      const imgWidthFinal = finalImgWidth;
+      const imgHeightFinal = finalImgHeight;
+      
+      // Create PDF with letter size to match print
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [215.9, 279.4] // Letter size: 8.5in x 11in
+      });
+      const totalHeight = imgHeightFinal;
+      let yPosition = marginTop;
       let sourceY = 0;
 
       // Split the image across multiple pages if needed
@@ -244,7 +278,7 @@ export class DocumentExportService {
         const heightToAdd = Math.min(remainingHeight, pageHeight);
         
         // Calculate the source crop for this page
-        const sourceHeight = (heightToAdd / imgHeight) * canvas.height;
+        const sourceHeight = (heightToAdd / imgHeightFinal) * canvas.height;
         
         // Create a temporary canvas for this page's portion
         const pageCanvas = document.createElement('canvas');
@@ -262,15 +296,17 @@ export class DocumentExportService {
         }
         
         // Calculate the display height for this page portion
-        const displayHeight = (heightToAdd / imgHeight) * imgHeight;
+        const displayHeight = heightToAdd;
         
         // Add image to PDF with proper margins
+        // Center horizontally if content is narrower than available width
+        const xPosition = marginLeft + (availableWidth - imgWidthFinal) / 2;
         pdf.addImage(
           pageCanvas.toDataURL('image/png'),
           'PNG',
-          margin,
+          xPosition,
           yPosition,
-          imgWidth,
+          imgWidthFinal,
           displayHeight
         );
         
@@ -279,7 +315,7 @@ export class DocumentExportService {
         // If there's more content, add a new page
         if (sourceY < totalHeight) {
           pdf.addPage();
-          yPosition = margin;
+          yPosition = marginTop;
         }
       }
 

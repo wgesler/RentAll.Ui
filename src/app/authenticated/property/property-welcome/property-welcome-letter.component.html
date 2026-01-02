@@ -10,11 +10,20 @@
       <!-- Action Buttons Section -->
       <div class="top-controls">
         <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="preview-button" (click)="previewWelcomeLetter()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="!selectedReservation">
-            <mat-icon>preview</mat-icon>
-            Preview
-          </button>
+          @if (selectedOffice && selectedReservation && previewIframeHtml) {
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!selectedReservation?.contactId">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+          }
           <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveWelcomeLetter()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
