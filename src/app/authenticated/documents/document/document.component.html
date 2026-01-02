@@ -1,0 +1,136 @@
+@if (!isServiceError && !itemsToLoad.includes('document')) {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">description</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Document' : 'Edit Document' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+        
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveDocument()" class="info-form mb-8 pt-5">
+          <!-- First line: IsDeleted and save button right justified -->
+          <div class="mb-4 flex justify-end items-center gap-3">
+            <mat-checkbox formControlName="isDeleted" color="primary">
+              Is Deleted
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveDocument()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+
+          <!-- Document Type and Office -->
+          <div class="mb-4 flex items-center gap-3">
+            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
+              <mat-label>Document Type</mat-label>
+              <mat-select formControlName="documentType" required>
+                <mat-option value="">Select Type</mat-option>
+                @for (docType of documentTypes; track docType.value) {
+                  <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                }
+              </mat-select>
+              @if (form.get('documentType')?.hasError('required') && form.get('documentType')?.touched) {
+                <mat-error>Document Type is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
+              <mat-label>Office</mat-label>
+              <mat-select formControlName="officeId">
+                <mat-option [value]="null">None</mat-option>
+                @for (office of offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- File Upload Section -->
+          <div class="mb-4">
+            <div class="mb-2">
+              <label for="fileInput" class="block mb-2 text-sm font-medium">File</label>
+              <input 
+                type="file" 
+                id="fileInput"
+                (change)="onFileSelected($event)" 
+                accept="*/*"
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            @if (selectedFile) {
+              <div class="mb-2 text-sm text-gray-600">
+                Selected: {{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(2) }} KB)
+              </div>
+            }
+
+            @if (filePreview) {
+              <div class="mb-4">
+                <img [src]="filePreview" alt="File preview" style="max-width: 300px; max-height: 300px; border: 1px solid #ccc; border-radius: 4px;">
+              </div>
+            }
+          </div>
+
+          <!-- File Information -->
+          <div class="mb-4 flex items-center gap-3">
+            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
+              <mat-label>File Name</mat-label>
+              <input matInput formControlName="fileName" required>
+              @if (form.get('fileName')?.hasError('required') && form.get('fileName')?.touched) {
+                <mat-error>File Name is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="flex: 0.5; min-width: 120px;">
+              <mat-label>File Extension</mat-label>
+              <input matInput formControlName="fileExtension" required>
+              @if (form.get('fileExtension')?.hasError('required') && form.get('fileExtension')?.touched) {
+                <mat-error>File Extension is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
+              <mat-label>Content Type</mat-label>
+              <input matInput formControlName="contentType" required>
+              @if (form.get('contentType')?.hasError('required') && form.get('contentType')?.touched) {
+                <mat-error>Content Type is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <!-- Document Path -->
+          <div class="mb-4">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Document Path</mat-label>
+              <input matInput formControlName="documentPath" required>
+              @if (form.get('documentPath')?.hasError('required') && form.get('documentPath')?.touched) {
+                <mat-error>Document Path is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <!-- Download button for existing documents -->
+          @if (!isAddMode && document) {
+            <div class="mb-4">
+              <button mat-raised-button type="button" color="accent" (click)="downloadDocument()">
+                <mat-icon>download</mat-icon>
+                Download Document
+              </button>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}
+
