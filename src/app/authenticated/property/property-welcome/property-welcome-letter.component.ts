@@ -26,6 +26,10 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { BuildingService } from '../../organization-configuration/building/services/building.service';
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
+import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -48,7 +52,10 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   selectedReservation: ReservationResponse | null = null;
   contacts: ContactResponse[] = [];
   buildings: BuildingResponse[] = [];
-  itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization'];
+  offices: OfficeResponse[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  officeConfiguration: OfficeConfigurationResponse | null = null;
+  itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices'];
 
   constructor(
     private propertyWelcomeService: PropertyWelcomeService,
@@ -63,12 +70,17 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private dialog: MatDialog,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private buildingService: BuildingService
+    private buildingService: BuildingService,
+    private officeService: OfficeService,
+    private officeConfigurationService: OfficeConfigurationService
   ) {
     this.form = this.buildForm();
   }
 
   ngOnInit(): void {
+    // Load offices on startup
+    this.loadOffices();
+    
     if (!this.propertyId) {
       this.isLoading = false;
       return;
@@ -193,7 +205,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl(null)
+      selectedReservationId: new FormControl(null),
+      selectedOfficeId: new FormControl(null)
     });
   }
 
@@ -244,6 +257,53 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       error: (err: HttpErrorResponse) => {
         console.error('Property Welcome Letter Component - Error loading buildings:', err);
         this.buildings = [];
+      }
+    });
+  }
+
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId;
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
+
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property Welcome Letter Component - Error loading offices:', err);
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('offices');
+      }
+    });
+  }
+
+  onOfficeSelected(officeId: number | null): void {
+    if (officeId) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.loadOfficeConfiguration(officeId);
+    } else {
+      this.selectedOffice = null;
+      this.officeConfiguration = null;
+    }
+  }
+
+  loadOfficeConfiguration(officeId: number): void {
+    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1)).subscribe({
+      next: (config: OfficeConfigurationResponse) => {
+        this.officeConfiguration = config;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Property Welcome Letter Component - Error loading office configuration:', err);
+        this.officeConfiguration = null;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load office configuration at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
