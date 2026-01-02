@@ -31,6 +31,8 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
+import { DocumentService } from '../../documents/services/document.service';
+import { DocumentType, DocumentRequest } from '../../documents/models/document.model';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -78,7 +80,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     private buildingService: BuildingService,
     private officeService: OfficeService,
     private officeConfigurationService: OfficeConfigurationService,
-    private documentExportService: DocumentExportService
+    private documentExportService: DocumentExportService,
+    private documentService: DocumentService
   ) {
     this.form = this.buildForm();
   }
@@ -158,7 +161,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
-  saveWelcomeLetter(): void {
+  async saveWelcomeLetter(): Promise<void> {
     if (!this.propertyId) {
       console.error('No property ID available');
       return;
@@ -167,46 +170,91 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     this.isSubmitting = true;
     const formValue = this.form.getRawValue();
 
-    // If welcome letter exists, update it
-    if (this.welcomeLetter) {
-      const updateRequest: PropertyWelcomeRequest = {
-        propertyId: this.propertyId,
-        organizationId: this.organization?.organizationId || '',
-        welcomeLetter: formValue.welcomeLetter || ''
+    // Always save the HTML first
+    const saveHtmlPromise = this.welcomeLetter
+      ? this.propertyWelcomeService.updatePropertyWelcome({
+          propertyId: this.propertyId,
+          organizationId: this.organization?.organizationId || '',
+          welcomeLetter: formValue.welcomeLetter || ''
+        }).pipe(take(1)).toPromise()
+      : this.propertyWelcomeService.createPropertyWelcome({
+          propertyId: this.propertyId,
+          organizationId: this.organization?.organizationId || '',
+          welcomeLetter: formValue.welcomeLetter || ''
+        }).pipe(take(1)).toPromise();
+
+    try {
+      const response = await saveHtmlPromise;
+      if (response) {
+        this.welcomeLetter = response;
+      }
+
+      // If both office and reservation are selected, also save document and upload file
+      if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
+        await this.saveDocumentAndUpload();
+      } else {
+        // Just HTML saved
+        this.toastr.success('Welcome letter saved successfully', 'Success');
+        this.isSubmitting = false;
+      }
+    } catch (err) {
+      console.error('Error saving welcome letter:', err);
+      this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      this.isSubmitting = false;
+    }
+  }
+
+  private async saveDocumentAndUpload(): Promise<void> {
+    if (!this.organization?.organizationId || !this.selectedOffice) {
+      this.toastr.error('Organization or Office not available', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+
+    try {
+      // Generate PDF blob
+      const htmlWithStyles = this.getPdfHtmlWithStyles();
+      const pdfBlob = await this.documentExportService.generatePDFBlob(htmlWithStyles);
+
+      // Generate filename
+      const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}`;
+      const fileExtension = 'pdf';
+      const contentType = 'application/pdf';
+
+      // Check if document already exists for this property/office/reservation
+      // For now, we'll create a new document each time (you may want to update this logic)
+      const documentRequest: DocumentRequest = {
+        organizationId: this.organization.organizationId,
+        officeId: this.selectedOffice.officeId,
+        documentType: DocumentType.PropertyLetter,
+        fileName: fileName,
+        fileExtension: fileExtension,
+        contentType: contentType,
+        documentPath: `documents/${this.organization.organizationId}/${fileName}.${fileExtension}`,
+        isDeleted: false
       };
+
+      // Create the document
+      const documentResponse = await this.documentService.createDocument(documentRequest).pipe(take(1)).toPromise();
       
-      this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
-        next: (response) => {
-          this.toastr.success('Welcome letter saved successfully', 'Success');
-          this.welcomeLetter = response;
-          this.isSubmitting = false;
-        },
-        error: (err) => {
-          console.error('Error updating welcome letter:', err);
-          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          this.isSubmitting = false;
-        }
-      });
-    } else {
-      // Welcome letter doesn't exist, create it
-      const createRequest: PropertyWelcomeRequest = {
-        propertyId: this.propertyId,
-        organizationId: this.organization?.organizationId || '',
-        welcomeLetter: formValue.welcomeLetter || ''
-      };
-      
-      this.propertyWelcomeService.createPropertyWelcome(createRequest).pipe(take(1)).subscribe({
-        next: (response) => {
-          this.toastr.success('Welcome letter saved successfully', 'Success');
-          this.welcomeLetter = response;
-          this.isSubmitting = false;
-        },
-        error: (err) => {
-          console.error('Error creating welcome letter:', err);
-          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          this.isSubmitting = false;
-        }
-      });
+      if (!documentResponse) {
+        throw new Error('Failed to create document');
+      }
+
+      // Upload the file
+      const formData = new FormData();
+      formData.append('file', pdfBlob, `${fileName}.${fileExtension}`);
+      formData.append('documentId', documentResponse.documentId);
+
+      await this.documentService.uploadDocument(formData).pipe(take(1)).toPromise();
+
+      this.toastr.success('Welcome letter and document saved successfully', 'Success');
+      this.isSubmitting = false;
+    } catch (err) {
+      console.error('Error saving document:', err);
+      this.toastr.error('Welcome letter HTML saved, but document upload failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      this.isSubmitting = false;
     }
   }
 
