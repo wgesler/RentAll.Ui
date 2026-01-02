@@ -55,6 +55,9 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officeConfiguration: OfficeConfigurationResponse | null = null;
+  previewIframeHtml: string = '';
+  previewIframeStyles: string = '';
+  iframeKey: number = 0;
   itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices'];
 
   constructor(
@@ -133,11 +136,14 @@ export class PropertyWelcomeLetterComponent implements OnInit {
             this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
               next: (updatedResponse) => {
                 this.welcomeLetter = updatedResponse;
+                this.generatePreviewIframe();
               },
               error: (err) => {
                 console.error('Error updating welcome letter with property/organization IDs:', err);
               }
             });
+          } else {
+            this.generatePreviewIframe();
           }
         }
         this.isLoading = false;
@@ -291,6 +297,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
       this.selectedOffice = null;
       this.officeConfiguration = null;
     }
+    this.generatePreviewIframe();
   }
 
   loadOfficeConfiguration(officeId: number): void {
@@ -379,6 +386,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     } else {
       this.selectedReservation = null;
     }
+    this.generatePreviewIframe();
   }
 
   previewWelcomeLetter(): void {
@@ -422,6 +430,10 @@ export class PropertyWelcomeLetterComponent implements OnInit {
 
   replacePlaceholders(html: string): string {
     let result = html;
+
+    if (this.organization) {    
+      result = result.replace(/\{\{organizationName\}\}/g, this.organization?.name || '');
+    }
 
     // Replace reservation placeholders
     if (this.selectedReservation) {
@@ -475,9 +487,9 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     }
 
     // Replace organization placeholders
-    if (this.organization) {
-      const maintenanceEmail = (this.organization as any).maintenanceEmail || this.propertyLetter?.emergencyContact || '';
-      const afterHoursPhone = (this.organization as any).afterHoursPhone || this.propertyLetter?.emergencyContactNumber || '';
+    if (this.officeConfiguration) {
+      const maintenanceEmail = (this.officeConfiguration as any).maintenanceEmail || '';
+      const afterHoursPhone = (this.officeConfiguration as any).afterHoursPhone || '';
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
       // Replace logo placeholder with dataUrl if it exists
@@ -518,8 +530,6 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     ].filter(p => p);
     return parts.join(', ');
   }
-
-
 
   getTrashLocation(): string {
     if (!this.property) return 'N/A';
@@ -575,5 +585,139 @@ export class PropertyWelcomeLetterComponent implements OnInit {
 
   removeLoadItem(itemToRemove: string): void {
     this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  }
+
+  generatePreviewIframe(): void {
+    // Only generate preview if both office and reservation are selected and welcome letter exists
+    if (!this.selectedOffice || !this.selectedReservation || !this.welcomeLetter?.welcomeLetter) {
+      this.previewIframeHtml = '';
+      return;
+    }
+
+    const welcomeLetterHtml = this.welcomeLetter.welcomeLetter || '';
+    if (!welcomeLetterHtml.trim()) {
+      this.previewIframeHtml = '';
+      return;
+    }
+
+    // Replace placeholders with actual data - same as preview dialog
+    let processedHtml = this.replacePlaceholders(welcomeLetterHtml);
+
+    // Extract all <style> tags from the HTML
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const extractedStyles: string[] = [];
+    let match;
+    
+    styleRegex.lastIndex = 0;
+    while ((match = styleRegex.exec(processedHtml)) !== null) {
+      if (match[1]) {
+        extractedStyles.push(match[1].trim());
+      }
+    }
+
+    // Store extracted styles separately (will be injected dynamically)
+    let consolidatedStyles = extractedStyles.join('\n\n');
+    
+    // Match preview dialog styling exactly
+    // Remove max-width constraint
+    consolidatedStyles = consolidatedStyles.replace(
+      /(body\s*\{[^}]*?)max-width:\s*[^;]+;?/gi,
+      '$1'
+    );
+    // Override body padding to match preview dialog: padding: 2rem 2rem 2rem 4rem
+    // Replace any existing padding with the preview dialog's padding
+    consolidatedStyles = consolidatedStyles.replace(
+      /(body\s*\{[^}]*?)padding:\s*[^;]+;?/gi,
+      '$1'
+    );
+    // Add the preview dialog's exact padding
+    consolidatedStyles = consolidatedStyles.replace(
+      /(body\s*\{)/gi,
+      '$1\n      padding: 2rem 2rem 2rem 4rem !important;'
+    );
+    
+    // Fix duplicate .label rules - extract font-weight from standalone .label rule and apply to combined rule
+    const standaloneLabelMatch = consolidatedStyles.match(/\.label\s*\{[^}]*font-weight:\s*(\d+)\s*!important[^}]*\}/i);
+    if (standaloneLabelMatch && (consolidatedStyles.includes('.label, .separator-label') || consolidatedStyles.includes('.label,.separator-label'))) {
+      const fontWeightValue = standaloneLabelMatch[1];
+      // Update the combined rule to use the same font-weight as the standalone rule
+      // Use a more precise regex that preserves all other properties including margins
+      consolidatedStyles = consolidatedStyles.replace(
+        /(\.label\s*,\s*\.separator-label\s*\{[^}]*?)(font-weight:\s*)\d+(\s*!important;?)([^}]*\})/gi,
+        `$1$2${fontWeightValue}$3$4`
+      );
+    }
+    
+    this.previewIframeStyles = consolidatedStyles;
+
+    // Remove <style> tags from HTML (we'll inject them dynamically)
+    processedHtml = processedHtml.replace(styleRegex, '');
+
+    // Remove <title> tag if it exists
+    processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
+
+    // Fix the logo by adding width attribute directly
+    processedHtml = processedHtml.replace(
+      /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
+      (match, attributes) => {
+        // Remove existing width and height attributes if they exist
+        let newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
+        // Add width="180" and height="auto"
+        return `<img${newAttributes} width="180" height="auto">`;
+      }
+    );
+    
+    // Use the HTML document without style tags (styles will be injected dynamically)
+    this.previewIframeHtml = processedHtml;
+    
+    this.iframeKey++; // Force iframe refresh
+  }
+
+  injectStylesIntoIframe(): void {
+    if (!this.previewIframeStyles) {
+      return;
+    }
+
+    // Find the iframe element
+    const iframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement;
+    if (!iframe || !iframe.contentDocument || !iframe.contentWindow) {
+      // Retry after a short delay if iframe isn't ready yet
+      setTimeout(() => this.injectStylesIntoIframe(), 50);
+      return;
+    }
+
+    try {
+      const iframeDoc = iframe.contentDocument;
+      const iframeHead = iframeDoc.head || iframeDoc.getElementsByTagName('head')[0];
+      
+      if (!iframeHead) {
+        return;
+      }
+
+      // Check if styles are already injected (to avoid duplicates)
+      const existingStyle = iframeHead.querySelector('style[data-dynamic-styles]');
+      if (existingStyle) {
+        existingStyle.textContent = this.previewIframeStyles;
+      } else {
+        // Create a new style element and inject the styles
+        // Place it at the end of head to ensure it has highest priority
+        const styleElement = iframeDoc.createElement('style');
+        styleElement.setAttribute('data-dynamic-styles', 'true');
+        styleElement.setAttribute('type', 'text/css');
+        styleElement.textContent = this.previewIframeStyles;
+        iframeHead.appendChild(styleElement);
+      }
+      
+      // Debug: Log the injected styles to console (can be removed later)
+      console.log('Injected styles into iframe:', this.previewIframeStyles);
+      
+      // Force a reflow to ensure styles are applied
+      if (iframeDoc.body) {
+        iframeDoc.body.offsetHeight;
+      }
+    } catch (e) {
+      // Cross-origin or other security error - this is expected in some cases
+      console.warn('Could not inject styles into iframe:', e);
+    }
   }
 }

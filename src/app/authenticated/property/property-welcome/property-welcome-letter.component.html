@@ -58,20 +58,34 @@
         </div>
       </div>
 
-      <!-- Welcome Letter Editor -->
+      <!-- Welcome Letter Editor or Preview -->
       <div class="editor-section">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Welcome Letter (HTML)</mat-label>
-          <textarea 
-            matInput 
-            formControlName="welcomeLetter" 
-            rows="20"
-            [placeholder]="'Enter your welcome letter HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
-          </textarea>
-          <mat-hint>
-            Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the letter.
-          </mat-hint>
-        </mat-form-field>
+        @if (selectedOffice && selectedReservation && previewIframeHtml) {
+          <!-- Preview iframe when both office and reservation are selected -->
+          <div class="preview-section">
+            <iframe 
+              [srcdoc]="previewIframeHtml" 
+              class="preview-iframe"
+              [attr.key]="iframeKey"
+              (load)="injectStylesIntoIframe()"
+              frameborder="0">
+            </iframe>
+          </div>
+        } @else {
+          <!-- Editor textarea when preview is not available -->
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Welcome Letter (HTML)</mat-label>
+            <textarea 
+              matInput 
+              formControlName="welcomeLetter" 
+              rows="20"
+              [placeholder]="'Enter your welcome letter HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
+            </textarea>
+            <mat-hint>
+              Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the letter. Select an Office and Reservation to see a preview.
+            </mat-hint>
+          </mat-form-field>
+        }
       </div>
 
     </form>
