@@ -16,6 +16,8 @@ import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
 import { AgentService } from '../../organization-configuration/agent/services/agent.service';
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationService } from '../../organization/services/organization.service';
@@ -53,6 +55,7 @@ export class ReservationComponent implements OnInit {
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
   companies: CompanyResponse[] = [];
+  offices: OfficeResponse[] = [];
   organization: OrganizationResponse | null = null;
   selectedProperty: PropertyResponse | null = null;
   selectedContact: ContactResponse | null = null;
@@ -79,6 +82,7 @@ export class ReservationComponent implements OnInit {
     private propertyService: PropertyService,
     private agentService: AgentService,
     private companyService: CompanyService,
+    private officeService: OfficeService,
     private organizationService: OrganizationService,
     private authService: AuthService,
     private formatterService: FormatterService,
@@ -94,6 +98,7 @@ export class ReservationComponent implements OnInit {
     this.loadAgents();
     this.loadProperties();
     this.loadCompanies();
+    this.loadOffices();
     
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -1110,7 +1115,7 @@ export class ReservationComponent implements OnInit {
   }
 
   getDefaultDeposit(): string {
-    const defaultDeposit = this.organization?.defaultDeposit;
+    const defaultDeposit = 0.00;//this.organization?.defaultDeposit;
     if (defaultDeposit !== null && defaultDeposit !== undefined) {
       return defaultDeposit.toFixed(2);
     }
@@ -1278,6 +1283,21 @@ export class ReservationComponent implements OnInit {
       error: (err: HttpErrorResponse) => {
         console.error('Reservation Component - Error loading companies:', err);
         this.companies = [];
+      }
+    });
+  }
+
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Reservation Component - Error loading offices:', err);
+        this.offices = [];
       }
     });
   }

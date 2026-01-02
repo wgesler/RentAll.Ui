@@ -29,6 +29,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { ReservationNotice, BillingType, DepositType } from '../models/reservation-enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
+import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 
 @Component({
   selector: 'app-reservation-lease',
@@ -51,6 +53,8 @@ export class ReservationLeaseComponent implements OnInit {
   company: CompanyResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
   office: OfficeResponse | null = null;
+  offices: OfficeResponse[] = [];
+  officeConfiguration: OfficeConfigurationResponse | null = null;
   organizationName: string | null = null;
 
   constructor(
@@ -62,6 +66,7 @@ export class ReservationLeaseComponent implements OnInit {
     private organizationService: OrganizationService,
     private leaseInformationService: ReservationLeaseInformationService,
     private officeService: OfficeService,
+    private officeConfigurationService: OfficeConfigurationService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -73,6 +78,8 @@ export class ReservationLeaseComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadOffices();
+    
     if (!this.reservationId) {
       this.isLoading = false;
       return;
@@ -273,9 +280,27 @@ export class ReservationLeaseComponent implements OnInit {
   }
 
   buildForm(): FormGroup {
-    return this.fb.group({
-      lease: new FormControl('')
+    const form = this.fb.group({
+      lease: new FormControl(''),
+      officeId: new FormControl<number | null>(null)
     });
+
+    // Update office property and load configuration when dropdown changes
+    form.get('officeId')?.valueChanges.subscribe(officeId => {
+      if (officeId) {
+        const selectedOffice = this.offices.find(o => o.officeId === officeId);
+        if (selectedOffice) {
+          this.office = selectedOffice;
+          // Load office configuration
+          this.loadOfficeConfiguration(officeId);
+        }
+      } else {
+        this.office = null;
+        this.officeConfiguration = null;
+      }
+    });
+
+    return form;
   }
 
 
@@ -371,9 +396,43 @@ export class ReservationLeaseComponent implements OnInit {
     });
   }
 
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) return;
+
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Reservation Lease Component - Error loading offices:', err);
+        this.offices = [];
+      }
+    });
+  }
+
+  loadOfficeConfiguration(officeId: number): void {
+    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(
+      take(1),
+      catchError((err: HttpErrorResponse) => {
+        // 404 is expected if no configuration exists
+        if (err.status === 404) {
+          this.officeConfiguration = null;
+        } else {
+          console.error('Error loading office configuration:', err);
+          this.officeConfiguration = null;
+        }
+        return of(null);
+      })
+    ).subscribe((config: OfficeConfigurationResponse | null) => {
+      this.officeConfiguration = config;
+    });
+  }
+
   loadOfficeData(): Observable<null> {
     if (!this.property || !this.property.officeId) {
       this.office = null;
+      this.officeConfiguration = null;
       return of(null);
     }
 
@@ -381,11 +440,18 @@ export class ReservationLeaseComponent implements OnInit {
       take(1),
       switchMap((office: OfficeResponse) => {
         this.office = office;
+        // Update form with officeId
+        if (this.form) {
+          this.form.patchValue({ officeId: office.officeId });
+        }
+        // Load office configuration
+        this.loadOfficeConfiguration(office.officeId);
         return of(null);
       }),
       catchError((err: HttpErrorResponse) => {
         console.error('Error loading office:', err);
         this.office = null;
+        this.officeConfiguration = null;
         return of(null);
       })
     );
@@ -497,7 +563,7 @@ export class ReservationLeaseComponent implements OnInit {
   }
 
   getDefaultUtilityFeeText(): string {
-    if(!this.property || !this.organization) return '';
+    if(!this.property || !this.officeConfiguration) return '';
 
     const bedrooms = this.property.bedrooms;
     console.log('Property Bedrooms:', bedrooms);
@@ -505,21 +571,21 @@ export class ReservationLeaseComponent implements OnInit {
 
     switch(bedrooms) {
       case 1:
-        utilityFee = this.organization.utilityOneBed;
+        utilityFee = this.officeConfiguration.utilityOneBed;
         console.log('Utility Fee for 1 Bed:', utilityFee);
         break;
       case 2:
-        utilityFee = this.organization.utilityTwoBed;
+        utilityFee = this.officeConfiguration.utilityTwoBed;
         break;
       case 3:
-        utilityFee = this.organization.utilityThreeBed;
+        utilityFee = this.officeConfiguration.utilityThreeBed;
         break;
       case 4:
-        utilityFee = this.organization.utilityFourBed;
+        utilityFee = this.officeConfiguration.utilityFourBed;
         break;
       default:
         // For 5+ bedrooms or house, use utilityHouse
-        utilityFee = this.organization.utilityHouse;
+        utilityFee = this.officeConfiguration.utilityHouse;
         break;
     }
 
@@ -530,27 +596,27 @@ export class ReservationLeaseComponent implements OnInit {
   }
 
   getDefaultMaidServiceFeeText(): string {
-    if(!this.property || !this.organization) return '';
+    if(!this.property || !this.officeConfiguration) return '';
 
     const bedrooms = this.property.bedrooms;
     let maidFee: number | undefined;
 
     switch(bedrooms) {
       case 1:
-        maidFee = this.organization.maidOneBed;
+        maidFee = this.officeConfiguration.maidOneBed;
         break;
       case 2:
-        maidFee = this.organization.maidTwoBed;
+        maidFee = this.officeConfiguration.maidTwoBed;
         break;
       case 3:
-        maidFee = this.organization.maidThreeBed;
+        maidFee = this.officeConfiguration.maidThreeBed;
         break;
       case 4:
-        maidFee = this.organization.maidFourBed;
+        maidFee = this.officeConfiguration.maidFourBed;
         break;
       default:
         // For 5+ bedrooms, use maidFourBed as fallback
-        maidFee = this.organization.maidFourBed;
+        maidFee = this.officeConfiguration.maidFourBed;
         break;
     }
 

@@ -16,6 +16,17 @@
             <input matInput [value]="property?.propertyCode || ''" readonly>
           </mat-form-field>
 
+          <!-- Office (dropdown) -->
+          <mat-form-field appearance="outline" class="office-field">
+            <mat-label>Office</mat-label>
+            <mat-select formControlName="officeId">
+              <mat-option [value]="null">Select Office</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
           <!-- Reservation (readonly) -->
           <mat-form-field appearance="outline" class="reservation-field">
             <mat-label>Reservation</mat-label>
