@@ -646,7 +646,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     return building?.name || null;
   }
 
-
   // Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected and welcome letter exists
@@ -799,19 +798,16 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     }
 
     try {
-      // Get the HTML with print styles applied directly (for PDF generation)
-      const htmlWithStyles = this.getPdfHtmlWithStyles();
-      
       await this.documentExportService.emailWithPDF({
         recipientEmail: tenantEmail,
         subject: 'Your Upcoming Visit',
         organizationName: this.organization?.name,
         tenantName: this.selectedReservation?.tenantName,
-        htmlContent: htmlWithStyles
+        htmlContent: '' // Not used anymore, but keeping for interface compatibility
       });
     } catch (error) {
       console.error('Error sending email:', error);
-      this.toastr.error('Error generating PDF for email. Please try the Download button first, then attach it manually to your email.', 'Error');
+      this.toastr.error('Error opening email client. Please try again.', 'Error');
     }
   }
 

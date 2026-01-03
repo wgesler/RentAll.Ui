@@ -444,42 +444,26 @@ export class DocumentExportService {
   }
 
   /**
-   * Opens email client with PDF attachment
+   * Opens email client with pre-filled content
    * @param options Email options including recipient, subject, and HTML content
    * @returns Promise<void>
    */
   async emailWithPDF(options: EmailOptions): Promise<void> {
     try {
-      // Generate and download PDF first
-      const pdfBlob = await this.generatePDFBlob(options.htmlContent);
-      const fileNameCompanyName = (options.organizationName || 'Document').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `${fileNameCompanyName}_${new Date().toISOString().split('T')[0]}.pdf`;
-
-      // Download the PDF
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the blob URL after a delay
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
-
-      // Create email body
+      // Create email body with salutation and signature
       const tenantName = options.tenantName || '[Guest Name]';
       const companyName = options.organizationName || '[Your Name / Your Team]';
-      const emailBody = `Dear ${tenantName},\n\nWe are excited to welcome you soon! Please find attached all the relevant information regarding your stay. Should you have any questions or need further assistance, your booking agent will be happy to help.\n\nWe look forward to your visit!\n\nBest regards,\n${companyName}`;
+      
+      const plainTextBody = `Dear ${tenantName},\n\nWe are excited to welcome you soon! Should you have any questions or need further assistance, your booking agent will be happy to help.\n\nWe look forward to your visit!\n\nBest regards,\n${companyName}\n\n**PASTE WELCOME LETTER CONTENTS HERE**`;
 
       // Open email client
       const subject = encodeURIComponent(options.subject);
-      const body = encodeURIComponent(emailBody);
+      const body = encodeURIComponent(plainTextBody);
       const mailtoLink = `mailto:${options.recipientEmail}?subject=${subject}&body=${body}`;
       window.location.href = mailtoLink;
 
     } catch (error) {
-      console.error('Error generating PDF for email:', error);
+      console.error('Error opening email client:', error);
       throw error;
     }
   }
