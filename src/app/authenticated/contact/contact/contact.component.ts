@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { ContactService } from '../services/contact.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -27,20 +27,21 @@ import { VendorResponse } from '../../vendor/models/vendor.model';
   styleUrl: './contact.component.scss'
 })
 
-export class ContactComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class ContactComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   contactId: string;
   contact: ContactResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
   availableContactTypes: { value: number, label: string }[] = [];
   companies: CompanyResponse[] = [];
   vendors: VendorResponse[] = [];
   EntityType = EntityType; // Expose enum to template
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact', 'companies', 'vendors']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public contactService: ContactService,
@@ -54,7 +55,6 @@ export class ContactComponent implements OnInit {
     private companyService: CompanyService,
     private vendorService: VendorService
   ) {
-    this.itemsToLoad.push('contact');
     this.loadStates();
   }
 
@@ -80,10 +80,7 @@ export class ContactComponent implements OnInit {
   }
 
   getContact(): void {
-    this.contactService.getContactByGuid(this.contactId).pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('contact'); })
-    ).subscribe({
+    this.contactService.getContactByGuid(this.contactId).pipe(take(1),finalize(() => { this.removeLoadItem('contact'); })).subscribe({
       next: (response: ContactResponse) => {
         this.contact = response;
         this.buildForm();
@@ -147,17 +144,13 @@ export class ContactComponent implements OnInit {
       ? this.contactService.createContact(contactRequest)
       : this.contactService.updateContact(this.contactId, contactRequest);
 
-    save$.pipe(
-      take(1),
-      finalize(() => this.isSubmitting = false)
-    ).subscribe({
+    save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.router.navigateByUrl(RouterUrl.ContactList);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         if (err.status !== 400) {
           const failMessage = this.isAddMode ? 'Create contact request has failed. ' : 'Update contact request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -281,15 +274,10 @@ export class ContactComponent implements OnInit {
   }
 
   initializeContactTypes(): void {
-    // Build availableContactTypes from the EntityType enum
-    // Exclude Unknown (0), Organization (1), and Reservation (6) from the list
-    this.availableContactTypes = Object.keys(EntityType)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .filter(key => EntityType[key] !== EntityType.Unknown) // Exclude Unknown
-      .filter(key => EntityType[key] !== EntityType.Organization) // Exclude Organization
-      .filter(key => EntityType[key] !== EntityType.Hoa) // Exclude Hoa
+    const includedTypes = ['Company', 'Tenant', 'Owner','Vendor'];
+    this.availableContactTypes = includedTypes
       .map(key => ({
-        value: EntityType[key],
+        value: EntityType[key as keyof typeof EntityType],
         label: this.formatContactTypeLabel(key)
       }));
   }
@@ -312,16 +300,22 @@ export class ContactComponent implements OnInit {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
+  // Data loading methods
   loadCompanies(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('companies');
+      return;
+    }
 
-    this.companyService.getCompanies().pipe(take(1)).subscribe({
+    this.companyService.getCompanies().pipe(take(1),finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
         this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Contact Component - Error loading companies:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Unable to load Companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         this.companies = [];
       }
     });
@@ -329,21 +323,25 @@ export class ContactComponent implements OnInit {
 
   loadVendors(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('vendors');
+      return;
+    }
 
-    this.vendorService.getVendors().pipe(take(1)).subscribe({
+    this.vendorService.getVendors().pipe(take(1),finalize(() => { this.removeLoadItem('vendors'); })).subscribe({
       next: (vendors: VendorResponse[]) => {
         this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Contact Component - Error loading vendors:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Unable to load Vendors. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         this.vendors = [];
       }
     });
   }
 
-  // Utility helpers
-  loadStates(): void {
+   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
       this.states = [...cachedStates];
@@ -360,8 +358,19 @@ export class ContactComponent implements OnInit {
     });
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+
+  // Utility methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 
   back(): void {

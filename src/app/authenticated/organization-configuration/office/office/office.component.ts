@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { OfficeService } from '../services/office.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -25,14 +25,13 @@ import { FileDetails } from '../../../../shared/models/fileDetails';
   styleUrl: './office.component.scss'
 })
 
-export class OfficeComponent implements OnInit, OnChanges {
+export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  private routeOfficeId: string | null = null;
+  routeOfficeId: string | null = null;
   office: OfficeResponse;
   form: FormGroup;
   fileName: string = null;
@@ -41,11 +40,13 @@ export class OfficeComponent implements OnInit, OnChanges {
   logoPath: string = null;
   originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   states: string[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public officeService: OfficeService,
@@ -58,7 +59,6 @@ export class OfficeComponent implements OnInit, OnChanges {
     private navigationContext: NavigationContextService,
     private commonService: CommonService
   ) {
-    this.itemsToLoad.push('office');
     this.loadStates();
   }
 
@@ -118,13 +118,15 @@ export class OfficeComponent implements OnInit, OnChanges {
     if (!idToUse || idToUse === 'new') {
       return;
     }
+
     const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);
     if (isNaN(officeIdNum)) {
       this.isServiceError = true;
       this.toastr.error('Invalid office ID', CommonMessage.Error);
       return;
     }
-    this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('office') })).subscribe({
+
+    this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('office'); })).subscribe({
       next: (response: OfficeResponse) => {
         this.office = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -148,15 +150,9 @@ export class OfficeComponent implements OnInit, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load office info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('office');
       }
     });
-  }
-
-  onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ officeCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
   }
 
   saveOffice(): void {
@@ -205,7 +201,6 @@ export class OfficeComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -215,7 +210,6 @@ export class OfficeComponent implements OnInit, OnChanges {
       const idToUse = this.id || this.routeOfficeId;
       const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(officeIdNum)) {
-        this.isLoadError = true;
         this.toastr.error('Invalid office ID', CommonMessage.Error);
         return;
       }
@@ -234,13 +228,30 @@ export class OfficeComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
         }
       });
     }
+  }
+
+  // Data Loading Methods
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err) => {
+        console.error('Office Component - Error loading states:', err);
+      }
+    });
   }
 
   // Form Methods
@@ -336,6 +347,26 @@ export class OfficeComponent implements OnInit, OnChanges {
   }
 
   // Utility Methods
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ officeCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();
@@ -345,27 +376,6 @@ export class OfficeComponent implements OnInit, OnChanges {
     } else {
       this.router.navigateByUrl(RouterUrl.OfficeList);
     }
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  private loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
-      return;
-    }
-    
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Office Component - Error loading states:', err);
-      }
-    });
   }
 }
 

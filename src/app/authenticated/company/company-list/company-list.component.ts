@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -22,11 +22,12 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class CompanyListComponent implements OnInit {
+export class CompanyListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allCompanies: CompanyListDisplay[] = [];
+  companiesDisplay: CompanyListDisplay[] = [];
 
   companiesDisplayedColumns: ColumnSet = {
     'companyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
@@ -37,8 +38,9 @@ export class CompanyListComponent implements OnInit {
     'website': { displayAs: 'Website' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allCompanies: CompanyListDisplay[] = [];
-  companiesDisplay: CompanyListDisplay[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public companyService: CompanyService,
@@ -47,7 +49,6 @@ export class CompanyListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService) {
-      this.itemsToLoad.push('companies');
   }
 
   ngOnInit(): void {
@@ -55,7 +56,7 @@ export class CompanyListComponent implements OnInit {
   }
 
   getCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies') })).subscribe({
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies) => {
         this.allCompanies = this.mappingService.mapCompanies(companies);
         this.applyFilters();
@@ -65,6 +66,7 @@ export class CompanyListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('companies');
       }
     });
   }
@@ -108,9 +110,17 @@ export class CompanyListComponent implements OnInit {
       : this.allCompanies.filter(company => company.isActive);
   }
 
-  // Utility helpers
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

@@ -1,3 +1,17 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
 .embedded-mode {
   .content-card-wrap {
     justify-content: flex-start;
@@ -18,37 +32,3 @@
     border-radius: 0;
   }
 }
-
-.color-picker-input {
-  width: 50px;
-  height: 40px;
-  border: 1px solid rgba(0, 0, 0, 0.38);
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 2px;
-  background: none;
-  
-  &::-webkit-color-swatch-wrapper {
-    padding: 0;
-  }
-  
-  &::-webkit-color-swatch {
-    border: none;
-    border-radius: 2px;
-  }
-  
-  &::-moz-color-swatch {
-    border: none;
-    border-radius: 2px;
-  }
-  
-  &:hover {
-    border-color: rgba(0, 0, 0, 0.87);
-  }
-  
-  &:focus {
-    outline: 2px solid #3f51b5;
-    outline-offset: 2px;
-  }
-}
-

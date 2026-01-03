@@ -1,4 +1,4 @@
-@if (isLoading) {
+@if (isLoading$ | async) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading lease...</p>

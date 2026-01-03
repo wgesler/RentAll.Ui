@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
 import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -44,14 +44,12 @@ import { PropertyLetterInformationComponent } from '../property-information/prop
   styleUrls: ['./property.component.scss']
 })
 
-export class PropertyComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class PropertyComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   propertyId: string;
   property: PropertyResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
   contacts: ContactListDisplay[] = [];
@@ -67,6 +65,9 @@ export class PropertyComponent implements OnInit {
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
   // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = {
@@ -108,7 +109,6 @@ export class PropertyComponent implements OnInit {
     private buildingService: BuildingService,
     public utilityService: UtilityService
   ) {
-      //this.itemsToLoad.push('property');
       this.loadStates();
   }
 
@@ -136,7 +136,7 @@ export class PropertyComponent implements OnInit {
         this.contacts = this.mappingService.mapContacts(response);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Component - Error loading contacts:', err);
+        // Contacts are handled globally, just handle gracefully
       }
     });
     
@@ -178,10 +178,11 @@ export class PropertyComponent implements OnInit {
         owner1Control?.updateValueAndValidity();
         codeControl?.updateValueAndValidity();
 
-        if (this.isAddMode) {
-          this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'property');
-        } else {
-          this.itemsToLoad.push('property');
+        if (!this.isAddMode) {
+          const currentSet = this.itemsToLoad$.value;
+          const newSet = new Set(currentSet);
+          newSet.add('property');
+          this.itemsToLoad$.next(newSet);
           this.getProperty();
         }
       }
@@ -194,8 +195,7 @@ export class PropertyComponent implements OnInit {
   }
 
   getProperty(): void {
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1),
-    finalize(() => { this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'property') })).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         this.populateForm();
@@ -205,17 +205,11 @@ export class PropertyComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('property');
       }
     });
   }
   
-  onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
-  }
-
   saveProperty(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -310,7 +304,6 @@ export class PropertyComponent implements OnInit {
           this.router.navigateByUrl(RouterUrl.TenantList);
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create property request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -325,7 +318,6 @@ export class PropertyComponent implements OnInit {
           this.router.navigateByUrl(RouterUrl.TenantList);
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update property request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -530,6 +522,34 @@ export class PropertyComponent implements OnInit {
     input.select();
   }
 
+  toNumberOrNull(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
+    if (id === null || id === undefined || id === '' || id === 0) {
+      return null;
+    }
+    const numericId = typeof id === 'number' ? id : Number(id);
+    if (!Number.isFinite(numericId) || numericId === 0) {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[idField] === numericId);
+    return item?.[codeField] || null;
+  }
+
+  getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
+    if (!code || code.trim() === '') {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[codeField] === code);
+    return item?.[idField] || null;
+  }
+
   // Setup and Initialize 
   setupConditionalFields(): void {
     // Subscribe to alarm checkbox changes to enable/disable alarm code field
@@ -686,47 +706,20 @@ export class PropertyComponent implements OnInit {
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
-  // Utility Methods
-
-  toNumberOrNull(value: any): number | null {
-    if (value === null || value === undefined || value === '') return null;
-    const parsed = Number(value);
-    return isNaN(parsed) ? null : parsed;
-  }
-
-  getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
-    if (id === null || id === undefined || id === '' || id === 0) {
-      return null;
-    }
-    const numericId = typeof id === 'number' ? id : Number(id);
-    if (!Number.isFinite(numericId) || numericId === 0) {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[idField] === numericId);
-    return item?.[codeField] || null;
-  }
-
-  getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
-    if (!code || code.trim() === '') {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[codeField] === code);
-    return item?.[idField] || null;
-  }
-
-  // Load Supporting Data Methods
+  // Data Loading Methods
   loadLocationLookups(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('locationLookups');
+      return;
+    }
 
     forkJoin({
       offices: this.officeService.getOffices().pipe(take(1)),
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1)).subscribe({
+    }).pipe(take(1), finalize(() => { this.removeLoadItem('locationLookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
@@ -743,12 +736,15 @@ export class PropertyComponent implements OnInit {
           });
         }
       },
-      error: (err) => {
-        console.error('Property Component - Error loading location lookups:', err);
+      error: (err: HttpErrorResponse) => {
         this.offices = [];
         this.regions = [];
         this.areas = [];
         this.buildings = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load location lookups. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('locationLookups');
       }
     });
   }
@@ -766,12 +762,33 @@ export class PropertyComponent implements OnInit {
       next: (states) => {
         this.states = [...states];
       },
-      error: (err) => {
-        console.error('Property Component - Error loading states:', err);
+      error: (err: HttpErrorResponse) => {
+        // States are handled globally, just log silently or handle gracefully
       }
     });
   }
   
+  // Utility Methods
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.TenantList);
   }

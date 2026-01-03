@@ -1,3 +1,17 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
 // Reduce font size in form fields
 ::ng-deep .mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
@@ -272,4 +286,3 @@
     margin: 0 0 16px 0 !important;
   }
 }
-

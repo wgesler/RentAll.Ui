@@ -42,6 +42,12 @@ export class ContactService {
     return this.contactsLoaded$.asObservable();
   }
 
+  // Clear all contacts (e.g., on logout)
+  clearContacts(): void {
+    this.allContacts$.next([]);
+    this.contactsLoaded$.next(false);
+  }
+
   // Get all contacts as observable
   getAllContacts(): Observable<ContactResponse[]> {
     return this.allContacts$;

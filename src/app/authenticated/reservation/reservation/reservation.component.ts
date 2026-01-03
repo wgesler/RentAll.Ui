@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { ReservationService } from '../services/reservation.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -20,8 +20,8 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
-import { OrganizationService } from '../../organization/services/organization.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
+import { CommonService } from '../../../services/common.service';
 import { EntityType } from '../../contact/models/contact-type';
 import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
@@ -39,14 +39,12 @@ import { ReservationLeaseInformationComponent } from '../reservation-lease-infor
   styleUrl: './reservation.component.scss'
 })
 
-export class ReservationComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class ReservationComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   reservationId: string;
   reservation: ReservationResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   propertyPanelOpen: boolean = true;
   billingPanelOpen: boolean = false;
@@ -72,6 +70,9 @@ export class ReservationComponent implements OnInit {
   availableDepositTypes: { value: number, label: string }[] = [];
   ReservationType = ReservationType; // Expose enum to template
 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents', 'properties', 'companies', 'offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   constructor(
     public reservationService: ReservationService,
     public router: Router,
@@ -83,12 +84,11 @@ export class ReservationComponent implements OnInit {
     private agentService: AgentService,
     private companyService: CompanyService,
     private officeService: OfficeService,
-    private organizationService: OrganizationService,
+    private commonService: CommonService,
     private authService: AuthService,
     private formatterService: FormatterService,
     private utilityService: UtilityService
   ) {
-    this.itemsToLoad.push('reservation');
   }
 
   ngOnInit(): void {
@@ -138,6 +138,7 @@ export class ReservationComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load reservation info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('reservation');
       }
     });
   }
@@ -205,7 +206,6 @@ export class ReservationComponent implements OnInit {
         this.router.navigateByUrl(RouterUrl.ReservationList);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         if (err.status !== 400) {
           const failMessage = this.isAddMode ? 'Create reservation request has failed. ' : 'Update reservation request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -663,7 +663,7 @@ export class ReservationComponent implements OnInit {
       const propertyCode = selectedProp?.propertyCode || '';
       
       // Load contacts first to populate phone/email
-      this.contactService.getContacts().pipe(take(1)).subscribe({
+      this.contactService.getAllContacts().pipe(take(1)).subscribe({
         next: (allContacts: ContactResponse[]) => {
           this.contacts = allContacts;
           const reservationTypeId = this.reservation.reservationTypeId ?? ReservationType.Private;
@@ -1022,8 +1022,8 @@ export class ReservationComponent implements OnInit {
             }
           });
         },
-        error: (err) => {
-          console.error('Error loading contacts for populate:', err);
+        error: (err: HttpErrorResponse) => {
+          // Contacts are handled globally, just handle gracefully
         }
       });
 
@@ -1048,8 +1048,8 @@ export class ReservationComponent implements OnInit {
           this.filteredContacts = tenants;
           if (callback) callback();
         },
-        error: (err) => {
-          console.error('Error loading tenant contacts:', err);
+        error: (err: HttpErrorResponse) => {
+          // Contacts are handled globally, just handle gracefully
           this.filteredContacts = [];
           if (callback) callback();
         }
@@ -1061,8 +1061,8 @@ export class ReservationComponent implements OnInit {
           this.filteredContacts = companies;
           if (callback) callback();
         },
-        error: (err) => {
-          console.error('Error loading company contacts:', err);
+        error: (err: HttpErrorResponse) => {
+          // Contacts are handled globally, just handle gracefully
           this.filteredContacts = [];
           if (callback) callback();
         }
@@ -1074,8 +1074,8 @@ export class ReservationComponent implements OnInit {
           this.filteredContacts = owners;
           if (callback) callback();
         },
-        error: (err) => {
-          console.error('Error loading owner contacts:', err);
+        error: (err: HttpErrorResponse) => {
+          // Contacts are handled globally, just handle gracefully
           this.filteredContacts = [];
           if (callback) callback();
         }
@@ -1207,9 +1207,9 @@ export class ReservationComponent implements OnInit {
     }
   }
 
-  // Supporting Data Loads
+  // Data Load Methods
   loadContacts(): void {
-    this.contactService.getContacts().pipe(take(1)).subscribe({
+    this.contactService.getAllContacts().pipe(take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
         // Initialize filtered contacts based on current client type
@@ -1219,7 +1219,7 @@ export class ReservationComponent implements OnInit {
         }
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading contacts:', err);
+        // Contacts are handled globally, just handle gracefully
         this.contacts = [];
         this.filteredContacts = [];
       }
@@ -1227,34 +1227,37 @@ export class ReservationComponent implements OnInit {
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1)).subscribe({
+    this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents'); })).subscribe({
       next: (agents: AgentResponse[]) => {
         this.agents = agents;
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading agents:', err);
         this.agents = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load agents. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('agents');
       }
     });
   }
 
   loadProperties(): void {
-    this.propertyService.getProperties().pipe(take(1)).subscribe({
+    this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
          this.properties = properties;
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading properties:', err);
         this.properties = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('properties');
       }
     });
   }
 
   loadOrganization(): void {
-    const user = this.authService.getUser();
-    if (!user?.organizationId) return;
-
-    this.organizationService.getOrganizationByGuid(user.organizationId).pipe(take(1)).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
       next: (organization: OrganizationResponse) => {
         this.organization = organization;
         // Update deposit default if form exists and deposit is 0.00
@@ -1267,37 +1270,49 @@ export class ReservationComponent implements OnInit {
         }
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading organization:', err);
+        // Organization is handled globally, just handle gracefully
       }
     });
   }
 
   loadCompanies(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('companies');
+      return;
+    }
 
-    this.companyService.getCompanies().pipe(take(1)).subscribe({
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
         this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading companies:', err);
         this.companies = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('companies');
       }
     });
   }
 
   loadOffices(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
 
-    this.officeService.getOffices().pipe(take(1)).subscribe({
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (offices: OfficeResponse[]) => {
         this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Component - Error loading offices:', err);
         this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('offices');
       }
     });
   }
@@ -1478,13 +1493,20 @@ export class ReservationComponent implements OnInit {
   }
 
   // Utility methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.ReservationList);
-  }
-  
-  removeLoadItem(itemToRemove: string): void {
-    if (this.itemsToLoad) {
-      this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-    }
   }
 }

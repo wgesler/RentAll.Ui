@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -22,11 +22,12 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class ContactListComponent implements OnInit {
+export class ContactListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allContacts: ContactListDisplay[] = [];
+  contactsDisplay: ContactListDisplay[] = [];
 
   contactsDisplayedColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
@@ -36,8 +37,9 @@ export class ContactListComponent implements OnInit {
     'email': { displayAs: 'Email', maxWidth: '25ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allContacts: ContactListDisplay[] = [];
-  contactsDisplay: ContactListDisplay[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public contactService: ContactService,
@@ -46,7 +48,6 @@ export class ContactListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService) {
-      this.itemsToLoad.push('contacts');
   }
 
   ngOnInit(): void {
@@ -58,7 +59,7 @@ export class ContactListComponent implements OnInit {
   }
 
   getContacts(): void {
-    this.contactService.getContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts') })).subscribe({
+    this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
       next: (response: ContactResponse[]) => {
         this.allContacts = this.mappingService.mapContacts(response);
         this.applyFilters();
@@ -68,6 +69,7 @@ export class ContactListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Contacts', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('contacts');
       }
     });
   }
@@ -90,7 +92,7 @@ export class ContactListComponent implements OnInit {
     }
   }
 
-    goToContact(event: ContactListDisplay): void {
+  goToContact(event: ContactListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
   }
 
@@ -106,9 +108,18 @@ export class ContactListComponent implements OnInit {
       : this.allContacts.filter(contact => contact.isActive === true);
   }
 
-    // Utility helpers
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Utility methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

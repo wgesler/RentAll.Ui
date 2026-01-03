@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -22,9 +22,8 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class VendorListComponent implements OnInit {
+export class VendorListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
 
@@ -37,8 +36,11 @@ export class VendorListComponent implements OnInit {
     'website': { displayAs: 'Website' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allVendors: VendorListDisplay[] = [];
+  allVendors: VendorListDisplay[] = [];
   vendorsDisplay: VendorListDisplay[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['vendors']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public vendorService: VendorService,
@@ -47,7 +49,6 @@ export class VendorListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService) {
-      this.itemsToLoad.push('vendors');
   }
 
   ngOnInit(): void {
@@ -55,7 +56,7 @@ export class VendorListComponent implements OnInit {
   }
 
   getVendors(): void {
-    this.vendorService.getVendors().pipe(take(1), finalize(() => { this.removeLoadItem('vendors') })).subscribe({
+    this.vendorService.getVendors().pipe(take(1), finalize(() => { this.removeLoadItem('vendors'); })).subscribe({
       next: (vendors) => {
         this.allVendors = this.mappingService.mapVendors(vendors);
         this.applyFilters();
@@ -65,6 +66,7 @@ export class VendorListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Vendors', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('vendors');
       }
     });
   }
@@ -91,7 +93,6 @@ export class VendorListComponent implements OnInit {
     }
   }
 
-  // Routing methods
   goToVendor(event: VendorListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Vendor, [event.vendorId]));
   }
@@ -108,9 +109,18 @@ export class VendorListComponent implements OnInit {
       : this.allVendors.filter(vendor => vendor.isActive);
   }
 
-  // Utility helpers
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

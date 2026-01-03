@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { VendorService } from '../services/vendor.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -24,8 +24,7 @@ import { AuthService } from '../../../services/auth.service';
   styleUrl: './vendor.component.scss'
 })
 
-export class VendorComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class VendorComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   vendorId: string;
   vendor: VendorResponse;
@@ -36,10 +35,12 @@ export class VendorComponent implements OnInit {
   logoPath: string = null;
   originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['vendor']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public vendorService: VendorService,
@@ -51,7 +52,6 @@ export class VendorComponent implements OnInit {
     private formatterService: FormatterService,
     private authService: AuthService
   ) {
-    this.itemsToLoad.push('vendor');
     this.loadStates();
   }
 
@@ -74,7 +74,7 @@ export class VendorComponent implements OnInit {
   }
 
   getVendor(): void {
-    this.vendorService.getVendorByGuid(this.vendorId).pipe(take(1),finalize(() => { this.removeLoadItem('vendor'); })).subscribe({
+    this.vendorService.getVendorByGuid(this.vendorId).pipe(take(1), finalize(() => { this.removeLoadItem('vendor'); })).subscribe({
       next: (response: VendorResponse) => {
         this.vendor = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -94,6 +94,7 @@ export class VendorComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load vendor info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('vendor');
       }
     });
   }
@@ -153,7 +154,6 @@ export class VendorComponent implements OnInit {
         this.router.navigateByUrl(RouterUrl.VendorList);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         if (err.status !== 400) {
           const failMessage = this.isAddMode ? 'Create vendor request has failed. ' : 'Update vendor request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -162,6 +162,23 @@ export class VendorComponent implements OnInit {
     });
   }
 
+  // Data Loading Methods
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err: HttpErrorResponse) => {
+        // States are handled globally, just handle gracefully
+      }
+    });
+  }
 
   // Logo methods
   upload(event: Event): void {
@@ -197,8 +214,8 @@ export class VendorComponent implements OnInit {
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
 
-    // Form methods
-    buildForm(): void {
+  // Form methods
+  buildForm(): void {
     this.form = this.fb.group({
       vendorCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
@@ -244,26 +261,18 @@ export class VendorComponent implements OnInit {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
-  // Utility helpers
-  private loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
-      return;
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
     }
-    
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Vendor Component - Error loading states:', err);
-      }
-    });
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 
   back(): void {

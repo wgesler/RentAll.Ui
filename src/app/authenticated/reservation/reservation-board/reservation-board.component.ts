@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
 import { PropertyStatus } from '../../property/models/property-enums';
-import { take } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationService } from '../services/reservation.service';
 import { ReservationResponse } from '../models/reservation-model';
@@ -18,6 +18,9 @@ import { ColorService } from '../../organization-configuration/color/services/co
 import { ColorResponse } from '../../organization-configuration/color/models/color.model';
 import { AuthService } from '../../../services/auth.service';
 import { PropertySelectionResponse } from '../models/reservation-selection-model';
+import { ToastrService } from 'ngx-toastr';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { HttpErrorResponse } from '@angular/common/http';
 
 
 
@@ -28,7 +31,7 @@ import { PropertySelectionResponse } from '../models/reservation-selection-model
   templateUrl: './reservation-board.component.html',
   styleUrl: './reservation-board.component.scss'
 })
-export class ReservationBoardComponent implements OnInit {
+export class ReservationBoardComponent implements OnInit, OnDestroy {
   properties: BoardProperty[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationResponse[] = [];
@@ -40,13 +43,17 @@ export class ReservationBoardComponent implements OnInit {
   startDate: Date = null;
   endDate: Date = null;
 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   constructor(
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private colorService: ColorService,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private toastr: ToastrService
   ) { }
 
   ngOnInit(): void {
@@ -98,8 +105,9 @@ export class ReservationBoardComponent implements OnInit {
     this.generateCalendarDays();
   }
 
+  // Data Loading Methods
   loadColors(): void {
-    this.colorService.getColors().pipe(take(1)).subscribe({
+    this.colorService.getColors().pipe(take(1), finalize(() => { this.removeLoadItem('colors'); })).subscribe({
       next: (colors: ColorResponse[]) => {
         this.colors = colors;
         // Create a lookup map for quick access by reservationStatusId
@@ -108,16 +116,19 @@ export class ReservationBoardComponent implements OnInit {
           this.colorMap.set(color.reservationStatusId, color.color);
         });
       },
-      error: (err) => {
-        console.error('Error loading colors:', err);
+      error: (err: HttpErrorResponse) => {
         this.colors = [];
         this.colorMap = new Map();
+        if (err.status !== 400) {
+          this.toastr.error('Could not load colors. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('colors');
       }
     });
   }
 
   loadContacts(): void {
-    this.contactService.getContacts().pipe(take(1)).subscribe({
+    this.contactService.getAllContacts().pipe(take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
         // Create a lookup map for quick access
@@ -126,14 +137,66 @@ export class ReservationBoardComponent implements OnInit {
           this.contactMap.set(contact.contactId, contact);
         });
       },
-      error: (err) => {
-        console.error('Error loading contacts:', err);
+      error: (err: HttpErrorResponse) => {
+        // Contacts are handled globally, just handle gracefully
         this.contacts = [];
         this.contactMap = new Map();
       }
     });
   }
 
+  loadProperties(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.properties = [];
+      this.removeLoadItem('properties');
+      return;
+    }
+
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+      next: (properties: PropertyResponse[]) => {
+        this.properties = (properties || []).map(p => {
+          const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId);
+          return {
+            propertyId: p.propertyId,
+            propertyCode: p.propertyCode,
+            address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
+            monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
+            bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
+            statusLetter: this.getStatusLetter(p.propertyStatusId)
+          };
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.properties = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('properties');
+      }
+    });
+  }
+  
+  loadReservations(): void {
+    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (reservations: ReservationResponse[]) => {
+        this.reservations = reservations.filter(r => r.isActive);
+        // Load properties after reservations are loaded so we can use reservation monthly rates
+        this.loadProperties();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.reservations = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('reservations');
+        // Still load properties even if reservations fail
+        this.loadProperties();
+      }
+    });
+  }
+
+  // Field Formatting Methods
   getMonthlyRateFromReservation(propertyId: string): number | null {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -172,35 +235,6 @@ export class ReservationBoardComponent implements OnInit {
     }
 
     return null;
-  }
-
-  loadProperties(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      console.error('ReservationBoard - No userId found for this session.');
-      this.properties = [];
-      return;
-    }
-
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1)).subscribe({
-      next: (properties: PropertyResponse[]) => {
-        this.properties = (properties || []).map(p => {
-          const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId);
-          return {
-            propertyId: p.propertyId,
-            propertyCode: p.propertyCode,
-            address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
-            monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
-            bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
-            statusLetter: this.getStatusLetter(p.propertyStatusId)
-          };
-        });
-      },
-      error: (err) => {
-        console.error('Error loading properties (selection criteria):', err);
-        this.properties = [];
-      }
-    });
   }
 
   getStatusLetter(statusId: number): string {
@@ -284,22 +318,6 @@ export class ReservationBoardComponent implements OnInit {
     }
 
     return groups;
-  }
-
-  loadReservations(): void {
-    this.reservationService.getReservations().pipe(take(1)).subscribe({
-      next: (reservations: ReservationResponse[]) => {
-        this.reservations = reservations.filter(r => r.isActive);
-        // Load properties after reservations are loaded so we can use reservation monthly rates
-        this.loadProperties();
-      },
-      error: (err) => {
-        console.error('Error loading reservations:', err);
-        this.reservations = [];
-        // Still load properties even if reservations fail
-        this.loadProperties();
-      }
-    });
   }
 
   getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationResponse | null {
@@ -475,6 +493,7 @@ export class ReservationBoardComponent implements OnInit {
     return 'R';
   }
 
+  // Navigation Methods
   getPropertyRoute(propertyId: string): string {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
@@ -503,5 +522,19 @@ export class ReservationBoardComponent implements OnInit {
         this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
       }
     });
+  }
+
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }

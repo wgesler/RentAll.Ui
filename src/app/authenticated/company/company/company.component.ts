@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { CompanyService } from '../services/company.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -26,8 +26,7 @@ import { AuthService } from '../../../services/auth.service';
   styleUrl: './company.component.scss'
 })
 
-export class CompanyComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class CompanyComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   companyId: string;
   company: CompanyResponse;
@@ -38,10 +37,12 @@ export class CompanyComponent implements OnInit {
   logoPath: string = null;
   originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['company']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public companyService: CompanyService,
@@ -54,7 +55,6 @@ export class CompanyComponent implements OnInit {
     private authService: AuthService,
     private utilityService: UtilityService
   ) {
-    this.itemsToLoad.push('company');
     this.loadStates();
   }
 
@@ -64,7 +64,7 @@ export class CompanyComponent implements OnInit {
         this.companyId = paramMap.get('id');
         this.isAddMode = this.companyId === 'new';
         if (this.isAddMode) {
-          this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'company');
+          this.removeLoadItem('company');
           this.buildForm();
         } else {
           this.getCompany();
@@ -77,7 +77,7 @@ export class CompanyComponent implements OnInit {
   }
 
   getCompany(): void {
-    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1),finalize(() => { this.itemsToLoad = this.utilityService.removeLoadItem(this.itemsToLoad, 'company'); })).subscribe({
+    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1), finalize(() => { this.removeLoadItem('company'); })).subscribe({
       next: (response: CompanyResponse) => {
         this.company = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -156,7 +156,6 @@ export class CompanyComponent implements OnInit {
         this.router.navigateByUrl(RouterUrl.CompanyList);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         if (err.status !== 400) {
           const failMessage = this.isAddMode ? 'Create company request has failed. ' : 'Update company request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -165,7 +164,24 @@ export class CompanyComponent implements OnInit {
     });
   }
 
-
+  // Data Loadiing Methods
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err) => {
+        console.error('Company Component - Error loading states:', err);
+      }
+    });
+  }
+  
   // Logo methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
@@ -200,8 +216,8 @@ export class CompanyComponent implements OnInit {
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
 
-    // Form methods
-    buildForm(): void {
+  // Form methods
+  buildForm(): void {
     this.form = this.fb.group({
       companyCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
@@ -246,25 +262,20 @@ export class CompanyComponent implements OnInit {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
-
-  // Utility helpers
-  private loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
-      return;
+  
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
     }
-    
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Company Component - Error loading states:', err);
-      }
-    });
   }
 
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.CompanyList);

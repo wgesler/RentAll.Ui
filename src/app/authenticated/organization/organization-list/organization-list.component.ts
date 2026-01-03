@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -22,11 +22,12 @@ import { MappingService } from '../../../services/mapping.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class OrganizationListComponent implements OnInit {
+export class OrganizationListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allOrganizations: OrganizationListDisplay[] = [];
+  organizationsDisplay: OrganizationListDisplay[] = [];
 
   organizationsDisplayedColumns: ColumnSet = {
     'organizationCode': { displayAs: 'Code', maxWidth: '84px' },
@@ -38,8 +39,9 @@ export class OrganizationListComponent implements OnInit {
     'website': { displayAs: 'Website' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allOrganizations: OrganizationListDisplay[] = [];
-  organizationsDisplay: OrganizationListDisplay[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public organizationService: OrganizationService,
@@ -48,7 +50,6 @@ export class OrganizationListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     private mappingService: MappingService) {
-      this.itemsToLoad.push('organizations');
   }
 
   ngOnInit(): void {
@@ -56,7 +57,7 @@ export class OrganizationListComponent implements OnInit {
   }
 
   getOrganizations(): void {
-    this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.removeLoadItem('organizations') })).subscribe({
+    this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.removeLoadItem('organizations'); })).subscribe({
       next: (organizations) => {
         this.allOrganizations = this.mappingService.mapOrganizations(organizations);
         this.applyFilters();
@@ -66,6 +67,7 @@ export class OrganizationListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Organizations', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('organizations');
       }
     });
   }
@@ -92,12 +94,12 @@ export class OrganizationListComponent implements OnInit {
     }
   }
 
-  // Routing methods
+  // Routing Methods
   goToOrganization(event: OrganizationListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Organization, [event.organizationId]));
   }
 
-  // Filter methods
+  // Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -109,9 +111,18 @@ export class OrganizationListComponent implements OnInit {
       : this.allOrganizations.filter(org => org.isActive);
   }
 
-  // Utility helpers
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

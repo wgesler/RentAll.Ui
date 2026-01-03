@@ -24,7 +24,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { FormatterService } from '../../../services/formatter-service';
-import { filter, take, finalize } from 'rxjs/operators';
+import { filter, take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { HttpErrorResponse } from '@angular/common/http';
 
@@ -74,13 +74,15 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   buildingId: string | number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
-  
   officeConfigurationForm: FormGroup;
   officeConfiguration: OfficeConfigurationResponse | null = null;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
   isLoading: boolean = false;
   isSubmitting: boolean = false;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private router: Router,
@@ -105,17 +107,19 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     const user = this.authService.getUser();
     if (!user?.organizationId) {
+      this.removeLoadItem('offices');
       return;
     }
 
-    this.officeService.getOffices().pipe(take(1)).subscribe({
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (offices: OfficeResponse[]) => {
         this.offices = (offices || []).filter(o => o.organizationId === user.organizationId && o.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading offices:', err);
-        this.toastr.error('Could not load offices.', CommonMessage.ServiceError);
         this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
@@ -132,22 +136,18 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   loadOfficeConfiguration(officeId: number): void {
     this.isLoading = true;
-    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(
-      take(1),
-      finalize(() => this.isLoading = false)
-    ).subscribe({
+    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1),finalize(() => this.isLoading = false)).subscribe({
       next: (config: OfficeConfigurationResponse) => {
         this.officeConfiguration = config;
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading office configuration:', err);
         if (err.status === 404) {
           // Office configuration doesn't exist yet, initialize with defaults
           this.officeConfiguration = null;
           this.resetForm();
-        } else {
-          this.toastr.error('Could not load office configuration.', CommonMessage.ServiceError);
+        } else if (err.status !== 400) {
+          this.toastr.error('Could not load office configuration. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
     });
@@ -273,7 +273,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     });
   }
 
-
   // Decimal input formatting
   formatDecimal(fieldName: string): void {
     this.formatterService.formatDecimalControl(this.officeConfigurationForm.get(fieldName));
@@ -383,14 +382,24 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.expandedSections[section] = false;
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.OrganizationList);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
   }
 
   ngOnDestroy(): void {
     // Clear context when leaving settings page
     this.navigationContext.clearContext();
+    this.itemsToLoad$.complete();
   }
 
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.OrganizationList);
+  }
 }
 

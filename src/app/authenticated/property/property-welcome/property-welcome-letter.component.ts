@@ -13,12 +13,10 @@ import { PropertyWelcomeService } from '../services/property-welcome.service';
 import { PropertyWelcomeRequest, PropertyWelcomeResponse } from '../models/property-welcome.model';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse } from '../models/property-letter.model';
-import { OrganizationService } from '../../organization/services/organization.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
+import { CommonService } from '../../../services/common.service';
 import { TrashDays } from '../models/property-enums';
-import { MatDialog } from '@angular/material/dialog';
-import { WelcomeLetterPreviewDialogComponent, WelcomeLetterPreviewData } from './welcome-letter-preview-dialog.component';
-import { BehaviorSubject, Observable, map, finalize, take, switchMap, from } from 'rxjs';
+import { BehaviorSubject, Observable, map, finalize, take, switchMap, from, filter } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -69,13 +67,12 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private propertyWelcomeService: PropertyWelcomeService,
     private propertyLetterService: PropertyLetterService,
     private propertyService: PropertyService,
-    private organizationService: OrganizationService,
+    private commonService: CommonService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
-    private dialog: MatDialog,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private buildingService: BuildingService,
@@ -159,7 +156,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   saveWelcomeLetter(): void {
     if (!this.propertyId) {
-      console.error('No property ID available');
       return;
     }
 
@@ -209,8 +205,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
           this.isSubmitting = false;
         }
       },
-      error: (err) => {
-        console.error('Error saving welcome letter:', err);
+      error: (err: HttpErrorResponse) => {
         this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         this.isSubmitting = false;
       }
@@ -272,8 +267,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     );
   }
 
-
-  // Form building function
+  // Form Building Methods
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
@@ -282,7 +276,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Load Supporting Data Functions
+  // Data Loading Methods
   loadPropertyData(): void {
     if (!this.propertyId) {
       this.removeLoadItem('property');
@@ -302,7 +296,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   loadContacts(): void {
-    this.contactService.getContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
+    this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts || [];
       },
@@ -387,18 +381,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load reservations at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('reservations');
       }
     });
   }
 
   loadOrganizationSettings(): void {
-    const orgId = this.authService.getUser()?.organizationId;
-    if (!orgId) {
-      this.removeLoadItem('organization');
-      return;
-    }
-
-    this.organizationService.getOrganizationByGuid(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
@@ -406,6 +395,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load organization settings at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('organization');
       }
     });
   }
@@ -426,6 +416,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load property letter information at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('propertyLetter');
       }
     });
   }
@@ -449,45 +440,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       this.selectedReservation = null;
     }
     this.generatePreviewIframe();
-  }
-
-  previewWelcomeLetter(): void {
-    const formValue = this.form.getRawValue();
-    const welcomeLetterHtml = formValue.welcomeLetter || '';
-    
-    if (!welcomeLetterHtml.trim()) {
-      this.toastr.warning('Please enter a welcome letter to preview', 'No Content');
-      return;
-    }
-
-    // Replace placeholders with actual data
-    const previewHtml = this.replacePlaceholders(welcomeLetterHtml);
-
-    // Get tenant email by looking up contact from contactId
-    let tenantEmail = '';
-    if (this.selectedReservation?.contactId) {
-      const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId);
-      if (contact) {
-        tenantEmail = contact.email || '';
-      }
-    }
-    // Get organization name
-    const organizationName = this.organization?.name || '';
-    // Get tenant name
-    const tenantName = this.selectedReservation?.tenantName || '';
-
-    // Open preview dialog
-    this.dialog.open(WelcomeLetterPreviewDialogComponent, {
-      width: '90%',
-      maxWidth: '1200px',
-      maxHeight: '90vh',
-      data: {
-        html: previewHtml,
-        email: tenantEmail,
-        organizationName: organizationName,
-        tenantName: tenantName
-      } as WelcomeLetterPreviewData
-    });
   }
 
   // Form Replacement Functions
@@ -806,7 +758,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         htmlContent: '' // Not used anymore, but keeping for interface compatibility
       });
     } catch (error) {
-      console.error('Error sending email:', error);
       this.toastr.error('Error opening email client. Please try again.', 'Error');
     }
   }

@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -12,7 +12,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -26,11 +26,14 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class ReservationListComponent implements OnInit {
+export class ReservationListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allReservations: ReservationListDisplay[] = [];
+  reservationsDisplay: ReservationListDisplay[] = [];
+  contacts: ContactResponse[] = [];
+  properties: PropertyResponse[] = [];
 
   reservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Reservation Code', maxWidth: '20ch', sortType: 'natural' },
@@ -41,10 +44,9 @@ export class ReservationListComponent implements OnInit {
     'departureDate': { displayAs: 'Departure Date', maxWidth: '20ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allReservations: ReservationListDisplay[] = [];
-  reservationsDisplay: ReservationListDisplay[] = [];
-  private contacts: ContactResponse[] = [];
-  private properties: PropertyResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public reservationService: ReservationService,
@@ -55,36 +57,11 @@ export class ReservationListComponent implements OnInit {
     public mappingService: MappingService,
     private contactService: ContactService,
     private propertyService: PropertyService) {
-      this.itemsToLoad.push('reservations');
   }
 
   ngOnInit(): void {
-    // Load contacts and properties in parallel
-    this.contactService.getAllContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-        this.loadProperties();
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Reservation List Component - Error loading contacts:', err);
-        this.contacts = [];
-        this.loadProperties();
-      }
-    });
-  }
-
-  loadProperties(): void {
-    this.propertyService.getProperties().pipe(take(1)).subscribe({
-      next: (properties: PropertyResponse[]) => {
-        this.properties = properties;
-        this.getReservations();
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Reservation List Component - Error loading properties:', err);
-        this.properties = [];
-        this.getReservations();
-      }
-    });
+    this.loadContacts();
+    this.loadProperties();
   }
 
   addReservation(): void {
@@ -92,7 +69,13 @@ export class ReservationListComponent implements OnInit {
   }
 
   getReservations(): void {
-    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations') })).subscribe({
+    // Only call if not already loading/loaded
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has('reservations')) {
+      return; // Already loaded or loading
+    }
+
+    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
         this.allReservations = this.mappingService.mapReservations(response, this.contacts, this.properties);
         this.applyFilters();
@@ -102,6 +85,7 @@ export class ReservationListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('reservations');
       }
     });
   }
@@ -128,6 +112,50 @@ export class ReservationListComponent implements OnInit {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
   }
 
+  // Data Load Methods
+  loadContacts(): void {
+    this.contactService.getAllContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts;
+        // Try to get reservations if properties are also loaded
+        if (this.properties.length > 0) {
+          this.getReservations();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        // Contacts are handled globally, just handle gracefully
+        this.contacts = [];
+        // Try to get reservations if properties are also loaded
+        if (this.properties.length > 0) {
+          this.getReservations();
+        }
+      }
+    });
+  }
+
+  loadProperties(): void {
+    this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+      next: (properties: PropertyResponse[]) => {
+        this.properties = properties;
+        // Try to get reservations if contacts are also loaded
+        if (this.contacts.length > 0) {
+          this.getReservations();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.properties = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('properties');
+        // Try to get reservations even if properties failed
+        if (this.contacts.length > 0) {
+          this.getReservations();
+        }
+      }
+    });
+  }
+
   // Filtering Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
@@ -141,8 +169,17 @@ export class ReservationListComponent implements OnInit {
   }
 
   // Utility Methods
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

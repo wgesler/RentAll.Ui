@@ -1,3 +1,17 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
 .embedded-mode {
   .content-card-wrap {
     justify-content: flex-start;
@@ -19,5 +33,25 @@
   }
 }
 
+.no-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;;
+  width:200px;
+  height: 150px;
+  text-align: center;
+  border:1px solid #ccc;
+  background-color:#f1f1f1
+}
 
+.image-file-error {
+  color: red;
+  margin-top:5px;
+}
+.image-input{
+  font-size: 10px;
+}
 
+.myfilebrowser button {
+  margin-bottom: 5px;
+}

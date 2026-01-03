@@ -1,4 +1,4 @@
-import { OnInit, Component, Input, Output, EventEmitter } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
@@ -24,13 +24,15 @@ import { OfficeResponse } from '../../office/models/office.model';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class BuildingListComponent implements OnInit {
+export class BuildingListComponent implements OnInit, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
   @Output() buildingSelected = new EventEmitter<string | number | null>();
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allBuildings: BuildingListDisplay[] = [];
+  buildingsDisplay: BuildingListDisplay[] = [];
+  offices: OfficeResponse[] = [];
 
   buildingsDisplayedColumns: ColumnSet = {
     'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
@@ -39,9 +41,9 @@ export class BuildingListComponent implements OnInit {
     'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allBuildings: BuildingListDisplay[] = [];
-  buildingsDisplay: BuildingListDisplay[] = [];
-  private offices: OfficeResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['buildings', 'offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public buildingService: BuildingService,
@@ -51,25 +53,10 @@ export class BuildingListComponent implements OnInit {
     public forms: FormsModule,
     public mappingService: MappingService,
     private officeService: OfficeService) {
-      this.itemsToLoad.push('buildings');
   }
 
   ngOnInit(): void {
     this.loadOffices();
-  }
-
-  loadOffices(): void {
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = offices || [];
-        this.getBuildings();
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Building List Component - Error loading offices:', err);
-        this.offices = [];
-        this.getBuildings();
-      }
-    });
   }
 
   addBuilding(): void {
@@ -82,7 +69,7 @@ export class BuildingListComponent implements OnInit {
   }
 
   getBuildings(): void {
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.removeLoadItem('buildings') })).subscribe({
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.removeLoadItem('buildings'); })).subscribe({
       next: (response: BuildingResponse[]) => {
         this.allBuildings = this.mappingService.mapBuildings(response, this.offices);
         this.applyFilters();
@@ -92,6 +79,7 @@ export class BuildingListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Buildings', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('buildings');
       }
     });
   }
@@ -123,6 +111,23 @@ export class BuildingListComponent implements OnInit {
     }
   }
 
+  // Data Loading Methods
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
+        this.getBuildings();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.getBuildings();
+      }
+    });
+  }
+
   // Filter methods
   applyFilters(): void {
     this.buildingsDisplay = this.showInactive
@@ -135,9 +140,18 @@ export class BuildingListComponent implements OnInit {
     this.applyFilters();
   }
 
- // Utility methods
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

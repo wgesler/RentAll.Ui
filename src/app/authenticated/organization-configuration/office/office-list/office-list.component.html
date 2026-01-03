@@ -1,4 +1,4 @@
-@if (!itemsToLoad.includes('offices')) {
+@if (!(isLoading$ | async)) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">

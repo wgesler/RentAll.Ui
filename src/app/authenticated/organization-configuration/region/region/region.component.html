@@ -1,4 +1,9 @@
-@if (!isServiceError && !itemsToLoad.includes('region')) {
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading region...</p>
+  </div>
+} @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
     <section class="content-card">
       @if (!embeddedMode) {

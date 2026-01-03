@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
@@ -7,7 +7,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angul
 import { PropertyService } from '../../property/services/property.service';
 import { AuthService } from '../../../services/auth.service';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/reservation-selection-model';
-import { take, finalize, filter, forkJoin } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -29,19 +29,20 @@ import { PropertyStatus } from '../../property/models/property-enums';
   templateUrl: './reservation-board-selection.component.html',
   styleUrl: './reservation-board-selection.component.scss',
 })
-export class ReservationBoardSelectionComponent implements OnInit {
+export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-
   states: string[] = [];
   offices: OfficeResponse[] = [];
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
   propertyStatuses: { value: number; label: string }[] = [];
-  private preloadedSelection: PropertySelectionResponse | null = null;
+  preloadedSelection: PropertySelectionResponse | null = null;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private router: Router,
@@ -55,7 +56,6 @@ export class ReservationBoardSelectionComponent implements OnInit {
     private areaService: AreaService,
     private buildingService: BuildingService
   ) {
-    this.itemsToLoad.push('selection');
   }
 
   ngOnInit(): void {
@@ -75,10 +75,35 @@ export class ReservationBoardSelectionComponent implements OnInit {
     }
   }
 
-  backToBoard(): void {
-    this.router.navigateByUrl(RouterUrl.ReservationBoard);
-  }
 
+  loadPropertySelection(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.isServiceError = true;
+      this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
+      this.removeLoadItem('selection');
+      return;
+    }
+
+    this.propertyService.getPropertySelection(userId).pipe(take(1), finalize(() => this.removeLoadItem('selection'))).subscribe({
+      next: (response: PropertySelectionResponse | null) => {
+        this.preloadedSelection = response;
+        this.patchFormFromResponse(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        // If selection isn't found (404), treat as new user and set default furnished to true
+        if (err.status === 404) {
+          this.patchFormFromResponse(null);
+        } else {
+          this.isServiceError = true;
+          if (err.status !== 400) {
+            this.toastr.error('Could not load selection.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
+        }
+      }
+    });
+  }
+  
   savePropertySelections (): void {
     if (!this.form) return;
 
@@ -138,60 +163,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
     });
   }
 
-  numbersOnly(event: KeyboardEvent): void {
-    const allowedKeys = [
-      'Backspace',
-      'Tab',
-      'Enter',
-      'Escape',
-      'ArrowLeft',
-      'ArrowRight',
-      'Home',
-      'End',
-      'Delete',
-    ];
-
-    if (allowedKeys.includes(event.key)) return;
-
-    // Allow copy/paste/select-all shortcuts
-    if ((event.ctrlKey || event.metaKey) && ['a', 'c', 'v', 'x'].includes(event.key.toLowerCase())) {
-      return;
-    }
-
-    // Digits only (prevents e/E/+/-/.)
-    if (!/^\d$/.test(event.key)) {
-      event.preventDefault();
-    }
-  }
-
-  loadPropertySelection(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      this.isServiceError = true;
-      this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
-      this.removeLoadItem('selection');
-      return;
-    }
-
-    this.propertyService.getPropertySelection(userId).pipe(take(1), finalize(() => this.removeLoadItem('selection'))).subscribe({
-      next: (response: PropertySelectionResponse | null) => {
-        this.preloadedSelection = response;
-        this.patchFormFromResponse(response);
-      },
-      error: (err: HttpErrorResponse) => {
-        // If selection isn't found (404), treat as new user and set default furnished to true
-        if (err.status === 404) {
-          this.patchFormFromResponse(null);
-        } else {
-          this.isServiceError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Could not load selection.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      }
-    });
-  }
-
+  // Data Load Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -199,9 +171,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       return;
     }
 
-    // Trigger load if not already loaded
-    this.commonService.loadStates();
-
+    // Subscribe to observable (states are loaded by app.component)
     this.commonService.getStates().pipe(
       filter(states => states && states.length > 0),
       take(1)
@@ -209,8 +179,8 @@ export class ReservationBoardSelectionComponent implements OnInit {
       next: (states) => {
         this.states = [...states];
       },
-      error: (err) => {
-        console.error('Reservation Board Selection - Error loading states:', err);
+      error: (err: HttpErrorResponse) => {
+        // States are handled globally, just handle gracefully
       }
     });
   }
@@ -218,6 +188,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
   loadDropDownLookups(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
+      this.removeLoadItem('lookups');
       return;
     }
 
@@ -226,7 +197,7 @@ export class ReservationBoardSelectionComponent implements OnInit {
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1)).subscribe({
+    }).pipe(take(1), finalize(() => { this.removeLoadItem('lookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
@@ -249,8 +220,15 @@ export class ReservationBoardSelectionComponent implements OnInit {
           });
         }
       },
-      error: (err) => {
-        console.error('Reservation Board Selection - Error loading lookups:', err);
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        this.regions = [];
+        this.areas = [];
+        this.buildings = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load lookups. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('lookups');
       }
     });
   }
@@ -344,105 +322,6 @@ export class ReservationBoardSelectionComponent implements OnInit {
     });
   }
 
-  private getOfficeCode(officeId?: number): string | undefined {
-    if (!officeId) return undefined;
-    return this.offices.find(f => f.officeId === officeId)?.officeCode;
-  }
-
-  private getRegionCode(regionId?: number): string | undefined {
-    if (!regionId) return undefined;
-    return this.regions.find(r => r.regionId === regionId)?.regionCode;
-  }
-
-  private getAreaCode(areaId?: number): string | undefined {
-    if (!areaId) return undefined;
-    return this.areas.find(a => a.areaId === areaId)?.areaCode;
-  }
-
-  private getBuildingCode(buildingId?: number): string | undefined {
-    if (!buildingId) return undefined;
-    return this.buildings.find(b => b.buildingId === buildingId)?.buildingCode;
-  }
-
-  private findOfficeIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.offices.find(f => f.officeCode === c)?.officeId;
-  }
-
-  private findRegionIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.regions.find(r => r.regionCode === c)?.regionId;
-  }
-
-  private findAreaIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.areas.find(a => a.areaCode === c)?.areaId;
-  }
-
-  private findBuildingIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.buildings.find(b => b.buildingCode === c)?.buildingId;
-  }
-
-  // Utility Methods
-  // Converts value to string or null (for nullable string fields)
-  // Use null explicitly so JSON.stringify includes it in the request
-  private toStringOrNull(value: unknown): string | null {
-    if (value === null || value === undefined || value === '') return null;
-    const s = value.toString().trim();
-    return s.length > 0 ? s : null;
-  }
-
-  // Converts value to number with default (for NOT NULL number fields)
-  // Always returns a number, never null or undefined
-  private toNumber(value: unknown, defaultValue: number = 0): number {
-    if (value === null || value === undefined || value === '') return defaultValue;
-    const n = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(n) ? n : defaultValue;
-  }
-
-  // Converts dropdown value to number (handles empty string '' from "All" option)
-  // Dropdowns use '' for "All" which should convert to 0 (not filtering)
-  private toNumberFromDropdown(value: unknown, defaultValue: number = 0): number {
-    if (value === null || value === undefined || value === '') return defaultValue;
-    const n = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(n) ? n : defaultValue;
-  }
-
-  // Convert ID from dropdown to Code for API
-  // Returns null if ID is null/empty/0 (meaning "All" or not selected)
-  private getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
-    if (id === null || id === undefined || id === '' || id === 0) {
-      return null;
-    }
-    const numericId = typeof id === 'number' ? id : Number(id);
-    if (!Number.isFinite(numericId) || numericId === 0) {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[idField] === numericId);
-    return item?.[codeField] || null;
-  }
-
-  // Convert Code from API to ID for dropdown
-  // Returns null if code is null/empty (meaning not set)
-  private getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
-    if (!code || code.trim() === '') {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[codeField] === code);
-    return item?.[idField] || null;
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
   resetForm(): void {
     if (!this.form) return;
     
@@ -473,6 +352,144 @@ export class ReservationBoardSelectionComponent implements OnInit {
     
     this.form.markAsUntouched();
     this.form.markAsPristine();
+  }
+
+  // Get Code Methods
+  getOfficeCode(officeId?: number): string | undefined {
+    if (!officeId) return undefined;
+    return this.offices.find(f => f.officeId === officeId)?.officeCode;
+  }
+
+  getRegionCode(regionId?: number): string | undefined {
+    if (!regionId) return undefined;
+    return this.regions.find(r => r.regionId === regionId)?.regionCode;
+  }
+
+  getAreaCode(areaId?: number): string | undefined {
+    if (!areaId) return undefined;
+    return this.areas.find(a => a.areaId === areaId)?.areaCode;
+  }
+
+  getBuildingCode(buildingId?: number): string | undefined {
+    if (!buildingId) return undefined;
+    return this.buildings.find(b => b.buildingId === buildingId)?.buildingCode;
+  }
+
+  findOfficeIdFromCode(code?: string): number | undefined {
+    const c = (code || '').trim();
+    if (!c) return undefined;
+    return this.offices.find(f => f.officeCode === c)?.officeId;
+  }
+
+  findRegionIdFromCode(code?: string): number | undefined {
+    const c = (code || '').trim();
+    if (!c) return undefined;
+    return this.regions.find(r => r.regionCode === c)?.regionId;
+  }
+
+  findAreaIdFromCode(code?: string): number | undefined {
+    const c = (code || '').trim();
+    if (!c) return undefined;
+    return this.areas.find(a => a.areaCode === c)?.areaId;
+  }
+
+  findBuildingIdFromCode(code?: string): number | undefined {
+    const c = (code || '').trim();
+    if (!c) return undefined;
+    return this.buildings.find(b => b.buildingCode === c)?.buildingId;
+  }
+
+  // Conversion Methods
+  toStringOrNull(value: unknown): string | null {
+    if (value === null || value === undefined || value === '') return null;
+    const s = value.toString().trim();
+    return s.length > 0 ? s : null;
+  }
+
+  // Converts value to number with default (for NOT NULL number fields)
+  // Always returns a number, never null or undefined
+   toNumber(value: unknown, defaultValue: number = 0): number {
+    if (value === null || value === undefined || value === '') return defaultValue;
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : defaultValue;
+  }
+
+  // Converts dropdown value to number (handles empty string '' from "All" option)
+  // Dropdowns use '' for "All" which should convert to 0 (not filtering)
+  toNumberFromDropdown(value: unknown, defaultValue: number = 0): number {
+    if (value === null || value === undefined || value === '') return defaultValue;
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : defaultValue;
+  }
+
+  // Convert ID from dropdown to Code for API
+  // Returns null if ID is null/empty/0 (meaning "All" or not selected)
+  getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
+    if (id === null || id === undefined || id === '' || id === 0) {
+      return null;
+    }
+    const numericId = typeof id === 'number' ? id : Number(id);
+    if (!Number.isFinite(numericId) || numericId === 0) {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[idField] === numericId);
+    return item?.[codeField] || null;
+  }
+
+  // Convert Code from API to ID for dropdown
+  // Returns null if code is null/empty (meaning not set)
+  getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
+    if (!code || code.trim() === '') {
+      return null;
+    }
+    const idField = codeField.replace('Code', 'Id');
+    const item = list.find(item => item[codeField] === code);
+    return item?.[idField] || null;
+  }
+
+  // Utility Methods
+  numbersOnly(event: KeyboardEvent): void {
+    const allowedKeys = [
+      'Backspace',
+      'Tab',
+      'Enter',
+      'Escape',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+      'Delete',
+    ];
+
+    if (allowedKeys.includes(event.key)) return;
+
+    // Allow copy/paste/select-all shortcuts
+    if ((event.ctrlKey || event.metaKey) && ['a', 'c', 'v', 'x'].includes(event.key.toLowerCase())) {
+      return;
+    }
+
+    // Digits only (prevents e/E/+/-/.)
+    if (!/^\d$/.test(event.key)) {
+      event.preventDefault();
+    }
+  }
+  
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
+  backToBoard(): void {
+    this.router.navigateByUrl(RouterUrl.ReservationBoard);
   }
 }
 

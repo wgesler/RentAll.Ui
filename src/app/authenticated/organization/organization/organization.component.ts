@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { OrganizationService } from '../services/organization.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -23,8 +23,7 @@ import { FileDetails } from '../../../shared/models/fileDetails';
   styleUrl: './organization.component.scss'
 })
 
-export class OrganizationComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class OrganizationComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   organizationId: string;
   organization: OrganizationResponse;
@@ -35,10 +34,12 @@ export class OrganizationComponent implements OnInit {
   logoPath: string = null;
   originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public organizationService: OrganizationService,
@@ -49,7 +50,6 @@ export class OrganizationComponent implements OnInit {
     private commonService: CommonService,
     private formatterService: FormatterService
   ) {
-    this.itemsToLoad.push('organization');
     this.loadStates();
   }
 
@@ -72,7 +72,7 @@ export class OrganizationComponent implements OnInit {
   }
 
   getOrganization(): void {
-    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (response: OrganizationResponse) => {
         this.organization = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -96,6 +96,7 @@ export class OrganizationComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load organization info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('organization');
       }
     });
   }
@@ -153,7 +154,6 @@ export class OrganizationComponent implements OnInit {
         this.router.navigateByUrl(RouterUrl.OrganizationList);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         if (err.status !== 400) {
           const failMessage = this.isAddMode ? 'Create organization request has failed. ' : 'Update organization request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -162,7 +162,7 @@ export class OrganizationComponent implements OnInit {
     });
   }
 
-  // Form methods
+  // Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       name: new FormControl('', [Validators.required]),
@@ -198,7 +198,7 @@ export class OrganizationComponent implements OnInit {
     }
   }
 
-  // Logo methods
+  // Logo Methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -235,7 +235,7 @@ export class OrganizationComponent implements OnInit {
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
 
-  // Phone helpers
+  // Phone Helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -252,8 +252,8 @@ export class OrganizationComponent implements OnInit {
     this.formatterService.formatPhoneInput(event, this.form.get('fax'));
   }
 
-  // Utility helpers
-  private loadStates(): void {
+  // Data Loading Methods
+  loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
       this.states = [...cachedStates];
@@ -270,8 +270,18 @@ export class OrganizationComponent implements OnInit {
     });
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 
   back(): void {

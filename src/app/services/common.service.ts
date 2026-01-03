@@ -6,6 +6,9 @@ import { CommonMessage } from '../enums/common-message.enum';
 import { ConfigService } from './config.service';
 import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
+import { OrganizationResponse } from '../authenticated/organization/models/organization.model';
+import { AuthService } from './auth.service';
+import { OrganizationService } from '../authenticated/organization/services/organization.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,12 +17,15 @@ export class CommonService {
   private dailyQuote$ = new BehaviorSubject<DailyQuote>(null);
   private states$ = new BehaviorSubject<StateResponse[]>([]);
   private validStates$ = new BehaviorSubject<string[]>([]);
+  private organization$ = new BehaviorSubject<OrganizationResponse>(null);
   private readonly controller = this.configService.config().apiUrl + 'common/';
 
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
-    private toastrService: ToastrService) {
+    private toastrService: ToastrService,
+    private authService: AuthService,
+    private organizationService: OrganizationService) {
   }
 
   // Daily Quote Methods
@@ -81,6 +87,38 @@ export class CommonService {
         console.error('States Error:', err);
         if (err.status !== 400) {
           this.toastrService.error('Unable to load States', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  // Organization Methods
+  getOrganization(): Observable<OrganizationResponse> {
+    return this.organization$;
+  }
+
+  getOrganizationValue(): OrganizationResponse {
+    return this.organization$.value;
+  }
+
+  loadOrganization(): void {
+    if (!this.authService.getIsLoggedIn()) {
+      return;
+    }
+
+    const user = this.authService.getUser();
+    if (!user || !user.organizationId) {
+      return;
+    }
+
+    this.organizationService.getOrganizationByGuid(user.organizationId).pipe(take(1)).subscribe({
+      next: (response) => {
+        this.organization$.next(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Organization Error:', err);
+        if (err.status !== 400) {
+          this.toastrService.error('Unable to load Organization', CommonMessage.ServiceError);
         }
       }
     });

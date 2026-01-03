@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -16,11 +16,11 @@ import { ReservationLeaseService } from '../services/reservation-lease.service';
 import { ReservationLeaseRequest, ReservationLeaseResponse } from '../models/reservation-lease.model';
 import { ReservationLeaseInformationService } from '../services/reservation-lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
-import { OrganizationService } from '../../organization/services/organization.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
+import { CommonService } from '../../../services/common.service';
 import { MatDialog } from '@angular/material/dialog';
 import { LeasePreviewDialogComponent, LeasePreviewData } from './lease-preview-dialog.component';
-import { finalize, take, switchMap, forkJoin, of, EMPTY, catchError, Observable } from 'rxjs';
+import { finalize, take, switchMap, forkJoin, of, EMPTY, catchError, Observable, filter, BehaviorSubject, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -39,10 +39,9 @@ import { OfficeConfigurationResponse } from '../../organization-configuration/of
   templateUrl: './reservation-lease.component.html',
   styleUrl: './reservation-lease.component.scss'
 })
-export class ReservationLeaseComponent implements OnInit {
+export class ReservationLeaseComponent implements OnInit, OnDestroy {
   @Input() reservationId: string | null = null;
   
-  isLoading: boolean = true;
   isSubmitting: boolean = false;
   form: FormGroup;
   reservation: ReservationResponse | null = null;
@@ -57,13 +56,16 @@ export class ReservationLeaseComponent implements OnInit {
   officeConfiguration: OfficeConfigurationResponse | null = null;
   organizationName: string | null = null;
 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'contact', 'company', 'leaseInformation', 'offices', 'office']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   constructor(
     private reservationLeaseService: ReservationLeaseService,
     private reservationService: ReservationService,
     private propertyService: PropertyService,
     private contactService: ContactService,
     private companyService: CompanyService,
-    private organizationService: OrganizationService,
+    private commonService: CommonService,
     private leaseInformationService: ReservationLeaseInformationService,
     private officeService: OfficeService,
     private officeConfigurationService: OfficeConfigurationService,
@@ -81,13 +83,20 @@ export class ReservationLeaseComponent implements OnInit {
     this.loadOffices();
     
     if (!this.reservationId) {
-      this.isLoading = false;
+      // Remove all items if no reservationId
+      this.removeLoadItem('reservation');
+      this.removeLoadItem('property');
+      this.removeLoadItem('contact');
+      this.removeLoadItem('company');
+      this.removeLoadItem('leaseInformation');
+      this.removeLoadItem('office');
       return;
     }
     
     // Load reservation first, then load related data using RxJS operators
     this.reservationService.getReservationByGuid(this.reservationId).pipe(
       take(1),
+      finalize(() => { this.removeLoadItem('reservation'); }),
       switchMap((reservation: ReservationResponse) => {
         this.reservation = reservation;
         
@@ -97,27 +106,32 @@ export class ReservationLeaseComponent implements OnInit {
 
         // Load all independent data in parallel
         const property$ = reservation.propertyId 
-          ? this.propertyService.getPropertyByGuid(reservation.propertyId).pipe(take(1))
+          ? this.propertyService.getPropertyByGuid(reservation.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); }))
           : of(null);
         
         const contact$ = reservation.contactId
-          ? this.contactService.getContactByGuid(reservation.contactId).pipe(take(1))
+          ? this.contactService.getContactByGuid(reservation.contactId).pipe(take(1), finalize(() => { this.removeLoadItem('contact'); }))
           : of(null);
         
-        const orgId = this.authService.getUser()?.organizationId;
-        const organization$ = orgId
-          ? this.organizationService.getOrganizationByGuid(orgId).pipe(take(1))
-          : of(null);
+        const organization$ = this.commonService.getOrganization().pipe(
+          take(1),
+          switchMap(org => org ? of(org) : of(null))
+        );
         
         const leaseInformation$ = reservation.propertyId
           ? this.leaseInformationService.getLeaseInformationByPropertyId(reservation.propertyId).pipe(
               take(1),
+              finalize(() => { this.removeLoadItem('leaseInformation'); }),
               // Handle 404 errors gracefully - lease information might not exist
               catchError((err: HttpErrorResponse) => {
                 if (err.status === 404) {
+                  this.removeLoadItem('leaseInformation');
                   return of(null);
                 }
-                console.error('Error loading lease information:', err);
+                if (err.status !== 400) {
+                  this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+                }
+                this.removeLoadItem('leaseInformation');
                 return of(null);
               })
             )
@@ -140,9 +154,17 @@ export class ReservationLeaseComponent implements OnInit {
         if (contact && contact.entityTypeId === EntityType.Company && contact.entityId) {
           return this.companyService.getCompanyByGuid(contact.entityId).pipe(
             take(1),
+            finalize(() => { this.removeLoadItem('company'); }),
             switchMap((company: CompanyResponse) => {
               this.company = company;
               // Load office after company is loaded
+              return this.loadOfficeData();
+            }),
+            catchError((err: HttpErrorResponse) => {
+              if (err.status !== 400) {
+                this.toastr.error('Could not load company. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+              }
+              this.removeLoadItem('company');
               return this.loadOfficeData();
             })
           );
@@ -151,24 +173,24 @@ export class ReservationLeaseComponent implements OnInit {
         return this.loadOfficeData();
       }),
       finalize(() => {
-        this.isLoading = false;
         this.getLease();
       })
     ).subscribe({
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading reservation data:', err);
-        this.isLoading = false;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservation data. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('reservation');
       }
     });
   }
 
   getLease(): void {
     if (!this.reservationId) {
-      this.isLoading = false;
       return;
     }
 
-    this.reservationLeaseService.getLeaseByReservationId(this.reservationId).pipe(take(1),finalize(() => { this.isLoading = false })).subscribe({
+    this.reservationLeaseService.getLeaseByReservationId(this.reservationId).pipe(take(1)).subscribe({
       next: (response: ReservationLeaseResponse) => {
         if (response && response.lease) {
           this.lease = response;
@@ -182,14 +204,17 @@ export class ReservationLeaseComponent implements OnInit {
           });
         }
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         // If not found, set default template
         if (err.status === 404) {
           this.form.patchValue({
             lease: this.getDefaultLeaseTemplate()
           });
         } else {
-          console.error('Error loading lease:', err);
+          // Error already handled, just set default template
+          this.form.patchValue({
+            lease: this.getDefaultLeaseTemplate()
+          });
         }
       }
     });
@@ -197,7 +222,7 @@ export class ReservationLeaseComponent implements OnInit {
 
   saveLease(): void {
     if (!this.reservationId) {
-      console.error('No reservation ID available');
+      this.toastr.error('No reservation ID available', CommonMessage.Error);
       return;
     }
 
@@ -219,9 +244,10 @@ export class ReservationLeaseComponent implements OnInit {
           this.lease = response;
           this.isSubmitting = false;
         },
-        error: (err) => {
-          console.error('Error updating lease:', err);
-          this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
           this.isSubmitting = false;
         }
       });
@@ -239,9 +265,10 @@ export class ReservationLeaseComponent implements OnInit {
           this.lease = response;
           this.isSubmitting = false;
         },
-        error: (err) => {
-          console.error('Error creating lease:', err);
-          this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
           this.isSubmitting = false;
         }
       });
@@ -279,6 +306,7 @@ export class ReservationLeaseComponent implements OnInit {
     });
   }
 
+  // Form Methods
   buildForm(): FormGroup {
     const form = this.fb.group({
       lease: new FormControl(''),
@@ -317,7 +345,9 @@ export class ReservationLeaseComponent implements OnInit {
         next();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading reservation:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservation. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         next();
       }
     });
@@ -335,7 +365,9 @@ export class ReservationLeaseComponent implements OnInit {
         next();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading property:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         next();
       }
     });
@@ -353,7 +385,9 @@ export class ReservationLeaseComponent implements OnInit {
         next();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading contact:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load contact. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         next();
       }
     });
@@ -372,20 +406,16 @@ export class ReservationLeaseComponent implements OnInit {
         next();
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Error loading company:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load company. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         next();
       }
     });
   }
 
   loadOrganizationSettings(next: () => void): void {
-    const orgId = this.authService.getUser()?.organizationId;
-    if (!orgId) {
-      next();
-      return;
-    }
-
-    this.organizationService.getOrganizationByGuid(orgId).pipe(take(1)).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
         next();
@@ -398,15 +428,21 @@ export class ReservationLeaseComponent implements OnInit {
 
   loadOffices(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
 
-    this.officeService.getOffices().pipe(take(1)).subscribe({
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (offices: OfficeResponse[]) => {
         this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Reservation Lease Component - Error loading offices:', err);
         this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('offices');
       }
     });
   }
@@ -419,7 +455,7 @@ export class ReservationLeaseComponent implements OnInit {
         if (err.status === 404) {
           this.officeConfiguration = null;
         } else {
-          console.error('Error loading office configuration:', err);
+          // Office configuration errors are handled gracefully
           this.officeConfiguration = null;
         }
         return of(null);
@@ -433,11 +469,13 @@ export class ReservationLeaseComponent implements OnInit {
     if (!this.property || !this.property.officeId) {
       this.office = null;
       this.officeConfiguration = null;
+      this.removeLoadItem('office');
       return of(null);
     }
 
     return this.officeService.getOfficeById(this.property.officeId).pipe(
       take(1),
+      finalize(() => { this.removeLoadItem('office'); }),
       switchMap((office: OfficeResponse) => {
         this.office = office;
         // Update form with officeId
@@ -449,9 +487,12 @@ export class ReservationLeaseComponent implements OnInit {
         return of(null);
       }),
       catchError((err: HttpErrorResponse) => {
-        console.error('Error loading office:', err);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load office. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         this.office = null;
         this.officeConfiguration = null;
+        this.removeLoadItem('office');
         return of(null);
       })
     );
@@ -1521,5 +1562,19 @@ export class ReservationLeaseComponent implements OnInit {
     </table>
   </body>
   </html>`;
+  }
+
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }

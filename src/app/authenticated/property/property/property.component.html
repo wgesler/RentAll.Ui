@@ -1,4 +1,9 @@
-@if (!isServiceError && !itemsToLoad.includes('property')) {
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading property...</p>
+  </div>
+} @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">

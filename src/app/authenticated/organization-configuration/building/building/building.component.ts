@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { BuildingService } from '../services/building.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -24,21 +24,22 @@ import { FormatterService } from '../../../../services/formatter-service';
   styleUrl: './building.component.scss'
 })
 
-export class BuildingComponent implements OnInit, OnChanges {
+export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  private routeBuildingId: string | null = null;
+  routeBuildingId: string | null = null;
   building: BuildingResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   offices: OfficeResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building', 'offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public buildingService: BuildingService,
@@ -51,7 +52,6 @@ export class BuildingComponent implements OnInit, OnChanges {
     private officeService: OfficeService,
     private formatterService: FormatterService
   ) {
-    this.itemsToLoad.push('building');
   }
 
   ngOnInit(): void {
@@ -92,21 +92,6 @@ export class BuildingComponent implements OnInit, OnChanges {
     }
   }
 
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
-
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Building Component - Error loading offices:', err);
-        this.offices = [];
-      }
-    });
-  }
-
   ngOnChanges(changes: SimpleChanges): void {
     // If in embedded mode and id changes, reload building
     if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
@@ -132,7 +117,7 @@ export class BuildingComponent implements OnInit, OnChanges {
       this.toastr.error('Invalid building ID', CommonMessage.Error);
       return;
     }
-    this.buildingService.getBuildingById(buildingIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('building') })).subscribe({
+    this.buildingService.getBuildingById(buildingIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('building'); })).subscribe({
       next: (response: BuildingResponse) => {
         this.building = response;
         this.buildForm();
@@ -143,15 +128,9 @@ export class BuildingComponent implements OnInit, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load building info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('building');
       }
     });
-  }
-
-  onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ buildingCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
   }
 
   saveBuilding(): void {
@@ -189,7 +168,6 @@ export class BuildingComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create building request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -199,7 +177,6 @@ export class BuildingComponent implements OnInit, OnChanges {
       const idToUse = this.id || this.routeBuildingId;
       const buildingIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(buildingIdNum)) {
-        this.isLoadError = true;
         this.toastr.error('Invalid building ID', CommonMessage.Error);
         return;
       }
@@ -218,13 +195,33 @@ export class BuildingComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update building request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
         }
       });
     }
+  }
+
+  // Data Loading Methods
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
+
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   // Form Methods
@@ -258,7 +255,36 @@ export class BuildingComponent implements OnInit, OnChanges {
     }
   }
 
+  // Phone formatting methods
+  formatHoaPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('hoaPhone'));
+  }
+
+  onHoaPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('hoaPhone'));
+  }
+
   // Utility Methods
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ buildingCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  }
+
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();
@@ -268,19 +294,6 @@ export class BuildingComponent implements OnInit, OnChanges {
     } else {
       this.router.navigateByUrl(RouterUrl.BuildingList);
     }
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  // Phone formatting methods
-  formatHoaPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('hoaPhone'));
-  }
-
-  onHoaPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('hoaPhone'));
   }
 }
 

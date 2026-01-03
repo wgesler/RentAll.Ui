@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -7,9 +7,9 @@ import { PropertyLetterRequest, PropertyLetterResponse } from '../models/propert
 import { AuthService } from '../../../services/auth.service';
 import { PropertyService } from '../services/property.service';
 import { PropertyResponse } from '../models/property.model';
-import { OrganizationService } from '../../organization/services/organization.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
-import { finalize, take } from 'rxjs';
+import { CommonService } from '../../../services/common.service';
+import { finalize, take, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -23,21 +23,22 @@ import { FormatterService } from '../../../services/formatter-service';
   templateUrl: './property-letter-information.component.html',
   styleUrls: ['./property-letter-information.component.scss']
 })
-export class PropertyLetterInformationComponent implements OnInit {
+export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
   @Input() propertyId: string | null = null;
-  itemsToLoad: string[] = ['property', 'organization', 'propertyLetter'];
   isServiceError: boolean = false;
-  isLoading: boolean = true;
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
   propertyLetter: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyLetter']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   constructor(
     private propertyLetterService: PropertyLetterService,
     private propertyService: PropertyService,
-    private organizationService: OrganizationService,
+    private commonService: CommonService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -48,28 +49,27 @@ export class PropertyLetterInformationComponent implements OnInit {
 
   ngOnInit(): void {
     if (!this.propertyId) {
-      this.isLoading = false;
+      const currentSet = this.itemsToLoad$.value;
+      currentSet.forEach(item => this.removeLoadItem(item));
       return;
     }
-    // Sequential load: org -> property -> property letter
-    this.loadOrganizationSettings(() => {
-      this.loadPropertyData(() => {
-        this.getPropertyLetter();
-      });
-    });
+    
+    // Load all data in parallel (no dependencies)
+    this.loadOrganizationSettings();
+    this.loadPropertyData();
+    this.getPropertyLetter();
   }
-
- 
 
   getPropertyLetter(): void {
     if (!this.propertyId) {
-      this.isLoading = false;
+      this.removeLoadItem('propertyLetter');
       return;
     }
 
-    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyLetter') })).subscribe({
+    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyLetter'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
+          this.propertyLetter = response;
           this.form.patchValue({
             arrivalInstructions: response.arrivalInstructions || '',
             access: response.access || '',
@@ -93,19 +93,16 @@ export class PropertyLetterInformationComponent implements OnInit {
         } else {
           this.populateDefaultsFromProperty();
         }
-        this.isLoading = false;
       },
-      error: (err) => {
-        this.removeLoadItem('propertyLetter')
+      error: (err: HttpErrorResponse) => {
         this.populateDefaultsFromProperty();
-        this.isLoading = false;
+        this.removeLoadItem('propertyLetter');
       }
     });
   }
     
   savePropertyLetter(): void {
     if (!this.propertyId) {
-      console.error('No property ID available');
       return;
     }
 
@@ -139,70 +136,66 @@ export class PropertyLetterInformationComponent implements OnInit {
     this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1)).subscribe({
       next: () => {
         // Property letter exists, update it
-        this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1)).subscribe({
-          next: (response) => {
-            console.log('Property letter updated successfully');
-            this.isSubmitting = false;
+        this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+          next: () => {
+            this.toastr.success('Property letter updated successfully', CommonMessage.Success);
           },
-          error: (err) => {
-            console.error('Error updating property letter:', err);
-            this.isSubmitting = false;
+          error: (err: HttpErrorResponse) => {
+            if (err.status !== 400) {
+              this.toastr.error('Could not update property letter. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
           }
         });
       },
       error: () => {
         // Property letter doesn't exist, create it
-        this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1)).subscribe({
-          next: (response) => {
-            console.log('Property letter created successfully');
-            this.isSubmitting = false;
+        this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+          next: () => {
+            this.toastr.success('Property letter created successfully', CommonMessage.Success);
           },
-          error: (err) => {
-            console.error('Error creating property letter:', err);
-            this.isSubmitting = false;
+          error: (err: HttpErrorResponse) => {
+            if (err.status !== 400) {
+              this.toastr.error('Could not create property letter. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
           }
         });
       }
     });
   }
   
-  // Load support data
-  loadOrganizationSettings(next: () => void): void {
-    const orgId = this.authService.getUser()?.organizationId;
-    if (!orgId) {
-      next();
-      return;
-    }
-
-    this.organizationService.getOrganizationByGuid(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+  // Data Loading Methods
+  loadOrganizationSettings(): void {
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
         this.applyOrganizationDefaults();
-        next();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.removeLoadItem('organization');
-        next();
       }
     });
   }
 
-  loadPropertyData(next: () => void): void {
+  loadPropertyData(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('property');
+      return;
+    }
+
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        next();
       },
       error: (err: HttpErrorResponse) => {
-        this.removeLoadItem('property');
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
+        this.removeLoadItem('property');
       }
     });
   }
 
+  // Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       arrivalInstructions: new FormControl(''),
@@ -224,7 +217,7 @@ export class PropertyLetterInformationComponent implements OnInit {
     });
   }
 
-  // Populate functions
+  // Populate Functions
   populateDefaultsFromProperty(): void {
     if (!this.property) return;
 
@@ -281,7 +274,7 @@ export class PropertyLetterInformationComponent implements OnInit {
     }
   }
   
-   // Phone helpers
+   // Phone Helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
   }
@@ -290,10 +283,18 @@ export class PropertyLetterInformationComponent implements OnInit {
     this.formatterService.formatPhoneInput(event, this.form.get('emergencyContactNumber'));
   }
 
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
 
-    // Utility Methods
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

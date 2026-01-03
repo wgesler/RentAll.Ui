@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { AgentService } from '../services/agent.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -23,21 +23,22 @@ import { OfficeResponse } from '../../office/models/office.model';
   styleUrl: './agent.component.scss'
 })
 
-export class AgentComponent implements OnInit, OnChanges {
+export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
   @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  private routeAgentId: string | null = null;
+  routeAgentId: string | null = null;
   agent: AgentResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   offices: OfficeResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent', 'offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public agentService: AgentService,
@@ -49,7 +50,6 @@ export class AgentComponent implements OnInit, OnChanges {
     private navigationContext: NavigationContextService,
     private officeService: OfficeService
   ) {
-    this.itemsToLoad.push('agent');
   }
 
   ngOnInit(): void {
@@ -90,21 +90,6 @@ export class AgentComponent implements OnInit, OnChanges {
     }
   }
 
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) return;
-
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Agent Component - Error loading offices:', err);
-        this.offices = [];
-      }
-    });
-  }
-
   ngOnChanges(changes: SimpleChanges): void {
     // If in embedded mode and agentId changes, reload agent
     if (this.embeddedMode && changes['agentId'] && !changes['agentId'].firstChange) {
@@ -125,7 +110,7 @@ export class AgentComponent implements OnInit, OnChanges {
       return;
     }
     const agentIdStr = idToUse.toString();
-    this.agentService.getAgentByGuid(agentIdStr).pipe(take(1), finalize(() => { this.removeLoadItem('agent') })).subscribe({
+    this.agentService.getAgentByGuid(agentIdStr).pipe(take(1), finalize(() => { this.removeLoadItem('agent'); })).subscribe({
       next: (response: AgentResponse) => {
         this.agent = response;
         this.buildForm();
@@ -136,15 +121,9 @@ export class AgentComponent implements OnInit, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load agent info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('agent');
       }
     });
-  }
-
-  onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ agentCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
   }
 
   saveAgent(): void {
@@ -178,7 +157,6 @@ export class AgentComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create agent request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -202,13 +180,33 @@ export class AgentComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update agent request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
         }
       });
     }
+  }
+
+  // Data Loading Methods
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
+
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   // Form Methods
@@ -232,7 +230,27 @@ export class AgentComponent implements OnInit, OnChanges {
     }
   }
 
-  // Utilty Methods
+  // Utility Methods
+  onCodeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    this.form.patchValue({ agentCode: upperValue }, { emitEvent: false });
+    input.value = upperValue;
+  } 
+
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();
@@ -243,10 +261,9 @@ export class AgentComponent implements OnInit, OnChanges {
       this.router.navigateByUrl(RouterUrl.AgentList);
     }
   }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 }
+
+
+
 
 

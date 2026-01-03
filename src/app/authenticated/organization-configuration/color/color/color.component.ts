@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { ColorService } from '../services/color.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -22,18 +22,16 @@ import { ReservationStatus } from '../../../reservation/models/reservation-enum'
   styleUrl: './color.component.scss'
 })
 
-export class ColorComponent implements OnInit, OnChanges {
+export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
-  private routeColorId: string | null = null;
+  routeColorId: string | null = null;
   color: ColorResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   reservationStatuses = [
@@ -46,6 +44,9 @@ export class ColorComponent implements OnInit, OnChanges {
     { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
   ];
 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   constructor(
     public colorService: ColorService,
     public router: Router,
@@ -55,7 +56,6 @@ export class ColorComponent implements OnInit, OnChanges {
     private authService: AuthService,
     private navigationContext: NavigationContextService
   ) {
-    this.itemsToLoad.push('color');
   }
 
   ngOnInit(): void {
@@ -129,7 +129,7 @@ export class ColorComponent implements OnInit, OnChanges {
       this.toastr.error('Invalid color ID', CommonMessage.Error);
       return;
     }
-    this.colorService.getColorById(colorIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('color') })).subscribe({
+    this.colorService.getColorById(colorIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('color'); })).subscribe({
       next: (response: ColorResponse) => {
         this.color = response;
         this.buildForm();
@@ -140,6 +140,7 @@ export class ColorComponent implements OnInit, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load color info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('color');
       }
     });
   }
@@ -173,7 +174,6 @@ export class ColorComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create color request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -183,7 +183,6 @@ export class ColorComponent implements OnInit, OnChanges {
       const idToUse = this.id || this.routeColorId;
       const colorIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(colorIdNum)) {
-        this.isLoadError = true;
         this.toastr.error('Invalid color ID', CommonMessage.Error);
         return;
       }
@@ -203,7 +202,6 @@ export class ColorComponent implements OnInit, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update color request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -235,7 +233,20 @@ export class ColorComponent implements OnInit, OnChanges {
     this.form.patchValue({ color: colorValue }, { emitEvent: true });
   }
 
-  // Utility methods
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     if (this.embeddedMode) {
       this.backEvent.emit();
@@ -245,10 +256,6 @@ export class ColorComponent implements OnInit, OnChanges {
     } else {
       this.router.navigateByUrl(RouterUrl.ColorList);
     }
-  }
-
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
   }
 }
 

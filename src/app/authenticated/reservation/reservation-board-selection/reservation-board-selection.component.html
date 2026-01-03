@@ -1,4 +1,4 @@
-@if (!itemsToLoad.includes('selection')) {
+@if (!(isLoading$ | async)) {
   <div class="flex content-card-wrap justify-center reservation-board-selection-wrapper">
     <section class="content-card reservation-board-selection-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
@@ -8,7 +8,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
-import { finalize, take } from 'rxjs';
+import { finalize, take, BehaviorSubject, Observable, map } from 'rxjs';
 
 @Component({
   selector: 'app-reservation-lease-information',
@@ -17,13 +17,16 @@ import { finalize, take } from 'rxjs';
   templateUrl: './reservation-lease-information.component.html',
   styleUrl: './reservation-lease-information.component.scss'
 })
-export class ReservationLeaseInformationComponent implements OnInit {
+export class ReservationLeaseInformationComponent implements OnInit, OnDestroy {
   @Input() reservationId: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() contactId: string | null = null;
   form: FormGroup;
   isSubmitting: boolean = false;
   leaseInformation: LeaseInformationResponse | null = null;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leaseInformation']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private fb: FormBuilder,
@@ -38,6 +41,8 @@ export class ReservationLeaseInformationComponent implements OnInit {
     // Load lease information if propertyId and contactId are available
     if (this.propertyId && this.contactId) {
       this.getLeaseInformation();
+    } else {
+      this.removeLoadItem('leaseInformation');
     }
   }
 
@@ -47,7 +52,7 @@ export class ReservationLeaseInformationComponent implements OnInit {
     }
 
     // Try to get by propertyId first
-    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1)).subscribe({
+    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         if (response) {
           this.leaseInformation = response;
@@ -58,11 +63,13 @@ export class ReservationLeaseInformationComponent implements OnInit {
         // If not found by propertyId, that's okay - form will remain empty
         if (err.status === 404) {
           // Lease information doesn't exist yet, that's fine
+          this.removeLoadItem('leaseInformation');
           return;
         }
-        console.error('Error loading lease information:', err);
-        console.error('Error details:', err.error);
-        console.error('Status:', err.status, err.statusText);
+        if (err.status !== 400) {
+          this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('leaseInformation');
       }
     });
   }
@@ -128,6 +135,7 @@ export class ReservationLeaseInformationComponent implements OnInit {
     });
   }
 
+  // Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       rentalPayment: new FormControl<string | null>(null),
@@ -184,6 +192,20 @@ export class ReservationLeaseInformationComponent implements OnInit {
       propertyUse: leaseInformation.propertyUse || null,
       miscellaneous: leaseInformation.miscellaneous || null
     });
+  }
+
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 
