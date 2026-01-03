@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { CommonModule, AsyncPipe } from '@angular/common';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -18,7 +18,7 @@ import { OrganizationResponse } from '../../organization/models/organization.mod
 import { TrashDays } from '../models/property-enums';
 import { MatDialog } from '@angular/material/dialog';
 import { WelcomeLetterPreviewDialogComponent, WelcomeLetterPreviewData } from './welcome-letter-preview-dialog.component';
-import { finalize, take } from 'rxjs';
+import { BehaviorSubject, Observable, map, finalize, take, switchMap, from } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -32,19 +32,19 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentType, DocumentRequest } from '../../documents/models/document.model';
+import { DocumentType, DocumentRequest, DocumentResponse } from '../../documents/models/document.model';
+import { EMPTY_GUID } from '../../../shared/models/constants';
 
 @Component({
   selector: 'app-property-welcome-letter',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
   templateUrl: './property-welcome-letter.component.html',
   styleUrls: ['./property-welcome-letter.component.scss']
 })
-export class PropertyWelcomeLetterComponent implements OnInit {
+export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   @Input() propertyId: string | null = null;
   
-  isLoading: boolean = true;
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
@@ -62,7 +62,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
-  itemsToLoad: string[] = ['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices'];
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private propertyWelcomeService: PropertyWelcomeService,
@@ -91,30 +92,25 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     this.loadOffices();
     
     if (!this.propertyId) {
-      this.isLoading = false;
+      // Clear all loading items if no propertyId
+      const currentSet = this.itemsToLoad$.value;
+      currentSet.forEach(item => this.removeLoadItem(item));
       return;
     }
     
-    // Load contacts first
+    // Load all data independently in parallel (no dependencies)
     this.loadContacts();
-    
-    // Load buildings for building code lookup
     this.loadBuildings();
-    
-    // Load organization, property, reservations, welcome letter, and property letter information
-    this.loadOrganizationSettings(() => {
-      this.loadPropertyData(() => {
-        this.loadReservations(() => {
-          this.getWelcomeLetter();
-          this.loadPropertyLetterInformation();
-        });
-      });
-    });
+    this.loadReservations();
+    this.loadPropertyLetterInformation();
+    this.loadOrganizationSettings();
+    this.loadPropertyData();
+    this.getWelcomeLetter();
   }
 
   getWelcomeLetter(): void {
     if (!this.propertyId) {
-      this.isLoading = false;
+      this.removeLoadItem('welcomeLetter');
       return;
     }
 
@@ -126,42 +122,42 @@ export class PropertyWelcomeLetterComponent implements OnInit {
             welcomeLetter: response.welcomeLetter || ''
           });
 
-          // Check if organizationId or propertyId is empty GUID (default letter)
-          const emptyGuid = '00000000-0000-0000-0000-000000000000';
-          const hasEmptyGuid = response.propertyId === emptyGuid ||  response.organizationId === emptyGuid ||
-                              (this.property && response.propertyId !== this.propertyId);
-          
-          if (hasEmptyGuid && this.property) {
-            // Update with actual propertyId (backend will set organizationId from property)
+          // If this is the default letter, update it with actual propertyId and organizationId
+          const isDefaultLetter = response.propertyId === EMPTY_GUID ||  response.organizationId === EMPTY_GUID;        
+          if (isDefaultLetter) {
+            const orgId = this.authService.getUser()?.organizationId || '';
             const updateRequest: PropertyWelcomeRequest = {
               propertyId: this.propertyId,
-              organizationId: this.organization?.organizationId || '',
+              organizationId: orgId,
               welcomeLetter: response.welcomeLetter || ''
             };
             
+            // Create a property welcome entry with correct IDs
             this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
               next: (updatedResponse) => {
                 this.welcomeLetter = updatedResponse;
                 this.generatePreviewIframe();
               },
-              error: (err) => {
-                console.error('Error updating welcome letter with property/organization IDs:', err);
+              error: (err: HttpErrorResponse) => {
+                if (err.status !== 400) {
+                  this.toastr.error('Could not update welcome letter with property/organization IDs at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+                }
               }
             });
           } else {
             this.generatePreviewIframe();
           }
         }
-        this.isLoading = false;
       },
-      error: (err) => {
-        this.removeLoadItem('welcomeLetter');
-        this.isLoading = false;
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
 
-  async saveWelcomeLetter(): Promise<void> {
+  saveWelcomeLetter(): void {
     if (!this.propertyId) {
       console.error('No property ID available');
       return;
@@ -171,92 +167,111 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     const formValue = this.form.getRawValue();
 
     // Always save the HTML first
-    const saveHtmlPromise = this.welcomeLetter
+    const saveHtmlObservable = this.welcomeLetter
       ? this.propertyWelcomeService.updatePropertyWelcome({
           propertyId: this.propertyId,
-          organizationId: this.organization?.organizationId || '',
+              organizationId: this.authService.getUser()?.organizationId || '',
           welcomeLetter: formValue.welcomeLetter || ''
-        }).pipe(take(1)).toPromise()
+        })
       : this.propertyWelcomeService.createPropertyWelcome({
           propertyId: this.propertyId,
-          organizationId: this.organization?.organizationId || '',
+              organizationId: this.authService.getUser()?.organizationId || '',
           welcomeLetter: formValue.welcomeLetter || ''
-        }).pipe(take(1)).toPromise();
+        });
 
-    try {
-      const response = await saveHtmlPromise;
-      if (response) {
+    saveHtmlObservable.pipe(
+      take(1),
+      switchMap((response) => {
         this.welcomeLetter = response;
-      }
-
-      // If both office and reservation are selected, also save document and upload file
-      if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
-        await this.saveDocumentAndUpload();
-      } else {
-        // Just HTML saved
-        this.toastr.success('Welcome letter saved successfully', 'Success');
+        
+        // If both office and reservation are selected, also save document and upload file
+        if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
+          return this.saveDocument();
+        } else {
+          // Just HTML saved
+          this.toastr.success('Welcome letter saved successfully', 'Success');
+          this.isSubmitting = false;
+          return from(Promise.resolve(null)); // Return empty observable to complete the chain
+        }
+      }),
+      finalize(() => {
+        // Only set isSubmitting to false if document save wasn't called
+        // (saveDocument will handle its own isSubmitting state)
+        if (!(this.selectedOffice && this.selectedReservation && this.previewIframeHtml)) {
+          this.isSubmitting = false;
+        }
+      })
+    ).subscribe({
+      next: () => {
+        // Document upload completed if applicable
+        if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
+          this.toastr.success('Welcome letter and document saved successfully', 'Success');
+          this.isSubmitting = false;
+        }
+      },
+      error: (err) => {
+        console.error('Error saving welcome letter:', err);
+        this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         this.isSubmitting = false;
       }
-    } catch (err) {
-      console.error('Error saving welcome letter:', err);
-      this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-      this.isSubmitting = false;
-    }
+    });
   }
 
-  private async saveDocumentAndUpload(): Promise<void> {
+  saveDocument(): Observable<DocumentResponse> {
     if (!this.organization?.organizationId || !this.selectedOffice) {
       this.toastr.error('Organization or Office not available', CommonMessage.Error);
       this.isSubmitting = false;
-      return;
+      return from(Promise.reject(new Error('Organization or Office not available')));
     }
 
-    try {
-      // Generate PDF blob
-      const htmlWithStyles = this.getPdfHtmlWithStyles();
-      const pdfBlob = await this.documentExportService.generatePDFBlob(htmlWithStyles);
+    // Generate PDF blob (convert Promise to Observable)
+    const htmlWithStyles = this.getPdfHtmlWithStyles();
+    
+    return from(this.documentExportService.generatePDFBlob(htmlWithStyles)).pipe(
+      switchMap((pdfBlob: Blob) => {
+        // Generate filename
+        const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
+        const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}`;
+        const fileExtension = 'pdf';
+        const contentType = 'application/pdf';
 
-      // Generate filename
-      const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}`;
-      const fileExtension = 'pdf';
-      const contentType = 'application/pdf';
+        const documentRequest: DocumentRequest = {
+          organizationId: this.organization.organizationId,
+          officeId: this.selectedOffice.officeId,
+          documentType: DocumentType.PropertyLetter,
+          fileName: fileName,
+          fileExtension: fileExtension,
+          contentType: contentType,
+          documentPath: `documents/${this.organization.organizationId}/${fileName}.${fileExtension}`,
+          isDeleted: false
+        };
 
-      // Check if document already exists for this property/office/reservation
-      // For now, we'll create a new document each time (you may want to update this logic)
-      const documentRequest: DocumentRequest = {
-        organizationId: this.organization.organizationId,
-        officeId: this.selectedOffice.officeId,
-        documentType: DocumentType.PropertyLetter,
-        fileName: fileName,
-        fileExtension: fileExtension,
-        contentType: contentType,
-        documentPath: `documents/${this.organization.organizationId}/${fileName}.${fileExtension}`,
-        isDeleted: false
-      };
+        // Create the document, then upload the file
+        return this.documentService.createDocument(documentRequest).pipe(
+          take(1),
+          switchMap((documentResponse: DocumentResponse) => {
+            if (!documentResponse) {
+              throw new Error('Failed to create document');
+            }
 
-      // Create the document
-      const documentResponse = await this.documentService.createDocument(documentRequest).pipe(take(1)).toPromise();
-      
-      if (!documentResponse) {
-        throw new Error('Failed to create document');
-      }
+            // Upload the file
+            const formData = new FormData();
+            formData.append('file', pdfBlob, `${fileName}.${fileExtension}`);
+            formData.append('documentId', documentResponse.documentId);
 
-      // Upload the file
-      const formData = new FormData();
-      formData.append('file', pdfBlob, `${fileName}.${fileExtension}`);
-      formData.append('documentId', documentResponse.documentId);
-
-      await this.documentService.uploadDocument(formData).pipe(take(1)).toPromise();
-
-      this.toastr.success('Welcome letter and document saved successfully', 'Success');
-      this.isSubmitting = false;
-    } catch (err) {
-      console.error('Error saving document:', err);
-      this.toastr.error('Welcome letter HTML saved, but document upload failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-      this.isSubmitting = false;
-    }
+            return this.documentService.uploadDocument(formData).pipe(
+              take(1),
+              switchMap(() => {
+                // Return the document response after successful upload
+                return from(Promise.resolve(documentResponse));
+              })
+            );
+          })
+        );
+      })
+    );
   }
+
 
   // Form building function
   buildForm(): FormGroup {
@@ -267,36 +282,35 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
-  // Load property, reservations, and property letter data
-  loadPropertyData(next: () => void): void {
+  // Load Supporting Data Functions
+  loadPropertyData(): void {
     if (!this.propertyId) {
-      next();
+      this.removeLoadItem('property');
       return;
     }
 
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        next();
       },
       error: (err: HttpErrorResponse) => {
-        this.removeLoadItem('property');
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
       }
     });
   }
 
   loadContacts(): void {
-    this.contactService.getContacts().pipe(take(1)).subscribe({
+    this.contactService.getContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts || [];
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Welcome Letter Component - Error loading contacts:', err);
         this.contacts = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load contacts at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
@@ -304,16 +318,19 @@ export class PropertyWelcomeLetterComponent implements OnInit {
   loadBuildings(): void {
     const orgId = this.authService.getUser()?.organizationId;
     if (!orgId) {
+      this.removeLoadItem('buildings');
       return;
     }
 
-    this.buildingService.getBuildings().pipe(take(1)).subscribe({
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.removeLoadItem('buildings'); })).subscribe({
       next: (buildings: BuildingResponse[]) => {
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Welcome Letter Component - Error loading buildings:', err);
         this.buildings = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load buildings at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
@@ -330,25 +347,12 @@ export class PropertyWelcomeLetterComponent implements OnInit {
         this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Welcome Letter Component - Error loading offices:', err);
         this.offices = [];
         if (err.status !== 400) {
           this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('offices');
       }
     });
-  }
-
-  onOfficeSelected(officeId: number | null): void {
-    if (officeId) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.loadOfficeConfiguration(officeId);
-    } else {
-      this.selectedOffice = null;
-      this.officeConfiguration = null;
-    }
-    this.generatePreviewIframe();
   }
 
   loadOfficeConfiguration(officeId: number): void {
@@ -357,7 +361,6 @@ export class PropertyWelcomeLetterComponent implements OnInit {
         this.officeConfiguration = config;
       },
       error: (err: HttpErrorResponse) => {
-        console.error('Property Welcome Letter Component - Error loading office configuration:', err);
         this.officeConfiguration = null;
         if (err.status !== 400) {
           this.toastr.error('Could not load office configuration at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -366,7 +369,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
-  loadReservations(next: () => void): void {
+  loadReservations(): void {
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
         // Filter reservations by propertyId
@@ -379,41 +382,37 @@ export class PropertyWelcomeLetterComponent implements OnInit {
             return nameA.localeCompare(nameB);
           });
         }
-        next();
       },
       error: (err: HttpErrorResponse) => {
-        this.removeLoadItem('reservations');
         if (err.status !== 400) {
           this.toastr.error('Could not load reservations at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
       }
     });
   }
 
-
-  loadOrganizationSettings(next: () => void): void {
+  loadOrganizationSettings(): void {
     const orgId = this.authService.getUser()?.organizationId;
     if (!orgId) {
-      next();
+      this.removeLoadItem('organization');
       return;
     }
 
     this.organizationService.getOrganizationByGuid(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
-        next();
       },
-      error: () => {
-        this.removeLoadItem('organization');
-        next();
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load organization settings at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
   }
 
   loadPropertyLetterInformation(): void {
     if (!this.propertyId) {
-      this.isLoading = false;
+      this.removeLoadItem('propertyLetter');
       return;
     }
 
@@ -422,13 +421,25 @@ export class PropertyWelcomeLetterComponent implements OnInit {
         if (response) {
           this.propertyLetter = response;
         }
-        this.isLoading = false;
       },
-      error: (err) => {
-        this.removeLoadItem('propertyLetter');
-        this.isLoading = false;
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property letter information at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
       }
     });
+  }
+
+  // Form Response Functions
+  onOfficeSelected(officeId: number | null): void {
+    if (officeId) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.loadOfficeConfiguration(officeId);
+    } else {
+      this.selectedOffice = null;
+      this.officeConfiguration = null;
+    }
+    this.generatePreviewIframe();
   }
 
   onReservationSelected(reservationId: string | null): void {
@@ -479,6 +490,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     });
   }
 
+  // Form Replacement Functions
   replacePlaceholders(html: string): string {
     let result = html;
 
@@ -634,10 +646,8 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     return building?.name || null;
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 
+  // Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected and welcome letter exists
     if (!this.selectedOffice || !this.selectedReservation || !this.welcomeLetter?.welcomeLetter) {
@@ -667,39 +677,7 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     }
 
     // Store extracted styles separately (will be injected dynamically)
-    let consolidatedStyles = extractedStyles.join('\n\n');
-    
-    // Match preview dialog styling exactly
-    // Remove max-width constraint
-    consolidatedStyles = consolidatedStyles.replace(
-      /(body\s*\{[^}]*?)max-width:\s*[^;]+;?/gi,
-      '$1'
-    );
-    // Override body padding to match preview dialog: padding: 2rem 2rem 2rem 4rem
-    // Replace any existing padding with the preview dialog's padding
-    consolidatedStyles = consolidatedStyles.replace(
-      /(body\s*\{[^}]*?)padding:\s*[^;]+;?/gi,
-      '$1'
-    );
-    // Add the preview dialog's exact padding
-    consolidatedStyles = consolidatedStyles.replace(
-      /(body\s*\{)/gi,
-      '$1\n      padding: 2rem 2rem 2rem 4rem !important;'
-    );
-    
-    // Fix duplicate .label rules - extract font-weight from standalone .label rule and apply to combined rule
-    const standaloneLabelMatch = consolidatedStyles.match(/\.label\s*\{[^}]*font-weight:\s*(\d+)\s*!important[^}]*\}/i);
-    if (standaloneLabelMatch && (consolidatedStyles.includes('.label, .separator-label') || consolidatedStyles.includes('.label,.separator-label'))) {
-      const fontWeightValue = standaloneLabelMatch[1];
-      // Update the combined rule to use the same font-weight as the standalone rule
-      // Use a more precise regex that preserves all other properties including margins
-      consolidatedStyles = consolidatedStyles.replace(
-        /(\.label\s*,\s*\.separator-label\s*\{[^}]*?)(font-weight:\s*)\d+(\s*!important;?)([^}]*\})/gi,
-        `$1$2${fontWeightValue}$3$4`
-      );
-    }
-    
-    this.previewIframeStyles = consolidatedStyles;
+    this.previewIframeStyles = extractedStyles.join('\n\n');
 
     // Remove <style> tags from HTML (we'll inject them dynamically)
     processedHtml = processedHtml.replace(styleRegex, '');
@@ -776,26 +754,16 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     }
 
     this.isDownloading = true;
-    
     try {
-      // Get the HTML with print styles applied directly (for PDF generation)
       const htmlWithStyles = this.getPdfHtmlWithStyles();
-      
-      // Generate filename
-      const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `${this.selectedReservation?.reservationCode}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // Use the service to download PDF
-      await this.documentExportService.downloadPDF(
-        htmlWithStyles,
-        fileName
-      );
-      
+      await this.documentExportService.downloadPDF(htmlWithStyles, fileName);     
       this.isDownloading = false;
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      this.isDownloading = false;
-      this.toastr.error('Error generating PDF. Please try again.', 'Error');
+       this.isDownloading = false;
+       this.toastr.error('Error generating PDF. Please try again.', 'Error');
     }
   }
 
@@ -847,129 +815,36 @@ export class PropertyWelcomeLetterComponent implements OnInit {
     }
   }
 
-  private getPreviewHtmlWithStyles(): string {
-    // Extract body content from previewIframeHtml (it's already a complete HTML document)
-    // The previewIframeHtml already has the styles removed, so we need to add them back
-    let bodyContent = this.previewIframeHtml;
-    
-    // If it's a complete document, extract just the body content
-    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch && bodyMatch[1]) {
-      bodyContent = bodyMatch[1].trim();
-    } else {
-      // If it's not a complete document, it might already be just body content
-      // Remove any html/head tags if present
-      bodyContent = bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
-    }
-
-    // Add print-specific styles to fix print/PDF issues
-    const printStyles = `
-      /* Print and PDF specific styles */
-      @media print {
-        /* Ensure proper margins for printing - let text flow naturally to bottom */
-        /* @page applies to ALL pages, including second page and beyond */
-        @page {
-          size: letter;
-          margin: 0.75in;
-        }
-        
-        body {
-          margin: 0;
-          font-size: 11pt !important;
-          line-height: 1.4 !important;
-          padding: 0 !important;
-        }
-        
-        /* Logo positioning for print - ensure it's at the top */
-        /* No padding/margin at top - logo starts at page margin */
-        .header {
-          position: relative !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-          margin-top: 0 !important;
-          padding-top: 0 !important;
-          margin-bottom: 1rem !important;
-        }
-        
-        /* Ensure content on subsequent pages starts at the top margin */
-        .content {
-          margin-top: 0 !important;
-        }
-        
-        .logo {
-          position: relative !important;
-          top: auto !important;
-          left: auto !important;
-          max-height: 100px !important;
-          max-width: 200px !important;
-          display: block !important;
-          margin-bottom: 1rem !important;
-        }
-        
-        /* Adjust content margin for print - remove the large top margin since logo is now relative */
-        .content {
-          margin-top: 0 !important;
-        }
-        
-        /* Adjust heading sizes for print */
-        h1 {
-          font-size: 18pt !important;
-        }
-        
-        h2 {
-          font-size: 14pt !important;
-        }
-        
-        h3 {
-          font-size: 12pt !important;
-        }
-        
-        /* Adjust paragraph spacing for print */
-        p {
-          margin: 0.3em 0 !important;
-        }
-        
-        /* Prevent widows and orphans - but allow natural page breaks */
-        p, li {
-          orphans: 2;
-          widows: 2;
-        }
-      }
-      
-    `;
-
-    // Combine the HTML with the styles to create a complete document
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-${this.previewIframeStyles}
-${printStyles}
-  </style>
-</head>
-<body>
-${bodyContent}
-</body>
-</html>`;
+  // HTML Generation Functions
+  getPreviewHtmlWithStyles(): string {
+    const bodyContent = this.extractBodyContent();
+    const printStyles = this.getPrintStyles(true);
+    return this.buildHtmlDocument(bodyContent, printStyles);
   }
 
-  private getPdfHtmlWithStyles(): string {
-    // Extract body content from previewIframeHtml
+  getPdfHtmlWithStyles(): string {
+    const bodyContent = this.extractBodyContent();
+    const pdfStyles = this.getPrintStyles(false);
+    return this.buildHtmlDocument(bodyContent, pdfStyles);
+  }
+
+  extractBodyContent(): string {
     let bodyContent = this.previewIframeHtml;
-    
     const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch && bodyMatch[1]) {
-      bodyContent = bodyMatch[1].trim();
-    } else {
-      bodyContent = bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+      return bodyMatch[1].trim();
     }
+    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+  }
 
-    // Apply print styles directly (not in media query) for PDF generation
-    // PDF generators often don't respect @media print, so we apply styles directly
-    const pdfStyles = `
-      /* PDF styles - applied directly to match print output exactly */
+  getPrintStyles(wrapInMediaQuery: boolean): string {
+    const styles = `
+      @page {
+        size: letter;
+        margin: 0.75in;
+        margin-bottom: 1in;
+      }
+      
       body {
         font-size: 11pt !important;
         line-height: 1.4 !important;
@@ -977,14 +852,6 @@ ${bodyContent}
         margin: 0 !important;
       }
       
-      /* Page margins for PDF */
-      @page {
-        size: letter;
-        margin: 0.75in;
-      }
-      
-      /* Logo positioning for PDF - ensure it's at the top */
-      /* No padding/margin at top - logo starts at page margin */
       .header {
         position: relative !important;
         page-break-inside: avoid !important;
@@ -1004,12 +871,10 @@ ${bodyContent}
         margin-bottom: 1rem !important;
       }
       
-      /* Adjust content margin for PDF - remove the large top margin since logo is now relative */
       .content {
         margin-top: 0 !important;
       }
       
-      /* Adjust heading sizes for PDF */
       h1 {
         font-size: 18pt !important;
       }
@@ -1022,32 +887,48 @@ ${bodyContent}
         font-size: 12pt !important;
       }
       
-      /* Adjust paragraph spacing for PDF */
       p {
         margin: 0.3em 0 !important;
       }
       
-      /* Prevent widows and orphans - but allow natural page breaks */
       p, li {
         orphans: 2;
         widows: 2;
       }
     `;
-
-    // Combine the HTML with the styles to create a complete document for PDF
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-${this.previewIframeStyles}
-${pdfStyles}
-  </style>
-</head>
-<body>
-${bodyContent}
-</body>
-</html>`;
+    
+    return wrapInMediaQuery ? `@media print {${styles}}` : styles;
   }
+
+  buildHtmlDocument(bodyContent: string, additionalStyles: string): string {
+    return `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+      ${this.previewIframeStyles}
+      ${additionalStyles}
+        </style>
+      </head>
+      <body>
+      ${bodyContent}
+      </body>
+      </html>`;
+  }
+
+  // Utility Functions
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
 }
