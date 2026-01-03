@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -11,7 +11,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, forkJoin } from 'rxjs';
+import { take, finalize, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -25,21 +25,23 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class UserListComponent implements OnInit {
+export class UserListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  allUsers: UserListDisplay[] = [];
+  usersDisplay: UserListDisplay[] = [];
 
   usersDisplayedColumns: ColumnSet = {
-    'organizationName': { displayAs: 'Organization', maxWidth: '30ch' },
-    'fullName': { displayAs: 'Full Name', maxWidth: '30ch' },
-    'email': { displayAs: 'Email', maxWidth: '35ch' },
-    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '35ch'},
+    'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
+    'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
+    'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
-  private allUsers: UserListDisplay[] = [];
-  usersDisplay: UserListDisplay[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public userService: UserService,
@@ -49,7 +51,6 @@ export class UserListComponent implements OnInit {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService) {
-      this.itemsToLoad.push('users');
   }
 
   ngOnInit(): void {
@@ -66,7 +67,10 @@ export class UserListComponent implements OnInit {
       organizations: this.organizationService.getOrganizations().pipe(take(1))
     }).pipe(
       take(1),
-      finalize(() => { this.removeLoadItem('users') })
+      finalize(() => {
+        this.removeLoadItem('users');
+        this.removeLoadItem('organizations');
+      })
     ).subscribe({
       next: ({ users, organizations }) => {
         // Create lookup map for organizations
@@ -102,6 +106,8 @@ export class UserListComponent implements OnInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Users', CommonMessage.ServiceError);
         }
+        this.removeLoadItem('users');
+        this.removeLoadItem('organizations');
       }
     });
   }
@@ -123,7 +129,10 @@ export class UserListComponent implements OnInit {
       });
     }
   }
-
+  
+  goToUser(event: UserListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+  }
 
   // Utility Methods
   applyFilters(): void {
@@ -131,16 +140,24 @@ export class UserListComponent implements OnInit {
       ? this.allUsers
       : this.allUsers.filter(user => user.isActive);
   }
+
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
 
-  goToUser(event: UserListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
   }
-    removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

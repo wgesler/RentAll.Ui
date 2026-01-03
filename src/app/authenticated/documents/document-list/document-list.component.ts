@@ -1,4 +1,4 @@
-import { OnInit, Component } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -25,11 +25,14 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class DocumentListComponent implements OnInit {
+export class DocumentListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   showDeleted: boolean = false;
+  allDocuments: DocumentListDisplay[] = [];
+  documentsDisplay: DocumentListDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  organizationId: string = '';
 
   documentsDisplayedColumns: ColumnSet = {
     'fileName': { displayAs: 'File Name', maxWidth: '30ch', sortType: 'natural' },
@@ -39,10 +42,8 @@ export class DocumentListComponent implements OnInit {
     'isDeleted': { displayAs: 'Is Deleted', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
   
-  private allDocuments: DocumentListDisplay[] = [];
-  documentsDisplay: DocumentListDisplay[] = [];
-  private offices: OfficeResponse[] = [];
-  organizationId: string = '';
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['documents', 'offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public documentService: DocumentService,
@@ -53,8 +54,6 @@ export class DocumentListComponent implements OnInit {
     private authService: AuthService,
     private officeService: OfficeService
   ) {
-    this.itemsToLoad.push('documents');
-    this.itemsToLoad.push('offices');
   }
 
   ngOnInit(): void {
@@ -62,28 +61,11 @@ export class DocumentListComponent implements OnInit {
     const user = this.authService.getUser();
     this.organizationId = user?.organizationId || '';
 
-    // Load offices first, then load documents
+    // Load offices and documents in parallel
     this.loadOffices();
+    this.getDocuments();
   }
 
-  loadOffices(): void {
-    this.officeService.getOffices().pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('offices') })
-    ).subscribe({
-      next: (offices) => {
-        this.offices = offices || [];
-        // After offices are loaded, get documents for the organization
-        this.getDocuments();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        console.error('Document List Component - Error loading offices:', err);
-        // Still try to load documents even if offices fail
-        this.getDocuments();
-      }
-    });
-  }
 
   addDocument(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, ['new']));
@@ -98,7 +80,7 @@ export class DocumentListComponent implements OnInit {
 
     this.documentService.getDocumentsByOrganization(this.organizationId).pipe(
       take(1), 
-      finalize(() => { this.removeLoadItem('documents') })
+      finalize(() => { this.removeLoadItem('documents'); })
     ).subscribe({
       next: (documents) => {
         this.allDocuments = documents.map(doc => this.mapToDisplay(doc));
@@ -107,8 +89,9 @@ export class DocumentListComponent implements OnInit {
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status !== 400) {
-          this.toastr.error('Could not load Documents', CommonMessage.ServiceError);
+          this.toastr.error('Could not load Documents. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('documents');
       }
     });
   }
@@ -131,6 +114,10 @@ export class DocumentListComponent implements OnInit {
     }
   }
 
+  goToDocument(event: DocumentListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId]));
+  }
+  
   downloadDocument(doc: DocumentListDisplay): void {
     this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
       next: (blob: Blob) => {
@@ -148,9 +135,23 @@ export class DocumentListComponent implements OnInit {
     });
   }
 
-  // Routing methods
-  goToDocument(event: DocumentListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId]));
+  // Data Loading Methods
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(
+      take(1),
+      finalize(() => { this.removeLoadItem('offices'); })
+    ).subscribe({
+      next: (offices) => {
+        this.offices = offices || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('offices');
+      }
+    });
   }
 
   // Filter methods
@@ -165,16 +166,25 @@ export class DocumentListComponent implements OnInit {
       : this.allDocuments.filter(doc => !doc.isDeleted);
   }
 
-  // Utility methods
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
-
-  private mapToDisplay(doc: DocumentResponse): DocumentListDisplay {
+  // Utility Methods
+  mapToDisplay(doc: DocumentResponse): DocumentListDisplay {
     return {
       ...doc,
       documentTypeName: DocumentType[doc.documentType] || 'Unknown'
     };
+  }
+  
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
   }
 }
 

@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, Router } from '@angular/router';
-import { take, finalize } from 'rxjs';
+import { BehaviorSubject, Observable, map, take, finalize } from 'rxjs';
 import { DocumentService } from '../services/document.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -26,17 +26,17 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
   templateUrl: './document.component.html',
   styleUrls: ['./document.component.scss']
 })
-export class DocumentComponent implements OnInit {
-  itemsToLoad: string[] = [];
+export class DocumentComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   documentId: string;
   document: DocumentResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   selectedFile: File | null = null;
   filePreview: string | null = null;
+  offices: OfficeResponse[] = [];
+  organizationId: string = '';
 
   documentTypes: { value: DocumentType, label: string }[] = [
     { value: DocumentType.Unknown, label: 'Unknown' },
@@ -44,8 +44,8 @@ export class DocumentComponent implements OnInit {
     { value: DocumentType.ReservationLease, label: 'Reservation Lease' }
   ];
 
-  offices: OfficeResponse[] = [];
-  organizationId: string = '';
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public documentService: DocumentService,
@@ -56,7 +56,6 @@ export class DocumentComponent implements OnInit {
     private authService: AuthService,
     private officeService: OfficeService
   ) {
-    this.itemsToLoad.push('document');
   }
 
   ngOnInit(): void {
@@ -71,23 +70,14 @@ export class DocumentComponent implements OnInit {
       if (id && id !== 'new') {
         this.documentId = id;
         this.isAddMode = false;
+        const currentSet = this.itemsToLoad$.value;
+        const newSet = new Set(currentSet);
+        newSet.add('document');
+        this.itemsToLoad$.next(newSet);
         this.loadDocument();
       } else {
         this.isAddMode = true;
         this.buildForm();
-        this.removeLoadItem('document');
-      }
-    });
-  }
-
-  loadOffices(): void {
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices) => {
-        this.offices = offices || [];
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Error loading offices:', err);
-        this.offices = [];
       }
     });
   }
@@ -95,7 +85,7 @@ export class DocumentComponent implements OnInit {
   loadDocument(): void {
     this.documentService.getDocumentByGuid(this.documentId).pipe(
       take(1),
-      finalize(() => { this.removeLoadItem('document') })
+      finalize(() => { this.removeLoadItem('document'); })
     ).subscribe({
       next: (document) => {
         this.document = document;
@@ -103,71 +93,13 @@ export class DocumentComponent implements OnInit {
         this.patchFormFromResponse(document);
       },
       error: (err: HttpErrorResponse) => {
-        this.isLoadError = true;
         this.isServiceError = true;
         if (err.status !== 400) {
-          this.toastr.error('Could not load Document', CommonMessage.ServiceError);
+          this.toastr.error('Could not load Document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('document');
       }
     });
-  }
-
-  buildForm(): void {
-    this.form = this.fb.group({
-      documentId: new FormControl(''),
-      organizationId: new FormControl(this.organizationId, [Validators.required]),
-      officeId: new FormControl<number | null>(null),
-      documentType: new FormControl<DocumentType>(DocumentType.Unknown, [Validators.required]),
-      fileName: new FormControl('', [Validators.required]),
-      fileExtension: new FormControl('', [Validators.required]),
-      contentType: new FormControl('', [Validators.required]),
-      documentPath: new FormControl('', [Validators.required]),
-      isDeleted: new FormControl(false)
-    });
-  }
-
-  patchFormFromResponse(document: DocumentResponse): void {
-    if (!this.form) return;
-
-    this.form.patchValue({
-      documentId: document.documentId,
-      organizationId: document.organizationId,
-      officeId: document.officeId,
-      documentType: document.documentType,
-      fileName: document.fileName,
-      fileExtension: document.fileExtension,
-      contentType: document.contentType,
-      documentPath: document.documentPath,
-      isDeleted: document.isDeleted
-    });
-  }
-
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.selectedFile = input.files[0];
-      const fileName = this.selectedFile.name;
-      const fileExtension = fileName.split('.').pop() || '';
-      const contentType = this.selectedFile.type;
-
-      // Update form with file information
-      this.form.patchValue({
-        fileName: fileName.replace('.' + fileExtension, ''),
-        fileExtension: fileExtension,
-        contentType: contentType
-      });
-
-      // Create preview for images
-      if (this.selectedFile.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          this.filePreview = e.target?.result as string;
-        };
-        reader.readAsDataURL(this.selectedFile);
-      } else {
-        this.filePreview = null;
-      }
-    }
   }
 
   saveDocument(): void {
@@ -224,6 +156,82 @@ export class DocumentComponent implements OnInit {
     });
   }
 
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+      const fileName = this.selectedFile.name;
+      const fileExtension = fileName.split('.').pop() || '';
+      const contentType = this.selectedFile.type;
+
+      // Update form with file information
+      this.form.patchValue({
+        fileName: fileName.replace('.' + fileExtension, ''),
+        fileExtension: fileExtension,
+        contentType: contentType
+      });
+
+      // Create preview for images
+      if (this.selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.filePreview = e.target?.result as string;
+        };
+        reader.readAsDataURL(this.selectedFile);
+      } else {
+        this.filePreview = null;
+      }
+    }
+  }
+
+  // Data Loading Methods
+  loadOffices(): void {
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices) => {
+        this.offices = offices || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('offices');
+      }
+    });
+  }
+
+  // Form Methods
+  buildForm(): void {
+    this.form = this.fb.group({
+      documentId: new FormControl(''),
+      organizationId: new FormControl(this.organizationId, [Validators.required]),
+      officeId: new FormControl<number | null>(null),
+      documentType: new FormControl<DocumentType>(DocumentType.Unknown, [Validators.required]),
+      fileName: new FormControl('', [Validators.required]),
+      fileExtension: new FormControl('', [Validators.required]),
+      contentType: new FormControl('', [Validators.required]),
+      documentPath: new FormControl('', [Validators.required]),
+      isDeleted: new FormControl(false)
+    });
+  }
+
+  patchFormFromResponse(document: DocumentResponse): void {
+    if (!this.form) return;
+
+    this.form.patchValue({
+      documentId: document.documentId,
+      organizationId: document.organizationId,
+      officeId: document.officeId,
+      documentType: document.documentType,
+      fileName: document.fileName,
+      fileExtension: document.fileExtension,
+      contentType: document.contentType,
+      documentPath: document.documentPath,
+      isDeleted: document.isDeleted
+    });
+  }
+
+  // File Request Methods
   uploadFile(documentId: string): void {
     if (!this.selectedFile) {
       this.back();
@@ -265,12 +273,22 @@ export class DocumentComponent implements OnInit {
     });
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.DocumentList);
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  }
+
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.DocumentList);
   }
 }
 

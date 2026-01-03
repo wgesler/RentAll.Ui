@@ -47,15 +47,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initializeOrganizationList();
     this.loadContacts();
 
-    // Initialize user's organization when logged in
-    if (this.authService.getIsLoggedIn()) {
-      this.commonService.loadOrganization();
-    }
-
     // Watch for login changes and re-initialize organization list and contacts
     this.authService.getIsLoggedIn$().subscribe(isLoggedIn => {
       if (isLoggedIn) {
-        this.commonService.loadOrganization();
         this.initializeOrganizationList();
         this.loadContacts();
       } else {
@@ -148,11 +142,22 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       });
     } else {
-      // Regular user: No need to load organization list (they only have one org, loaded via commonService.loadOrganization())
-      this.removeLoadItem('organizations');
+      // Regular user: Load and add their single organization to the list
+      this.commonService.loadOrganization();
+      this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => { this.removeLoadItem('organizations'); })).subscribe({
+        next: (organization) => {
+          if (organization) {
+            this.organizationListService.setOrganizations([organization]);
+          }
+        },
+        error: () => {
+          this.removeLoadItem('organizations');
+        }
+      });
     }
   }
 
+  // Utiltity Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {

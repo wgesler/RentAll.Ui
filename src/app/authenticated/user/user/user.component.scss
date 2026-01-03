@@ -1,61 +1,13 @@
-// Reduce font size in form fields
-::ng-deep .mat-mdc-form-field {
-  .mat-mdc-text-field-wrapper {
-    .mat-mdc-form-field-input-control {
-      input, textarea, .mat-mdc-select-value {
-        font-size: 14px;
-      }
-    }
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
   }
 }
-
-// Alternative approach - target all inputs in form fields
-::ng-deep mat-form-field {
-  input.mat-mdc-input-element,
-  textarea.mat-mdc-input-element,
-  .mat-mdc-select-value {
-    font-size: 14px;
-  }
-}
-
-// Make form fields narrower with reduced padding and height
-::ng-deep .mat-mdc-form-field {
-  width: 100%;
-  
-  .mat-mdc-text-field-wrapper {
-    padding: 0 8px !important; // Reduce horizontal padding
-    min-height: 48px !important; // Moderate height reduction
-    
-    .mat-mdc-form-field-flex {
-      padding: 0 !important;
-      min-height: 48px !important; // Moderate flex container height
-    }
-    
-    .mat-mdc-form-field-input-control {
-      padding: 0 4px !important; // Reduce input padding
-      
-      input, textarea, .mat-mdc-select-value {
-        padding: 10px 0 !important; // Moderate vertical padding
-        line-height: 1.4 !important; // Moderate line height
-      }
-    }
-  }
-  
-  .mat-mdc-form-field-subscript-wrapper {
-    padding: 0 8px !important; // Reduce error message padding
-    margin-top: 4px !important; // Moderate space above error message
-    min-height: 20px !important; // Ensure consistent height for error messages
-    display: flex !important;
-    align-items: center !important; // Center error text vertically
-  }
-  
-  .mat-mdc-form-field-infix {
-    min-height: 48px !important; // Moderate infix height
-    padding: 10px 0 !important; // Moderate vertical padding
-  }
-}
-
-mat-chip {
-  cursor: default;
-}
-

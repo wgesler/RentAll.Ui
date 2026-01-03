@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, Subscription } from 'rxjs';
+import { take, finalize, Subscription, BehaviorSubject, Observable, map } from 'rxjs';
 import { UserService } from '../services/user.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -23,19 +23,20 @@ import { OrganizationResponse } from '../../organization/models/organization.mod
 })
 
 export class UserComponent implements OnInit, OnDestroy {
-  itemsToLoad: string[] = [];
   isServiceError: boolean = false;
   userId: string;
   user: UserResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
-  isLoadError: boolean = false;
   isAddMode: boolean = false;
   hidePassword: boolean = true;
   hideConfirmPassword: boolean = true;
   availableUserGroups: { value: string, label: string }[] = [];
   organizations: OrganizationResponse[] = [];
-  private organizationsSubscription: Subscription;
+  organizationsSubscription: Subscription;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['user']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public userService: UserService,
@@ -45,12 +46,11 @@ export class UserComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private organizationListService: OrganizationListService
   ) {
-    this.itemsToLoad.push('user');
   }
 
   ngOnInit(): void {
     this.initializeUserGroups();
-    this.subscribeToOrganizations();
+    this.loadOrganizations();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.userId = paramMap.get('id');
@@ -70,46 +70,8 @@ export class UserComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    if (this.organizationsSubscription) {
-      this.organizationsSubscription.unsubscribe();
-    }
-  }
-
-  subscribeToOrganizations(): void {
-    this.organizationsSubscription = this.organizationListService.getOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations = organizations || [];
-      },
-      error: (err) => {
-        console.error('Error subscribing to organizations:', err);
-      }
-    });
-  }
-
-  initializeUserGroups(): void {
-    // Build availableUserGroups from the UserGroups enum
-    // Exclude Unknown (0) from the list
-    this.availableUserGroups = Object.keys(UserGroups)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
-      .map(key => ({
-        value: key,
-        label: this.formatUserGroupLabel(key)
-      }));
-  }
-
-  formatUserGroupLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    // e.g., "SuperAdmin" -> "Super Admin", "PropertyManager" -> "Property Manager"
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
   getUser(): void {
-    this.userService.getUserByGuid(this.userId).pipe(take(1),finalize(() => { this.removeLoadItem('user') })).subscribe({
+    this.userService.getUserByGuid(this.userId).pipe(take(1), finalize(() => { this.removeLoadItem('user'); })).subscribe({
       next: (response: UserResponse) => {
         this.user = response;
         this.buildForm();
@@ -121,6 +83,7 @@ export class UserComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load user info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
+        this.removeLoadItem('user');
       }
     });
   }
@@ -150,7 +113,6 @@ export class UserComponent implements OnInit, OnDestroy {
           this.router.navigateByUrl(RouterUrl.UserList);
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Create user request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
@@ -164,13 +126,41 @@ export class UserComponent implements OnInit, OnDestroy {
           this.router.navigateByUrl(RouterUrl.UserList);
         },
         error: (err: HttpErrorResponse) => {
-          this.isLoadError = true;
           if (err.status !== 400) {
             this.toastr.error('Update user request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
         }
       });
     }
+  }
+
+  // Data Loading Methods
+  loadOrganizations(): void {
+    this.organizationsSubscription = this.organizationListService.getOrganizations().subscribe({
+      next: (organizations) => {
+        this.organizations = organizations || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        // Organizations are handled globally, just handle gracefully
+      }
+    });
+  }
+
+  initializeUserGroups(): void {
+    this.availableUserGroups = Object.keys(UserGroups)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
+      .map(key => ({
+        value: key,
+        label: this.formatUserGroupLabel(key)
+      }));
+  }
+
+  formatUserGroupLabel(enumKey: string): string {
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
   // Form methods
@@ -246,7 +236,7 @@ export class UserComponent implements OnInit, OnDestroy {
      }
   }
 
-  // User Group helpers
+  // User Group Helpers
   userGroupsRequiredValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
     if (!value || !Array.isArray(value) || value.length === 0) {
@@ -268,7 +258,7 @@ export class UserComponent implements OnInit, OnDestroy {
     return this.availableUserGroups.map(g => g.value);
   }
 
-  // Password helpers
+  // Password Helpers
   setupPasswordValidation(): void {
     // Re-validate confirmPassword when password changes (real-time validation)
     this.form.get('password')?.valueChanges.subscribe(() => {
@@ -388,13 +378,26 @@ export class UserComponent implements OnInit, OnDestroy {
     return passwordControl.invalid && (passwordControl.touched || passwordControl.value);
   }
 
-  // Utility helpers
+  // Utility Methods
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+  
+  ngOnDestroy(): void {
+    if (this.organizationsSubscription) {
+      this.organizationsSubscription.unsubscribe();
+    }
+    this.itemsToLoad$.complete();
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.UserList);
   }
 
-  removeLoadItem(itemToRemove: string): void {
-    this.itemsToLoad = this.itemsToLoad.filter(item => item !== itemToRemove);
-  }
 }
 
