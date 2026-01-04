@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -12,9 +12,9 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
+import { ReservationLeaseRequest, ReservationLeaseResponse } from '../models/lease.model';
 import { ReservationLeaseService } from '../services/reservation-lease.service';
-import { ReservationLeaseRequest, ReservationLeaseResponse } from '../models/reservation-lease.model';
-import { ReservationLeaseInformationService } from '../services/reservation-lease-information.service';
+import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
@@ -33,13 +33,13 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 
 @Component({
-  selector: 'app-reservation-lease',
+  selector: 'app-lease',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './reservation-lease.component.html',
-  styleUrl: './reservation-lease.component.scss'
+  templateUrl: './lease.component.html',
+  styleUrl: './lease.component.scss'
 })
-export class ReservationLeaseComponent implements OnInit, OnDestroy {
+export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;
   
   isSubmitting: boolean = false;
@@ -56,17 +56,18 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
   officeConfiguration: OfficeConfigurationResponse | null = null;
   organizationName: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'contact', 'company', 'leaseInformation', 'offices', 'office']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private hasInitialized: boolean = false;
 
   constructor(
+     private reservationService: ReservationService,
     private reservationLeaseService: ReservationLeaseService,
-    private reservationService: ReservationService,
     private propertyService: PropertyService,
     private contactService: ContactService,
     private companyService: CompanyService,
     private commonService: CommonService,
-    private leaseInformationService: ReservationLeaseInformationService,
+    private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
     private officeConfigurationService: OfficeConfigurationService,
     private authService: AuthService,
@@ -81,6 +82,45 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadOffices();
+    this.initializeReservationData();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Handle reservationId changes after initialization
+    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
+      const previousValue = changes['reservationId'].previousValue;
+      const currentValue = changes['reservationId'].currentValue;
+      
+      // Only reload if reservationId changed from null/undefined to a value, or changed to a different value
+      if (currentValue && currentValue !== previousValue) {
+        // Reset initialization flag to allow reload
+        this.hasInitialized = false;
+        // Clear existing data
+        this.reservation = null;
+        this.lease = null;
+        this.property = null;
+        this.contact = null;
+        this.company = null;
+        this.leaseInformation = null;
+        this.office = null;
+        this.officeConfiguration = null;
+        // Reset loading state
+        this.itemsToLoad$.next(new Set(['reservation']));
+        // Reload data
+        this.initializeReservationData();
+      } else if (!currentValue && previousValue) {
+        // reservationId was cleared
+        this.hasInitialized = false;
+        this.clearData();
+      }
+    }
+  }
+
+  private initializeReservationData(): void {
+    // Prevent duplicate initialization
+    if (this.hasInitialized) {
+      return;
+    }
     
     if (!this.reservationId) {
       // Remove all items if no reservationId
@@ -90,8 +130,11 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
       this.removeLoadItem('company');
       this.removeLoadItem('leaseInformation');
       this.removeLoadItem('office');
+      this.hasInitialized = true;
       return;
     }
+    
+    this.hasInitialized = true;
     
     // Load reservation first, then load related data using RxJS operators
     this.reservationService.getReservationByGuid(this.reservationId).pipe(
@@ -114,8 +157,8 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
           : of(null);
         
         const organization$ = this.commonService.getOrganization().pipe(
-          take(1),
-          switchMap(org => org ? of(org) : of(null))
+          filter(org => org !== null),
+          take(1)
         );
         
         const leaseInformation$ = reservation.propertyId
@@ -142,7 +185,12 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
           contact: contact$,
           organization: organization$,
           leaseInformation: leaseInformation$
-        });
+        }) as Observable<{
+          property: PropertyResponse | null;
+          contact: ContactResponse | null;
+          organization: OrganizationResponse | null;
+          leaseInformation: LeaseInformationResponse | null;
+        }>;
       }),
       switchMap(({ property, contact, organization, leaseInformation }) => {
         this.property = property;
@@ -414,7 +462,7 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOrganizationSettings(next: () => void): void {
+  loadOrganization(next: () => void): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
@@ -497,7 +545,6 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
       })
     );
   }
-
 
   // Field Replacement Helpers
   getCommunityAddress(): string {
@@ -1574,7 +1621,29 @@ export class ReservationLeaseComponent implements OnInit, OnDestroy {
     }
   }
 
+  private clearData(): void {
+    this.reservation = null;
+    this.lease = null;
+    this.property = null;
+    this.contact = null;
+    this.company = null;
+    this.leaseInformation = null;
+    this.office = null;
+    this.officeConfiguration = null;
+    this.form.patchValue({
+      lease: '',
+      officeId: null
+    });
+    this.removeLoadItem('reservation');
+    this.removeLoadItem('property');
+    this.removeLoadItem('contact');
+    this.removeLoadItem('company');
+    this.removeLoadItem('leaseInformation');
+    this.removeLoadItem('office');
+  }
+
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
 }
+

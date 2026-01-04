@@ -17,7 +17,7 @@ import { ContactResponse } from '../../contact/models/contact.model';
 import { ColorService } from '../../organization-configuration/color/services/color.service';
 import { ColorResponse } from '../../organization-configuration/color/models/color.model';
 import { AuthService } from '../../../services/auth.service';
-import { PropertySelectionResponse } from '../models/reservation-selection-model';
+import { PropertySelectionResponse } from '../../property/models/property-selection.model';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';

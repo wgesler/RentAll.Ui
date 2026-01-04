@@ -3,7 +3,7 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
-import { ReservationLeaseInformationService } from '../services/reservation-lease-information.service';
+import { LeaseInformationService } from '../services/lease-information.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -11,13 +11,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { finalize, take, BehaviorSubject, Observable, map } from 'rxjs';
 
 @Component({
-  selector: 'app-reservation-lease-information',
+  selector: 'app-lease-information',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './reservation-lease-information.component.html',
-  styleUrl: './reservation-lease-information.component.scss'
+  templateUrl: './lease-information.component.html',
+  styleUrl: './lease-information.component.scss'
 })
-export class ReservationLeaseInformationComponent implements OnInit, OnDestroy {
+export class LeaseInformationComponent implements OnInit, OnDestroy {
   @Input() reservationId: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() contactId: string | null = null;
@@ -30,7 +30,7 @@ export class ReservationLeaseInformationComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private leaseInformationService: ReservationLeaseInformationService,
+    private leaseInformationService: LeaseInformationService,
     private authService: AuthService,
     private toastr: ToastrService
   ) {

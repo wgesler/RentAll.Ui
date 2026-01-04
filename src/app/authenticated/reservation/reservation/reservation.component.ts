@@ -28,13 +28,13 @@ import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enum
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
-import { ReservationLeaseComponent } from '../reservation-lease/reservation-lease.component';
-import { ReservationLeaseInformationComponent } from '../reservation-lease-information/reservation-lease-information.component';
+import { LeaseComponent } from '../lease/lease.component';
+import { LeaseInformationComponent } from '../lease-information/lease-information.component';
 
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ReservationLeaseComponent, ReservationLeaseInformationComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })
@@ -126,8 +126,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   getReservation(): void {
-    this.reservationService.getReservationByGuid(this.reservationId).pipe(
-      take(1), finalize(() => { this.removeLoadItem('reservation'); }) ).subscribe({
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); }) ).subscribe({
       next: (response: ReservationResponse) => {
         this.reservation = response;
         this.buildForm();

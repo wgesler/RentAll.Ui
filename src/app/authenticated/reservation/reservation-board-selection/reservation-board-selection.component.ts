@@ -6,7 +6,7 @@ import { RouterUrl } from '../../../app.routes';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
 import { AuthService } from '../../../services/auth.service';
-import { PropertySelectionRequest, PropertySelectionResponse } from '../models/reservation-selection-model';
+import { PropertySelectionRequest, PropertySelectionResponse } from '../../property/models/property-selection.model';
 import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';

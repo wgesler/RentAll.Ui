@@ -451,15 +451,15 @@
           </mat-tab>
           
           <mat-tab label="Lease Information">
-            <app-reservation-lease-information 
+            <app-lease-information 
               [reservationId]="isAddMode ? null : reservationId"
               [propertyId]="reservation?.propertyId || form.get('propertyId')?.value || null"
               [contactId]="reservation?.contactId || form.get('contactId')?.value || null">
-            </app-reservation-lease-information>
+            </app-lease-information>
           </mat-tab>
           
           <mat-tab label="Lease">
-            <app-reservation-lease [reservationId]="isAddMode ? null : reservationId"></app-reservation-lease>
+            <app-lease [reservationId]="isAddMode ? null : reservationId"></app-lease>
           </mat-tab>
         </mat-tab-group>
       </mat-card>

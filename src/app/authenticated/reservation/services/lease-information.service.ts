@@ -7,7 +7,7 @@ import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lea
 @Injectable({
     providedIn: 'root'
 })
-export class ReservationLeaseInformationService {
+export class LeaseInformationService {
   
   private readonly controller = this.configService.config().apiUrl + 'leaseinformation/';
 

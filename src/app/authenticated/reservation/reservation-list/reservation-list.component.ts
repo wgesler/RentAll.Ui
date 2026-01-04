@@ -36,10 +36,10 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   properties: PropertyResponse[] = [];
 
   reservationsDisplayedColumns: ColumnSet = {
-    'reservationCode': { displayAs: 'Reservation Code', maxWidth: '20ch', sortType: 'natural' },
-    'propertyCode': { displayAs: 'Property Code', maxWidth: '20ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
-    'contactName': { displayAs: 'Contact', maxWidth: '30ch' },
+    'contactName': { displayAs: 'Contact', maxWidth: '25ch' },
     'arrivalDate': { displayAs: 'Arrival Date', maxWidth: '20ch' },
     'departureDate': { displayAs: 'Departure Date', maxWidth: '20ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
