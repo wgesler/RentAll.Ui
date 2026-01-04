@@ -41,7 +41,7 @@ import { EMPTY_GUID } from '../../../shared/models/constants';
   styleUrls: ['./property-welcome-letter.component.scss']
 })
 export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
-  @Input() propertyId: string | null = null;
+  @Input() propertyId: string;
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -85,23 +85,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Load offices on startup
     this.loadOffices();
-    
-    if (!this.propertyId) {
-      // Clear all loading items if no propertyId
-      const currentSet = this.itemsToLoad$.value;
-      currentSet.forEach(item => this.removeLoadItem(item));
-      return;
-    }
-    
-    // Load all data independently in parallel (no dependencies)
     this.loadContacts();
     this.loadBuildings();
     this.loadReservations();
     this.loadPropertyLetterInformation();
-    this.loadOrganizationSettings();
-    this.loadPropertyData();
+    this.loadOrganization();
+    this.loadProperty();
     this.getWelcomeLetter();
   }
 
@@ -277,7 +267,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   // Data Loading Methods
-  loadPropertyData(): void {
+  loadProperty(): void {
     if (!this.propertyId) {
       this.removeLoadItem('property');
       return;
@@ -386,14 +376,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOrganizationSettings(): void {
+  loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
-          this.toastr.error('Could not load organization settings at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.removeLoadItem('organization');
       }
@@ -443,11 +433,19 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   // Form Replacement Functions
+  getOrganizationName(): string {
+    if (!this.organization) return '';
+    if (this.selectedOffice) {
+      return this.organization.name + ' ' + this.selectedOffice.name;
+    }
+    return this.organization.name;
+  }
+
   replacePlaceholders(html: string): string {
     let result = html;
 
     if (this.organization) {    
-      result = result.replace(/\{\{organizationName\}\}/g, this.organization?.name || '');
+      result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
     }
 
     // Replace reservation placeholders
@@ -692,9 +690,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       if (iframeDoc.body) {
         iframeDoc.body.offsetHeight;
       }
-    } catch (e) {
+    } catch (error) {
       // Cross-origin or other security error - this is expected in some cases
-      console.warn('Could not inject styles into iframe:', e);
+      // Silently fail as this is not critical for functionality
     }
   }
 

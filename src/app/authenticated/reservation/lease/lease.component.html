@@ -7,8 +7,38 @@
   <div class="lease-container">
     <form [formGroup]="form" class="lease-form">
       
-      <!-- Top Buttons Section -->
+      <!-- Action Buttons Section -->
       <div class="top-controls">
+        <div class="flex gap-2">
+          @if (showPreview && office && reservation && previewIframeHtml) {
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!contact?.email">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+          } @else {
+            <button mat-raised-button type="button" color="accent" (click)="onPreview()" [disabled]="!office || !reservation">
+              <mat-icon>preview</mat-icon>
+              Preview
+            </button>
+          }
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLease()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <!-- Input Fields Section -->
+      <div class="input-controls">
         <div class="flex gap-3 items-center">
           <!-- Property Code (readonly) -->
           <mat-form-field appearance="outline" class="property-code-field">
@@ -16,13 +46,15 @@
             <input matInput [value]="property?.propertyCode || ''" readonly>
           </mat-form-field>
 
-          <!-- Office (dropdown) -->
-          <mat-form-field appearance="outline" class="office-field">
-            <mat-label>Office</mat-label>
-            <mat-select formControlName="officeId">
+          <!-- Office Dropdown -->
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>Select Office</mat-label>
+            <mat-select formControlName="officeId" (selectionChange)="onOfficeSelected($event.value)">
               <mat-option [value]="null">Select Office</mat-option>
               @for (office of offices; track office.officeId) {
-                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                <mat-option [value]="office.officeId">
+                  {{ office.officeCode || 'N/A' }}: <span style="font-weight: 600;">{{ office.name || 'Unnamed Office' }}</span>
+                </mat-option>
               }
             </mat-select>
           </mat-form-field>
@@ -33,39 +65,38 @@
             <input matInput [value]="getReservationDisplay()" readonly>
           </mat-form-field>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="preview-button" (click)="previewLease()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="!reservation">
-            <mat-icon>preview</mat-icon>
-            Preview
-          </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLease()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
-        </div>
       </div>
 
-      <!-- Lease Editor -->
+      <!-- Lease Editor or Preview -->
       <div class="editor-section">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Lease (HTML)</mat-label>
-          <textarea 
-            matInput 
-            formControlName="lease" 
-            rows="20"
-            [placeholder]="'Enter your lease HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
-          </textarea>
-          <mat-hint>
-            Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the lease.
-          </mat-hint>
-        </mat-form-field>
+        @if (showPreview && office && reservation && previewIframeHtml) {
+          <!-- Preview iframe when preview button is active -->
+          <div class="preview-section">
+            <iframe 
+              [srcdoc]="previewIframeHtml" 
+              class="preview-iframe"
+              [attr.key]="iframeKey"
+              (load)="injectStylesIntoIframe()"
+              frameborder="0">
+            </iframe>
+          </div>
+        } @else {
+          <!-- Editor textarea when preview is not active -->
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Lease (HTML)</mat-label>
+            <textarea 
+              matInput 
+              formControlName="lease" 
+              rows="20"
+              [placeholder]="'Enter your lease HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
+            </textarea>
+            <mat-hint>
+              Use placeholders like {{ '{' }}{{ '{' }}propertyAddress{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the lease. Select an Office and Reservation, then click Preview to see the result.
+            </mat-hint>
+          </mat-form-field>
+        }
       </div>
 
     </form>
   </div>
 }
-

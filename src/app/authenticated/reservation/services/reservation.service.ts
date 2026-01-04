@@ -21,6 +21,11 @@ export class ReservationService {
     return this.http.get<ReservationResponse[]>(this.controller);
   }
 
+  // GET: Get all reservations for a particular property
+  getReservationsByPropertyId(propertyId: string): Observable<ReservationResponse[]> {
+    return this.http.get<ReservationResponse[]>(this.controller + 'property/' + propertyId);
+  }
+
   // GET: Get reservation by ID
   getReservationByGuid(reservationId: string): Observable<ReservationResponse> {
     return this.http.get<ReservationResponse>(this.controller + reservationId);

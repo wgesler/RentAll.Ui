@@ -459,7 +459,7 @@
           </mat-tab>
           
           <mat-tab label="Lease">
-            <app-lease [reservationId]="isAddMode ? null : reservationId"></app-lease>
+            <app-lease [reservationId]="isAddMode ? '' : reservationId" [propertyId]="reservation?.propertyId || form.get('propertyId')?.value || ''"></app-lease>
           </mat-tab>
         </mat-tab-group>
       </mat-card>

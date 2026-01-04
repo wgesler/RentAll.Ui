@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { CommonModule, AsyncPipe } from '@angular/common';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -12,15 +12,13 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { ReservationLeaseRequest, ReservationLeaseResponse } from '../models/lease.model';
+import { ReservationLeaseResponse } from '../models/lease.model';
 import { ReservationLeaseService } from '../services/reservation-lease.service';
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { MatDialog } from '@angular/material/dialog';
-import { LeasePreviewDialogComponent, LeasePreviewData } from './lease-preview-dialog.component';
-import { finalize, take, switchMap, forkJoin, of, EMPTY, catchError, Observable, filter, BehaviorSubject, map } from 'rxjs';
+import { finalize, take, of, catchError, Observable, filter, BehaviorSubject, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -31,37 +29,44 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
+import { DocumentExportService } from '../../../services/document-export.service';
 
 @Component({
   selector: 'app-lease',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
   templateUrl: './lease.component.html',
   styleUrl: './lease.component.scss'
 })
-export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() reservationId: string | null = null;
+export class LeaseComponent implements OnInit, OnDestroy {
+  @Input() reservationId: string = '';
+  @Input() propertyId: string = '';
   
   isSubmitting: boolean = false;
   form: FormGroup;
-  reservation: ReservationResponse | null = null;
-  lease: ReservationLeaseResponse | null = null;
   property: PropertyResponse | null = null;
   organization: OrganizationResponse | null = null;
+  reservations: ReservationResponse[] = [];
+  reservation: ReservationResponse | null = null;
+  lease: ReservationLeaseResponse | null = null;
+  leaseInformation: LeaseInformationResponse | null = null;
   contact: ContactResponse | null = null;
   company: CompanyResponse | null = null;
-  leaseInformation: LeaseInformationResponse | null = null;
-  office: OfficeResponse | null = null;
   offices: OfficeResponse[] = [];
+  office: OfficeResponse | null = null;
   officeConfiguration: OfficeConfigurationResponse | null = null;
-  organizationName: string | null = null;
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
+  previewIframeHtml: string = '';
+  previewIframeStyles: string = '';
+  iframeKey: number = 0;
+  isDownloading: boolean = false;
+  showPreview: boolean = false;
+  
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private hasInitialized: boolean = false;
+
 
   constructor(
-     private reservationService: ReservationService,
+    private reservationService: ReservationService,
     private reservationLeaseService: ReservationLeaseService,
     private propertyService: PropertyService,
     private contactService: ContactService,
@@ -73,172 +78,30 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
-    private dialog: MatDialog,
     private formatterService: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private documentExportService: DocumentExportService
   ) {
     this.form = this.buildForm();
   }
 
   ngOnInit(): void {
     this.loadOffices();
-    this.initializeReservationData();
+    this.loadOrganization();
+    this.loadProperty();
+    this.loadLeaseInformation();
+    this.loadReservation();
+    this.getLease();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    // Handle reservationId changes after initialization
-    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
-      const previousValue = changes['reservationId'].previousValue;
-      const currentValue = changes['reservationId'].currentValue;
-      
-      // Only reload if reservationId changed from null/undefined to a value, or changed to a different value
-      if (currentValue && currentValue !== previousValue) {
-        // Reset initialization flag to allow reload
-        this.hasInitialized = false;
-        // Clear existing data
-        this.reservation = null;
-        this.lease = null;
-        this.property = null;
-        this.contact = null;
-        this.company = null;
-        this.leaseInformation = null;
-        this.office = null;
-        this.officeConfiguration = null;
-        // Reset loading state
-        this.itemsToLoad$.next(new Set(['reservation']));
-        // Reload data
-        this.initializeReservationData();
-      } else if (!currentValue && previousValue) {
-        // reservationId was cleared
-        this.hasInitialized = false;
-        this.clearData();
-      }
-    }
-  }
-
-  private initializeReservationData(): void {
-    // Prevent duplicate initialization
-    if (this.hasInitialized) {
-      return;
-    }
-    
-    if (!this.reservationId) {
-      // Remove all items if no reservationId
-      this.removeLoadItem('reservation');
-      this.removeLoadItem('property');
-      this.removeLoadItem('contact');
-      this.removeLoadItem('company');
-      this.removeLoadItem('leaseInformation');
-      this.removeLoadItem('office');
-      this.hasInitialized = true;
-      return;
-    }
-    
-    this.hasInitialized = true;
-    
-    // Load reservation first, then load related data using RxJS operators
-    this.reservationService.getReservationByGuid(this.reservationId).pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('reservation'); }),
-      switchMap((reservation: ReservationResponse) => {
-        this.reservation = reservation;
-        
-        if (!reservation) {
-          return EMPTY;
-        }
-
-        // Load all independent data in parallel
-        const property$ = reservation.propertyId 
-          ? this.propertyService.getPropertyByGuid(reservation.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); }))
-          : of(null);
-        
-        const contact$ = reservation.contactId
-          ? this.contactService.getContactByGuid(reservation.contactId).pipe(take(1), finalize(() => { this.removeLoadItem('contact'); }))
-          : of(null);
-        
-        const organization$ = this.commonService.getOrganization().pipe(
-          filter(org => org !== null),
-          take(1)
-        );
-        
-        const leaseInformation$ = reservation.propertyId
-          ? this.leaseInformationService.getLeaseInformationByPropertyId(reservation.propertyId).pipe(
-              take(1),
-              finalize(() => { this.removeLoadItem('leaseInformation'); }),
-              // Handle 404 errors gracefully - lease information might not exist
-              catchError((err: HttpErrorResponse) => {
-                if (err.status === 404) {
-                  this.removeLoadItem('leaseInformation');
-                  return of(null);
-                }
-                if (err.status !== 400) {
-                  this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-                }
-                this.removeLoadItem('leaseInformation');
-                return of(null);
-              })
-            )
-          : of(null);
-
-        return forkJoin({
-          property: property$,
-          contact: contact$,
-          organization: organization$,
-          leaseInformation: leaseInformation$
-        }) as Observable<{
-          property: PropertyResponse | null;
-          contact: ContactResponse | null;
-          organization: OrganizationResponse | null;
-          leaseInformation: LeaseInformationResponse | null;
-        }>;
-      }),
-      switchMap(({ property, contact, organization, leaseInformation }) => {
-        this.property = property;
-        this.contact = contact;
-        this.organization = organization;
-        this.leaseInformation = leaseInformation;
-
-        // Load company if contact is Company type
-        if (contact && contact.entityTypeId === EntityType.Company && contact.entityId) {
-          return this.companyService.getCompanyByGuid(contact.entityId).pipe(
-            take(1),
-            finalize(() => { this.removeLoadItem('company'); }),
-            switchMap((company: CompanyResponse) => {
-              this.company = company;
-              // Load office after company is loaded
-              return this.loadOfficeData();
-            }),
-            catchError((err: HttpErrorResponse) => {
-              if (err.status !== 400) {
-                this.toastr.error('Could not load company. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-              }
-              this.removeLoadItem('company');
-              return this.loadOfficeData();
-            })
-          );
-        }
-        // Load office if no company to load
-        return this.loadOfficeData();
-      }),
-      finalize(() => {
-        this.getLease();
-      })
-    ).subscribe({
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation data. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.removeLoadItem('reservation');
-      }
-    });
-  }
 
   getLease(): void {
-    if (!this.reservationId) {
+    let reservationId = this.reservation?.reservationId || this.reservationId;
+    if (!reservationId || reservationId.trim() === '') {
       return;
     }
 
-    this.reservationLeaseService.getLeaseByReservationId(this.reservationId).pipe(take(1)).subscribe({
+    this.reservationLeaseService.getLeaseByReservationId(reservationId).pipe(take(1)).subscribe({
       next: (response: ReservationLeaseResponse) => {
         if (response && response.lease) {
           this.lease = response;
@@ -251,25 +114,21 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
             lease: this.getDefaultLeaseTemplate()
           });
         }
+        this.generatePreviewIframe();
       },
       error: (err: HttpErrorResponse) => {
-        // If not found, set default template
-        if (err.status === 404) {
-          this.form.patchValue({
-            lease: this.getDefaultLeaseTemplate()
-          });
-        } else {
-          // Error already handled, just set default template
-          this.form.patchValue({
-            lease: this.getDefaultLeaseTemplate()
-          });
-        }
+        // If not found or any other error, set default template
+        this.form.patchValue({
+          lease: this.getDefaultLeaseTemplate()
+        });
+        this.generatePreviewIframe();
       }
     });
   }
 
   saveLease(): void {
-    if (!this.reservationId) {
+    let reservationId = this.reservation?.reservationId || this.reservationId;
+    if (!reservationId || reservationId.trim() === '') {
       this.toastr.error('No reservation ID available', CommonMessage.Error);
       return;
     }
@@ -278,273 +137,207 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
 
-    // If lease exists, update it
-    if (this.lease) {
-      const updateRequest: ReservationLeaseRequest = {
-        reservationId: this.reservationId,
-        organizationId: user?.organizationId || '',
-        lease: formValue.lease || ''
-      };
-      
-      this.reservationLeaseService.updateLease(updateRequest).pipe(take(1)).subscribe({
-        next: (response) => {
-          this.toastr.success('Lease saved successfully', 'Success');
-          this.lease = response;
-          this.isSubmitting = false;
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-          this.isSubmitting = false;
+    // Always save the HTML first
+    const saveHtmlObservable = this.lease
+      ? this.reservationLeaseService.updateLease({
+          reservationId: reservationId,
+          organizationId: user?.organizationId || '',
+          lease: formValue.lease || ''
+        })
+      : this.reservationLeaseService.createLease({
+          reservationId: reservationId,
+          organizationId: user?.organizationId || '',
+          lease: formValue.lease || ''
+        });
+
+    saveHtmlObservable.pipe(take(1)).subscribe({
+      next: (response) => {
+        this.lease = response;
+        this.toastr.success('Lease saved successfully', 'Success');
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-      });
-    } else {
-      // Lease doesn't exist, create it
-      const createRequest: ReservationLeaseRequest = {
-        reservationId: this.reservationId,
-        organizationId: user?.organizationId || '',
-        lease: formValue.lease || ''
-      };
-      
-      this.reservationLeaseService.createLease(createRequest).pipe(take(1)).subscribe({
-        next: (response) => {
-          this.toastr.success('Lease saved successfully', 'Success');
-          this.lease = response;
-          this.isSubmitting = false;
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-          this.isSubmitting = false;
-        }
-      });
-    }
-  }
-
-  previewLease(): void {
-    const formValue = this.form.getRawValue();
-    const leaseHtml = formValue.lease || '';
-    
-    if (!leaseHtml.trim()) {
-      this.toastr.warning('Please enter a lease to preview', 'No Content');
-      return;
-    }
-
-    // Replace placeholders with actual data
-    const previewHtml = this.replacePlaceholders(leaseHtml);
-
-    // Get tenant email from contact
-    const tenantEmail = this.contact?.email || '';
-    const organizationName = this.organization?.name || '';
-    const tenantName = this.reservation?.tenantName || '';
-
-    // Open preview dialog
-    this.dialog.open(LeasePreviewDialogComponent, {
-      width: '90%',
-      maxWidth: '1200px',
-      maxHeight: '90vh',
-      data: {
-        html: previewHtml,
-        email: tenantEmail,
-        organizationName: organizationName,
-        tenantName: tenantName
-      } as LeasePreviewData
+        this.isSubmitting = false;
+      }
     });
   }
 
   // Form Methods
   buildForm(): FormGroup {
-    const form = this.fb.group({
+    return this.fb.group({
       lease: new FormControl(''),
       officeId: new FormControl<number | null>(null)
     });
-
-    // Update office property and load configuration when dropdown changes
-    form.get('officeId')?.valueChanges.subscribe(officeId => {
-      if (officeId) {
-        const selectedOffice = this.offices.find(o => o.officeId === officeId);
-        if (selectedOffice) {
-          this.office = selectedOffice;
-          // Load office configuration
-          this.loadOfficeConfiguration(officeId);
-        }
-      } else {
-        this.office = null;
-        this.officeConfiguration = null;
-      }
-    });
-
-    return form;
   }
 
+  // Form Response Functions
+  onOfficeSelected(officeId: number | null): void {
+    if (officeId) {
+      this.office = this.offices.find(o => o.officeId === officeId) || null;
+      this.loadOfficeConfiguration(officeId);
+    } else {
+      this.office = null;
+      this.officeConfiguration = null;
+    }
+    this.generatePreviewIframe();
+  }
 
-  // Data Loading Helpers
-  loadReservation(next: () => void): void {
-    if (!this.reservationId) {
-      next();
+   // Data Loading Methods 
+   loadOffices(): void {
+     const orgId = this.authService.getUser()?.organizationId;
+     if (!orgId) {
+       this.removeLoadItem('offices');
+       return;
+     }
+ 
+     this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+       next: (offices: OfficeResponse[]) => {
+         this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+       },
+       error: (err: HttpErrorResponse) => {
+         this.offices = [];
+         if (err.status !== 400) {
+           this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+         }
+       }
+     });
+   }
+ 
+  loadOrganization(): void {
+     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+       next: (org: OrganizationResponse) => {
+         this.organization = org;
+       },
+       error: (err: HttpErrorResponse) => {
+         if (err.status !== 400) {
+           this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+         }
+         this.removeLoadItem('organization');
+       }
+     });
+  }
+
+  loadProperty(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('property');
       return;
     }
 
-    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1)).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservation = response;
-        next();
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        next();
-      }
-    });
-  }
-
-  loadPropertyData(next: () => void): void {
-    if (!this.reservation?.propertyId) {
-      next();
-      return;
-    }
-
-    this.propertyService.getPropertyByGuid(this.reservation.propertyId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        next();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
-          this.toastr.error('Could not load property. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
+        this.removeLoadItem('property');
       }
     });
   }
 
-  loadContactData(next: () => void): void {
+  loadLeaseInformation(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('leaseInformation');
+      return;
+    }
+
+    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe( take(1), finalize(() => { this.removeLoadItem('leaseInformation'); }),
+      catchError((err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          this.removeLoadItem('leaseInformation');
+          return of(null);
+        }
+        if (err.status !== 400) {
+          this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('leaseInformation');
+        return of(null);
+      })
+    ).subscribe({
+      next: (response: LeaseInformationResponse | null) => {
+        this.leaseInformation = response;
+      }
+    });
+  }
+  
+  loadReservation(): void {
+    if (!this.reservationId) {
+      this.removeLoadItem('reservation');
+      return;
+    }
+
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
+      next: (reservation: ReservationResponse) => {
+        this.reservation = reservation;
+        // Chain loadContact after reservation loads
+        this.loadContact();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservation at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('reservation');
+      }
+    });
+  }
+
+  loadContact(): void {
     if (!this.reservation?.contactId) {
-      next();
+      this.contact = null;
       return;
     }
 
     this.contactService.getContactByGuid(this.reservation.contactId).pipe(take(1)).subscribe({
       next: (response: ContactResponse) => {
         this.contact = response;
-        next();
+        // Chain loadCompany if contact is a company type
+        if (this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
+          this.loadCompany(this.contact.entityId);
+        } else {
+          this.company = null;
+        }
       },
       error: (err: HttpErrorResponse) => {
+        this.contact = null;
         if (err.status !== 400) {
-          this.toastr.error('Could not load contact. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.toastr.error('Could not load contact info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
       }
     });
   }
-
-  loadCompanyData(next: () => void): void {
-    // Only load company if contact is a Company type
-    if (!this.contact || this.contact.entityTypeId !== EntityType.Company || !this.contact.entityId) {
-      next();
-      return;
-    }
-
-    this.companyService.getCompanyByGuid(this.contact.entityId).pipe(take(1)).subscribe({
+ 
+  loadCompany(companyId: string): void {
+    this.companyService.getCompanyByGuid(companyId).pipe(take(1)).subscribe({
       next: (response: CompanyResponse) => {
         this.company = response;
-        next();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
-          this.toastr.error('Could not load company. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        next();
       }
     });
   }
-
-  loadOrganization(next: () => void): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
-      next: (org: OrganizationResponse) => {
-        this.organization = org;
-        next();
-      },
-      error: () => {
-        next();
-      }
-    });
-  }
-
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('offices');
-      return;
-    }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.removeLoadItem('offices');
-      }
-    });
-  }
-
+  
   loadOfficeConfiguration(officeId: number): void {
-    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(
-      take(1),
-      catchError((err: HttpErrorResponse) => {
-        // 404 is expected if no configuration exists
-        if (err.status === 404) {
-          this.officeConfiguration = null;
-        } else {
-          // Office configuration errors are handled gracefully
-          this.officeConfiguration = null;
-        }
-        return of(null);
-      })
-    ).subscribe((config: OfficeConfigurationResponse | null) => {
-      this.officeConfiguration = config;
-    });
+     this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1)).subscribe({
+       next: (config: OfficeConfigurationResponse) => {
+         this.officeConfiguration = config;
+       },
+       error: (err: HttpErrorResponse) => {
+         this.officeConfiguration = null;
+         if (err.status !== 400) {
+           this.toastr.error('Could not load office configuration at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+         }
+       }
+     });
   }
 
-  loadOfficeData(): Observable<null> {
-    if (!this.property || !this.property.officeId) {
-      this.office = null;
-      this.officeConfiguration = null;
-      this.removeLoadItem('office');
-      return of(null);
-    }
-
-    return this.officeService.getOfficeById(this.property.officeId).pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('office'); }),
-      switchMap((office: OfficeResponse) => {
-        this.office = office;
-        // Update form with officeId
-        if (this.form) {
-          this.form.patchValue({ officeId: office.officeId });
-        }
-        // Load office configuration
-        this.loadOfficeConfiguration(office.officeId);
-        return of(null);
-      }),
-      catchError((err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load office. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.office = null;
-        this.officeConfiguration = null;
-        this.removeLoadItem('office');
-        return of(null);
-      })
-    );
-  }
 
   // Field Replacement Helpers
   getCommunityAddress(): string {
@@ -617,15 +410,16 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return this.reservation.allowExtensions ? 'Yes' : 'No';
   }
 
-  getOrganizationName(): string {  
-    this.organizationName = this.organization.name;
-    if(this.office) 
-      this.organizationName = this.organization.name + ' ' + this.office.name;
-    return this.organizationName;
+  getOrganizationName(): string {
+    if (!this.organization) return '';
+    if (this.office) {
+      return this.organization.name + ' ' + this.office.name;
+    }
+    return this.organization.name;
   }
 
   getBillingTypeText(): string {
-    if (!this.reservation?.billingTypeId && this.reservation?.billingTypeId !== 0) return '';
+    if (!this.reservation) return '';
     if (this.reservation.billingTypeId === BillingType.Monthly) {
       return 'Monthly';
     } else if (this.reservation.billingTypeId === BillingType.Daily) {
@@ -637,6 +431,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getResponsibleParty(): string {
+    if(!this.contact ) return '';
     return (this.contact.entityTypeId === EntityType.Company && this.company) 
       ?  this.company.name 
       : `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
@@ -654,13 +449,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     if(!this.property || !this.officeConfiguration) return '';
 
     const bedrooms = this.property.bedrooms;
-    console.log('Property Bedrooms:', bedrooms);
     let utilityFee: number | undefined;
 
     switch(bedrooms) {
       case 1:
         utilityFee = this.officeConfiguration.utilityOneBed;
-        console.log('Utility Fee for 1 Bed:', utilityFee);
         break;
       case 2:
         utilityFee = this.officeConfiguration.utilityTwoBed;
@@ -848,7 +641,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
     // Replace organization/office name
     if (this.organization) {
-      result = result.replace(/\{\{organization-office\}\}/g,this.getOrganizationName());
+      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
     }
 
     // Replace reservation placeholders
@@ -871,6 +664,283 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return result;
+  }
+
+  // Preview, Download, Print, Email Functions
+  onPreview(): void {
+    if (!this.office || !this.reservation) {
+      this.toastr.warning('Please select an office and reservation to generate the preview', 'No Selection');
+      return;
+    }
+    
+    if (!this.showPreview) {
+      // Generate preview and show it
+      this.generatePreviewIframe();
+      this.showPreview = true;
+    } else {
+      // Hide preview and show editor
+      this.showPreview = false;
+    }
+  }
+
+  generatePreviewIframe(): void {
+    // Only generate preview if both office and reservation are selected
+    if (!this.office || !this.reservation) {
+      this.previewIframeHtml = '';
+      return;
+    }
+
+    // Get lease HTML from form
+    const leaseHtml = this.form.get('lease')?.value || '';
+    if (!leaseHtml.trim()) {
+      this.previewIframeHtml = '';
+      this.toastr.warning('Please enter lease HTML content to preview', 'No Content');
+      return;
+    }
+
+    // Replace placeholders with actual data
+    let processedHtml = this.replacePlaceholders(leaseHtml);
+
+    // Extract all <style> tags from the HTML
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const extractedStyles: string[] = [];
+    let match;
+    
+    styleRegex.lastIndex = 0;
+    while ((match = styleRegex.exec(processedHtml)) !== null) {
+      if (match[1]) {
+        extractedStyles.push(match[1].trim());
+      }
+    }
+
+    // Store extracted styles separately (will be injected dynamically)
+    this.previewIframeStyles = extractedStyles.join('\n\n');
+
+    // Remove <style> tags from HTML (we'll inject them dynamically)
+    processedHtml = processedHtml.replace(styleRegex, '');
+
+    // Remove <title> tag if it exists
+    processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
+
+    // Fix the logo by adding width attribute directly
+    processedHtml = processedHtml.replace(
+      /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
+      (match, attributes) => {
+        // Remove existing width and height attributes if they exist
+        let newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
+        // Add width="180" and height="auto"
+        return `<img${newAttributes} width="180" height="auto">`;
+      }
+    );
+    
+    // Use the HTML document without style tags (styles will be injected dynamically)
+    this.previewIframeHtml = processedHtml;
+    
+    this.iframeKey++; // Force iframe refresh
+  }
+
+  injectStylesIntoIframe(): void {
+    if (!this.previewIframeStyles) {
+      return;
+    }
+
+    // Find the iframe element
+    const iframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement;
+    if (!iframe || !iframe.contentDocument || !iframe.contentWindow) {
+      // Retry after a short delay if iframe isn't ready yet
+      setTimeout(() => this.injectStylesIntoIframe(), 50);
+      return;
+    }
+
+    try {
+      const iframeDoc = iframe.contentDocument;
+      const iframeHead = iframeDoc.head || iframeDoc.getElementsByTagName('head')[0];
+      
+      if (!iframeHead) {
+        return;
+      }
+
+      // Check if styles are already injected (to avoid duplicates)
+      const existingStyle = iframeHead.querySelector('style[data-dynamic-styles]');
+      if (existingStyle) {
+        existingStyle.textContent = this.previewIframeStyles;
+      } else {
+        // Create a new style element and inject the styles
+        // Place it at the end of head to ensure it has highest priority
+        const styleElement = iframeDoc.createElement('style');
+        styleElement.setAttribute('data-dynamic-styles', 'true');
+        styleElement.setAttribute('type', 'text/css');
+        styleElement.textContent = this.previewIframeStyles;
+        iframeHead.appendChild(styleElement);
+      }
+      
+      // Force a reflow to ensure styles are applied
+      if (iframeDoc.body) {
+        iframeDoc.body.offsetHeight;
+      }
+    } catch (error) {
+      // Cross-origin or other security error - this is expected in some cases
+      // Silently fail as this is not critical for functionality
+    }
+  }
+
+  async onDownload(): Promise<void> {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
+      return;
+    }
+
+    this.isDownloading = true;
+    try {
+      const htmlWithStyles = this.getPdfHtmlWithStyles();
+      const fileName = `${this.reservation?.reservationCode || 'Lease'}_Lease_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      // Use the service to download PDF
+      await this.documentExportService.downloadPDF(htmlWithStyles, fileName);     
+      this.isDownloading = false;
+    } catch (error) {
+       this.isDownloading = false;
+       this.toastr.error('Error generating PDF. Please try again.', 'Error');
+    }
+  }
+
+  onPrint(): void {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
+      return;
+    }
+
+    // Get the HTML with styles injected
+    const htmlWithStyles = this.getPreviewHtmlWithStyles();
+    this.documentExportService.printHTML(htmlWithStyles);
+  }
+
+  async onEmail(): Promise<void> {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
+      return;
+    }
+
+    // Get tenant email from contact
+    const tenantEmail = this.contact?.email || '';
+    if (!tenantEmail) {
+      this.toastr.warning('No email address found for this reservation', 'No Email');
+      return;
+    }
+
+    try {
+      await this.documentExportService.emailWithPDF({
+        recipientEmail: tenantEmail,
+        subject: 'Your Lease Agreement',
+        organizationName: this.organization?.name,
+        tenantName: this.reservation?.tenantName,
+        htmlContent: '' // Not used anymore, but keeping for interface compatibility
+      });
+    } catch (error) {
+      this.toastr.error('Error opening email client. Please try again.', 'Error');
+    }
+  }
+
+  // HTML Generation Functions
+  getPreviewHtmlWithStyles(): string {
+    const bodyContent = this.extractBodyContent();
+    const printStyles = this.getPrintStyles(true);
+    return this.buildHtmlDocument(bodyContent, printStyles);
+  }
+
+  getPdfHtmlWithStyles(): string {
+    const bodyContent = this.extractBodyContent();
+    const pdfStyles = this.getPrintStyles(false);
+    return this.buildHtmlDocument(bodyContent, pdfStyles);
+  }
+
+  extractBodyContent(): string {
+    let bodyContent = this.previewIframeHtml;
+    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch && bodyMatch[1]) {
+      return bodyMatch[1].trim();
+    }
+    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+  }
+
+  getPrintStyles(wrapInMediaQuery: boolean): string {
+    const styles = `
+      @page {
+        size: letter;
+        margin: 0.75in;
+        margin-bottom: 1in;
+      }
+      
+      body {
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      
+      .header {
+        position: relative !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      .logo {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        max-height: 100px !important;
+        max-width: 200px !important;
+        display: block !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      .content {
+        margin-top: 0 !important;
+      }
+      
+      h1 {
+        font-size: 18pt !important;
+      }
+      
+      h2 {
+        font-size: 14pt !important;
+      }
+      
+      h3 {
+        font-size: 12pt !important;
+      }
+      
+      p {
+        margin: 0.3em 0 !important;
+      }
+      
+      p, li {
+        orphans: 2;
+        widows: 2;
+      }
+    `;
+    
+    return wrapInMediaQuery ? `@media print {${styles}}` : styles;
+  }
+
+  buildHtmlDocument(bodyContent: string, additionalStyles: string): string {
+    return `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+      ${this.previewIframeStyles}
+      ${additionalStyles}
+        </style>
+      </head>
+      <body>
+      ${bodyContent}
+      </body>
+      </html>`;
   }
 
   getDefaultLeaseTemplate(): string {
@@ -1619,27 +1689,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
-  }
-
-  private clearData(): void {
-    this.reservation = null;
-    this.lease = null;
-    this.property = null;
-    this.contact = null;
-    this.company = null;
-    this.leaseInformation = null;
-    this.office = null;
-    this.officeConfiguration = null;
-    this.form.patchValue({
-      lease: '',
-      officeId: null
-    });
-    this.removeLoadItem('reservation');
-    this.removeLoadItem('property');
-    this.removeLoadItem('contact');
-    this.removeLoadItem('company');
-    this.removeLoadItem('leaseInformation');
-    this.removeLoadItem('office');
   }
 
   ngOnDestroy(): void {
