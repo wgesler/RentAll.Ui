@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { DocumentRequest, DocumentResponse } from '../models/document.model';
+import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
 
 @Injectable({
   providedIn: 'root'
@@ -66,5 +66,32 @@ export class DocumentService {
   downloadDocument(documentId: string): Observable<Blob> {
     return this.http.get(this.controller + documentId + '/download', { responseType: 'blob' });
   }
+
+  // POST: Generate and download PDF from HTML (server-side) - returns Blob for download
+  generateDownload(dto: GenerateDocumentFromHtmlDto): Observable<Blob> {
+    // Convert DocumentType enum to DocumentTypeId (number) for API
+    const requestBody = {
+      htmlContent: dto.htmlContent,
+      organizationId: dto.organizationId,
+      officeId: dto.officeId,
+      documentTypeId: dto.documentType as number, // Convert enum to number for API
+      fileName: dto.fileName
+    };
+    return this.http.post(this.controller + 'generate-download', requestBody, { responseType: 'blob' });
+  }
+
+  // POST: Generate document from HTML and save to server (server-side) - returns DocumentResponse
+  generate(dto: GenerateDocumentFromHtmlDto): Observable<DocumentResponse> {
+    // Convert DocumentType enum to DocumentTypeId (number) for API
+    const requestBody = {
+      htmlContent: dto.htmlContent,
+      organizationId: dto.organizationId,
+      officeId: dto.officeId,
+      documentTypeId: dto.documentType as number, // Convert enum to number for API
+      fileName: dto.fileName
+    };
+    return this.http.post<DocumentResponse>(this.controller + 'generate', requestBody);
+  }
+
 }
 

@@ -10,30 +10,23 @@
       <!-- Action Buttons Section -->
       <div class="top-controls">
         <div class="flex gap-2">
-          @if (office && reservation && previewIframeHtml) {
-            <button mat-raised-button type="button" color="accent" (click)="onPreviewDialog()">
-              <mat-icon>preview</mat-icon>
-              Preview
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onPrint()">
-              <mat-icon>print</mat-icon>
-              Print
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!contact?.email">
-              <mat-icon>email</mat-icon>
-              Email
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="isDownloading">
-              <mat-icon>download</mat-icon>
-              {{ isDownloading ? 'Downloading...' : 'Download' }}
-            </button>
-          } @else {
-            <button mat-raised-button type="button" color="accent" (click)="onPreview()" [disabled]="!office || !reservation">
-              <mat-icon>preview</mat-icon>
-              Preview
-            </button>
-          }
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLease()"
+          <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+            [disabled]="!office || !reservation || !previewIframeHtml">
+            <mat-icon>print</mat-icon>
+            Print
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+            [disabled]="!office || !reservation || !previewIframeHtml || !contact?.email">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+            [disabled]="!office || !reservation || !previewIframeHtml || isDownloading">
+            <mat-icon>download</mat-icon>
+            {{ isDownloading ? 'Downloading...' : 'Download' }}
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" 
+            (click)="office && reservation ? saveLeaseAsDocument() : saveLease()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
             Save

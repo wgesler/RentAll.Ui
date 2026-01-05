@@ -13,13 +13,13 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { ReservationLeaseResponse } from '../models/lease.model';
+import { ReservationLeaseRequest, ReservationLeaseResponse } from '../models/lease.model';
 import { ReservationLeaseService } from '../services/reservation-lease.service';
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { finalize, take, of, catchError, Observable, filter, BehaviorSubject, map, Subscription } from 'rxjs';
+import { finalize, take, of, catchError, Observable, filter, BehaviorSubject, map, Subscription, switchMap, from } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -31,8 +31,10 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
-import { MatDialog } from '@angular/material/dialog';
-import { LeasePreviewDialogComponent, LeasePreviewData } from './lease-preview-dialog.component';
+import { DocumentService } from '../../documents/services/document.service';
+import { DocumentType, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { PropertyHtmlRequest, PropertyHtmlResponse } from '../../property/models/property-html.model';
+import { PropertyHtmlService } from '../../property/services/property-html.service';
 
 @Component({
   selector: 'app-lease',
@@ -51,7 +53,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   organization: OrganizationResponse | null = null;
   reservations: ReservationResponse[] = [];
   reservation: ReservationResponse | null = null;
-  lease: ReservationLeaseResponse | null = null;
+  propertyHtml: PropertyHtmlResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
   contact: ContactResponse | null = null;
   company: CompanyResponse | null = null;
@@ -66,13 +68,13 @@ export class LeaseComponent implements OnInit, OnDestroy {
   showPreview: boolean = false;
   private leaseFormSubscription?: Subscription;
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'lease'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
   constructor(
     private reservationService: ReservationService,
-    private reservationLeaseService: ReservationLeaseService,
+    private propertyHtmlService: PropertyHtmlService,
     private propertyService: PropertyService,
     private contactService: ContactService,
     private companyService: CompanyService,
@@ -86,7 +88,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private documentExportService: DocumentExportService,
-    private dialog: MatDialog,
+    private documentService: DocumentService,
     private sanitizer: DomSanitizer
   ) {
     this.form = this.buildForm();
@@ -110,63 +112,51 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
 
   getLease(): void {
-    let reservationId = this.reservation?.reservationId || this.reservationId;
-    if (!reservationId || reservationId.trim() === '') {
+    if (!this.propertyId) {
+      this.removeLoadItem('lease');
       return;
     }
 
-    this.reservationLeaseService.getLeaseByReservationId(reservationId).pipe(take(1)).subscribe({
-      next: (response: ReservationLeaseResponse) => {
-        if (response && response.lease) {
-          this.lease = response;
-          this.form.patchValue({
-            lease: response.lease
-          });
-        } else {
-          // If no lease exists, set default template
-          this.form.patchValue({
-            lease: this.getDefaultLeaseTemplate()
-          });
-        }
-        this.generatePreviewIframe();
-      },
-      error: (err: HttpErrorResponse) => {
-        // If not found or any other error, set default template
-        this.form.patchValue({
-          lease: this.getDefaultLeaseTemplate()
-        });
-        this.generatePreviewIframe();
-      }
-    });
+     this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('lease'); })).subscribe({
+       next: (response: PropertyHtmlResponse) => {
+         if (response) {
+           this.propertyHtml = response;
+           this.form.patchValue({
+             lease: response.lease || ''
+           });
+           this.generatePreviewIframe();
+         }
+       },
+       error: (err: HttpErrorResponse) => {
+         if (err.status !== 400) {
+           this.toastr.error('Could not load lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+         }
+       }
+     });
   }
 
   saveLease(): void {
-    let reservationId = this.reservation?.reservationId || this.reservationId;
-    if (!reservationId || reservationId.trim() === '') {
-      this.toastr.error('No reservation ID available', CommonMessage.Error);
+    if (!this.propertyId) {
+      this.isSubmitting = false;
       return;
     }
 
     this.isSubmitting = true;
     const formValue = this.form.getRawValue();
-    const user = this.authService.getUser();
 
-    // Always save the HTML first
-    const saveHtmlObservable = this.lease
-      ? this.reservationLeaseService.updateLease({
-          reservationId: reservationId,
-          organizationId: user?.organizationId || '',
-          lease: formValue.lease || ''
-        })
-      : this.reservationLeaseService.createLease({
-          reservationId: reservationId,
-          organizationId: user?.organizationId || '',
-          lease: formValue.lease || ''
-        });
+    // Create and initialize PropertyHtmlRequest
+    // Preserve welcomeLetter from original response, use form lease for defaultLease
+    const propertyHtmlRequest: PropertyHtmlRequest = {
+      propertyId: this.propertyId,
+      organizationId: this.authService.getUser()?.organizationId || '',
+      welcomeLetter: this.propertyHtml?.welcomeLetter || '',
+      lease: formValue.lease || ''
+    };
 
-    saveHtmlObservable.pipe(take(1)).subscribe({
+    // Save the HTML using upsert
+    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
       next: (response) => {
-        this.lease = response;
+        this.propertyHtml = response;
         this.toastr.success('Lease saved successfully', 'Success');
         this.isSubmitting = false;
         this.generatePreviewIframe();
@@ -176,6 +166,49 @@ export class LeaseComponent implements OnInit, OnDestroy {
           this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.isSubmitting = false;
+      }
+    });
+  }
+
+  saveLeaseAsDocument(): void {
+    const formValue = this.form.getRawValue();
+    const officeId = formValue.officeId;
+
+    if (!officeId) {
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.isSubmitting = true;
+
+    // Ensure this.office is set
+    if (!this.office && officeId) {
+      this.office = this.offices.find(o => o.officeId === officeId) || null;
+    }
+
+    // Generate HTML with styles for PDF
+    const htmlWithStyles = this.getPdfHtmlWithStyles();
+    const fileName = `${this.organization?.name}_Lease_${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: this.organization!.organizationId,
+      officeId: this.office!.officeId,
+      documentType: DocumentType.ReservationLease,
+      fileName: fileName
+    };
+
+    this.documentService.generate(generateDto).pipe(take(1)).subscribe({
+      next: (documentResponse: DocumentResponse) => {
+        this.toastr.success('Document generated successfully', 'Success');
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        console.error('Document save error:', err);
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
       }
     });
   }
@@ -215,7 +248,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
    // Data Loading Methods 
-   loadOffices(): void {
+  loadOffices(): void {
      const orgId = this.authService.getUser()?.organizationId;
      if (!orgId) {
        this.removeLoadItem('offices');
@@ -233,7 +266,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
          }
        }
      });
-   }
+  }
  
   loadOrganization(): void {
      this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
@@ -370,7 +403,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
        }
      });
   }
-
 
   // Field Replacement Helpers
   getCommunityAddress(): string {
@@ -824,17 +856,49 @@ export class LeaseComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (!this.organization?.organizationId || !this.office) {
+      this.toastr.warning('Organization or Office not available', 'No Selection');
+      return;
+    }
+
     this.isDownloading = true;
     try {
       const htmlWithStyles = this.getPdfHtmlWithStyles();
       const fileName = `${this.reservation?.reservationCode}_Lease_${new Date().toISOString().split('T')[0]}.pdf`;
 
-      // Use the service to download PDF
-      await this.documentExportService.downloadPDF(htmlWithStyles, fileName);     
-      this.isDownloading = false;
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: this.organization.organizationId,
+        officeId: this.office.officeId,
+        documentType: DocumentType.ReservationLease,
+        fileName: fileName
+      };
+
+      // Use server-side PDF generation
+      this.documentService.generateDownload(generateDto).pipe(take(1)).subscribe({
+        next: (pdfBlob: Blob) => {
+          // Create download link and trigger download
+          const pdfUrl = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = pdfUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Clean up
+          setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
+          this.isDownloading = false;
+        },
+        error: (error: HttpErrorResponse) => {
+          this.isDownloading = false;
+          this.toastr.error('Error generating PDF. Please try again.', 'Error');
+          console.error('PDF generation error:', error);
+        }
+      });
     } catch (error) {
-       this.isDownloading = false;
-       this.toastr.error('Error generating PDF. Please try again.', 'Error');
+      this.isDownloading = false;
+      this.toastr.error('Error generating PDF. Please try again.', 'Error');
     }
   }
 
@@ -847,29 +911,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     // Get the HTML with styles injected
     const htmlWithStyles = this.getPreviewHtmlWithStyles();
     this.documentExportService.printHTML(htmlWithStyles);
-  }
-
-  onPreviewDialog(): void {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
-      return;
-    }
-
-    // Get the HTML with styles for the dialog
-    const htmlWithStyles = this.getPreviewHtmlWithStyles();
-
-    const dialogData: LeasePreviewData = {
-      html: htmlWithStyles,
-      email: this.contact?.email,
-      organizationName: this.organization?.name,
-      tenantName: this.reservation?.tenantName
-    };
-
-    this.dialog.open(LeasePreviewDialogComponent, {
-      width: '90%',
-      maxWidth: '1200px',
-      data: dialogData
-    });
   }
 
   async onEmail(): Promise<void> {
@@ -925,7 +966,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
       @page {
         size: letter;
         margin: 0.75in;
-        margin-bottom: 1in;
       }
       
       body {
@@ -1177,6 +1217,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
 </head>
 
 <body>
+<div class="page">
   <!-- ===================== HEADER ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
@@ -1361,9 +1402,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
       </p>
     </td>
   </tr>
+</div>
 
   <p class="breakhere"></p>
 
+<div class="page">
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
   <style>
       body {
@@ -1558,9 +1601,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
         </td>
       </tr>
     </table>
+</div>
 
   <p class="breakhere"></p>
 
+<div class="page">
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
   <style>
       body {
@@ -1746,6 +1791,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
         </tr>
       </tbody>
     </table>
+</div>
 `;
   }
 

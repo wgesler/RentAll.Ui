@@ -58,3 +58,11 @@ export interface DocumentListDisplay {
   documentTypeName?: string;
 }
 
+export interface GenerateDocumentFromHtmlDto {
+  htmlContent: string;
+  organizationId: string;
+  officeId?: number | null;
+  documentType: DocumentType;
+  fileName: string;
+}
+

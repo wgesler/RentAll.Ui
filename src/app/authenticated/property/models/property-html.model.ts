@@ -1,11 +1,13 @@
-export interface PropertyWelcomeRequest {
+export interface PropertyHtmlRequest {
   propertyId: string;
   organizationId: string;
   welcomeLetter: string;
+  lease: string;
 }
 
-export interface PropertyWelcomeResponse {
+export interface PropertyHtmlResponse {
   propertyId: string;
   organizationId: string;
   welcomeLetter: string;
+  lease: string;
 }

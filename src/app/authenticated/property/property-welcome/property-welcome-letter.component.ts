@@ -9,8 +9,8 @@ import { ReservationService } from '../../reservation/services/reservation.servi
 import { ReservationResponse } from '../../reservation/models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
-import { PropertyWelcomeService } from '../services/property-welcome.service';
-import { PropertyWelcomeRequest, PropertyWelcomeResponse } from '../models/property-welcome.model';
+import { PropertyHtmlService } from '../services/property-html.service';
+import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-html.model';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
@@ -30,8 +30,7 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentType, DocumentRequest, DocumentResponse } from '../../documents/models/document.model';
-import { EMPTY_GUID } from '../../../shared/models/constants';
+import { DocumentType, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -46,7 +45,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
-  welcomeLetter: PropertyWelcomeResponse | null = null;
+  propertyHtml: PropertyHtmlResponse | null = null;
   propertyLetter: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
   reservations: ReservationResponse[] = [];
@@ -64,7 +63,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
-    private propertyWelcomeService: PropertyWelcomeService,
+    private propertyHtmlService: PropertyHtmlService,
     private propertyLetterService: PropertyLetterService,
     private propertyService: PropertyService,
     private commonService: CommonService,
@@ -101,39 +100,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.propertyWelcomeService.getPropertyWelcomeByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('welcomeLetter'); })).subscribe({
-      next: (response: PropertyWelcomeResponse) => {
+    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('welcomeLetter'); })).subscribe({
+      next: (response: PropertyHtmlResponse) => {
         if (response) {
-          this.welcomeLetter = response;
+          this.propertyHtml = response;
           this.form.patchValue({
             welcomeLetter: response.welcomeLetter || ''
           });
-
-          // If this is the default letter, update it with actual propertyId and organizationId
-          const isDefaultLetter = response.propertyId === EMPTY_GUID ||  response.organizationId === EMPTY_GUID;        
-          if (isDefaultLetter) {
-            const orgId = this.authService.getUser()?.organizationId || '';
-            const updateRequest: PropertyWelcomeRequest = {
-              propertyId: this.propertyId,
-              organizationId: orgId,
-              welcomeLetter: response.welcomeLetter || ''
-            };
-            
-            // Create a property welcome entry with correct IDs
-            this.propertyWelcomeService.updatePropertyWelcome(updateRequest).pipe(take(1)).subscribe({
-              next: (updatedResponse) => {
-                this.welcomeLetter = updatedResponse;
-                this.generatePreviewIframe();
-              },
-              error: (err: HttpErrorResponse) => {
-                if (err.status !== 400) {
-                  this.toastr.error('Could not update welcome letter with property/organization IDs at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-                }
-              }
-            });
-          } else {
-            this.generatePreviewIframe();
-          }
+          this.generatePreviewIframe();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -146,115 +120,71 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   saveWelcomeLetter(): void {
     if (!this.propertyId) {
+      this.isSubmitting = false;
       return;
     }
 
     this.isSubmitting = true;
     const formValue = this.form.getRawValue();
 
-    // Always save the HTML first
-    const saveHtmlObservable = this.welcomeLetter
-      ? this.propertyWelcomeService.updatePropertyWelcome({
-          propertyId: this.propertyId,
-              organizationId: this.authService.getUser()?.organizationId || '',
-          welcomeLetter: formValue.welcomeLetter || ''
-        })
-      : this.propertyWelcomeService.createPropertyWelcome({
-          propertyId: this.propertyId,
-              organizationId: this.authService.getUser()?.organizationId || '',
-          welcomeLetter: formValue.welcomeLetter || ''
-        });
+    // Create and initialize PropertyHtmlRequest
+    const propertyHtmlRequest: PropertyHtmlRequest = {
+      propertyId: this.propertyId,
+      organizationId: this.authService.getUser()?.organizationId || '',
+      welcomeLetter: formValue.welcomeLetter || '',
+      lease: this.propertyHtml?.lease || ''
+    };
 
-    saveHtmlObservable.pipe(
-      take(1),
-      switchMap((response) => {
-        this.welcomeLetter = response;
-        
-        // If both office and reservation are selected, also save document and upload file
-        if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
-          return this.saveDocument();
-        } else {
-          // Just HTML saved
-          this.toastr.success('Welcome letter saved successfully', 'Success');
-          this.isSubmitting = false;
-          return from(Promise.resolve(null)); // Return empty observable to complete the chain
-        }
-      }),
-      finalize(() => {
-        // Only set isSubmitting to false if document save wasn't called
-        // (saveDocument will handle its own isSubmitting state)
-        if (!(this.selectedOffice && this.selectedReservation && this.previewIframeHtml)) {
-          this.isSubmitting = false;
-        }
-      })
-    ).subscribe({
-      next: () => {
-        // Document upload completed if applicable
-        if (this.selectedOffice && this.selectedReservation && this.previewIframeHtml) {
-          this.toastr.success('Welcome letter and document saved successfully', 'Success');
-          this.isSubmitting = false;
-        }
+    // Save the HTML using upsert
+    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
+      next: (response) => {
+        this.propertyHtml = response;
+        this.toastr.success('Welcome letter saved successfully', 'Success');
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
       },
       error: (err: HttpErrorResponse) => {
-        this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status !== 400) {
+          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
         this.isSubmitting = false;
       }
     });
   }
 
-  saveDocument(): Observable<DocumentResponse> {
-    if (!this.organization?.organizationId || !this.selectedOffice) {
-      this.toastr.error('Organization or Office not available', CommonMessage.Error);
+  saveWelcomeLetterAsDocument(): void {
+    if (!this.selectedOffice) {
       this.isSubmitting = false;
-      return from(Promise.reject(new Error('Organization or Office not available')));
+      return;
     }
 
-    // Generate PDF blob (convert Promise to Observable)
+    this.isSubmitting = true;
+
+    // Generate HTML with styles for PDF
     const htmlWithStyles = this.getPdfHtmlWithStyles();
+    const fileName = `${this.organization?.name}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
     
-    return from(this.documentExportService.generatePDFBlob(htmlWithStyles)).pipe(
-      switchMap((pdfBlob: Blob) => {
-        // Generate filename
-        const companyName = (this.organization?.name || 'WelcomeLetter').replace(/[^a-z0-9]/gi, '_');
-        const fileName = `${companyName}_WelcomeLetter_${new Date().toISOString().split('T')[0]}`;
-        const fileExtension = 'pdf';
-        const contentType = 'application/pdf';
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: this.organization.organizationId,
+      officeId: this.selectedOffice.officeId,
+      documentType: DocumentType.PropertyLetter,
+      fileName: fileName
+    };
 
-        const documentRequest: DocumentRequest = {
-          organizationId: this.organization.organizationId,
-          officeId: this.selectedOffice.officeId,
-          documentType: DocumentType.PropertyLetter,
-          fileName: fileName,
-          fileExtension: fileExtension,
-          contentType: contentType,
-          documentPath: `documents/${this.organization.organizationId}/${fileName}.${fileExtension}`,
-          isDeleted: false
-        };
-
-        // Create the document, then upload the file
-        return this.documentService.createDocument(documentRequest).pipe(
-          take(1),
-          switchMap((documentResponse: DocumentResponse) => {
-            if (!documentResponse) {
-              throw new Error('Failed to create document');
-            }
-
-            // Upload the file
-            const formData = new FormData();
-            formData.append('file', pdfBlob, `${fileName}.${fileExtension}`);
-            formData.append('documentId', documentResponse.documentId);
-
-            return this.documentService.uploadDocument(formData).pipe(
-              take(1),
-              switchMap(() => {
-                // Return the document response after successful upload
-                return from(Promise.resolve(documentResponse));
-              })
-            );
-          })
-        );
-      })
-    );
+    this.documentService.generate(generateDto).pipe(take(1)).subscribe({
+      next: (documentResponse: DocumentResponse) => {
+        this.toastr.success('Document generated successfully', 'Success');
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        console.error('Document save error:', err);
+        this.isSubmitting = false;
+        this.generatePreviewIframe();
+      }
+    });
   }
 
   // Form Building Methods
@@ -599,12 +529,12 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   // Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected and welcome letter exists
-    if (!this.selectedOffice || !this.selectedReservation || !this.welcomeLetter?.welcomeLetter) {
+    if (!this.selectedOffice || !this.selectedReservation || !this.propertyHtml?.welcomeLetter) {
       this.previewIframeHtml = '';
       return;
     }
 
-    const welcomeLetterHtml = this.welcomeLetter.welcomeLetter || '';
+    const welcomeLetterHtml = this.propertyHtml.welcomeLetter || '';
     if (!welcomeLetterHtml.trim()) {
       this.previewIframeHtml = '';
       return;
@@ -702,18 +632,46 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.isDownloading = true;
-    try {
-      const htmlWithStyles = this.getPdfHtmlWithStyles();
-      const fileName = `${this.selectedReservation?.reservationCode}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
-
-      // Use the service to download PDF
-      await this.documentExportService.downloadPDF(htmlWithStyles, fileName);     
-      this.isDownloading = false;
-    } catch (error) {
-       this.isDownloading = false;
-       this.toastr.error('Error generating PDF. Please try again.', 'Error');
+    if (!this.organization?.organizationId || !this.selectedOffice) {
+      this.toastr.warning('Organization or Office not available', 'No Selection');
+      return;
     }
+
+    this.isDownloading = true;
+    
+    const htmlWithStyles = this.getPdfHtmlWithStyles();
+    const fileName = `${this.selectedReservation?.reservationCode}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: this.organization.organizationId,
+      officeId: this.selectedOffice.officeId,
+      documentType: DocumentType.PropertyLetter,
+      fileName: fileName
+    };
+
+    // Use server-side PDF generation
+    this.documentService.generateDownload(generateDto).pipe(take(1)).subscribe({
+      next: (pdfBlob: Blob) => {
+        // Create download link and trigger download
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
+        this.isDownloading = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isDownloading = false;
+        this.toastr.error('Error generating PDF. Please try again.', 'Error');
+        console.error('PDF generation error:', error);
+      }
+    });
   }
 
   onPrint(): void {
@@ -875,5 +833,4 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
-
 }
