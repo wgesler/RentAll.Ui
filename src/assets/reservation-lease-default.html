@@ -4,6 +4,7 @@
   <title>{{ClientNo}} {{companyName}} {{propertyCode}}</title>
 
   <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style type="text/css">
     P.breakhere {
@@ -39,14 +40,18 @@
   </style>
 
   <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #eee;
       font-family: arial, san-serif;
       max-width: 8.5in;
       width: 8.5in;
       margin: 0 auto;
       padding: 0;
-      box-sizing: border-box;
     }
 
     p {
@@ -60,20 +65,17 @@
       max-width: 100% !important;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      box-sizing: border-box;
     }
 
     #terms {
       max-width: 100% !important;
       width: 100% !important;
-      box-sizing: border-box;
     }
 
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      box-sizing: border-box;
-      border: none;
+      border: 1px solid #ddd;
       padding: 3px;
       background-color: #fff;
     }
@@ -164,9 +166,9 @@
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td width="50%" style="vertical-align: top; padding: 5px;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50%;">
           <div style="margin-right: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2>Tenant Information</h2>
+            <h2 style="color: #000;">Tenant Information</h2>
             <p>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
               <span style="font-weight: bold">Name(s):</span> {{responsibleParty}}<br>
@@ -179,9 +181,9 @@
           </div>
         </td>
 
-        <td width="50%" style="vertical-align: top; padding: 5px;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50%;">
           <div style="margin-left: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2>Rental information</h2>
+            <h2 style="color: #000;">Rental information</h2>
             <p>
               <span style="font-weight: bold">Arrival Date:</span> {{arrivalDate}}<br>
               <span style="font-weight: bold">Departure Date:</span> {{departureDate}} ({{reservationNotice}} written notice is required)<br>
@@ -199,7 +201,7 @@
 
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
-          <h2 style="margin-top: 10px; margin-bottom: 10px" class="border">Property Information</h2>
+          <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000;" class="border">Property Information</h2>
           <div style="margin-top: 10px; margin-bottom: 10px" class="border">
             <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
           </div>
@@ -342,7 +344,6 @@
     <title>Corporate Letter of Responsibility</title>
     <style>
       body {
-        background-color: #eee;
         font-family: arial, san-serif;
       }
 
@@ -546,7 +547,6 @@
     <title>{{reservationNotice}} Notice of Intent to Vacate</title>
     <style>
       body {
-        background-color: #eee;
         font-family: arial, san-serif;
       }
 

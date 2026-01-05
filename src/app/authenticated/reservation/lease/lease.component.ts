@@ -1,5 +1,6 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -18,7 +19,7 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { finalize, take, of, catchError, Observable, filter, BehaviorSubject, map } from 'rxjs';
+import { finalize, take, of, catchError, Observable, filter, BehaviorSubject, map, Subscription } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -30,6 +31,8 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
 import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
+import { MatDialog } from '@angular/material/dialog';
+import { LeasePreviewDialogComponent, LeasePreviewData } from './lease-preview-dialog.component';
 
 @Component({
   selector: 'app-lease',
@@ -57,9 +60,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
   officeConfiguration: OfficeConfigurationResponse | null = null;
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
+  safeHtml: SafeHtml | null = null;
   iframeKey: number = 0;
   isDownloading: boolean = false;
   showPreview: boolean = false;
+  private leaseFormSubscription?: Subscription;
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -80,7 +85,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private documentExportService: DocumentExportService
+    private documentExportService: DocumentExportService,
+    private dialog: MatDialog,
+    private sanitizer: DomSanitizer
   ) {
     this.form = this.buildForm();
   }
@@ -92,6 +99,13 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.loadLeaseInformation();
     this.loadReservation();
     this.getLease();
+    
+    // Automatically regenerate preview when lease HTML changes (if both office and reservation are selected)
+    this.leaseFormSubscription = this.form.get('lease')?.valueChanges.subscribe(() => {
+      if (this.office && this.reservation) {
+        this.generatePreviewIframe();
+      }
+    });
   }
 
 
@@ -182,8 +196,22 @@ export class LeaseComponent implements OnInit, OnDestroy {
     } else {
       this.office = null;
       this.officeConfiguration = null;
+      this.showPreview = false;
     }
-    this.generatePreviewIframe();
+    // Automatically show preview when both office and reservation are selected
+    if (this.office && this.reservation) {
+      // Ensure default template is loaded if form is empty
+      const currentLease = this.form.get('lease')?.value || '';
+      if (!currentLease.trim()) {
+        this.form.patchValue({
+          lease: this.getDefaultLeaseTemplate()
+        });
+      }
+      this.generatePreviewIframe();
+      this.showPreview = true;
+    } else {
+      this.showPreview = false;
+    }
   }
 
    // Data Loading Methods 
@@ -276,6 +304,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
         this.reservation = reservation;
         // Chain loadContact after reservation loads
         this.loadContact();
+        // Automatically show preview when both office and reservation are selected
+        if (this.office && this.reservation) {
+          this.generatePreviewIframe();
+          this.showPreview = true;
+        }
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -735,6 +768,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     
     // Use the HTML document without style tags (styles will be injected dynamically)
     this.previewIframeHtml = processedHtml;
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(processedHtml);
     
     this.iframeKey++; // Force iframe refresh
   }
@@ -793,7 +827,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.isDownloading = true;
     try {
       const htmlWithStyles = this.getPdfHtmlWithStyles();
-      const fileName = `${this.reservation?.reservationCode || 'Lease'}_Lease_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `${this.reservation?.reservationCode}_Lease_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // Use the service to download PDF
       await this.documentExportService.downloadPDF(htmlWithStyles, fileName);     
@@ -813,6 +847,29 @@ export class LeaseComponent implements OnInit, OnDestroy {
     // Get the HTML with styles injected
     const htmlWithStyles = this.getPreviewHtmlWithStyles();
     this.documentExportService.printHTML(htmlWithStyles);
+  }
+
+  onPreviewDialog(): void {
+    if (!this.previewIframeHtml) {
+      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
+      return;
+    }
+
+    // Get the HTML with styles for the dialog
+    const htmlWithStyles = this.getPreviewHtmlWithStyles();
+
+    const dialogData: LeasePreviewData = {
+      html: htmlWithStyles,
+      email: this.contact?.email,
+      organizationName: this.organization?.name,
+      tenantName: this.reservation?.tenantName
+    };
+
+    this.dialog.open(LeasePreviewDialogComponent, {
+      width: '90%',
+      maxWidth: '1200px',
+      data: dialogData
+    });
   }
 
   async onEmail(): Promise<void> {
@@ -951,6 +1008,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   <title>{{ClientNo}} {{companyName}} {{propertyCode}}</title>
 
   <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style type="text/css">
     P.breakhere {
@@ -986,14 +1044,18 @@ export class LeaseComponent implements OnInit, OnDestroy {
   </style>
 
   <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #eee;
       font-family: arial, san-serif;
       max-width: 8.5in;
       width: 8.5in;
       margin: 0 auto;
       padding: 0;
-      box-sizing: border-box;
     }
 
     p {
@@ -1007,22 +1069,19 @@ export class LeaseComponent implements OnInit, OnDestroy {
       max-width: 100% !important;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      box-sizing: border-box;
     }
 
     #terms {
       max-width: 100% !important;
       width: 100% !important;
-      box-sizing: border-box;
     }
 
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      box-sizing: border-box;
-      border: none;
-      padding: 3px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -1059,10 +1118,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
     h2 {
       font-size: 16pt !important;
       font-weight: 600 !important;
-      color: #000;
+      color: #000 !important;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
-      padding: 0;
+      padding: 0 !important;
     }
 
     .border {
@@ -1111,9 +1170,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td width="50%" style="vertical-align: top; padding: 5px;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div style="margin-right: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2>Tenant Information</h2>
+            <h2 style="color: #000 !important;">Tenant Information</h2>
             <p>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
               <span style="font-weight: bold">Name(s):</span> {{responsibleParty}}<br>
@@ -1126,9 +1185,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
           </div>
         </td>
 
-        <td width="50%" style="vertical-align: top; padding: 5px;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div style="margin-left: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2>Rental information</h2>
+            <h2 style="color: #000 !important;">Rental information</h2>
             <p>
               <span style="font-weight: bold">Arrival Date:</span> {{arrivalDate}}<br>
               <span style="font-weight: bold">Departure Date:</span> {{departureDate}} ({{reservationNotice}} written notice is required)<br>
@@ -1146,7 +1205,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
-          <h2 style="margin-top: 10px; margin-bottom: 10px" class="border">Property Information</h2>
+          <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000 !important;" class="border">Property Information</h2>
           <div style="margin-top: 10px; margin-bottom: 10px" class="border">
             <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
           </div>
@@ -1289,7 +1348,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     <title>Corporate Letter of Responsibility</title>
     <style>
       body {
-        background-color: #eee;
         font-family: arial, san-serif;
       }
 
@@ -1493,7 +1551,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     <title>{{reservationNotice}} Notice of Intent to Vacate</title>
     <style>
       body {
-        background-color: #eee;
         font-family: arial, san-serif;
       }
 
@@ -1692,6 +1749,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.leaseFormSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 }
