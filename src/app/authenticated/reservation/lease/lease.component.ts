@@ -929,7 +929,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
       
       body {
-        font-size: 11pt !important;
+        font-size: 10pt !important;
         line-height: 1.4 !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -972,11 +972,32 @@ export class LeaseComponent implements OnInit, OnDestroy {
       
       p {
         margin: 0.3em 0 !important;
+        font-size: 10pt !important;
       }
       
       p, li {
         orphans: 2;
         widows: 2;
+      }
+      
+      /* Ensure page breaks work for all sections */
+      P.breakhere,
+      p.breakhere {
+        page-break-before: always !important;
+        break-before: page !important;
+        display: block !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* Ensure all sections are visible in print */
+      section,
+      .corporate-letter,
+      .notice-intent {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        display: block !important;
       }
     `;
     
@@ -1344,17 +1365,13 @@ export class LeaseComponent implements OnInit, OnDestroy {
   <p class="breakhere"></p>
 
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
-  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-  <html>
-  <head>
-    <title>Corporate Letter of Responsibility</title>
-    <style>
+  <style>
       body {
         font-family: arial, sans-serif;
       }
 
       p {
-        font-size: 8pt;
+        font-size: 10pt;
         line-height: 150%;
       }
 
@@ -1393,7 +1410,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
 
       .smgraytext {
-        font-size: 8pt;
+        font-size: 9pt;
         color: #999;
       }
 
@@ -1404,9 +1421,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
         padding: 10px;
       }
     </style>
-  </head>
 
-  <body>
     <table width="648" cellpadding="0" cellspacing="0" id="header" align="center">
       <img src="http://www.aaxsys.com/members/awch-dn/New_Website_Logo_DN_2.jpg" align="center">
       <tr valign="top">
@@ -1479,7 +1494,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
           </div>
 
           <div class="border">
-            <p style="font-size: 8.5pt">
+            <p style="font-size: 10pt">
               <strong>Agreed to and Accepted:</strong>
             </p>
             <table width="100%" cellpadding="0" cellspacing="0" align="center">
@@ -1543,23 +1558,17 @@ export class LeaseComponent implements OnInit, OnDestroy {
         </td>
       </tr>
     </table>
-  </body>
-  </html>
 
   <p class="breakhere"></p>
 
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
-  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-  <html>
-  <head>
-    <title>{{reservationNotice}} Notice of Intent to Vacate</title>
-    <style>
+  <style>
       body {
         font-family: arial, sans-serif;
       }
 
       p {
-        font-size: 9pt;
+        font-size: 10pt;
         line-height: 150%;
         margin-bottom: 12px;
       }
@@ -1612,10 +1621,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
     </style>
 
-    <meta name="GENERATOR" content="MSHTML 8.00.6001.19019">
-  </head>
-
-  <body>
     <table id="header" cellspacing="0" cellpadding="0" width="648" align="center">
       <tbody>
         <img src="http://www.aaxsys.com/members/awch-dn/New_Website_Logo_DN_2.jpg" align="center">
@@ -1681,13 +1686,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
               <br>
               <hr class="grayline" noshade>
 
+              <br>
               <p>
                 <span style="font-weight: bold">Rent due through end of notice $:</span> <span class="grayline">________________________</span>
               </p>
             </div>
             <br><br>
 
-            <table cellspacing="0" cellpadding="0" width="100%" align="center">
+            <table cellspacing="0" cellpadding="0" width="100%" align="center"><br>
               <tbody>
                 <tr valign="top">
                   <td style="padding-right: 10px" width="60%" align="center">
@@ -1707,7 +1713,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
               <p>
                 <span style="font-weight: bold">Acknowledged by {{organization-office}}:</span>
               </p>
-              <br>
+              <br><br>
               <table cellspacing="0" cellpadding="0" width="100%" align="center">
                 <tbody>
                   <tr valign="top">
@@ -1740,8 +1746,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
         </tr>
       </tbody>
     </table>
-  </body>
-  </html>`;
+`;
   }
 
   // Utility Methods
