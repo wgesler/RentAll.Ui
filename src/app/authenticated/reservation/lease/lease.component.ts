@@ -1051,7 +1051,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     }
 
     body {
-      font-family: arial, san-serif;
+      font-family: arial, sans-serif;
       max-width: 8.5in;
       width: 8.5in;
       margin: 0 auto;
@@ -1107,12 +1107,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
     }
 
     h1 {
-      font-size: 15pt;
+      font-size: 18pt;
       font-weight: 600;
       text-align: center;
       color: #fff;
       margin: 0;
       padding: 5px;
+      background-color: #222;
+      letter-spacing: -0.5px;
     }
 
     h2 {
@@ -1306,14 +1308,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
             <td style="padding-right: 10px" width="60%" align="center">
               <hr class="grayline" noshade>
               <span style="font-style: italic">Tenant Signature</span>
-              <p><br></p>
+              <p><br><br></p>
               <hr class="grayline" noshade>
               <span style="font-style: italic">{{organization-office}}</span>
             </td>
             <td style="padding-left: 10px" width="40%" align="center">
               <hr class="grayline" noshade>
               <span style="font-style: italic">Date</span>
-              <p><br></p>
+              <p><br><br></p>
               <hr class="grayline" noshade>
               <span style="font-style: italic">Date</span>
             </td>
@@ -1348,7 +1350,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     <title>Corporate Letter of Responsibility</title>
     <style>
       body {
-        font-family: arial, san-serif;
+        font-family: arial, sans-serif;
       }
 
       p {
@@ -1367,12 +1369,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
 
       h1 {
-        font-size: 9pt;
+        font-size: 18pt;
         font-weight: 600;
         text-align: center;
         color: #fff;
         margin: 0;
-        padding: 5px;
+        padding: 10px 5px 30px 5px;
+        background-color: #222;
+        letter-spacing: -0.5px;
       }
 
       .border {
@@ -1483,10 +1487,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
                 <td width="50%" style="padding-right: 10px" align="center">
                   <strong>{{responsibleParty}}</strong><br>
                   <i class="smgraytext">(Company)</i>
-                  <p><br>
+                  <p><br><br>
                     <hr noshade class="grayline">
                     <i class="smgraytext">Signature</i>
-                  </p>
+                  </p><br>
 
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
@@ -1505,10 +1509,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
                 <td width="50%" style="padding-left: 5px" align="center">
                   <strong>{{organization-office}}</strong><br>
                   <i class="smgraytext">(Property Manager)</i>
-                  <p><br>
+                  <p><br><br>
                     <hr noshade class="grayline">
                     <i class="smgraytext">Signature</i>
-                  </p>
+                  </p><br>
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
                       <td width="60%" align="center">
@@ -1551,7 +1555,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     <title>{{reservationNotice}} Notice of Intent to Vacate</title>
     <style>
       body {
-        font-family: arial, san-serif;
+        font-family: arial, sans-serif;
       }
 
       p {
@@ -1571,12 +1575,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
 
       h1 {
-        font-size: 11pt;
+        font-size: 18pt;
         font-weight: 600;
         text-align: center;
         color: #fff;
         margin: 0;
-        padding: 5px;
+        padding: 10px 5px 30px 5px;
+        background-color: #222;
+        letter-spacing: -0.5px;
       }
 
       .border {
