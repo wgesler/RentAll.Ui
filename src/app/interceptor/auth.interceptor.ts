@@ -7,12 +7,49 @@ import { CommonMessage } from '../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { LoadingBarService } from '../services/loading-bar.service';
 import { PurposefulAny } from '../shared/models/amorphous';
+import { ErrorResponseDto } from '../shared/models/error-response';
 
 
 const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<PurposefulAny>(null);
 let isRefreshingToken: boolean = false;
 
 // Helper function declarations
+function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService): void {
+  // Check if error.error matches ErrorResponseDto structure
+  const errorData = error?.error;
+  
+  if (errorData && typeof errorData === 'object') {
+    // Check if it has the ErrorResponseDto structure
+    if ('message' in errorData || 'Message' in errorData || 
+        ('controller' in errorData && 'httpMethod' in errorData)) {
+      
+      const errorDto = errorData as ErrorResponseDto;
+      const message = errorDto.message || (errorData as any).Message || '';
+      
+      // Create a formatted toast message with error details
+      if (message) {
+        toastrService.error(message, 'Error');
+      } else {
+        // Fallback if message is empty but structure matches
+        const errorTitle = errorDto.controller 
+          ? `${errorDto.httpMethod} ${errorDto.controller}/${errorDto.actionName}`
+          : 'An error occurred';
+        toastrService.error('An unexpected error has occurred.', errorTitle);
+      }
+      return;
+    }
+  }
+  
+  // Fallback for non-ErrorResponseDto errors
+  if (errorData) {
+    const errorMessage = typeof errorData === 'string' 
+      ? errorData 
+      : (errorData as any).Message || (errorData as any).message || 'An unexpected error has occurred.';
+    toastrService.error(errorMessage, CommonMessage.Error);
+  } else {
+    toastrService.error('An unexpected error has occurred.', CommonMessage.Error);
+  }
+}
 function addToken(req: HttpRequest<PurposefulAny>, authService: AuthService): HttpRequest<PurposefulAny> {
   const authData = authService.getAuthData();
   const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.accessToken}}) : req;
@@ -24,11 +61,11 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
 }
 
 function handle400Error(error: HttpErrorResponse, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error)
-    toastrService.error(
-      typeof error?.error === 'string' ? error.error : 'An unexpected error has occurred.', CommonMessage.Error);
-  else if (authService.getIsLoggedIn() && error.status === 400)
+  if (error?.error) {
+    showErrorToast(error, toastrService);
+  } else if (authService.getIsLoggedIn() && error.status === 400) {
     return logoutUser(authService);
+  }
   return throwError(() => error);
 }
 
@@ -51,8 +88,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
         // On any refresh token failure, logout and return to login screen
         // Show error message if it's not a 401 (401 is expected when refresh token is invalid/expired)
         if (error instanceof HttpErrorResponse && error.status !== 401) {
-          const err = error?.error?.Message ?? error?.error;
-          if (err) toastrService.error(err);
+          showErrorToast(error, toastrService);
         }
         // Reset token subject to signal failure to waiting requests
         tokenSubject$.next(null);
@@ -74,15 +110,15 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
 }
 
 function handle409Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-   if (error?.error) {
-    toastrService.error(error.error);
+  if (error?.error) {
+    showErrorToast(error, toastrService);
   }
   return throwError(() => error);
 }
 
 function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error?.Message) {
-    toastrService.error(error.error.Message);
+  if (error?.error) {
+    showErrorToast(error, toastrService);
   }
   return throwError(() => error);
 }
