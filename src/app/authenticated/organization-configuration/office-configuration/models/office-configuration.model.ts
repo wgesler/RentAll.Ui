@@ -38,3 +38,13 @@ export interface OfficeConfigurationResponse {
   isActive: boolean;
 }
 
+export interface OfficeConfigurationListDisplay {
+  officeId: number;
+  officeCode?: string;
+  officeName?: string;
+  maintenanceEmail?: string;
+  afterHoursPhone?: string;
+  defaultDeposit: number;
+  isActive: boolean;
+}
+

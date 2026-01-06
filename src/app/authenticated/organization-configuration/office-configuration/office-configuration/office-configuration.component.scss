@@ -1,0 +1,35 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.embedded-mode {
+  .content-card-wrap {
+    justify-content: flex-start;
+    padding: 0;
+  }
+  
+  .content-card {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+  
+  section.content-card {
+    border-radius: 0;
+  }
+  
+  .bg-slate-200 {
+    border-radius: 0;
+  }
+}
+

@@ -30,5 +30,10 @@ export class OfficeConfigurationService {
   updateOfficeConfiguration(officeId: number, config: OfficeConfigurationRequest): Observable<OfficeConfigurationResponse> {
     return this.http.put<OfficeConfigurationResponse>(this.controller + officeId + '/configuration', config);
   }
+
+  // DELETE: Delete office configuration
+  deleteOfficeConfiguration(officeId: number): Observable<void> {
+    return this.http.delete<void>(this.controller + officeId + '/configuration');
+  }
 }
 

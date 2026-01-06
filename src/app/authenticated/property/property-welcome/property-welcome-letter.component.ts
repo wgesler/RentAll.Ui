@@ -26,8 +26,8 @@ import { BuildingService } from '../../organization-configuration/building/servi
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { OfficeConfigurationService } from '../../organization-configuration/office/services/office-configuration.service';
-import { OfficeConfigurationResponse } from '../../organization-configuration/office/models/office-configuration.model';
+import { OfficeConfigurationService } from '../../organization-configuration/office-configuration/services/office-configuration.service';
+import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { DocumentType, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';

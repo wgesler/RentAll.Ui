@@ -1,0 +1,220 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading office configuration...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
+    <section class="content-card">
+      @if (!embeddedMode) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">settings</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Office Configuration' : 'Edit Office Configuration' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOfficeConfiguration()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid || !selectedOfficeId">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+        </div>
+      }
+      @if (embeddedMode) {
+        <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
+          <span class="flex flex-column items-center gap-2">
+            <mat-icon class="flex-shrink-0">settings</mat-icon>
+            <span class="flex-shrink-0 text-lg font-medium">
+              {{ isAddMode ? 'Add Office Configuration' : 'Edit Office Configuration' }}
+            </span>
+          </span>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOfficeConfiguration()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid || !selectedOfficeId">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      }
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveOfficeConfiguration()" class="info-form mb-8 pt-5">
+          <!-- Instructions -->
+          <p class="mb-4 text-gray-700">Select the Office for which to configure defaults</p>
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center mb-4">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+
+          <!-- First Row: Office, Default Rental Deposit -->
+          <div class="flex gap-4 mb-4">
+            <!-- Office Selection -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Office</mat-label>
+              <mat-select [value]="selectedOfficeId" (selectionChange)="onOfficeDropdownSelected($event.value)">
+                <mat-option [value]="null">Select Office</mat-option>
+                @for (office of offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Default Rental Deposit -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Default Rental Deposit</mat-label>
+              <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00"
+                (blur)="formatDecimal('defaultDeposit')"
+                (input)="onDecimalInput($event, 'defaultDeposit')"
+                (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
+          </div>
+
+          <!-- Second Row: Maintenance Email, After Hours Phone -->
+          <div class="flex gap-4 mb-4">
+            <!-- Maintenance Email -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Maintenance Email</mat-label>
+              <input matInput type="email" formControlName="maintenanceEmail" placeholder="email@example.com">
+            </mat-form-field>
+
+            <!-- After Hours Phone -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>After Hours Phone</mat-label>
+              <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555"
+                maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
+          </div>
+
+          <!-- After Hours Instructions -->
+          <div class="mb-4">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>After Hours Instructions</mat-label>
+              <textarea matInput formControlName="afterHoursInstructions" rows="3" placeholder="Instructions..."></textarea>
+            </mat-form-field>
+          </div>
+
+          <!-- Utility Charges Subsection -->
+          <div class="mb-4">
+            <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Ceilings</h3>
+            <div class="flex gap-4">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>1 Bedroom</mat-label>
+                <input matInput type="text" formControlName="utilityOneBed" placeholder="0.00"
+                  (blur)="formatDecimal('utilityOneBed')"
+                  (input)="onDecimalInput($event, 'utilityOneBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>2 Bedroom</mat-label>
+                <input matInput type="text" formControlName="utilityTwoBed" placeholder="0.00"
+                  (blur)="formatDecimal('utilityTwoBed')"
+                  (input)="onDecimalInput($event, 'utilityTwoBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>3 Bedroom</mat-label>
+                <input matInput type="text" formControlName="utilityThreeBed" placeholder="0.00"
+                  (blur)="formatDecimal('utilityThreeBed')"
+                  (input)="onDecimalInput($event, 'utilityThreeBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>4 Bedroom</mat-label>
+                <input matInput type="text" formControlName="utilityFourBed" placeholder="0.00"
+                  (blur)="formatDecimal('utilityFourBed')"
+                  (input)="onDecimalInput($event, 'utilityFourBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>House</mat-label>
+                <input matInput type="text" formControlName="utilityHouse" placeholder="0.00"
+                  (blur)="formatDecimal('utilityHouse')"
+                  (input)="onDecimalInput($event, 'utilityHouse')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Maid Charges Subsection -->
+          <div class="mb-4">
+            <h3 class="text-lg font-bold mb-3 text-black">Default Lease Maid Fees</h3>
+            <div class="flex gap-4">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>1 Bedroom</mat-label>
+                <input matInput type="text" formControlName="maidOneBed" placeholder="0.00"
+                  (blur)="formatDecimal('maidOneBed')"
+                  (input)="onDecimalInput($event, 'maidOneBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>2 Bedroom</mat-label>
+                <input matInput type="text" formControlName="maidTwoBed" placeholder="0.00"
+                  (blur)="formatDecimal('maidTwoBed')"
+                  (input)="onDecimalInput($event, 'maidTwoBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>3 Bedroom</mat-label>
+                <input matInput type="text" formControlName="maidThreeBed" placeholder="0.00"
+                  (blur)="formatDecimal('maidThreeBed')"
+                  (input)="onDecimalInput($event, 'maidThreeBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>4 Bedroom</mat-label>
+                <input matInput type="text" formControlName="maidFourBed" placeholder="0.00"
+                  (blur)="formatDecimal('maidFourBed')"
+                  (input)="onDecimalInput($event, 'maidFourBed')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Parking Charges Subsection -->
+          <div class="mb-4">
+            <h3 class="text-lg font-bold mb-3 text-black">Default Parking Penalty Range Fees</h3>
+            <div class="flex gap-4">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Low End</mat-label>
+                <input matInput type="text" formControlName="parkingLowEnd" placeholder="0.00"
+                  (blur)="formatDecimal('parkingLowEnd')"
+                  (input)="onDecimalInput($event, 'parkingLowEnd')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>High End</mat-label>
+                <input matInput type="text" formControlName="parkingHighEnd" placeholder="0.00"
+                  (blur)="formatDecimal('parkingHighEnd')"
+                  (input)="onDecimalInput($event, 'parkingHighEnd')"
+                  (focus)="selectAllOnFocus($event)">
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Is Active Checkbox -->
+          <div class="flex items-center justify-end mb-4">
+            <mat-checkbox formControlName="isActive" color="primary">
+              Is Active
+            </mat-checkbox>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}
+
