@@ -44,23 +44,32 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
           tokenSubject$.next(authResponse.accessToken);
           return next(addToken(req, authService));
         }
+        // If refresh response is invalid, logout and return to login
         return logoutUser(authService);
       }),
       catchError(error => {
-        if (error instanceof HttpErrorResponse && ((error as HttpErrorResponse).status === 401)) {
-          return logoutUser(authService);
+        // On any refresh token failure, logout and return to login screen
+        // Show error message if it's not a 401 (401 is expected when refresh token is invalid/expired)
+        if (error instanceof HttpErrorResponse && error.status !== 401) {
+          const err = error?.error?.Message ?? error?.error;
+          if (err) toastrService.error(err);
         }
-        const err = error?.error?.Message ?? error?.error;
-        if (err) toastrService.error(err);
-        return throwError(() => error);
+        // Reset token subject to signal failure to waiting requests
+        tokenSubject$.next(null);
+        // Always logout on refresh failure to return to login screen
+        return logoutUser(authService);
       }),
       finalize(() => {
         isRefreshingToken = false;
       })
     );
   } else {
-    return tokenSubject$.pipe(filter(token => token !== null), take(1),
-      switchMap(() => next(addToken(req, authService))));
+    // Wait for token refresh - if it fails, logout will navigate away and cancel this
+    return tokenSubject$.pipe(
+      filter(token => token !== null), 
+      take(1),
+      switchMap(() => next(addToken(req, authService)))
+    );
   }
 }
 
