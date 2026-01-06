@@ -14,6 +14,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { NavigationContextService } from '../../../../services/navigation-context.service';
 import { OfficeService } from '../../office/services/office.service';
 import { OfficeResponse } from '../../office/models/office.model';
+import { FormatterService } from '../../../../services/formatter-service';
 
 @Component({
   selector: 'app-agent',
@@ -48,7 +49,8 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     private toastr: ToastrService,
     private authService: AuthService,
     private navigationContext: NavigationContextService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private formatterService: FormatterService
   ) {
   }
 
@@ -232,10 +234,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
 
   // Utility Methods
   onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ agentCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
+    this.formatterService.formatCodeInput(event, this.form.get('agentCode'));
   } 
 
   removeLoadItem(key: string): void {

@@ -348,10 +348,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   // Utility Methods
   onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ officeCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
+    this.formatterService.formatCodeInput(event, this.form.get('officeCode'));
   }
 
   removeLoadItem(key: string): void {

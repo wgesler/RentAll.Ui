@@ -274,7 +274,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   initializeContactTypes(): void {
-    const includedTypes = ['Company', 'Tenant', 'Owner','Vendor'];
+    const includedTypes = ['Company', 'Tenant', 'Owner','Vendor', 'Hoa'];
     this.availableContactTypes = includedTypes
       .map(key => ({
         value: EntityType[key as keyof typeof EntityType],

@@ -165,4 +165,27 @@ export class FormatterService {
             }
         }
     }
+
+    /*******************  Code Input Formatting *******************/
+    // Handles uppercase code input formatting (for officeCode, agentCode, regionCode, areaCode, buildingCode, etc.)
+    // Converts input to uppercase while preserving cursor position
+    formatCodeInput(event: Event, control: AbstractControl | null): void {
+        const input = event.target as HTMLInputElement;
+        const cursorPosition = input.selectionStart || 0;
+        const originalValue = input.value;
+        const upperValue = originalValue.toUpperCase();
+        
+        // Only update if the value actually changed (case-wise)
+        if (originalValue !== upperValue) {
+            // Update form control value
+            if (control) {
+                control.setValue(upperValue, { emitEvent: false });
+            }
+            
+            // Set the input value and immediately restore cursor position
+            // This prevents the cursor from jumping to the end
+            input.value = upperValue;
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        }
+    }
 }

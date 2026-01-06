@@ -266,10 +266,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
 
   // Utility Methods
   onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ buildingCode: upperValue }, { emitEvent: false });
-    input.value = upperValue;
+    this.formatterService.formatCodeInput(event, this.form.get('buildingCode'));
   }
 
   removeLoadItem(key: string): void {
