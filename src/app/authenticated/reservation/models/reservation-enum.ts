@@ -35,6 +35,7 @@ export enum ReservationNotice {
 }
 
 export enum DepositType {
-  FlatFee = 0,
-  IncludedInRent = 1
+  Deposit = 0,
+  CLR = 1,
+  SDW = 2
 }

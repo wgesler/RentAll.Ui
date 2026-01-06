@@ -504,7 +504,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
   getDepositRequirementText(): string {
     if (!this.reservation) return '';
-    if (this.reservation.depositTypeId === DepositType.FlatFee) 
+    if (this.reservation.depositTypeId === DepositType.Deposit) 
       return `See Below`;
     else
       return `Corporate Letter of Responsibility`;

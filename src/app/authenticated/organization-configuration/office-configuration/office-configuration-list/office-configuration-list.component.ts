@@ -13,10 +13,7 @@ import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { OfficeService } from '../../office/services/office.service';
-import { OfficeResponse } from '../../office/models/office.model';
 import { AuthService } from '../../../../services/auth.service';
-import { FormatterService } from '../../../../services/formatter-service';
 
 @Component({
   selector: 'app-office-configuration-list',
@@ -32,9 +29,8 @@ export class OfficeConfigurationListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
-  allOfficeConfigurations: OfficeConfigurationListDisplay[] = [];
+  officeConfigurations: OfficeConfigurationListDisplay[] = [];
   officeConfigurationsDisplay: OfficeConfigurationListDisplay[] = [];
-  offices: OfficeResponse[] = [];
 
   officeConfigurationsDisplayedColumns: ColumnSet = {
     'officeCode': { displayAs: 'Code', maxWidth: '15ch' },
@@ -44,7 +40,7 @@ export class OfficeConfigurationListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['officeConfigurations', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['officeConfigurations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -54,13 +50,11 @@ export class OfficeConfigurationListComponent implements OnInit, OnDestroy {
     public router: Router,
     public forms: FormsModule,
     public mappingService: MappingService,
-    private officeService: OfficeService,
-    private authService: AuthService,
-    private formatterService: FormatterService) {
+    private authService: AuthService) {
   }
 
   ngOnInit(): void {
-    this.loadOffices();
+    this.getOfficeConfigurations();
   }
 
   addOfficeConfiguration(): void {
@@ -69,50 +63,19 @@ export class OfficeConfigurationListComponent implements OnInit, OnDestroy {
   }
 
   getOfficeConfigurations(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    const orgOffices = this.offices.filter(o => o.organizationId === orgId);
-    
-    if (orgOffices.length === 0) {
-      this.allOfficeConfigurations = [];
-      this.applyFilters();
-      this.removeLoadItem('officeConfigurations');
-      return;
-    }
-
-    this.allOfficeConfigurations = [];
-    let completedCount = 0;
-    const totalOffices = orgOffices.length;
-
-    orgOffices.forEach(office => {
-      this.officeConfigurationService.getOfficeConfigurationByOfficeId(office.officeId).pipe(
-        take(1)
-      ).subscribe({
-        next: (config: OfficeConfigurationResponse) => {
-          const display: OfficeConfigurationListDisplay = {
-            officeId: config.officeId,
-            officeCode: office.officeCode || '',
-            officeName: office.name || '',
-            maintenanceEmail: config.maintenanceEmail,
-            afterHoursPhone: this.formatterService.phoneNumber(config.afterHoursPhone),
-            defaultDeposit: config.defaultDeposit,
-            isActive: config.isActive
-          };
-          this.allOfficeConfigurations.push(display);
-          completedCount++;
-          if (completedCount === totalOffices) {
-            this.applyFilters();
-            this.removeLoadItem('officeConfigurations');
-          }
-        },
-        error: (err: HttpErrorResponse) => {
-          // 404 means no configuration exists for this office, which is fine
-          completedCount++;
-          if (completedCount === totalOffices) {
-            this.applyFilters();
-            this.removeLoadItem('officeConfigurations');
-          }
+    this.officeConfigurationService.getAllOfficeConfigurations().pipe(take(1), finalize(() => { this.removeLoadItem('officeConfigurations'); })).subscribe({
+      next: (configs: OfficeConfigurationResponse[]) => {
+        this.officeConfigurations = this.mappingService.mapOfficeConfigurations(configs || []);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.officeConfigurations = [];
+        this.removeLoadItem('officeConfigurations');
+        this.applyFilters();
+        if (err.status !== 400) {
+          this.toastr.error('Could not load office configurations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-      });
+      }
     });
   }
 
@@ -140,35 +103,12 @@ export class OfficeConfigurationListComponent implements OnInit, OnDestroy {
     this.officeConfigurationSelected.emit(event.officeId);
   }
 
-  // Data Loading Methods
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('offices');
-      return;
-    }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { 
-      this.removeLoadItem('offices');
-      this.getOfficeConfigurations();
-    })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
 
   // Filtering Methods
   applyFilters(): void {
     this.officeConfigurationsDisplay = this.showInactive
-      ? this.allOfficeConfigurations
-      : this.allOfficeConfigurations.filter(config => config.isActive);
+      ? this.officeConfigurations
+      : this.officeConfigurations.filter(config => config.isActive);
   }
 
   toggleInactive(): void {

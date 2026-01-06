@@ -18,6 +18,8 @@ import { AgentService } from '../../organization-configuration/agent/services/ag
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { OfficeConfigurationService } from '../../organization-configuration/office-configuration/services/office-configuration.service';
+import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
@@ -52,11 +54,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
   filteredContacts: ContactResponse[] = [];
   agents: AgentResponse[] = [];
   properties: PropertyResponse[] = [];
+  filteredProperties: PropertyResponse[] = [];
   companies: CompanyResponse[] = [];
   offices: OfficeResponse[] = [];
+  officeConfigurations: OfficeConfigurationResponse[] = [];
   organization: OrganizationResponse | null = null;
   selectedProperty: PropertyResponse | null = null;
   selectedContact: ContactResponse | null = null;
+  selectedOffice: OfficeResponse | null = null;
   selectedCompanyName: string = '';
   EntityType = EntityType; // Expose enum to template
   departureDateStartAt: Date | null = null;
@@ -70,7 +75,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   availableDepositTypes: { value: number, label: string }[] = [];
   ReservationType = ReservationType; // Expose enum to template
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents', 'properties', 'companies', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents', 'properties', 'companies', 'offices', 'officeConfigurations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -84,6 +89,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private agentService: AgentService,
     private companyService: CompanyService,
     private officeService: OfficeService,
+    private officeConfigurationService: OfficeConfigurationService,
     private commonService: CommonService,
     private authService: AuthService,
     private formatterService: FormatterService,
@@ -99,6 +105,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadProperties();
     this.loadCompanies();
     this.loadOffices();
+    this.loadOfficeConfigurations();
     
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -109,7 +116,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           // Add mode: property open, billing closed
           this.propertyPanelOpen = true;
-          this.billingPanelOpen = false;
+          this.billingPanelOpen = true;
           this.removeLoadItem('reservation');
           this.buildForm();
         } else {
@@ -154,6 +161,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
+      officeId: formValue.officeId || null,
       propertyId: formValue.propertyId,
       agentId: formValue.agentId || null,
       contactId: formValue.contactId,
@@ -217,6 +225,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   buildForm(): void {
     this.form = this.fb.group({
       reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
+      officeId: new FormControl(null, [Validators.required]),
+      officeName: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
       propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
       propertyId: new FormControl('', [Validators.required]),
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
@@ -243,7 +253,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       maidService: new FormControl(false),
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
-      depositType: new FormControl(DepositType.FlatFee),
+      depositType: new FormControl(DepositType.Deposit),
       deposit: new FormControl<string>(this.getDefaultDeposit()),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00'),
@@ -254,6 +264,45 @@ export class ReservationComponent implements OnInit, OnDestroy {
       extraFee2Name: new FormControl(''),
       taxes: new FormControl(null),
       notes: new FormControl('')
+    });
+
+    // Handle office selection and filter properties
+    this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+      if (officeId) {
+        // Find and set the selected office from the list
+        this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+        
+        // Filter properties by selected office
+        this.filteredProperties = this.properties.filter(p => p.officeId === officeId);
+        
+        // Clear property selection if current property doesn't belong to selected office
+        const currentPropertyId = this.form.get('propertyId')?.value;
+        if (currentPropertyId) {
+          const currentProperty = this.properties.find(p => p.propertyId === currentPropertyId);
+          if (currentProperty && currentProperty.officeId !== officeId) {
+            this.form.patchValue({ 
+              propertyId: '',
+              propertyCode: '',
+              propertyAddress: ''
+            }, { emitEvent: false });
+            this.selectedProperty = null;
+          }
+        }
+        
+        // Load office configuration and update deposit
+        this.loadOfficeConfigurationAndUpdateDeposit(officeId);
+      } else {
+        // If no office selected, clear selected office and show all properties
+        this.selectedOffice = null;
+        this.filteredProperties = this.properties;
+        // Clear property selection
+        this.form.patchValue({ 
+          propertyId: '',
+          propertyCode: '',
+          propertyAddress: ''
+        }, { emitEvent: false });
+        this.selectedProperty = null;
+      }
     });
 
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
@@ -349,6 +398,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.selectedContact = contact;
           this.updateContactFields(contact);
           this.updateEntityNames(contact);
+          
+          // Update tenant name if contact type is NOT company
+          if (contact.entityTypeId !== EntityType.Company) {
+            const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+            if (contactName) {
+              this.form.patchValue({ tenantName: contactName }, { emitEvent: false });
+            }
+          }
         }
       } else {
         this.selectedContact = null;
@@ -655,11 +712,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
         ? this.reservation.isActive === 1 
         : Boolean(this.reservation.isActive);
       
-      const selectedProp = this.properties.find(p => p.propertyId === this.reservation.propertyId);
-      const propertyAddress = selectedProp 
-        ? `${selectedProp.address1}${selectedProp.suite ? ' ' + selectedProp.suite : ''}`.trim()
+      const selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
+      const propertyAddress = selectedProperty 
+        ? `${selectedProperty.address1}${selectedProperty.suite ? ' ' + selectedProperty.suite : ''}`.trim()
         : '';
-      const propertyCode = selectedProp?.propertyCode || '';
+      const propertyCode = selectedProperty?.propertyCode || '';
       
       // Load contacts first to populate phone/email
       this.contactService.getAllContacts().pipe(take(1)).subscribe({
@@ -868,7 +925,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
               billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
               billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
               numberOfPeople: numberOfPeopleValue,
-              depositType: this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.FlatFee,
+              depositType: this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.Deposit,
               deposit: this.reservation.deposit ? this.reservation.deposit.toFixed(2) : '0.00',
               departureFee: (this.reservation.departureFee ?? 0).toFixed(2),
               maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
@@ -891,7 +948,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
             
             // Update disabled state based on loaded depositType
             // Use the updateDepositValidator method to set correct validators
-            const loadedDepositType = this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.FlatFee;
+            const loadedDepositType = this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.Deposit;
             this.updateDepositValidator(loadedDepositType);
 
             // Update pets and maidService field states after loading
@@ -1028,6 +1085,22 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
       if (this.reservation.propertyId) {
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
+        
+        // Set officeId and officeName from the property
+        if (this.selectedProperty && this.selectedProperty.officeId) {
+          const office = this.offices.find(o => o.officeId === this.selectedProperty.officeId);
+          this.selectedOffice = office || null;
+          this.form.patchValue({
+            officeId: this.selectedProperty.officeId,
+            officeName: office?.name || ''
+          }, { emitEvent: false });
+          
+          // Filter properties by office
+          this.filteredProperties = this.properties.filter(p => p.officeId === this.selectedProperty.officeId);
+          
+          // Note: Don't update deposit here in edit mode - keep the saved deposit value
+          // Deposit will be updated when user actively selects/reselects office via the dropdown
+        }
       }
     }
   }
@@ -1098,17 +1171,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
       const company = this.companies.find(c => c.companyId === contact.entityId);
       if (company) {
         this.selectedCompanyName = company.name;
-        this.form.patchValue({ 
-          entityCompanyName: company.name
-        }, { emitEvent: false });
+        this.form.patchValue({ entityCompanyName: company.name}, { emitEvent: false });
       } else {
         this.selectedCompanyName = '';
         this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
       }
     } else {
       this.selectedCompanyName = '';
-      this.form.patchValue({ 
-        entityCompanyName: ''
+      this.form.patchValue({ entityCompanyName: ''
       }, { emitEvent: false });
     }
   }
@@ -1124,12 +1194,29 @@ export class ReservationComponent implements OnInit, OnDestroy {
   updateDepositValidator(depositType: number | null): void {
     const depositControl = this.form?.get('deposit');
     if (depositControl) {
-      if (depositType === DepositType.FlatFee) {
-        // Set deposit to organization defaultDeposit when FlatFee is selected (only if current value is 0)
+      if (depositType === DepositType.Deposit) {
+        // Set deposit to office configuration defaultDeposit (only if current value is 0)
         const currentDeposit = parseFloat(depositControl.value || '0');
         if (currentDeposit === 0) {
-          const defaultDeposit = this.getDefaultDeposit();
-          depositControl.setValue(defaultDeposit, { emitEvent: false });
+          const officeId = this.form?.get('officeId')?.value;
+          if (officeId) {
+            // Find office configuration from cached list
+            const config = this.officeConfigurations.find(c => c.officeId === officeId);
+            if (config) {
+              const defaultDeposit = config.defaultDeposit !== null && config.defaultDeposit !== undefined 
+                ? config.defaultDeposit.toFixed(2) 
+                : '0.00';
+              depositControl.setValue(defaultDeposit, { emitEvent: false });
+            } else {
+              // Fallback to organization default if no office configuration found
+              const defaultDeposit = this.getDefaultDeposit();
+              depositControl.setValue(defaultDeposit, { emitEvent: false });
+            }
+          } else {
+            // Fallback to organization default if no office selected
+            const defaultDeposit = this.getDefaultDeposit();
+            depositControl.setValue(defaultDeposit, { emitEvent: false });
+          }
         }
         // Make deposit required, editable, and must be greater than 0
         depositControl.enable({ emitEvent: false });
@@ -1148,7 +1235,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
           }
         ]);
         depositControl.updateValueAndValidity({ emitEvent: false });
-      } else if (depositType === DepositType.IncludedInRent) {
+      } else if (depositType === DepositType.CLR || depositType === DepositType.SDW) {
         // Clear validators for IncludedInRent, but keep field enabled and value unchanged
         depositControl.enable({ emitEvent: false });
         depositControl.clearValidators();
@@ -1244,9 +1331,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
          this.properties = properties;
+         // Initialize filtered properties (show all until office is selected)
+         this.filteredProperties = properties;
       },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
+        this.filteredProperties = [];
         if (err.status !== 400) {
           this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
@@ -1316,6 +1406,44 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadOfficeConfigurations(): void {
+    this.officeConfigurationService.getAllOfficeConfigurations().pipe(
+      take(1),
+      finalize(() => { this.removeLoadItem('officeConfigurations'); })
+    ).subscribe({
+      next: (configs: OfficeConfigurationResponse[]) => {
+        this.officeConfigurations = configs || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        this.officeConfigurations = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load office configurations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.removeLoadItem('officeConfigurations');
+      }
+    });
+  }
+
+  loadOfficeConfigurationAndUpdateDeposit(officeId: number): void {
+    // Find office configuration from cached list
+    const config = this.officeConfigurations.find(c => c.officeId === officeId);
+    
+    if (config) {
+      // Update deposit with office configuration's defaultDeposit
+      const depositControl = this.form.get('deposit');
+      const depositType = this.form.get('depositType')?.value;
+      
+      if (depositControl && depositType === DepositType.Deposit) {
+        // Only update if depositType is Deposit (when deposit is editable)
+        const defaultDeposit = config.defaultDeposit !== null && config.defaultDeposit !== undefined 
+          ? config.defaultDeposit.toFixed(2) 
+          : '0.00';
+        depositControl.setValue(defaultDeposit, { emitEvent: false });
+      }
+    }
+    // If no configuration found, leave deposit as is (no error needed)
+  }
+
   initializeEnums(): void {
     this.availableClientTypes = [
       { value: ReservationType.Private, label: 'Private' },
@@ -1349,8 +1477,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     ];
 
     this.availableDepositTypes = [
-      { value: DepositType.FlatFee, label: 'Flat Fee' },
-      { value: DepositType.IncludedInRent, label: 'Included in Rent' }
+      { value: DepositType.Deposit, label: 'Deposit' },
+      { value: DepositType.CLR, label: 'CLR' },
+      { value: DepositType.SDW, label: 'SDW' },
     ];
   }
 

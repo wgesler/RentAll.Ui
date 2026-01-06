@@ -20,6 +20,8 @@ export interface OfficeConfigurationRequest {
 
 export interface OfficeConfigurationResponse {
   officeId: number;
+  officeCode: string;
+  name: string;
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;

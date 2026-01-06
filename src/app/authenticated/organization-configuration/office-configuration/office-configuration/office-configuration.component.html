@@ -54,6 +54,14 @@
         <form [formGroup]="form" (ngSubmit)="saveOfficeConfiguration()" class="info-form mb-8 pt-5">
           <!-- Instructions -->
           <p class="mb-4 text-gray-700">Select the Office for which to configure defaults</p>
+          
+          <!-- Is Active Checkbox at top -->
+          <div class="flex items-center justify-end mb-4">
+            <mat-checkbox formControlName="isActive" color="primary">
+              Is Active
+            </mat-checkbox>
+          </div>
+          
           @if (isSubmitting) {
             <div class="flex justify-start gap-3 items-center mb-4">
               <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
@@ -204,13 +212,6 @@
                   (focus)="selectAllOnFocus($event)">
               </mat-form-field>
             </div>
-          </div>
-
-          <!-- Is Active Checkbox -->
-          <div class="flex items-center justify-end mb-4">
-            <mat-checkbox formControlName="isActive" color="primary">
-              Is Active
-            </mat-checkbox>
           </div>
         </form>
       </mat-card>

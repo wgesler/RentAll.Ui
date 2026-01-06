@@ -16,6 +16,11 @@ export class OfficeConfigurationService {
       private configService: ConfigService) {
   }
 
+  // GET: Get all office configurations
+  getAllOfficeConfigurations(): Observable<OfficeConfigurationResponse[]> {
+    return this.http.get<OfficeConfigurationResponse[]>(this.controller + 'configuration');
+  }
+
   // GET: Get office configuration by office ID
   getOfficeConfigurationByOfficeId(officeId: number): Observable<OfficeConfigurationResponse> {
     return this.http.get<OfficeConfigurationResponse>(this.controller + officeId + '/configuration' );

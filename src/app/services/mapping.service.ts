@@ -15,6 +15,7 @@ import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization
 import { RegionResponse, RegionListDisplay } from '../authenticated/organization-configuration/region/models/region.model';
 import { ColorResponse, ColorListDisplay } from '../authenticated/organization-configuration/color/models/color.model';
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
+import { OfficeConfigurationResponse, OfficeConfigurationListDisplay } from '../authenticated/organization-configuration/office-configuration/models/office-configuration.model';
 import { FormatterService } from './formatter-service';
 
 @Injectable({
@@ -273,6 +274,18 @@ export class MappingService {
         isActive: o.isActive
       };
     });
+  }
+
+  mapOfficeConfigurations(configs: OfficeConfigurationResponse[]): OfficeConfigurationListDisplay[] {
+    return configs.map<OfficeConfigurationListDisplay>((o: OfficeConfigurationResponse) => ({
+      officeId: o.officeId,
+      officeCode: o.officeCode || '',
+      officeName: o.name || '',
+      maintenanceEmail: o.maintenanceEmail,
+      afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
+      defaultDeposit: o.defaultDeposit,
+      isActive: o.isActive
+    }));
   }
 
   // Helper/format functions

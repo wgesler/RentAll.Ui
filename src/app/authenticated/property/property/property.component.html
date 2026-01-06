@@ -362,12 +362,15 @@
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 features-content">
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Office</mat-label>
-                    <mat-select formControlName="officeId">
+                    <mat-select formControlName="officeId" required>
                       <mat-option [value]="null">Select Office</mat-option>
                       @for (f of offices; track f.officeId) {
                         <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
                       }
                     </mat-select>
+                    @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                      <mat-error>Office is required</mat-error>
+                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-1">

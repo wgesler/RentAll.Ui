@@ -423,7 +423,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       petsAllowed: new FormControl(false),
 
       // Location section
-      officeId: new FormControl<number | null>(null),
+      officeId: new FormControl<number | null>(null, [Validators.required]),
       regionId: new FormControl<number | null>(null),
       areaId: new FormControl<number | null>(null),
       buildingId: new FormControl<number | null>(null),

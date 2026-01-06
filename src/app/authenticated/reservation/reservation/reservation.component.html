@@ -48,10 +48,16 @@
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               @if (!isAddMode) {
-                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (2/4) -->
+                <!-- Edit Mode: Line 1: Reservation Code (1/4), Office (read-only) (1/4), Property Code (1/4), Property Address (1/4) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Code</mat-label>
                   <input matInput formControlName="reservationCode" readonly>
+                </mat-form-field>
+
+                <!-- Edit Mode: Office (read-only) -->
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Office</mat-label>
+                  <input matInput formControlName="officeName" readonly>
                 </mat-form-field>
 
                 <!-- Edit Mode: Property Code (read-only) -->
@@ -60,19 +66,32 @@
                   <input matInput formControlName="propertyCode" readonly>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-2">
+                <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly>
                 </mat-form-field>
               }
 
               @if (isAddMode) {
-                <!-- Add Mode: Line 1: Property (1/4), Property Address (3/4) -->
+                <!-- Add Mode: Line 1: Office (1/4), Property (1/4), Property Address (2/4) -->
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Office</mat-label>
+                  <mat-select formControlName="officeId" required>
+                    <mat-option value="">Select Office</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                    <mat-error>Office is required</mat-error>
+                  }
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Property</mat-label>
                   <mat-select formControlName="propertyId" required>
                     <mat-option value="">Select Property</mat-option>
-                    @for (property of properties; track property.propertyId) {
+                    @for (property of filteredProperties; track property.propertyId) {
                       <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
                     }
                   </mat-select>
@@ -81,7 +100,7 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-3">
+                <mat-form-field appearance="outline" class="col-span-2">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly>
                 </mat-form-field>

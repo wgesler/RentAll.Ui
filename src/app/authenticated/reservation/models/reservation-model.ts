@@ -3,6 +3,7 @@
 export interface ReservationRequest {
   reservationId?: string;
   organizationId: string;
+  officeId?: number | null;
   agentId?: string | null;
   propertyId: string;
   contactId: string;
