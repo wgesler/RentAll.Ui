@@ -9,7 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { PropertyResponse, PropertyRequest } from '../models/property.model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
@@ -211,8 +211,20 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   
   saveProperty(): void {
+    // Mark all fields as touched to show validation errors
+    this.form.markAllAsTouched();
+    
+    // Also mark individual controls as touched to ensure error messages appear
+    Object.keys(this.form.controls).forEach(key => {
+      const control = this.form.get(key);
+      if (control) {
+        control.markAsTouched();
+        control.updateValueAndValidity({ emitEvent: false });
+      }
+    });
+    
     if (!this.form.valid) {
-      this.form.markAllAsTouched();
+      this.toastr.error('Please fill in all required fields', CommonMessage.Error);
       return;
     }
 
@@ -337,11 +349,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
       owner1Id: new FormControl('', contactValidators),
       owner2Id: new FormControl(null),
       owner3Id: new FormControl(null),
-      propertyStyle: new FormControl<number>(PropertyStyle.Standard),
-      propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed),
-      propertyType: new FormControl<number>(PropertyType.Unspecified),
+      propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
+      propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed, [Validators.required]),
+      propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
       phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
-      accomodates: new FormControl(0),
+      accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
@@ -385,8 +397,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       maxStay: new FormControl<number>(0),
       availableFrom: new FormControl<Date | null>(null),
       availableUntil: new FormControl<Date | null>(null),
-      checkInTimeId: new FormControl<number>(CheckinTimes.NA),
-      checkOutTimeId: new FormControl<number>(CheckoutTimes.NA),
+      checkInTimeId: new FormControl<number | null>(null, [Validators.required]),
+      checkOutTimeId: new FormControl<number | null>(null, [Validators.required]),
       
       // Living tab
       view: new FormControl(''),
@@ -454,6 +466,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       // Convert date strings to Date objects
       formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
       formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
+      // Normalize values
       formData.checkInTimeId = this.utilityService.normalizeCheckInTimeId(this.property.checkInTimeId);
       formData.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(this.property.checkOutTimeId);
       

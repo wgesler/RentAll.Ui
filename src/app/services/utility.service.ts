@@ -18,7 +18,6 @@ export class UtilityService {
     if (!checkInTimeId) return '';
     
     const timeMap: { [key: number]: string } = {
-      [CheckinTimes.NA]: 'N/A',
       [CheckinTimes.TwelvePM]: '12:00 PM',
       [CheckinTimes.OnePM]: '1:00 PM',
       [CheckinTimes.TwoPM]: '2:00 PM',
@@ -35,7 +34,6 @@ export class UtilityService {
     if (!checkOutTimeId) return '';
     
     const timeMap: { [key: number]: string } = {
-      [CheckoutTimes.NA]: 'N/A',
       [CheckoutTimes.EightAM]: '8:00 AM',
       [CheckoutTimes.NineAM]: '9:00 AM',
       [CheckoutTimes.TenAM]: '10:00 AM',
@@ -50,7 +48,6 @@ export class UtilityService {
   // Gets the array of check-in time options for dropdowns
   getCheckInTimes(): { value: number, label: string }[] {
     return [
-      { value: CheckinTimes.NA, label: 'N/A' },
       { value: CheckinTimes.TwelvePM, label: '12:00 PM' },
       { value: CheckinTimes.OnePM, label: '1:00 PM' },
       { value: CheckinTimes.TwoPM, label: '2:00 PM' },
@@ -63,7 +60,6 @@ export class UtilityService {
   // Gets the array of check-out time options for dropdowns
   getCheckOutTimes(): { value: number, label: string }[] {
     return [
-      { value: CheckoutTimes.NA, label: 'N/A' },
       { value: CheckoutTimes.EightAM, label: '8:00 AM' },
       { value: CheckoutTimes.NineAM, label: '9:00 AM' },
       { value: CheckoutTimes.TenAM, label: '10:00 AM' },
@@ -78,7 +74,7 @@ export class UtilityService {
     if (value !== null && value !== undefined) {
       return Number(value);
     }
-    return CheckinTimes.NA;
+    return CheckinTimes.FourPM;
   }
 
   // Normalizes check-out time ID to a number for API requests (defaults to NA if null/undefined)
@@ -86,6 +82,6 @@ export class UtilityService {
     if (value !== null && value !== undefined) {
       return Number(value);
     }
-    return CheckoutTimes.NA;
+    return CheckoutTimes.ElevenAM;
   }
 }

@@ -306,8 +306,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       allowExtensions: new FormControl(true),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required]),
-      checkInTimeId: new FormControl<number>(CheckinTimes.NA, [Validators.required]),
-      checkOutTimeId: new FormControl<number>(CheckoutTimes.NA, [Validators.required]),
+      checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
+      checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
@@ -522,13 +522,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
           // Pre-load taxes (default to null if not available on property)
           patchValues.taxes = null;
           
-          // Pre-load check-in time from property (defaults to FourPM if property doesn't have one)
-          const checkInTime = this.utilityService.normalizeCheckInTimeId(this.selectedProperty.checkInTimeId);
-          patchValues.checkInTimeId = checkInTime !== CheckinTimes.NA ? checkInTime : CheckinTimes.FourPM;
-          
-          // Pre-load check-out time from property (defaults to ElevenAM if property doesn't have one)
-          const checkOutTime = this.utilityService.normalizeCheckOutTimeId(this.selectedProperty.checkOutTimeId);
-          patchValues.checkOutTimeId = checkOutTime !== CheckoutTimes.NA ? checkOutTime : CheckoutTimes.ElevenAM;
+          // Pre-load check-in/out times from property 
+          patchValues.checkInTimeId = this.utilityService.normalizeCheckInTimeId(this.selectedProperty.checkInTimeId);
+          patchValues.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(this.selectedProperty.checkOutTimeId);
           
           // If Reservation Type is Owner, populate Tenant Name with Owner1's name
           const reservationTypeId = this.form.get('reservationTypeId')?.value;
