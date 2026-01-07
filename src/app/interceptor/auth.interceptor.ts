@@ -29,27 +29,12 @@ function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService):
       // Create a formatted toast message with error details
       if (message) {
         toastrService.error(message, 'Error');
-      } else {
-        // Fallback if message is empty but structure matches
-        const errorTitle = errorDto.controller 
-          ? `${errorDto.httpMethod} ${errorDto.controller}/${errorDto.actionName}`
-          : 'An error occurred';
-        toastrService.error('An unexpected error has occurred.', errorTitle);
-      }
+      } 
       return;
     }
   }
-  
-  // Fallback for non-ErrorResponseDto errors
-  if (errorData) {
-    const errorMessage = typeof errorData === 'string' 
-      ? errorData 
-      : (errorData as any).Message || (errorData as any).message || 'An unexpected error has occurred.';
-    toastrService.error(errorMessage, CommonMessage.Error);
-  } else {
-    toastrService.error('An unexpected error has occurred.', CommonMessage.Error);
-  }
 }
+
 function addToken(req: HttpRequest<PurposefulAny>, authService: AuthService): HttpRequest<PurposefulAny> {
   const authData = authService.getAuthData();
   const authReq = (authData) ? req.clone({setHeaders: {Authorization: 'Bearer ' + authData.accessToken}}) : req;
