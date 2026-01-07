@@ -30,8 +30,8 @@ export enum Frequency {
 }
 
 export enum ReservationNotice {
-  ThirtyDays = 1,
-  FourteenDays = 2
+  ThirtyDays = 0,
+  FourteenDays = 1
 }
 
 export enum DepositType {

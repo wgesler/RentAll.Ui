@@ -95,7 +95,9 @@ export class ReservationListComponent implements OnInit, OnDestroy {
       this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
-          this.getReservations();
+          // Remove from local arrays instead of reloading
+          this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+          this.applyFilters();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of } from 'rxjs';
 import { ReservationService } from '../services/reservation.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -32,6 +32,9 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
+import { MatDialog } from '@angular/material/dialog';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 
 @Component({
   selector: 'app-reservation',
@@ -50,19 +53,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   propertyPanelOpen: boolean = true;
   billingPanelOpen: boolean = false;
-  contacts: ContactResponse[] = [];
-  filteredContacts: ContactResponse[] = [];
-  agents: AgentResponse[] = [];
-  properties: PropertyResponse[] = [];
-  filteredProperties: PropertyResponse[] = [];
-  companies: CompanyResponse[] = [];
-  offices: OfficeResponse[] = [];
-  officeConfigurations: OfficeConfigurationResponse[] = [];
-  organization: OrganizationResponse | null = null;
-  selectedProperty: PropertyResponse | null = null;
-  selectedContact: ContactResponse | null = null;
-  selectedOffice: OfficeResponse | null = null;
-  selectedCompanyName: string = '';
+  ReservationType = ReservationType; // Expose enum to template
   EntityType = EntityType; // Expose enum to template
   departureDateStartAt: Date | null = null;
   availableClientTypes: { value: number, label: string }[] = [];
@@ -73,9 +64,21 @@ export class ReservationComponent implements OnInit, OnDestroy {
   availableFrequencies: { value: number, label: string }[] = [];
   availableReservationNotices: { value: number, label: string }[] = [];
   availableDepositTypes: { value: number, label: string }[] = [];
-  ReservationType = ReservationType; // Expose enum to template
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'agents', 'properties', 'companies', 'offices', 'officeConfigurations']));
+ 
+  organization: OrganizationResponse | null = null;
+  agents: AgentResponse[] = [];
+  companies: CompanyResponse[] = [];
+  selectedCompanyName: string = '';
+  contacts: ContactResponse[] = [];
+  filteredContacts: ContactResponse[] = [];
+  selectedContact: ContactResponse | null = null;
+  properties: PropertyResponse[] = [];
+  filteredProperties: PropertyResponse[] = [];
+  selectedProperty: PropertyResponse | null = null;
+  selectedOffice: OfficeResponse | null = null;
+  selectedOfficeConfiguration: OfficeConfigurationResponse | null = null; 
+ 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'reservation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -93,10 +96,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private authService: AuthService,
     private formatterService: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private dialog: MatDialog
   ) {
   }
 
+  //#region Reservation Page
   ngOnInit(): void {
     this.initializeEnums();
     this.loadOrganization();
@@ -104,10 +109,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadAgents();
     this.loadProperties();
     this.loadCompanies();
-    this.loadOffices();
-    this.loadOfficeConfigurations();
     
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    // Initialize form immediately to prevent template errors
+    this.buildForm();
+    
+    this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.reservationId = paramMap.get('id');
         this.isAddMode = this.reservationId === 'new';
@@ -118,6 +124,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.propertyPanelOpen = true;
           this.billingPanelOpen = true;
           this.removeLoadItem('reservation');
+          // Form already built, just need to reset it
           this.buildForm();
         } else {
           // Edit mode: property open, billing closed
@@ -125,49 +132,108 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.billingPanelOpen = false;
           this.getReservation();
         }
+      } else {
+        // No ID in route, initialize form for add mode
+        this.isAddMode = true;
+        this.propertyPanelOpen = true;
+        this.billingPanelOpen = true;
+        this.removeLoadItem('reservation');
+        // Form already built
       }
     });
-    if (!this.isAddMode) {
-      this.buildForm();
-    }
   }
 
   getReservation(): void {
-    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); }) ).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservation = response;
-        this.buildForm();
-        this.populateForm();
-      },
-      error: (err: HttpErrorResponse) => {
+    if (!this.reservationId || this.reservationId === 'new') {
+      this.removeLoadItem('reservation');
+      this.isServiceError = true;
+      this.toastr.error('Invalid reservation ID', CommonMessage.Error);
+      return;
+    }
+
+    // Ensure 'reservation' is in the loading set
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has('reservation')) {
+      const newSet = new Set(currentSet);
+      newSet.add('reservation');
+      this.itemsToLoad$.next(newSet);
+    }
+
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(
+      take(1),
+      catchError((err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status !== 400) {
           this.toastr.error('Could not load reservation info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.removeLoadItem('reservation');
+        return of(null); // Return a null observable to complete the stream
+      }),
+      finalize(() => { 
+        this.removeLoadItem('reservation'); 
+      })
+    ).subscribe({
+      next: (response: ReservationResponse | null) => {
+        if (response) {
+          this.reservation = response;
+          this.buildForm();
+          this.populateForm();
+        }
       }
     });
   }
 
   saveReservation(): void {
-    if (!this.form.valid) {
+    // Ensure contactId is disabled if reservationTypeId is not set
+    const reservationTypeId = this.form.get('reservationTypeId')?.value;
+    if (reservationTypeId === null || reservationTypeId === undefined || reservationTypeId === '') {
+      this.disableFieldWithValidation('contactId');
+      this.form.patchValue({ contactId: '' }, { emitEvent: false });
+    }
+    
+    // Mark all fields as touched to show validation errors
       this.form.markAllAsTouched();
+    
+    // Also mark individual controls as touched to ensure error messages appear
+    // Use emitEvent: false to prevent triggering valueChanges subscriptions that might clear fields
+    Object.keys(this.form.controls).forEach(key => {
+      const control = this.form.get(key);
+      if (control) {
+        control.markAsTouched();
+        control.updateValueAndValidity({ emitEvent: false });
+      }
+    });
+    
+    // Explicitly ensure reservationTypeId is validated and shows error
+    const reservationTypeControl = this.form.get('reservationTypeId');
+    if (reservationTypeControl) {
+      reservationTypeControl.markAsTouched();
+      reservationTypeControl.updateValueAndValidity({ emitEvent: false });
+    }
+    
+    if (!this.form.valid) {
+      this.toastr.error('Please fill in all required fields', CommonMessage.Error);
       return;
     }
 
+    // Check for date overlaps before saving
+    this.validateDates('save');
+  }
+
+  performSave(): void {
     this.isSubmitting = true;
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
-      officeId: formValue.officeId || null,
+      officeId: this.selectedProperty?.officeId || null,
       propertyId: formValue.propertyId,
       agentId: formValue.agentId || null,
       contactId: formValue.contactId,
       reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Private,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
-      reservationNoticeId: formValue.reservationNoticeId || null,
+      reservationNoticeId: formValue.reservationNoticeId ?? null,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
       hasPets: formValue.pets ?? false,
       tenantName: formValue.tenantName || '',
@@ -220,40 +286,39 @@ export class ReservationComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Form methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
-      officeId: new FormControl(null, [Validators.required]),
-      officeName: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
       propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
       propertyId: new FormControl('', [Validators.required]),
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       agentId: new FormControl(null, [Validators.required]),
-      tenantName: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
+      tenantName: new FormControl('', [Validators.required]), // Always enabled
       contactId: new FormControl({ value: '', disabled: true }), // No validators - will be added when enabled
       entityCompanyName: new FormControl({ value: '', disabled: true }), // Display Company name if EntityTypeId is Company
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
-      reservationNoticeId: new FormControl(null),
+      reservationNoticeId: new FormControl(null, [Validators.required]),
       isActive: new FormControl(true),
       allowExtensions: new FormControl(true),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required]),
-      checkInTimeId: new FormControl<number>(CheckinTimes.NA),
-      checkOutTimeId: new FormControl<number>(CheckoutTimes.NA),
+      checkInTimeId: new FormControl<number>(CheckinTimes.NA, [Validators.required]),
+      checkOutTimeId: new FormControl<number>(CheckoutTimes.NA, [Validators.required]),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
-      pets: new FormControl(false),
+      pets: new FormControl(false, [Validators.required]),
       petFee: new FormControl<string>('0.00'),
       numberOfPets: new FormControl(0),
       petDescription: new FormControl(''),
-      maidService: new FormControl(false),
+      maidService: new FormControl(false, [Validators.required]),
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
-      depositType: new FormControl(DepositType.Deposit),
+      depositType: new FormControl(DepositType.Deposit, [Validators.required]),
       deposit: new FormControl<string>(this.getDefaultDeposit()),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00'),
@@ -266,51 +331,133 @@ export class ReservationComponent implements OnInit, OnDestroy {
       notes: new FormControl('')
     });
 
-    // Handle office selection and filter properties
-    this.form.get('officeId')?.valueChanges.subscribe(officeId => {
-      if (officeId) {
-        // Find and set the selected office from the list
-        this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-        
-        // Filter properties by selected office
-        this.filteredProperties = this.properties.filter(p => p.officeId === officeId);
-        
-        // Clear property selection if current property doesn't belong to selected office
-        const currentPropertyId = this.form.get('propertyId')?.value;
-        if (currentPropertyId) {
-          const currentProperty = this.properties.find(p => p.propertyId === currentPropertyId);
-          if (currentProperty && currentProperty.officeId !== officeId) {
-            this.form.patchValue({ 
-              propertyId: '',
-              propertyCode: '',
-              propertyAddress: ''
-            }, { emitEvent: false });
-            this.selectedProperty = null;
-          }
-        }
-        
-        // Load office configuration and update deposit
-        this.loadOfficeConfigurationAndUpdateDeposit(officeId);
-      } else {
-        // If no office selected, clear selected office and show all properties
-        this.selectedOffice = null;
-        this.filteredProperties = this.properties;
-        // Clear property selection
-        this.form.patchValue({ 
-          propertyId: '',
-          propertyCode: '',
-          propertyAddress: ''
-        }, { emitEvent: false });
-        this.selectedProperty = null;
-      }
-    });
+    // Setup all form value change handlers
+    this.setupPropertySelectionHandler();
+    this.setupArrivalDateHandler();
+    this.setupDepartureDateHandler();
+    this.setupContactSelectionHandler();
+    this.setupReservationTypeHandler();
+    this.setupFrequencyHandler();
+    this.setupDepositHandlers();
+    this.setupPetsHandler();
+    this.setupMaidServiceHandler();
+    this.setupExtraFeeHandlers();
+    this.setupBillingTypeHandler();
+    
+    // Initialize field states
+    this.initializeFieldStates();
+  }
 
+  populateForm(): void {
+    if (!this.reservation || !this.form) {
+      return;
+    }
+    
+    const reservation = this.reservation;
+    
+    // Find and set selected property
+    this.selectedProperty = this.properties.find(p => p.propertyId === reservation.propertyId) || null;
+    const propertyAddress = this.selectedProperty 
+      ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim()
+      : '';
+    const propertyCode = this.selectedProperty?.propertyCode || '';
+    
+    // Load office and office configuration from property's officeId
+    if (this.selectedProperty && this.selectedProperty.officeId) {
+      this.loadOffice(this.selectedProperty.officeId);
+      this.loadOfficeConfiguration(this.selectedProperty.officeId);
+    }
+    
+    // Filter contacts based on reservation type
+    this.filterContactsByClientType(reservation.reservationTypeId);
+    
+    // Update available reservation statuses based on reservation type
+    this.updateAvailableReservationStatuses(reservation.reservationTypeId);
+    
+    // Enable contactId field
+    this.enableFieldWithValidation('contactId', [Validators.required]);
+    
+    // Update tenantName validator based on reservation type
+    this.updateTenantNameValidator(reservation.reservationTypeId);
+    
+    // Determine numberOfPeople value - if Owner type, set to 0
+    let numberOfPeopleValue = reservation.numberOfPeople === 0 ? 1 : reservation.numberOfPeople;
+    if (reservation.reservationTypeId === ReservationType.Owner) {
+      numberOfPeopleValue = 0;
+    }
+    
+    // Convert isActive from number to boolean if needed
+    const isActiveValue = typeof reservation.isActive === 'number' 
+      ? reservation.isActive === 1 
+      : Boolean(reservation.isActive);
+    
+    // Populate read-only fields first (no handlers for these)
+            this.form.patchValue({ 
+      reservationCode: reservation.reservationCode || '',
+      propertyCode: propertyCode,
+      propertyAddress: propertyAddress
+            }, { emitEvent: false });
+    
+    // Set fields with handlers in the correct order (emitEvent: true to trigger handlers)
+    // Order matters: propertyId first, then reservationTypeId (affects contact filtering), then contactId   
+    this.form.get('propertyId')?.setValue(reservation.propertyId, { emitEvent: true });
+    this.form.get('reservationTypeId')?.setValue(reservation.reservationTypeId, { emitEvent: true });
+    this.form.get('reservationNoticeId')?.setValue(reservation.reservationNoticeId, { emitEvent: false });
+    this.form.get('billingTypeId')?.setValue(reservation.billingTypeId ?? BillingType.Monthly, { emitEvent: true });
+    this.form.get('depositType')?.setValue(reservation.depositTypeId ?? DepositType.Deposit, { emitEvent: true });
+    this.form.get('pets')?.setValue(reservation.hasPets ?? false, { emitEvent: true });
+    this.form.get('maidService')?.setValue(reservation.maidService , { emitEvent: true });
+    this.form.get('frequencyId')?.setValue(reservation.frequencyId ?? Frequency.NA, { emitEvent: true });
+    this.form.get('extraFee')?.setValue((reservation.extraFee ?? 0).toFixed(2), { emitEvent: true });
+    this.form.get('extraFee2')?.setValue((reservation.extraFee2 ?? 0).toFixed(2), { emitEvent: true });
+
+    if (reservation.contactId) {
+      this.form.get('contactId')?.setValue(reservation.contactId, { emitEvent: true });
+    }
+    
+    if (reservation.arrivalDate) {
+      this.form.get('arrivalDate')?.setValue(new Date(reservation.arrivalDate), { emitEvent: true });
+    }
+    
+    if (reservation.departureDate) {
+      this.form.get('departureDate')?.setValue(new Date(reservation.departureDate), { emitEvent: false });
+    }
+    
+   if (reservation.deposit !== null && reservation.deposit !== undefined) {
+      this.form.get('deposit')?.setValue(reservation.deposit.toFixed(2), { emitEvent: true });
+    }
+    
+    // Set fields without handlers (no emitEvent needed)
+    // Note: reservationTypeId and reservationNoticeId are already set above with emitEvent: true
+    this.form.patchValue({ 
+      agentId: reservation.agentId || null,
+      tenantName: reservation.tenantName || '',
+      reservationStatusId: reservation.reservationStatusId,
+      isActive: isActiveValue,
+      allowExtensions: reservation.allowExtensions ?? true,
+      checkInTimeId: this.utilityService.normalizeCheckInTimeId(reservation.checkInTimeId),
+      checkOutTimeId: this.utilityService.normalizeCheckOutTimeId(reservation.checkOutTimeId),
+      billingRate: (reservation.billingRate ?? 0).toFixed(2),
+      numberOfPeople: numberOfPeopleValue,
+      departureFee: (reservation.departureFee ?? 0).toFixed(2),
+      maidServiceFee: (reservation.maidServiceFee ?? 0).toFixed(2),
+      petFee: (reservation.petFee ?? 0).toFixed(2),
+      numberOfPets: reservation.hasPets ? (reservation.numberOfPets ?? 1) : 0,
+      petDescription: reservation.petDescription || '',
+      extraFeeName: reservation.extraFeeName || '',
+      extraFee2Name: reservation.extraFee2Name || '',
+      taxes: reservation.taxes === 0 ? null : reservation.taxes,
+      notes: reservation.notes || ''
+        }, { emitEvent: false });
+  }
+  //#endregion
+
+  //#region Form Value Change Handlers
+  setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
       if (propertyId) {
         this.selectedProperty = this.properties.find(p => p.propertyId === propertyId) || null;
-        const propertyAddress = this.selectedProperty 
-          ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim()
-          : '';
+        const propertyAddress = this.selectedProperty ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim() : '';
         const propertyCode = this.selectedProperty?.propertyCode || '';
         
         // Pre-load property values into form fields
@@ -320,12 +467,35 @@ export class ReservationComponent implements OnInit, OnDestroy {
         };
         
         if (this.selectedProperty) {
-          // Default Billing Type to Monthly and fill Billing Rate with Monthly Rate
-          patchValues.billingTypeId = BillingType.Monthly;
+          // Load office and office configuration based on property's officeId
+          if (this.selectedProperty.officeId) {
+            this.loadOffice(this.selectedProperty.officeId);
+            this.loadOfficeConfiguration(this.selectedProperty.officeId);
+          }
+          
+          // Set Billing Rate based on current Billing Type
+          const currentBillingTypeId = this.form.get('billingTypeId')?.value ?? BillingType.Monthly;
+          if (currentBillingTypeId === BillingType.Monthly) {
+            // Use Monthly Rate
           if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
             patchValues.billingRate = this.selectedProperty.monthlyRate.toFixed(2);
           } else {
             patchValues.billingRate = '0.00';
+            }
+          } else if (currentBillingTypeId === BillingType.Daily || currentBillingTypeId === BillingType.Nightly) {
+            // Use Daily Rate for both Daily and Nightly
+            if (this.selectedProperty.dailyRate !== null && this.selectedProperty.dailyRate !== undefined) {
+              patchValues.billingRate = this.selectedProperty.dailyRate.toFixed(2);
+            } else {
+              patchValues.billingRate = '0.00';
+            }
+          } else {
+            // Default to Monthly Rate if billing type is unknown
+            if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
+              patchValues.billingRate = this.selectedProperty.monthlyRate.toFixed(2);
+            } else {
+              patchValues.billingRate = '0.00';
+            }
           }
           
           // Pre-load departure fee
@@ -345,9 +515,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
             patchValues.maidServiceFee = this.selectedProperty.maidServiceFee.toFixed(2);
           }
           
-          // Note: Deposit is handled by updateDepositValidator based on DepositType
-          // When FlatFee is selected, it defaults to 3000.00
-          // When IncludedInRent is selected, it's set to 0.00 and disabled
+          // Pre-load deposit
+          patchValues.depositTypeId = DepositType.Deposit;
+          patchValues.deposit = this.getDefaultDeposit();
           
           // Pre-load taxes (default to null if not available on property)
           patchValues.taxes = null;
@@ -371,12 +541,22 @@ export class ReservationComponent implements OnInit, OnDestroy {
         }
         
         this.form.patchValue(patchValues, { emitEvent: false });
+        
+        // Update tenantName validation if it was auto-populated
+        if (patchValues.tenantName) {
+          const tenantNameControl = this.form.get('tenantName');
+          if (tenantNameControl) {
+            tenantNameControl.updateValueAndValidity({ emitEvent: false });
+          }
+        }
       } else {
         this.selectedProperty = null;
         this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
       }
     });
+  }
 
+  setupArrivalDateHandler(): void {
     this.form.get('arrivalDate')?.valueChanges.subscribe(arrivalDate => {
       if (arrivalDate && arrivalDate instanceof Date) {
         this.departureDateStartAt = new Date(arrivalDate);
@@ -385,11 +565,20 @@ export class ReservationComponent implements OnInit, OnDestroy {
       } else {
         this.departureDateStartAt = null;
       }
+      
+      // Check for date overlaps when arrival date changes
+      this.validateDates('arrivalDate');
     });
+  }
 
-    // contactId starts disabled - will be enabled when reservationTypeId is selected
+  setupDepartureDateHandler(): void {
+    this.form.get('departureDate')?.valueChanges.subscribe(() => {
+      // Check for date overlaps when departure date changes
+      this.validateDates('departureDate');
+    });
+  }
 
-    // Handle contact selection and update entity names
+  setupContactSelectionHandler(): void {
     this.form.get('contactId')?.valueChanges.subscribe(contactId => {
       if (contactId) {
         const contact = this.filteredContacts.find(c => c.contactId === contactId) || 
@@ -404,6 +593,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
             const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
             if (contactName) {
               this.form.patchValue({ tenantName: contactName }, { emitEvent: false });
+              // Update validation to ensure the field passes validation
+              const tenantNameControl = this.form.get('tenantName');
+              if (tenantNameControl) {
+                tenantNameControl.updateValueAndValidity({ emitEvent: false });
+              }
             }
           }
         }
@@ -417,8 +611,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.selectedCompanyName = '';
       }
     });
+  }
 
-    // Filter contacts based on client type
+  setupReservationTypeHandler(): void {
     this.form.get('reservationTypeId')?.valueChanges.subscribe(reservationTypeId => {
       const selectedReservationType = reservationTypeId;
       
@@ -426,29 +621,73 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.filterContactsByClientType(selectedReservationType);
       this.updateTenantNameValidator(selectedReservationType);
       
-      // Enable contactId field when a reservation type is selected
-      if (selectedReservationType !== null && selectedReservationType !== undefined) {
+      // Enable contactId field only when a valid reservation type is selected
+      // Check for null, undefined, and empty string
+      if (selectedReservationType !== null && selectedReservationType !== undefined && selectedReservationType !== '') {
         this.enableFieldWithValidation('contactId', [Validators.required]);
       } else {
         this.disableFieldWithValidation('contactId');
       }
       
-      // ONLY clear Tenant Name, Contact Name, Contact Phone, and Contact Email when type changes
-      // Everything else should remain as is
+      // Update available reservation statuses and reset the field
+      this.updateAvailableReservationStatuses(selectedReservationType);
+      // Always clear reservation status when type changes
+      this.form.patchValue({ reservationStatusId: null }, { emitEvent: false });
+      
+      // When reservation type changes, always clear contact-related fields
+      // This happens every time the type changes, not just when clearing
       this.form.patchValue({ 
-        tenantName: '',
-        contactId: '',
         phone: '',
         email: '',
-        entityCompanyName: ''
+        entityCompanyName: '',
+        tenantName: '',
+        contactId: ''
       }, { emitEvent: false });
       
       // Clear selected contact reference and entity names
       this.selectedContact = null;
       this.selectedCompanyName = '';
+      
+      // Handle Owner type field disabling/enabling
+      if (selectedReservationType === ReservationType.Owner) {
+        // Make billing and fee fields readonly for Owner type
+        this.disableFieldWithValidation('checkInTimeId');
+        this.disableFieldWithValidation('checkOutTimeId');
+        this.disableFieldWithValidation('billingTypeId');
+        this.disableFieldWithValidation('billingRate');
+        this.disableFieldWithValidation('depositType');
+        this.disableFieldWithValidation('deposit');
+        this.disableFieldWithValidation('departureFee');
+        this.disableFieldWithValidation('pets');
+        this.disableFieldWithValidation('petFee');
+        this.disableFieldWithValidation('numberOfPets');
+        this.disableFieldWithValidation('petDescription');
+        this.disableFieldWithValidation('maidService');
+        this.disableFieldWithValidation('maidServiceFee');
+        this.disableFieldWithValidation('frequencyId');
+        this.disableFieldWithValidation('extraFee');
+        this.disableFieldWithValidation('extraFeeName');
+        this.disableFieldWithValidation('extraFee2');
+        this.disableFieldWithValidation('extraFee2Name');
+        this.disableFieldWithValidation('taxes');
+      } else {
+        // Enable fields for non-Owner types (with appropriate validators)
+        this.enableFieldWithValidation('checkInTimeId', [Validators.required]);
+        this.enableFieldWithValidation('checkOutTimeId', [Validators.required]);
+        this.enableFieldWithValidation('billingTypeId', [Validators.required]);
+        this.enableFieldWithValidation('billingRate', [Validators.required]);
+        this.enableFieldWithValidation('depositType', [Validators.required]);
+        this.enableFieldWithValidation('deposit', [Validators.required]);
+        this.enableFieldWithValidation('departureFee', [Validators.required]);
+        this.enableFieldWithValidation('pets', [Validators.required]);
+        this.enableFieldWithValidation('maidService', [Validators.required]);
+        this.enableFieldWithValidation('taxes');
+        // Other fields like deposit, petFee, maidServiceFee, extraFee are handled by their respective handlers
+      }
     });
+  }
 
-    // Update Maid Service Fee required validator based on Frequency selection
+  setupFrequencyHandler(): void {
     this.form.get('frequencyId')?.valueChanges.subscribe(frequencyId => {
       const maidServiceFeeControl = this.form.get('maidServiceFee');
       
@@ -461,11 +700,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
       
       this.updateMaidServiceFeeValidator(frequencyId);
     });
+  }
     
-    // Initialize maidServiceFee validator based on initial frequencyId value
-    this.updateMaidServiceFeeValidator(this.form.get('frequencyId')?.value);
-
-    // Update Deposit field disabled/required based on DepositType
+  setupDepositHandlers(): void {
     this.form.get('depositType')?.valueChanges.subscribe(depositType => {
       this.updateDepositValidator(depositType);
     });
@@ -475,12 +712,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
       const depositType = this.form.get('depositType')?.value;
       this.updateDepositValidator(depositType);
     });
-    
-    // Initialize deposit field state based on initial depositType value
-    const initialDepositType = this.form.get('depositType')?.value;
-    this.updateDepositValidator(initialDepositType);
+  }
 
-    // Update Pet Fee, Number of Pets, and Pet Description disabled state based on Pets selection
+  setupPetsHandler(): void {
     this.form.get('pets')?.valueChanges.subscribe(hasPets => {
       const petFeeControl = this.form.get('petFee');
       const numberOfPetsControl = this.form.get('numberOfPets');
@@ -491,10 +725,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
         if (petFeeControl) {
           petFeeControl.setValue('0.00', { emitEvent: false });
           petFeeControl.disable({ emitEvent: false });
+          petFeeControl.clearValidators();
+          petFeeControl.updateValueAndValidity({ emitEvent: false });
         }
         if (numberOfPetsControl) {
           numberOfPetsControl.setValue(0, { emitEvent: false });
           numberOfPetsControl.disable({ emitEvent: false });
+          numberOfPetsControl.clearValidators();
+          numberOfPetsControl.updateValueAndValidity({ emitEvent: false });
         }
         if (petDescriptionControl) {
           petDescriptionControl.setValue('', { emitEvent: false });
@@ -510,6 +748,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
             petFeeControl.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
           }
           petFeeControl.enable({ emitEvent: false });
+          petFeeControl.setValidators([Validators.required]);
+          petFeeControl.updateValueAndValidity({ emitEvent: false });
         }
         if (numberOfPetsControl) {
           // Only set to 1 if current value is 0 (to avoid overwriting user input)
@@ -518,6 +758,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
             numberOfPetsControl.setValue(1, { emitEvent: false });
           }
           numberOfPetsControl.enable({ emitEvent: false });
+          numberOfPetsControl.setValidators([Validators.required]);
+          numberOfPetsControl.updateValueAndValidity({ emitEvent: false });
         }
         if (petDescriptionControl) {
           petDescriptionControl.enable({ emitEvent: false });
@@ -526,8 +768,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
         }
       }
     });
+  }
 
-    // Update Maid Service Fee and Frequency disabled state based on MaidService selection
+  setupMaidServiceHandler(): void {
     this.form.get('maidService')?.valueChanges.subscribe(hasMaidService => {
       this.updateMaidServiceFields(hasMaidService);
     });
@@ -537,57 +780,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
       const hasMaidService = this.form.get('maidService')?.value;
       this.updateMaidServiceFields(hasMaidService);
     });
+  }
 
-    // Initialize pets and maidService field states
-    const initialPets = this.form.get('pets')?.value;
-    const petFeeControlInit = this.form.get('petFee');
-    const numberOfPetsControlInit = this.form.get('numberOfPets');
-    const petDescriptionControlInit = this.form.get('petDescription');
-    
-    if (initialPets === false) {
-      // Set values to defaults when pets is NO
-      if (petFeeControlInit) {
-        petFeeControlInit.setValue('0.00', { emitEvent: false });
-        petFeeControlInit.disable({ emitEvent: false });
-      }
-      if (numberOfPetsControlInit) {
-        numberOfPetsControlInit.setValue(0, { emitEvent: false });
-        numberOfPetsControlInit.disable({ emitEvent: false });
-      }
-      if (petDescriptionControlInit) {
-        petDescriptionControlInit.setValue('', { emitEvent: false });
-        petDescriptionControlInit.disable({ emitEvent: false });
-        petDescriptionControlInit.clearValidators();
-        petDescriptionControlInit.updateValueAndValidity({ emitEvent: false });
-      }
-    } else {
-      // Set defaults when pets is YES
-      if (petFeeControlInit) {
-        // Set pet fee from selected property if available
-        if (this.selectedProperty && this.selectedProperty.petFee !== null && this.selectedProperty.petFee !== undefined) {
-          petFeeControlInit.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
-        }
-        petFeeControlInit.enable({ emitEvent: false });
-      }
-      if (numberOfPetsControlInit) {
-        // Default to 1 if not already set
-        const currentValue = numberOfPetsControlInit.value;
-        if (!currentValue || currentValue === 0) {
-          numberOfPetsControlInit.setValue(1, { emitEvent: false });
-        }
-        numberOfPetsControlInit.enable({ emitEvent: false });
-      }
-      if (petDescriptionControlInit) {
-        petDescriptionControlInit.enable({ emitEvent: false });
-        petDescriptionControlInit.setValidators([Validators.required]);
-        petDescriptionControlInit.updateValueAndValidity({ emitEvent: false });
-      }
-    }
-
-    // Initialize maidService field states
-    const initialMaidService = this.form.get('maidService')?.value;
-    this.updateMaidServiceFields(initialMaidService);
-
+  setupExtraFeeHandlers(): void {
     // Update Extra Fee fields based on ExtraFee1 value
     this.form.get('extraFee')?.valueChanges.subscribe(extraFeeValue => {
       const extraFeeNameControl = this.form.get('extraFeeName');
@@ -646,6 +841,88 @@ export class ReservationComponent implements OnInit, OnDestroy {
         extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
       }
     });
+  }
+
+  setupBillingTypeHandler(): void {
+    this.form.get('billingTypeId')?.valueChanges.subscribe(billingTypeId => {
+      if (this.selectedProperty && billingTypeId !== null && billingTypeId !== undefined) {
+        if (billingTypeId === BillingType.Monthly) {
+          // Use Monthly Rate
+          if (this.selectedProperty.monthlyRate !== null && this.selectedProperty.monthlyRate !== undefined) {
+            this.form.get('billingRate')?.setValue(this.selectedProperty.monthlyRate.toFixed(2), { emitEvent: false });
+          }
+        } else if (billingTypeId === BillingType.Daily || billingTypeId === BillingType.Nightly) {
+          // Use Daily Rate for both Daily and Nightly
+          if (this.selectedProperty.dailyRate !== null && this.selectedProperty.dailyRate !== undefined) {
+            this.form.get('billingRate')?.setValue(this.selectedProperty.dailyRate.toFixed(2), { emitEvent: false });
+          }
+        }
+      }
+    });
+  }
+
+  initializeFieldStates(): void {
+    // Initialize maidService fields based on initial maidService value
+    const initialMaidService = this.form.get('maidService')?.value;
+    this.updateMaidServiceFields(initialMaidService);
+
+    // Initialize deposit field state based on initial depositType value
+    const initialDepositType = this.form.get('depositType')?.value;
+    this.updateDepositValidator(initialDepositType);
+
+    // Initialize pets field states
+    const initialPets = this.form.get('pets')?.value;
+    const petFeeControlInit = this.form.get('petFee');
+    const numberOfPetsControlInit = this.form.get('numberOfPets');
+    const petDescriptionControlInit = this.form.get('petDescription');
+    
+    if (initialPets === false) {
+      // Set values to defaults when pets is NO
+      if (petFeeControlInit) {
+        petFeeControlInit.setValue('0.00', { emitEvent: false });
+        petFeeControlInit.disable({ emitEvent: false });
+        petFeeControlInit.clearValidators();
+        petFeeControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+      if (numberOfPetsControlInit) {
+        numberOfPetsControlInit.setValue(0, { emitEvent: false });
+        numberOfPetsControlInit.disable({ emitEvent: false });
+        numberOfPetsControlInit.clearValidators();
+        numberOfPetsControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+      if (petDescriptionControlInit) {
+        petDescriptionControlInit.setValue('', { emitEvent: false });
+        petDescriptionControlInit.disable({ emitEvent: false });
+        petDescriptionControlInit.clearValidators();
+        petDescriptionControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+    } else {
+      // Set defaults when pets is YES
+      if (petFeeControlInit) {
+        // Set pet fee from selected property if available
+        if (this.selectedProperty && this.selectedProperty.petFee !== null && this.selectedProperty.petFee !== undefined) {
+          petFeeControlInit.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
+        }
+        petFeeControlInit.enable({ emitEvent: false });
+        petFeeControlInit.setValidators([Validators.required]);
+        petFeeControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+      if (numberOfPetsControlInit) {
+        // Default to 1 if not already set
+        const currentValue = numberOfPetsControlInit.value;
+        if (!currentValue || currentValue === 0) {
+          numberOfPetsControlInit.setValue(1, { emitEvent: false });
+        }
+        numberOfPetsControlInit.enable({ emitEvent: false });
+        numberOfPetsControlInit.setValidators([Validators.required]);
+        numberOfPetsControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+      if (petDescriptionControlInit) {
+        petDescriptionControlInit.enable({ emitEvent: false });
+        petDescriptionControlInit.setValidators([Validators.required]);
+        petDescriptionControlInit.updateValueAndValidity({ emitEvent: false });
+      }
+    }
 
     // Initialize Extra Fee field states
     const initialExtraFee = this.form.get('extraFee')?.value;
@@ -706,406 +983,47 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
-  populateForm(): void {
-    if (this.reservation && this.form) {
-      const isActiveValue = typeof this.reservation.isActive === 'number' 
-        ? this.reservation.isActive === 1 
-        : Boolean(this.reservation.isActive);
-      
-      const selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
-      const propertyAddress = selectedProperty 
-        ? `${selectedProperty.address1}${selectedProperty.suite ? ' ' + selectedProperty.suite : ''}`.trim()
-        : '';
-      const propertyCode = selectedProperty?.propertyCode || '';
-      
-      // Load contacts first to populate phone/email
-      this.contactService.getAllContacts().pipe(take(1)).subscribe({
-        next: (allContacts: ContactResponse[]) => {
-          this.contacts = allContacts;
-          const reservationTypeId = this.reservation.reservationTypeId ?? ReservationType.Private;
-          const contactId = this.reservation.contactId;
-          
-          // Enable contactId if reservationTypeId is set
-          if (reservationTypeId !== null && reservationTypeId !== undefined) {
-            this.enableFieldWithValidation('contactId', [Validators.required]);
-          }
-          
-          // Update available reservation statuses based on reservation type
-          this.updateAvailableReservationStatuses(reservationTypeId);
-          
-          // Filter contacts based on client type first, then populate form
-          this.filterContactsByClientType(reservationTypeId, () => {
-            const contact = this.filteredContacts.find(c => c.contactId === contactId) || allContacts.find(c => c.contactId === contactId);
-            
-            // Phone and email remain disabled (read-only) - values are set via updateContactFields
-            // Only enable tenantName if Reservation Type is NOT Maintenance and NOT Owner
-            if (contactId) {
-              if ( reservationTypeId !== ReservationType.Owner) {
-                this.enableFieldWithValidation('tenantName', [Validators.required]);
-                // Update validator when enabling - tenantName is required when editable
-                this.updateTenantNameValidator(reservationTypeId);
-              }
-              
-              // Update entity names if contact has entityId
-              if (contact) {
-                this.updateEntityNames(contact);
-              }
-            }
-            
-            // Update tenantName validator based on reservation type
-            this.updateTenantNameValidator(reservationTypeId);
-            
-            // Enable/disable readonly fields based on reservation type
-            if (reservationTypeId === ReservationType.Owner) {
-              // Make billing and fee fields readonly for Owner type - clear validators
-              this.disableFieldWithValidation('checkInTimeId');
-              this.disableFieldWithValidation('checkOutTimeId');
-              this.disableFieldWithValidation('billingTypeId');
-              this.disableFieldWithValidation('billingRate');
-              this.disableFieldWithValidation('deposit');
-              this.disableFieldWithValidation('departureFee');
-              this.disableFieldWithValidation('petFee');
-              this.disableFieldWithValidation('numberOfPets');
-              this.disableFieldWithValidation('petDescription');
-              this.disableFieldWithValidation('maidServiceFee');
-              this.disableFieldWithValidation('frequencyId');
-              this.disableFieldWithValidation('extraFee');
-              this.disableFieldWithValidation('extraFeeName');
-              this.disableFieldWithValidation('extraFee2');
-              this.disableFieldWithValidation('extraFee2Name');
-              this.disableFieldWithValidation('taxes');
-            } else {
-              // Enable all fields for non-Owner types - restore validators
-              this.enableFieldWithValidation('checkInTimeId');
-              this.enableFieldWithValidation('checkOutTimeId');
-              this.enableFieldWithValidation('billingTypeId', [Validators.required]);
-              this.enableFieldWithValidation('billingRate', [Validators.required]);
-              // Use updateDepositValidator to set correct validators based on depositType
-              const currentDepositType = this.form.get('depositType')?.value;
-              this.updateDepositValidator(currentDepositType);
-              this.enableFieldWithValidation('departureFee', [Validators.required]);
-              
-              // Enable petFee, numberOfPets, and petDescription, but disable if pets is NO
-              this.enableFieldWithValidation('petFee');
-              this.enableFieldWithValidation('numberOfPets');
-              this.enableFieldWithValidation('petDescription');
-              const currentPets = this.form.get('pets')?.value;
-              if (currentPets === false) {
-                const petFeeControl = this.form.get('petFee');
-                const numberOfPetsControl = this.form.get('numberOfPets');
-                const petDescriptionControl = this.form.get('petDescription');
-                if (petFeeControl) {
-                  petFeeControl.setValue('0.00', { emitEvent: false });
-                  petFeeControl.disable({ emitEvent: false });
-                }
-                if (numberOfPetsControl) {
-                  numberOfPetsControl.setValue(0, { emitEvent: false });
-                  numberOfPetsControl.disable({ emitEvent: false });
-                }
-                if (petDescriptionControl) {
-                  petDescriptionControl.setValue('', { emitEvent: false });
-                  petDescriptionControl.disable({ emitEvent: false });
-                  petDescriptionControl.clearValidators();
-                  petDescriptionControl.updateValueAndValidity({ emitEvent: false });
-                }
-              } else {
-                // Set defaults when pets is YES
-                const petFeeControl = this.form.get('petFee');
-                const numberOfPetsControl = this.form.get('numberOfPets');
-                const petDescriptionControl = this.form.get('petDescription');
-                if (petFeeControl && this.selectedProperty && this.selectedProperty.petFee !== null && this.selectedProperty.petFee !== undefined) {
-                  petFeeControl.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
-                }
-                if (numberOfPetsControl) {
-                  const currentValue = numberOfPetsControl.value;
-                  if (!currentValue || currentValue === 0) {
-                    numberOfPetsControl.setValue(1, { emitEvent: false });
-                  }
-                }
-                if (petDescriptionControl) {
-                  petDescriptionControl.setValidators([Validators.required]);
-                  petDescriptionControl.updateValueAndValidity({ emitEvent: false });
-                }
-              }
-              
-              // Use updateMaidServiceFields to set correct validators based on maidService
-              this.enableFieldWithValidation('maidServiceFee');
-              const currentMaidService = this.form.get('maidService')?.value;
-              this.updateMaidServiceFields(currentMaidService);
-              
-              this.enableFieldWithValidation('extraFee');
-              
-              // Enable extraFeeName, extraFee2, extraFee2Name but check if they should be disabled
-              this.enableFieldWithValidation('extraFeeName');
-              this.enableFieldWithValidation('extraFee2');
-              this.enableFieldWithValidation('extraFee2Name');
-              
-              // Check current extraFee value and disable related fields if needed
-              const currentExtraFee = this.form.get('extraFee')?.value;
-              const currentExtraFeeNum = currentExtraFee ? parseFloat(currentExtraFee.toString()) : 0;
-              if (currentExtraFeeNum === 0 || isNaN(currentExtraFeeNum)) {
-                const extraFeeNameControl = this.form.get('extraFeeName');
-                const extraFee2Control = this.form.get('extraFee2');
-                const extraFee2NameControl = this.form.get('extraFee2Name');
-                if (extraFeeNameControl) {
-                  extraFeeNameControl.disable({ emitEvent: false });
-                  extraFeeNameControl.clearValidators();
-                  extraFeeNameControl.updateValueAndValidity({ emitEvent: false });
-                }
-                if (extraFee2Control) {
-                  extraFee2Control.disable({ emitEvent: false });
-                }
-                if (extraFee2NameControl) {
-                  extraFee2NameControl.disable({ emitEvent: false });
-                  extraFee2NameControl.clearValidators();
-                  extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
-                }
-              } else {
-                // extraFee > 0, so extraFeeName should be required
-                const extraFeeNameControl = this.form.get('extraFeeName');
-                if (extraFeeNameControl) {
-                  extraFeeNameControl.setValidators([Validators.required]);
-                  extraFeeNameControl.updateValueAndValidity({ emitEvent: false });
-                }
-                // Check extraFee2 value
-                const currentExtraFee2 = this.form.get('extraFee2')?.value;
-                const currentExtraFee2Num = currentExtraFee2 ? parseFloat(currentExtraFee2.toString()) : 0;
-                const extraFee2NameControl = this.form.get('extraFee2Name');
-                if (extraFee2NameControl) {
-                  if (currentExtraFee2Num > 0 && !isNaN(currentExtraFee2Num)) {
-                    extraFee2NameControl.setValidators([Validators.required]);
-                    extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
-                  } else {
-                    extraFee2NameControl.clearValidators();
-                    extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
-                  }
-                }
-              }
-              
-              this.enableFieldWithValidation('taxes');
-            }
-            
-            // Use saved reservation status (no auto-selection)
-            const reservationStatus = this.reservation.reservationStatusId ?? ReservationStatus.PreBooking;
-            
-            // Determine tenantName value
-            // If Reservation Type is Private, External, or Owner and contact exists, use contact name; otherwise use saved value
-            let tenantNameValue = this.reservation.tenantName || '';
-            if ((reservationTypeId === ReservationType.Private || reservationTypeId === ReservationType.Owner) && contact) {
-              const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
-              if (contactName) {
-                tenantNameValue = contactName;
-              }
-            }
-            
-            // Determine numberOfPeople value
-            // If Reservation Type is Owner, set to 0; otherwise use saved value
-            let numberOfPeopleValue = this.reservation.numberOfPeople === 0 ? 1 : this.reservation.numberOfPeople;
-            if (reservationTypeId === ReservationType.Owner) {
-              numberOfPeopleValue = 0;
-            }
-            
-            this.form.patchValue({
-              reservationCode: this.reservation?.reservationCode || '',
-              propertyCode: propertyCode,
-              propertyId: this.reservation.propertyId,
-              propertyAddress: propertyAddress,
-              agentId: this.reservation.agentId || null,
-              tenantName: tenantNameValue,
-              contactId: contactId,
-              reservationTypeId: reservationTypeId,
-              reservationStatusId: reservationStatus,
-              reservationNoticeId: this.reservation.reservationNoticeId || null,
-              isActive: isActiveValue,
-              allowExtensions: this.reservation.allowExtensions ?? true,
-              arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
-              departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
-              checkInTimeId: this.utilityService.normalizeCheckInTimeId(this.reservation.checkInTimeId),
-              checkOutTimeId: this.utilityService.normalizeCheckOutTimeId(this.reservation.checkOutTimeId),
-              billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
-              billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
-              numberOfPeople: numberOfPeopleValue,
-              depositType: this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.Deposit,
-              deposit: this.reservation.deposit ? this.reservation.deposit.toFixed(2) : '0.00',
-              departureFee: (this.reservation.departureFee ?? 0).toFixed(2),
-              maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
-              frequencyId: this.reservation.frequencyId ?? Frequency.NA,
-              // Set maidService based on frequencyId - if frequencyId is not NA, then MaidService is Yes
-              maidService: (this.reservation.frequencyId ?? Frequency.NA) !== Frequency.NA,
-              petFee: (this.reservation.petFee ?? 0).toFixed(2),
-              numberOfPets: this.reservation.hasPets ? (this.reservation.numberOfPets ?? 1) : 0,
-              petDescription: this.reservation.petDescription || '',
-              extraFee: (this.reservation.extraFee ?? 0).toFixed(2),
-              extraFeeName: this.reservation.extraFeeName || '',
-              extraFee2: (this.reservation.extraFee2 ?? 0).toFixed(2),
-              extraFee2Name: this.reservation.extraFee2Name || '',
-              taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
-              notes: this.reservation.notes || '',
-              pets: this.reservation.hasPets ?? false,
-              phone: this.formatterService.phoneNumber(contact?.phone) || '',
-              email: contact?.email || ''
-            }, { emitEvent: false });
-            
-            // Update disabled state based on loaded depositType
-            // Use the updateDepositValidator method to set correct validators
-            const loadedDepositType = this.reservation.depositTypeId !== null && this.reservation.depositTypeId !== undefined ? this.reservation.depositTypeId : DepositType.Deposit;
-            this.updateDepositValidator(loadedDepositType);
+  initializeEnums(): void {
+    this.availableClientTypes = [
+      { value: ReservationType.Private, label: 'Private' },
+      { value: ReservationType.Corporate, label: 'Corporate' },
+      { value: ReservationType.Owner, label: 'Owner' }
+    ];
 
-            // Update pets and maidService field states after loading
-            const loadedPets = this.reservation.hasPets ?? false;
-            const petFeeControlAfterLoad = this.form.get('petFee');
-            const numberOfPetsControlAfterLoad = this.form.get('numberOfPets');
-            const petDescriptionControlAfterLoad = this.form.get('petDescription');
-            
-            if (loadedPets === false) {
-              // Set values to defaults when pets is NO
-              if (petFeeControlAfterLoad) {
-                petFeeControlAfterLoad.setValue('0.00', { emitEvent: false });
-                petFeeControlAfterLoad.disable({ emitEvent: false });
-              }
-              if (numberOfPetsControlAfterLoad) {
-                numberOfPetsControlAfterLoad.setValue(0, { emitEvent: false });
-                numberOfPetsControlAfterLoad.disable({ emitEvent: false });
-              }
-              if (petDescriptionControlAfterLoad) {
-                petDescriptionControlAfterLoad.setValue('', { emitEvent: false });
-                petDescriptionControlAfterLoad.disable({ emitEvent: false });
-                petDescriptionControlAfterLoad.clearValidators();
-                petDescriptionControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-            } else {
-              // Ensure defaults are set when pets is YES
-              if (petFeeControlAfterLoad) {
-                // Only set from property if not already loaded from reservation
-                const currentPetFee = parseFloat(petFeeControlAfterLoad.value || '0');
-                if (currentPetFee === 0 && this.selectedProperty && this.selectedProperty.petFee !== null && this.selectedProperty.petFee !== undefined) {
-                  petFeeControlAfterLoad.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
-                }
-                petFeeControlAfterLoad.enable({ emitEvent: false });
-              }
-              if (numberOfPetsControlAfterLoad) {
-                // Only default to 1 if not already set (loaded value should override)
-                const currentValue = numberOfPetsControlAfterLoad.value;
-                if (!currentValue || currentValue === 0) {
-                  numberOfPetsControlAfterLoad.setValue(1, { emitEvent: false });
-                }
-                numberOfPetsControlAfterLoad.enable({ emitEvent: false });
-              }
-              if (petDescriptionControlAfterLoad) {
-                petDescriptionControlAfterLoad.enable({ emitEvent: false });
-                petDescriptionControlAfterLoad.setValidators([Validators.required]);
-                petDescriptionControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-            }
+    // Initialize with all statuses, will be filtered based on reservation type
+    this.updateAvailableReservationStatuses(null);
 
-            // Update maidService fields state after loading
-            // Determine MaidService from frequencyId - if frequencyId is not NA, then MaidService is Yes
-            const loadedFrequencyId = this.reservation.frequencyId ?? Frequency.NA;
-            const loadedMaidService = loadedFrequencyId !== Frequency.NA;
-            this.updateMaidServiceFields(loadedMaidService);
-            
-            // If MaidService is Yes but maidServiceFee is 0, set it from property
-            if (loadedMaidService) {
-              const maidServiceFeeControl = this.form.get('maidServiceFee');
-              if (maidServiceFeeControl) {
-                const currentMaidServiceFee = parseFloat(maidServiceFeeControl.value || '0');
-                if (currentMaidServiceFee === 0 && this.selectedProperty && this.selectedProperty.maidServiceFee !== null && this.selectedProperty.maidServiceFee !== undefined) {
-                  maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
-                }
-              }
-              // If frequencyId is NA (shouldn't happen if loadedMaidService is true, but handle it), set to Once
-              const frequencyControl = this.form.get('frequencyId');
-              if (frequencyControl && (frequencyControl.value === null || frequencyControl.value === undefined || frequencyControl.value === Frequency.NA)) {
-                frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
-              }
-            }
+    this.checkInTimes = this.utilityService.getCheckInTimes();
+    this.checkOutTimes = this.utilityService.getCheckOutTimes();
 
-            // Update Extra Fee field states after loading
-            const loadedExtraFee = this.reservation.extraFee ?? 0;
-            const extraFeeNameControlAfterLoad = this.form.get('extraFeeName');
-            const extraFee2ControlAfterLoad = this.form.get('extraFee2');
-            const extraFee2NameControlAfterLoad = this.form.get('extraFee2Name');
-            
-            if (loadedExtraFee === 0) {
-              if (extraFeeNameControlAfterLoad) {
-                extraFeeNameControlAfterLoad.disable({ emitEvent: false });
-                extraFeeNameControlAfterLoad.clearValidators();
-                extraFeeNameControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-              if (extraFee2ControlAfterLoad) {
-                extraFee2ControlAfterLoad.disable({ emitEvent: false });
-              }
-              if (extraFee2NameControlAfterLoad) {
-                extraFee2NameControlAfterLoad.disable({ emitEvent: false });
-                extraFee2NameControlAfterLoad.clearValidators();
-                extraFee2NameControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-            } else {
-              if (extraFeeNameControlAfterLoad) {
-                extraFeeNameControlAfterLoad.enable({ emitEvent: false });
-                extraFeeNameControlAfterLoad.setValidators([Validators.required]);
-                extraFeeNameControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-              if (extraFee2ControlAfterLoad) {
-                extraFee2ControlAfterLoad.enable({ emitEvent: false });
-              }
-              // Check extraFee2 value
-              const loadedExtraFee2 = this.reservation.extraFee2 ?? 0;
-              if (extraFee2NameControlAfterLoad) {
-                if (loadedExtraFee2 > 0) {
-                  extraFee2NameControlAfterLoad.enable({ emitEvent: false });
-                  extraFee2NameControlAfterLoad.setValidators([Validators.required]);
-                } else {
-                  extraFee2NameControlAfterLoad.disable({ emitEvent: false });
-                  extraFee2NameControlAfterLoad.clearValidators();
-                }
-                extraFee2NameControlAfterLoad.updateValueAndValidity({ emitEvent: false });
-              }
-            }
-            
-            if (contact) {
-              this.selectedContact = contact;
-              this.updateContactFields(contact);
-              this.updateEntityNames(contact);
-            } else if (contactId) {
-              // If contactId is set but contact not found, try to get from filteredContacts
-              const foundContact = this.filteredContacts.find(c => c.contactId === contactId);
-              if (foundContact) {
-                this.selectedContact = foundContact;
-                this.updateContactFields(foundContact);
-                this.updateEntityNames(foundContact);
-              }
-            }
-          });
-        },
-        error: (err: HttpErrorResponse) => {
-          // Contacts are handled globally, just handle gracefully
-        }
-      });
+    this.availableBillingTypes = [
+      { value: BillingType.Monthly, label: 'Monthly' },
+      { value: BillingType.Daily, label: 'Daily' },
+      { value: BillingType.Nightly, label: 'Nightly' }
+    ];
 
-      if (this.reservation.propertyId) {
-        this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-        
-        // Set officeId and officeName from the property
-        if (this.selectedProperty && this.selectedProperty.officeId) {
-          const office = this.offices.find(o => o.officeId === this.selectedProperty.officeId);
-          this.selectedOffice = office || null;
-          this.form.patchValue({
-            officeId: this.selectedProperty.officeId,
-            officeName: office?.name || ''
-          }, { emitEvent: false });
-          
-          // Filter properties by office
-          this.filteredProperties = this.properties.filter(p => p.officeId === this.selectedProperty.officeId);
-          
-          // Note: Don't update deposit here in edit mode - keep the saved deposit value
-          // Deposit will be updated when user actively selects/reselects office via the dropdown
-        }
-      }
-    }
+    this.availableFrequencies = [
+      { value: Frequency.NA, label: 'N/A' },
+      { value: Frequency.OneTime, label: 'One Time' },
+      { value: Frequency.Weekly, label: 'Weekly' },
+      { value: Frequency.EOW, label: 'EOW' },
+      { value: Frequency.Monthly, label: 'Monthly' }
+    ];
+
+    this.availableReservationNotices = [
+      { value: ReservationNotice.ThirtyDays, label: '30 Days' }, // 0
+      { value: ReservationNotice.FourteenDays, label: '14 Days' } // 1
+    ];
+
+    this.availableDepositTypes = [
+      { value: DepositType.Deposit, label: 'Deposit' },
+      { value: DepositType.CLR, label: 'CLR' },
+      { value: DepositType.SDW, label: 'SDW' },
+    ];
   }
+  //#endregion
 
-  // Dynamic Form Adjustment Methods
+  //#region Dynamic Form Adjustment Methods
   filterContactsByClientType(reservationTypeId: number | null, callback?: () => void): void {
     if (reservationTypeId === null || reservationTypeId === undefined) {
       this.filteredContacts = [];
@@ -1184,7 +1102,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   getDefaultDeposit(): string {
-    const defaultDeposit = 0.00;//this.organization?.defaultDeposit;
+    if (!this.selectedOfficeConfiguration) {
+      return '0.00';
+    }
+    const defaultDeposit = this.selectedOfficeConfiguration.defaultDeposit;
     if (defaultDeposit !== null && defaultDeposit !== undefined) {
       return defaultDeposit.toFixed(2);
     }
@@ -1194,50 +1115,36 @@ export class ReservationComponent implements OnInit, OnDestroy {
   updateDepositValidator(depositType: number | null): void {
     const depositControl = this.form?.get('deposit');
     if (depositControl) {
+      // Don't update deposit field if reservation type is Owner (field should remain disabled)
+      const reservationTypeId = this.form?.get('reservationTypeId')?.value;
+      if (reservationTypeId === ReservationType.Owner) {
+        return; // Exit early, keep field disabled
+      }
+      
       if (depositType === DepositType.Deposit) {
         // Set deposit to office configuration defaultDeposit (only if current value is 0)
         const currentDeposit = parseFloat(depositControl.value || '0');
         if (currentDeposit === 0) {
-          const officeId = this.form?.get('officeId')?.value;
-          if (officeId) {
-            // Find office configuration from cached list
-            const config = this.officeConfigurations.find(c => c.officeId === officeId);
-            if (config) {
-              const defaultDeposit = config.defaultDeposit !== null && config.defaultDeposit !== undefined 
-                ? config.defaultDeposit.toFixed(2) 
-                : '0.00';
-              depositControl.setValue(defaultDeposit, { emitEvent: false });
-            } else {
-              // Fallback to organization default if no office configuration found
-              const defaultDeposit = this.getDefaultDeposit();
-              depositControl.setValue(defaultDeposit, { emitEvent: false });
-            }
-          } else {
-            // Fallback to organization default if no office selected
-            const defaultDeposit = this.getDefaultDeposit();
+          if (this.selectedOfficeConfiguration) {
+            const defaultDeposit = this.selectedOfficeConfiguration.defaultDeposit !== null && this.selectedOfficeConfiguration.defaultDeposit !== undefined 
+              ? this.selectedOfficeConfiguration.defaultDeposit.toFixed(2) 
+              : '0.00';
             depositControl.setValue(defaultDeposit, { emitEvent: false });
-          }
+          } else {
+            // Fallback to organization default if no office configuration found
+          const defaultDeposit = this.getDefaultDeposit();
+          depositControl.setValue(defaultDeposit, { emitEvent: false });
         }
-        // Make deposit required, editable, and must be greater than 0
+        }
+        // Make deposit required and editable
         depositControl.enable({ emitEvent: false });
-        depositControl.setValidators([
-          Validators.required,
-          (control: AbstractControl): ValidationErrors | null => {
-            const value = control.value;
-            if (value === null || value === undefined || value === '') {
-              return { required: true };
-            }
-            const numValue = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
-            if (isNaN(numValue) || numValue <= 0) {
-              return { mustBeGreaterThanZero: true };
-            }
-            return null;
-          }
-        ]);
+        depositControl.setValidators([Validators.required]);
         depositControl.updateValueAndValidity({ emitEvent: false });
       } else if (depositType === DepositType.CLR || depositType === DepositType.SDW) {
-        // Clear validators for IncludedInRent, but keep field enabled and value unchanged
-        depositControl.enable({ emitEvent: false });
+        // Clear validators, but keep field enabled and value unchanged (unless Owner type)
+        if (reservationTypeId !== ReservationType.Owner) {
+          depositControl.enable({ emitEvent: false });
+        }
         depositControl.clearValidators();
         depositControl.updateValueAndValidity({ emitEvent: false });
       }
@@ -1253,6 +1160,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       if (maidServiceFeeControl) {
         maidServiceFeeControl.setValue('0.00', { emitEvent: false });
         maidServiceFeeControl.disable({ emitEvent: false });
+        maidServiceFeeControl.clearValidators();
+        maidServiceFeeControl.updateValueAndValidity({ emitEvent: false });
       }
       // Set frequency to NA when maid service is NO
       if (frequencyControl) {
@@ -1269,6 +1178,16 @@ export class ReservationComponent implements OnInit, OnDestroy {
           maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
         }
         maidServiceFeeControl.enable({ emitEvent: false });
+        // Update validators based on frequencyId (will be set by frequency control)
+        // This ensures maidServiceFee is required when maidService is Yes
+        const currentFrequency = this.form.get('frequencyId')?.value;
+        // If frequency is not set yet (NA), still make maidServiceFee required
+        if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
+          maidServiceFeeControl.setValidators([Validators.required]);
+          maidServiceFeeControl.updateValueAndValidity({ emitEvent: false });
+        } else {
+          this.updateMaidServiceFeeValidator(currentFrequency);
+        }
       }
       // Enable frequency when maid service is YES, set default to Once, and add validator
       if (frequencyControl) {
@@ -1278,8 +1197,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
           frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
         }
         frequencyControl.enable({ emitEvent: false });
-        // Frequency must not be NA when MaidService is Yes
+        // Frequency must not be NA when MaidService is Yes - it's required
         frequencyControl.setValidators([
+          Validators.required,
           (control: AbstractControl): ValidationErrors | null => {
             const value = control.value;
             if (value === null || value === undefined || value === Frequency.NA) {
@@ -1289,11 +1209,158 @@ export class ReservationComponent implements OnInit, OnDestroy {
           }
         ]);
         frequencyControl.updateValueAndValidity({ emitEvent: false });
+        // Update maidServiceFee validators based on the new frequency value
+        this.updateMaidServiceFeeValidator(frequencyControl.value);
       }
     }
   }
 
-  // Data Load Methods
+  updateDepositFromOfficeConfiguration(): void {
+    if (!this.selectedOfficeConfiguration) return;
+    
+    const depositControl = this.form.get('deposit');
+    const depositType = this.form.get('depositType')?.value;
+    
+    if (depositControl && depositType === DepositType.Deposit) {
+      // Only update if depositType is Deposit (when deposit is editable)
+      const defaultDeposit = this.selectedOfficeConfiguration.defaultDeposit !== null && this.selectedOfficeConfiguration.defaultDeposit !== undefined 
+        ? this.selectedOfficeConfiguration.defaultDeposit.toFixed(2) 
+        : '0.00';
+      depositControl.setValue(defaultDeposit, { emitEvent: false });
+    }
+  }  
+
+  updatePetsFieldStates(hasPets: boolean): void {
+    const petFeeControl = this.form.get('petFee');
+    const numberOfPetsControl = this.form.get('numberOfPets');
+    const petDescriptionControl = this.form.get('petDescription');
+    
+    if (hasPets === false) {
+      if (petFeeControl) {
+        petFeeControl.disable({ emitEvent: false });
+        petFeeControl.clearValidators();
+        petFeeControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (numberOfPetsControl) {
+        numberOfPetsControl.disable({ emitEvent: false });
+        numberOfPetsControl.clearValidators();
+        numberOfPetsControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (petDescriptionControl) {
+        petDescriptionControl.disable({ emitEvent: false });
+        petDescriptionControl.clearValidators();
+        petDescriptionControl.updateValueAndValidity({ emitEvent: false });
+        }
+      } else {
+      if (petFeeControl) {
+        petFeeControl.enable({ emitEvent: false });
+        petFeeControl.setValidators([Validators.required]);
+        petFeeControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (numberOfPetsControl) {
+        numberOfPetsControl.enable({ emitEvent: false });
+        numberOfPetsControl.setValidators([Validators.required]);
+        numberOfPetsControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (petDescriptionControl) {
+        petDescriptionControl.enable({ emitEvent: false });
+        petDescriptionControl.setValidators([Validators.required]);
+        petDescriptionControl.updateValueAndValidity({ emitEvent: false });
+      }
+    }
+  }
+  
+  updateExtraFeeFieldStates(extraFee: number, extraFee2: number): void {
+    const extraFeeNameControl = this.form.get('extraFeeName');
+    const extraFee2Control = this.form.get('extraFee2');
+    const extraFee2NameControl = this.form.get('extraFee2Name');
+    
+    if (extraFee === 0 || isNaN(extraFee)) {
+      if (extraFeeNameControl) {
+        extraFeeNameControl.disable({ emitEvent: false });
+        extraFeeNameControl.clearValidators();
+        extraFeeNameControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (extraFee2Control) {
+        extraFee2Control.disable({ emitEvent: false });
+      }
+      if (extraFee2NameControl) {
+        extraFee2NameControl.disable({ emitEvent: false });
+        extraFee2NameControl.clearValidators();
+        extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
+      }
+    } else {
+      if (extraFeeNameControl) {
+        extraFeeNameControl.enable({ emitEvent: false });
+        extraFeeNameControl.setValidators([Validators.required]);
+        extraFeeNameControl.updateValueAndValidity({ emitEvent: false });
+      }
+      if (extraFee2Control) {
+        extraFee2Control.enable({ emitEvent: false });
+      }
+      if (extraFee2 > 0 && !isNaN(extraFee2)) {
+        if (extraFee2NameControl) {
+          extraFee2NameControl.enable({ emitEvent: false });
+          extraFee2NameControl.setValidators([Validators.required]);
+          extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
+        }
+      } else {
+        if (extraFee2NameControl) {
+          extraFee2NameControl.disable({ emitEvent: false });
+          extraFee2NameControl.clearValidators();
+          extraFee2NameControl.updateValueAndValidity({ emitEvent: false });
+        }
+      }
+    }
+  }
+
+   updateAvailableReservationStatuses(reservationTypeId: number | null): void {
+    const allStatuses = [
+      { value: ReservationStatus.PreBooking, label: 'Pre-Booking' },
+      { value: ReservationStatus.Confirmed, label: 'Confirmed' },
+      { value: ReservationStatus.CheckedIn, label: 'Checked In' },
+      { value: ReservationStatus.GaveNotice, label: 'Gave Notice' },
+      { value: ReservationStatus.FirstRightRefusal, label: 'First Right of Refusal' },
+      { value: ReservationStatus.Maintenance, label: 'Maintenance' },
+      { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
+    ];
+
+    if (reservationTypeId === ReservationType.Owner) {
+      // For Owner type: show only Owner Blocked and Maintenance (in that order - Owner Blocked first)
+      this.availableReservationStatuses = [
+        { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' },
+        { value: ReservationStatus.Maintenance, label: 'Maintenance' }
+      ];
+    } else {
+      // For all other types: show everything EXCEPT Maintenance and Owner Blocked
+      this.availableReservationStatuses = allStatuses.filter(status => 
+        status.value !== ReservationStatus.Maintenance && 
+        status.value !== ReservationStatus.OwnerBlocked
+      );
+    }
+  }
+  //#endregion
+
+  //#region Data Load Methods
+  loadOrganization(): void {
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
+      next: (organization: OrganizationResponse) => {
+        this.organization = organization;
+        // Update deposit default if form exists and deposit is 0.00
+        if (this.form) {
+          const depositControl = this.form.get('deposit');
+          if (depositControl && depositControl.value === '0.00') {
+            const defaultDeposit = this.getDefaultDeposit();
+            depositControl.setValue(defaultDeposit, { emitEvent: false });
+          }
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        // Organization is handled globally, just handle gracefully
+      }
+    });
+  }
+  
   loadContacts(): void {
     this.contactService.getAllContacts().pipe(take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
@@ -1331,7 +1398,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
          this.properties = properties;
-         // Initialize filtered properties (show all until office is selected)
+         // Initialize filtered properties (show all properties)
          this.filteredProperties = properties;
       },
       error: (err: HttpErrorResponse) => {
@@ -1345,35 +1412,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
-      next: (organization: OrganizationResponse) => {
-        this.organization = organization;
-        // Update deposit default if form exists and deposit is 0.00
-        if (this.form) {
-          const depositControl = this.form.get('deposit');
-          if (depositControl && depositControl.value === '0.00') {
-            const defaultDeposit = this.getDefaultDeposit();
-            depositControl.setValue(defaultDeposit, { emitEvent: false });
-          }
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        // Organization is handled globally, just handle gracefully
-      }
-    });
-  }
-
   loadCompanies(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('companies');
-      return;
-    }
-
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
-        this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
+        this.companies = companies;
       },
       error: (err: HttpErrorResponse) => {
         this.companies = [];
@@ -1385,115 +1427,38 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('offices');
-      return;
-    }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+  loadOffice(officeId: number): void {
+    this.officeService.getOfficeById(officeId).pipe(take(1)).subscribe({
+      next: (office: OfficeResponse) => {
+        this.selectedOffice = office;
       },
       error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.removeLoadItem('offices');
+        this.selectedOffice = null;
       }
     });
   }
 
-  loadOfficeConfigurations(): void {
-    this.officeConfigurationService.getAllOfficeConfigurations().pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('officeConfigurations'); })
-    ).subscribe({
-      next: (configs: OfficeConfigurationResponse[]) => {
-        this.officeConfigurations = configs || [];
+  loadOfficeConfiguration(officeId: number): void {
+    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1)).subscribe({
+      next: (config: OfficeConfigurationResponse) => {
+        this.selectedOfficeConfiguration = config;
+        // Update deposit with office configuration's defaultDeposit
+        this.updateDepositFromOfficeConfiguration();
       },
       error: (err: HttpErrorResponse) => {
-        this.officeConfigurations = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load office configurations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.removeLoadItem('officeConfigurations');
+        // 404 means no configuration exists for this office, which is fine
+        this.selectedOfficeConfiguration = null;
       }
     });
   }
+  //#endregion
 
-  loadOfficeConfigurationAndUpdateDeposit(officeId: number): void {
-    // Find office configuration from cached list
-    const config = this.officeConfigurations.find(c => c.officeId === officeId);
-    
-    if (config) {
-      // Update deposit with office configuration's defaultDeposit
-      const depositControl = this.form.get('deposit');
-      const depositType = this.form.get('depositType')?.value;
-      
-      if (depositControl && depositType === DepositType.Deposit) {
-        // Only update if depositType is Deposit (when deposit is editable)
-        const defaultDeposit = config.defaultDeposit !== null && config.defaultDeposit !== undefined 
-          ? config.defaultDeposit.toFixed(2) 
-          : '0.00';
-        depositControl.setValue(defaultDeposit, { emitEvent: false });
-      }
-    }
-    // If no configuration found, leave deposit as is (no error needed)
-  }
-
-  initializeEnums(): void {
-    this.availableClientTypes = [
-      { value: ReservationType.Private, label: 'Private' },
-      { value: ReservationType.Corporate, label: 'Corporate' },
-      { value: ReservationType.Owner, label: 'Owner' }
-    ];
-
-    // Initialize with all statuses, will be filtered based on reservation type
-    this.updateAvailableReservationStatuses(null);
-
-    this.checkInTimes = this.utilityService.getCheckInTimes();
-    this.checkOutTimes = this.utilityService.getCheckOutTimes();
-
-    this.availableBillingTypes = [
-      { value: BillingType.Monthly, label: 'Monthly' },
-      { value: BillingType.Daily, label: 'Daily' },
-      { value: BillingType.Nightly, label: 'Nightly' }
-    ];
-
-    this.availableFrequencies = [
-      { value: Frequency.NA, label: 'N/A' },
-      { value: Frequency.OneTime, label: 'One Time' },
-      { value: Frequency.Weekly, label: 'Weekly' },
-      { value: Frequency.EOW, label: 'EOW' },
-      { value: Frequency.Monthly, label: 'Monthly' }
-    ];
-
-    this.availableReservationNotices = [
-      { value: ReservationNotice.ThirtyDays, label: '30 Days' },
-      { value: ReservationNotice.FourteenDays, label: '14 Days' }
-    ];
-
-    this.availableDepositTypes = [
-      { value: DepositType.Deposit, label: 'Deposit' },
-      { value: DepositType.CLR, label: 'CLR' },
-      { value: DepositType.SDW, label: 'SDW' },
-    ];
-  }
-
-  // Validator Update Methods
+  //#region Validator Update Methods
   updateTenantNameValidator(reservationTypeId: number | null): void {
     const tenantNameControl = this.form?.get('tenantName');
     if (tenantNameControl) {
-      // Tenant Name is only required when it is editable (enabled)
-      // If disabled (Maintenance or Owner types), it's not required
-      if (tenantNameControl.enabled) {
+      // Tenant Name is always enabled and required
         tenantNameControl.setValidators([Validators.required]);
-      } else {
-        tenantNameControl.clearValidators();
-      }
       tenantNameControl.updateValueAndValidity();
     }
   }
@@ -1545,53 +1510,115 @@ export class ReservationComponent implements OnInit, OnDestroy {
       maidServiceFeeControl.updateValueAndValidity();
     }
   }
+  //#endregion
 
-  updateAvailableReservationStatuses(reservationTypeId: number | null): void {
-    const allStatuses = [
-      { value: ReservationStatus.PreBooking, label: 'Pre-Booking' },
-      { value: ReservationStatus.Confirmed, label: 'Confirmed' },
-      { value: ReservationStatus.CheckedIn, label: 'Checked In' },
-      { value: ReservationStatus.GaveNotice, label: 'Gave Notice' },
-      { value: ReservationStatus.FirstRightRefusal, label: 'First Right of Refusal' },
-      { value: ReservationStatus.Maintenance, label: 'Maintenance' },
-      { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
-    ];
+  // #region Date Validation Methods
+  validateDates(offendingField: 'arrivalDate' | 'departureDate' | 'save'): void {
+    const propertyId = this.form.get('propertyId')?.value;
+    const arrivalDate = this.form.get('arrivalDate')?.value;
+    const departureDate = this.form.get('departureDate')?.value;
 
-    if (reservationTypeId === ReservationType.Owner) {
-      // For Owner type: show only Owner Blocked and Maintenance (in that order)
-      this.availableReservationStatuses = allStatuses.filter(status => 
-        status.value === ReservationStatus.OwnerBlocked || 
-        status.value === ReservationStatus.Maintenance
-      ).sort((a, b) => {
-        // Ensure OwnerBlocked appears first, then Maintenance
-        if (a.value === ReservationStatus.OwnerBlocked) return -1;
-        if (b.value === ReservationStatus.OwnerBlocked) return 1;
-        return 0;
-      });
-    } else if (reservationTypeId === ReservationType.Private || 
-               reservationTypeId === ReservationType.Corporate ) {
-      // For Private, Corporate, Government, or External: show all EXCEPT Maintenance and Owner Blocked
-      this.availableReservationStatuses = allStatuses.filter(status => 
-        status.value !== ReservationStatus.Maintenance && 
-        status.value !== ReservationStatus.OwnerBlocked
-      );
-    } else {
-      // For other types or no type selected: show all statuses
-      this.availableReservationStatuses = allStatuses;
+    // Need property and both dates to check for overlaps
+    if (!propertyId || !arrivalDate || !departureDate) {
+      // If called from save and dates are missing, proceed with save (validation will catch it)
+      if (offendingField === 'save') {
+        this.performSave();
+      }
+      return;
     }
 
-    // If current status is not in the available list, reset to empty (show "Select Status")
-    const currentStatus = this.form?.get('reservationStatusId')?.value;
-    if (currentStatus !== null && currentStatus !== undefined && currentStatus !== '') {
-      const isValidStatus = this.availableReservationStatuses.some(status => status.value === currentStatus);
-      if (!isValidStatus) {
-        // Reset to empty to show "Select Status" placeholder
-        this.form?.patchValue({ reservationStatusId: null }, { emitEvent: false });
+    // Convert dates to Date objects if they aren't already
+    const arrival = arrivalDate instanceof Date ? new Date(arrivalDate) : new Date(arrivalDate);
+    const departure = departureDate instanceof Date ? new Date(departureDate) : new Date(departureDate);
+
+    // Reset time to compare dates only
+    arrival.setHours(0, 0, 0, 0);
+    departure.setHours(0, 0, 0, 0);
+
+    // Get all reservations for this property
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(
+      take(1),
+      catchError(() => of([] as ReservationResponse[]))
+    ).subscribe(reservations => {
+      // Filter out the current reservation if editing
+      const otherReservations = reservations.filter(r => 
+        !this.reservation || r.reservationId !== this.reservation.reservationId
+      );
+
+      // Check for overlaps
+      const conflictingReservation = otherReservations.find(r => {
+        if (!r.arrivalDate || !r.departureDate) {
+          return false;
+        }
+
+        const rArrival = new Date(r.arrivalDate);
+        const rDeparture = new Date(r.departureDate);
+        rArrival.setHours(0, 0, 0, 0);
+        rDeparture.setHours(0, 0, 0, 0);
+
+        // Check if dates overlap
+        // Overlap occurs if: (arrival <= rDeparture && departure >= rArrival)
+        return arrival <= rDeparture && departure >= rArrival;
+      });
+
+      if (conflictingReservation) {
+        const reservationCode = conflictingReservation.reservationCode || conflictingReservation.reservationId;
+        
+        if (offendingField === 'save') {
+          // On save, clear both dates and prevent save
+          this.showDateOverlapDialog(reservationCode, true);
+        } else {
+          // On date change, clear the offending date
+          this.showDateOverlapDialog(reservationCode, false);
+          this.clearOffendingDate(offendingField);
+        }
+      } else if (offendingField === 'save') {
+        // No overlap, proceed with save
+        this.performSave();
       }
+    });
+  }
+
+  clearOffendingDate(field: 'arrivalDate' | 'departureDate'): void {
+    if (field === 'arrivalDate') {
+      this.form.patchValue({ arrivalDate: null }, { emitEvent: false });
+      this.departureDateStartAt = null;
+    } else if (field === 'departureDate') {
+      this.form.patchValue({ departureDate: null }, { emitEvent: false });
     }
   }
 
-  // Format Methods
+
+  showDateOverlapDialog(reservationCode: string, resetDates: boolean = false): void {
+    const dialogData: GenericModalData = {
+      title: 'Date Conflict',
+      message: `The selected dates overlap with an existing reservation.<br><div style="text-align: center; margin-top: 10px;"><strong>${reservationCode}</strong></div>`,
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef, result) => {
+        if (resetDates) {
+          // Reset arrival and departure dates
+          this.form.patchValue({
+            arrivalDate: null,
+            departureDate: null
+          }, { emitEvent: false });
+          this.departureDateStartAt = null;
+        }
+        dialogRef.close();
+      },
+      useHTML: true
+    };
+
+    this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+  }
+  //#endregion
+ 
+  //#region Format Methods
   formatDecimal(fieldName: string): void {
     this.formatterService.formatDecimalControl(this.form.get(fieldName));
   }
@@ -1611,7 +1638,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
   }
 
-  // Phone helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -1619,8 +1645,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
+  //#endregion
 
-  // Utility methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -1637,4 +1664,5 @@ export class ReservationComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.ReservationList);
   }
+  //#endregion
 }
