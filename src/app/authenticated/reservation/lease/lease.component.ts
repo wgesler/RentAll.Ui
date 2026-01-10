@@ -59,6 +59,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   company: CompanyResponse | null = null;
   offices: OfficeResponse[] = [];
   office: OfficeResponse | null = null;
+  officeConfigurations: OfficeConfigurationResponse[] = [];
   officeConfiguration: OfficeConfigurationResponse | null = null;
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
@@ -68,7 +69,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   showPreview: boolean = false;
   private leaseFormSubscription?: Subscription;
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'lease'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'officeConfigurations', 'organization', 'property', 'leaseInformation', 'reservation', 'lease'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -94,12 +95,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.form = this.buildForm();
   }
 
+  //#region Lease
   ngOnInit(): void {
     this.loadOffices();
+    this.loadOfficeConfigurations();
     this.loadOrganization();
+    this.loadReservation();
     this.loadProperty();
     this.loadLeaseInformation();
-    this.loadReservation();
     this.getLease();
     
     // Automatically regenerate preview when lease HTML changes (if both office and reservation are selected)
@@ -212,6 +215,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
   // Form Methods
   buildForm(): FormGroup {
@@ -221,11 +225,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Form Response Functions
   onOfficeSelected(officeId: number | null): void {
     if (officeId) {
       this.office = this.offices.find(o => o.officeId === officeId) || null;
-      this.loadOfficeConfiguration(officeId);
+      this.officeConfiguration = this.officeConfigurations.find(o => o.officeId === officeId) || null;
     } else {
       this.office = null;
       this.officeConfiguration = null;
@@ -239,18 +242,27 @@ export class LeaseComponent implements OnInit, OnDestroy {
       this.showPreview = false;
     }
   }
+  //#endregion
 
-   // Data Loading Methods 
+   //#region Data Loading Methods 
   loadOffices(): void {
-     const orgId = this.authService.getUser()?.organizationId;
-     if (!orgId) {
-       this.removeLoadItem('offices');
-       return;
-     }
- 
      this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
        next: (offices: OfficeResponse[]) => {
-         this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+        this.offices = offices;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  loadOfficeConfigurations(): void {
+    this.officeConfigurationService.getAllOfficeConfigurations().pipe(take(1), finalize(() => { this.removeLoadItem('officeConfigurations'); })).subscribe({
+      next: (configs: OfficeConfigurationResponse[]) => {
+        this.officeConfigurations = configs;
        },
        error: (err: HttpErrorResponse) => {
          this.offices = [];
@@ -284,6 +296,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
+        this.office = this.offices.find(o => o.officeId === this.property.officeId) || null;
+        this.officeConfiguration = this.officeConfigurations.find(o => o.officeId === this.property.officeId) || null;
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -382,22 +396,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
-  loadOfficeConfiguration(officeId: number): void {
-     this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1)).subscribe({
-       next: (config: OfficeConfigurationResponse) => {
-         this.officeConfiguration = config;
-       },
-       error: (err: HttpErrorResponse) => {
-         this.officeConfiguration = null;
-         if (err.status !== 400) {
-           this.toastr.error('Could not load office configuration at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-         }
-       }
-     });
-  }
+  //#endregion
 
-  // Field Replacement Helpers
+  //#region Field Replacement Helpers
   getCommunityAddress(): string {
     if (!this.property) return '';
     const parts = [
@@ -449,11 +450,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   getReservationNoticeText(): string {
-    if (!this.reservation?.reservationNoticeId) return '';
+    if (this.reservation?.reservationNoticeId === null || this.reservation?.reservationNoticeId === undefined) return '';
     if (this.reservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
-      return '30 Days';
+      return '(30 day written notice is required)';
     } else if (this.reservation.reservationNoticeId === ReservationNotice.FourteenDays) {
-      return '14 Days';
+      return '(14 day written notice is required)';
     }
     return '';
   }
@@ -498,11 +499,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   getDepositRequirementText(): string {
-    if (!this.reservation) return '';    
+    if (!this.reservation) return '';
     if (this.reservation.depositTypeId === DepositType.CLR) 
-      return `Corp. Letter of Responsibility`;
+      return `Corporate Letter of Responsibility`;
     else if (this.reservation.depositTypeId === DepositType.SDW) 
-      return `Security Deposit Waiver`;
+      return '$' + this.reservation.deposit.toFixed(2) + ' per month';
     else 
       return `See Below`;
   }
@@ -512,7 +513,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     if (this.reservation.depositTypeId === DepositType.CLR) 
       return `(Required to reserve unit)`;
     else if (this.reservation.depositTypeId === DepositType.SDW) 
-      return `(Monthly rent)`;
+      return `(To be included with monthly rent)`;
     else return ``;
   }
 
@@ -577,8 +578,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
     }
     return '';
   }
+  //#endregion
 
-  // Placeholder Replacement Logic
+  //#region Placeholder Replacement Logic
   replacePlaceholders(html: string): string {
     let result = html;
 
@@ -737,8 +739,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
     return result;
   }
+  //#endregion
 
-  // Preview, Download, Print, Email Functions
+  //#region Preview, Download, Print, Email Functions
   onPreview(): void {
     if (!this.office || !this.reservation) {
       this.toastr.warning('Please select an office and reservation to generate the preview', 'No Selection');
@@ -945,8 +948,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
       this.toastr.error('Error opening email client. Please try again.', 'Error');
     }
   }
+  //#endregion
 
-  // HTML Generation Functions
+  //#region HTML Generation Functions
   getPreviewHtmlWithStyles(): string {
     const bodyContent = this.extractBodyContent();
     const printStyles = this.getPrintStyles(true);
@@ -1067,8 +1071,9 @@ export class LeaseComponent implements OnInit, OnDestroy {
       </body>
       </html>`;
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -1082,5 +1087,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.leaseFormSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

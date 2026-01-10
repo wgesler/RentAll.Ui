@@ -73,7 +73,7 @@
                   <mat-label>Property</mat-label>
                   <mat-select formControlName="propertyId" required>
                     <mat-option value="">Select Property</mat-option>
-                    @for (property of filteredProperties; track property.propertyId) {
+                    @for (property of properties; track property.propertyId) {
                       <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
                     }
                   </mat-select>

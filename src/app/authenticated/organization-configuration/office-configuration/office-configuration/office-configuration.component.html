@@ -69,7 +69,7 @@
             </div>
           }
 
-          <!-- First Row: Office, Default Rental Deposit -->
+          <!-- First Row: Office, Default Rental Deposit, Default SDW -->
           <div class="flex gap-4 mb-4">
             <!-- Office Selection -->
             <mat-form-field appearance="outline" class="flex-1">
@@ -88,6 +88,15 @@
               <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00"
                 (blur)="formatDecimal('defaultDeposit')"
                 (input)="onDecimalInput($event, 'defaultDeposit')"
+                (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
+
+            <!-- Default SDW -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Default SDW</mat-label>
+              <input matInput type="text" formControlName="defaultSdw" placeholder="0.00"
+                (blur)="formatDecimal('defaultSdw')"
+                (input)="onDecimalInput($event, 'defaultSdw')"
                 (focus)="selectAllOnFocus($event)">
             </mat-form-field>
           </div>

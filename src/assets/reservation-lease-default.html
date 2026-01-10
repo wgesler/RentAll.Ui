@@ -47,7 +47,7 @@
     }
 
     body {
-      font-family: arial, san-serif;
+      font-family: arial, sans-serif;
       max-width: 8.5in;
       width: 8.5in;
       margin: 0 auto;
@@ -75,9 +75,9 @@
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      border: 1px solid #ddd;
-      padding: 3px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -103,21 +103,23 @@
     }
 
     h1 {
-      font-size: 15pt;
+      font-size: 18pt;
       font-weight: 600;
       text-align: center;
       color: #fff;
       margin: 0;
       padding: 5px;
+      background-color: #222;
+      letter-spacing: -0.5px;
     }
 
     h2 {
       font-size: 16pt !important;
       font-weight: 600 !important;
-      color: #000;
+      color: #000 !important;
       margin-top: 15px !important;
       margin-bottom: 2px !important;
-      padding: 0;
+      padding: 0 !important;
     }
 
     .border {
@@ -150,6 +152,7 @@
 </head>
 
 <body>
+<div class="page">
   <!-- ===================== HEADER ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
@@ -166,10 +169,10 @@
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td width="50%" style="vertical-align: top; padding: 5px; width: 50%;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div style="margin-right: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2 style="color: #000;">Tenant Information</h2>
-            <p>
+            <h2 style="color: #000 !important;">Tenant Information</h2>
+            <p font-size: 8pt !important>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
               <span style="font-weight: bold">Name(s):</span> {{responsibleParty}}<br>
               <span style="font-weight: bold">Address:</span> {{contactAddress1}} {{contactAddress2}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
@@ -181,18 +184,18 @@
           </div>
         </td>
 
-        <td width="50%" style="vertical-align: top; padding: 5px; width: 50%;">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div style="margin-left: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
-            <h2 style="color: #000;">Rental information</h2>
-            <p>
+            <h2 style="color: #000 !important;">Rental information</h2>
+            <p font-size: 8pt !important>
               <span style="font-weight: bold">Arrival Date:</span> {{arrivalDate}}<br>
               <span style="font-weight: bold">Departure Date:</span> {{departureDate}} ({{reservationNotice}} written notice is required)<br>
               <span style="font-weight: bold">Check-in Time:</span> {{checkInTime}}<br>
               <span style="font-weight: bold">Check-out Time:</span> {{checkOutTime}}<br>
               <span style="font-weight: bold">Extensions Possible:</span> {{extensionsPossible}}<br>
               <span style="font-weight: bold">Deposit:</span> {{depositText}} <span style="font-style: italic">(Required to reserve unit)</span><br>
-              <span style="font-weight: bold">{{billingType}} Rate:</span> \${{billingRate}} <span style="font-style: italic">(1st month's rent payable in advance)</span><br>
-              <span style="font-weight: bold">Departure Fee:</span> \${{departureFee}} <span style="font-style: italic">(Payable upon move-in)</span><br>
+              <span style="font-weight: bold">{{billingType}} Rate:</span> ${{billingRate}} <span style="font-style: italic">(1st month's rent payable in advance)</span><br>
+              <span style="font-weight: bold">Departure Fee:</span> ${{departureFee}} <span style="font-style: italic">(Payable upon move-in)</span><br>
               <span style="font-weight: bold">Pets:</span> {{tenantPets}}
             </p>
           </div>
@@ -201,7 +204,7 @@
 
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
-          <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000;" class="border">Property Information</h2>
+          <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000 !important;" class="border">Property Information</h2>
           <div style="margin-top: 10px; margin-bottom: 10px" class="border">
             <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
           </div>
@@ -302,14 +305,14 @@
             <td style="padding-right: 10px" width="60%" align="center">
               <hr class="grayline" noshade>
               <span style="font-style: italic">Tenant Signature</span>
-              <p><br></p>
+              <p><br><br></p>
               <hr class="grayline" noshade>
               <span style="font-style: italic">{{organization-office}}</span>
             </td>
             <td style="padding-left: 10px" width="40%" align="center">
               <hr class="grayline" noshade>
               <span style="font-style: italic">Date</span>
-              <p><br></p>
+              <p><br><br></p>
               <hr class="grayline" noshade>
               <span style="font-style: italic">Date</span>
             </td>
@@ -334,21 +337,19 @@
       </p>
     </td>
   </tr>
+</div>
 
   <p class="breakhere"></p>
 
+<div class="page">
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
-  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-  <html>
-  <head>
-    <title>Corporate Letter of Responsibility</title>
-    <style>
+  <style>
       body {
-        font-family: arial, san-serif;
+        font-family: arial, sans-serif;
       }
 
       p {
-        font-size: 8pt;
+        font-size: 10pt;
         line-height: 150%;
       }
 
@@ -363,12 +364,14 @@
       }
 
       h1 {
-        font-size: 9pt;
+        font-size: 18pt;
         font-weight: 600;
         text-align: center;
         color: #fff;
         margin: 0;
-        padding: 5px;
+        padding: 10px 5px 30px 5px;
+        background-color: #222;
+        letter-spacing: -0.5px;
       }
 
       .border {
@@ -385,7 +388,7 @@
       }
 
       .smgraytext {
-        font-size: 8pt;
+        font-size: 9pt;
         color: #999;
       }
 
@@ -396,9 +399,7 @@
         padding: 10px;
       }
     </style>
-  </head>
 
-  <body>
     <table width="648" cellpadding="0" cellspacing="0" id="header" align="center">
       <img src="http://www.aaxsys.com/members/awch-dn/New_Website_Logo_DN_2.jpg" align="center">
       <tr valign="top">
@@ -448,9 +449,9 @@
                     {{reservationCode}}<br>
                     {{arrivalDate}}<br>
                     {{departureDate}}<br>
-                    \${{billingRate}}<br>
-                    \${{deposit}}<br>
-                    \${{departureFee}}<br>
+                    ${{billingRate}}<br>
+                    ${{deposit}}<br>
+                    ${{departureFee}}<br>
                     {{tenantName}}<br>
                   </p>
                 </td>
@@ -471,7 +472,7 @@
           </div>
 
           <div class="border">
-            <p style="font-size: 8.5pt">
+            <p style="font-size: 10pt">
               <strong>Agreed to and Accepted:</strong>
             </p>
             <table width="100%" cellpadding="0" cellspacing="0" align="center">
@@ -479,10 +480,10 @@
                 <td width="50%" style="padding-right: 10px" align="center">
                   <strong>{{responsibleParty}}</strong><br>
                   <i class="smgraytext">(Company)</i>
-                  <p><br>
+                  <p><br><br>
                     <hr noshade class="grayline">
                     <i class="smgraytext">Signature</i>
-                  </p>
+                  </p><br>
 
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
@@ -501,10 +502,10 @@
                 <td width="50%" style="padding-left: 5px" align="center">
                   <strong>{{organization-office}}</strong><br>
                   <i class="smgraytext">(Property Manager)</i>
-                  <p><br>
+                  <p><br><br>
                     <hr noshade class="grayline">
                     <i class="smgraytext">Signature</i>
-                  </p>
+                  </p><br>
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
                       <td width="60%" align="center">
@@ -535,23 +536,19 @@
         </td>
       </tr>
     </table>
-  </body>
-  </html>
+</div>
 
   <p class="breakhere"></p>
 
+<div class="page">
   <!-- ===================== NOTICE OF INTENT TO VACATE ===================== -->
-  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-  <html>
-  <head>
-    <title>{{reservationNotice}} Notice of Intent to Vacate</title>
-    <style>
+  <style>
       body {
-        font-family: arial, san-serif;
+        font-family: arial, sans-serif;
       }
 
       p {
-        font-size: 9pt;
+        font-size: 10pt;
         line-height: 150%;
         margin-bottom: 12px;
       }
@@ -567,12 +564,14 @@
       }
 
       h1 {
-        font-size: 11pt;
+        font-size: 18pt;
         font-weight: 600;
         text-align: center;
         color: #fff;
         margin: 0;
-        padding: 5px;
+        padding: 10px 5px 30px 5px;
+        background-color: #222;
+        letter-spacing: -0.5px;
       }
 
       .border {
@@ -602,10 +601,6 @@
       }
     </style>
 
-    <meta name="GENERATOR" content="MSHTML 8.00.6001.19019">
-  </head>
-
-  <body>
     <table id="header" cellspacing="0" cellpadding="0" width="648" align="center">
       <tbody>
         <img src="http://www.aaxsys.com/members/awch-dn/New_Website_Logo_DN_2.jpg" align="center">
@@ -671,13 +666,14 @@
               <br>
               <hr class="grayline" noshade>
 
+              <br>
               <p>
                 <span style="font-weight: bold">Rent due through end of notice $:</span> <span class="grayline">________________________</span>
               </p>
             </div>
             <br><br>
 
-            <table cellspacing="0" cellpadding="0" width="100%" align="center">
+            <table cellspacing="0" cellpadding="0" width="100%" align="center"><br>
               <tbody>
                 <tr valign="top">
                   <td style="padding-right: 10px" width="60%" align="center">
@@ -697,7 +693,7 @@
               <p>
                 <span style="font-weight: bold">Acknowledged by {{organization-office}}:</span>
               </p>
-              <br>
+              <br><br>
               <table cellspacing="0" cellpadding="0" width="100%" align="center">
                 <tbody>
                   <tr valign="top">
@@ -730,6 +726,4 @@
         </tr>
       </tbody>
     </table>
-  </body>
-  </html>
-
+</div>

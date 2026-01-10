@@ -284,6 +284,7 @@ export class MappingService {
       maintenanceEmail: o.maintenanceEmail,
       afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
       defaultDeposit: o.defaultDeposit,
+      defaultSdw:o.defaultSdw,
       isActive: o.isActive
     }));
   }

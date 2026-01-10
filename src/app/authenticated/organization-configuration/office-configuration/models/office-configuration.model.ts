@@ -4,6 +4,7 @@ export interface OfficeConfigurationRequest {
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
   defaultDeposit: number;
+  defaultSdw: number;
   utilityOneBed: number;
   utilityTwoBed: number;
   utilityThreeBed: number;
@@ -26,6 +27,7 @@ export interface OfficeConfigurationResponse {
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
   defaultDeposit: number;
+  defaultSdw: number;
   utilityOneBed: number;
   utilityTwoBed: number;
   utilityThreeBed: number;
@@ -47,6 +49,7 @@ export interface OfficeConfigurationListDisplay {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   defaultDeposit: number;
+  defaultSdw: number;
   isActive: boolean;
 }
 

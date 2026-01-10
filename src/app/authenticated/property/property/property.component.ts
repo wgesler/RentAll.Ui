@@ -313,7 +313,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
       ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.TenantList);
+          
+          // Update property data and switch to edit mode
+          this.property = response;
+          this.propertyId = response.propertyId;
+          this.isAddMode = false;
+          // Update the URL to reflect edit mode
+          this.router.navigate(['/tenants', this.propertyId], { replaceUrl: true });
+          this.populateForm();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -327,7 +334,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
       this.propertyService.updateProperty(this.propertyId, propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.TenantList);
+          
+          // Update the property data with the response
+          this.property = response;
+          this.populateForm();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
