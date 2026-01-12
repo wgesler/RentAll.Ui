@@ -348,11 +348,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     if (officeId) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
       this.loadOfficeConfiguration(officeId);
-      console.log("SelectedOffice: ", this.selectedOffice);
     } else {
       this.selectedOffice = null;
       this.officeConfiguration = null;
-            console.log("EMPTY SelectedOffice: ", this.selectedOffice);
     }
     this.generatePreviewIframe();
   }
@@ -360,10 +358,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   onReservationSelected(reservationId: string | null): void {
     if (reservationId) {
       this.selectedReservation = this.reservations.find(r => r.reservationId === reservationId) || null;
-      console.log('SelectedReservation: ', this.selectedReservation);
     } else {
       this.selectedReservation = null;
-            console.log('EMPTY SelectedReservation: ', this.selectedReservation);
     }
     this.generatePreviewIframe();
   }

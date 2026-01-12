@@ -11,22 +11,22 @@
       <div class="top-controls">
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
-            [disabled]="!office || !reservation || !previewIframeHtml">
+            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
             <mat-icon>print</mat-icon>
             Print
           </button>
           <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
-            [disabled]="!office || !reservation || !previewIframeHtml || !contact?.email">
+            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !contact?.email">
             <mat-icon>email</mat-icon>
             Email
           </button>
           <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
-            [disabled]="!office || !reservation || !previewIframeHtml || isDownloading">
+            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
             <mat-icon>download</mat-icon>
             {{ isDownloading ? 'Downloading...' : 'Download' }}
           </button>
           <button mat-raised-button type="button" color="primary" id="save-button" 
-            (click)="office && reservation ? saveLeaseAsDocument() : saveLease()"
+            (click)="selectedOffice && selectedReservation ? saveLeaseAsDocument() : saveLease()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
             Save
@@ -46,7 +46,7 @@
           <!-- Office Dropdown -->
           <mat-form-field appearance="outline" class="office-dropdown">
             <mat-label>Select Office</mat-label>
-            <mat-select formControlName="officeId" (selectionChange)="onOfficeSelected($event.value)">
+            <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeSelected($event.value)">
               <mat-option [value]="null">Select Office</mat-option>
               @for (office of offices; track office.officeId) {
                 <mat-option [value]="office.officeId">
@@ -66,8 +66,8 @@
 
       <!-- Lease Editor or Preview -->
       <div class="editor-section">
-        @if (office && reservation && previewIframeHtml) {
-          <!-- Preview iframe when both office and reservation are selected -->
+        @if (previewIframeHtml) {
+          <!-- Preview iframe when lease HTML is available -->
           <div class="preview-section">
             <iframe 
               [srcdoc]="safeHtml" 
