@@ -106,9 +106,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
   //#region Reservation Page
   ngOnInit(): void {
     this.loadContacts();  
-    this.loadProperties();
     this.loadOrganization();
     this.loadAgents();
+
+    this.loadProperties();
     this.loadCompanies();
     this.loadOffices();
     this.loadOfficeConfigurations();
@@ -328,6 +329,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
     const propertyAddress = this.selectedProperty ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim() : '';
     const propertyCode = this.selectedProperty?.propertyCode || '';
+
+    // Update office and configuration based on selected property
+    this.updateOfficeAndConfiguration();
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
     this.form.patchValue({ reservationTypeId: this.reservation.reservationTypeId }, { emitEvent: false });
@@ -846,20 +850,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
   
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), 
-      catchError((err: HttpErrorResponse) => {
+    this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents'); })).subscribe({
+      next: (agents: AgentResponse[]) => {
+        this.agents = agents;
+      },
+      error: (err: HttpErrorResponse) => {
         this.agents = [];
         if (err.status !== 400) {
           this.toastr.error('Could not load agents. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        return of([]);
-      }),
-      finalize(() => { 
-        this.removeLoadItem('agents'); 
-      })
-    ).subscribe({
-      next: (agents: AgentResponse[]) => {
-        this.agents = agents;
       }
     });
   }
@@ -963,9 +962,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     departure.setHours(0, 0, 0, 0);
 
     // Get all reservations for this property
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(
-      take(1),
-      catchError(() => of([] as ReservationResponse[]))
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1),catchError(() => of([] as ReservationResponse[]))
     ).subscribe(reservations => {
       // Filter out the current reservation if editing
       const otherReservations = reservations.filter(r => 

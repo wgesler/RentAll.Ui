@@ -62,8 +62,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   //#region Reservation List
   ngOnInit(): void {
     this.loadContacts();
-    this.loadProperties();
-    this.getReservations();
+    this.loadProperties();  // Will call get reservations
   }
 
   addReservation(): void {
@@ -87,7 +86,6 @@ export class ReservationListComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
         }
-        this.removeLoadItem('reservations');
       }
     });
   }

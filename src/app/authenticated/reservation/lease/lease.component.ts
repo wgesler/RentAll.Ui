@@ -128,6 +128,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
              lease: response.lease || ''
            });
            this.generatePreviewIframe();
+           // If office and reservation are not selected, show the raw lease HTML preview (similar to welcome letter)
+           if (!this.office || !this.reservation) {
+             this.showPreview = true;
+           }
          }
        },
        error: (err: HttpErrorResponse) => {
@@ -505,7 +509,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     else if (this.reservation.depositTypeId === DepositType.SDW) 
       return '$' + this.reservation.deposit.toFixed(2) + ' per month';
     else 
-      return `See Below`;
+      return '$' + this.reservation.deposit.toFixed(2) + ' ';
+
   }
   
   getDepositRequirementText2(): string {
@@ -514,7 +519,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       return `(Required to reserve unit)`;
     else if (this.reservation.depositTypeId === DepositType.SDW) 
       return `(To be included with monthly rent)`;
-    else return ``;
+    else return `(See below)`;
   }
 
   getDefaultUtilityFeeText(): string {
@@ -759,22 +764,22 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   generatePreviewIframe(): void {
-    // Only generate preview if both office and reservation are selected
-    if (!this.office || !this.reservation) {
-      this.previewIframeHtml = '';
-      return;
-    }
-
     // Get lease HTML from form
     const leaseHtml = this.form.get('lease')?.value || '';
     if (!leaseHtml.trim()) {
       this.previewIframeHtml = '';
-      this.toastr.warning('Please enter lease HTML content to preview', 'No Content');
       return;
     }
 
-    // Replace placeholders with actual data
-    let processedHtml = this.replacePlaceholders(leaseHtml);
+    let processedHtml: string;
+
+    // If both office and reservation are selected, replace placeholders with actual data
+    if (this.office && this.reservation) {
+      processedHtml = this.replacePlaceholders(leaseHtml);
+    } else {
+      // If office or reservation are not selected, display raw lease HTML (similar to welcome letter)
+      processedHtml = leaseHtml;
+    }
 
     // Extract all <style> tags from the HTML
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
