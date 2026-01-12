@@ -9,7 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ReservationResponse, ReservationRequest } from '../models/reservation-model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { PropertyService } from '../../property/services/property.service';
@@ -35,6 +35,7 @@ import { LeaseInformationComponent } from '../lease-information/lease-informatio
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
   selector: 'app-reservation',
@@ -99,7 +100,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private leaseReloadService: LeaseReloadService
   ) {
   }
 
@@ -253,6 +255,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.reservation = response;
           this.populateForm();
         }
+        
+        // Trigger lease reload event
+        this.leaseReloadService.triggerReload();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {

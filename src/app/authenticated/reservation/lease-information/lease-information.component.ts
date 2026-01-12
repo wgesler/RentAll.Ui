@@ -9,6 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize, take, BehaviorSubject, Observable, map } from 'rxjs';
+import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
   selector: 'app-lease-information',
@@ -32,7 +33,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private leaseInformationService: LeaseInformationService,
     private authService: AuthService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private leaseReloadService: LeaseReloadService
   ) {
     this.form = this.buildForm();
   }
@@ -126,6 +128,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy {
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
         this.toastr.success('Lease information saved successfully', CommonMessage.Success);
+        // Trigger lease reload event
+        this.leaseReloadService.triggerReload();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {

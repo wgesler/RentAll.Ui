@@ -30,9 +30,10 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentType, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentType, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { PropertyHtmlRequest, PropertyHtmlResponse } from '../../property/models/property-html.model';
 import { PropertyHtmlService } from '../../property/services/property-html.service';
+import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
   selector: 'app-lease',
@@ -65,7 +66,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   safeHtml: SafeHtml | null = null;
   iframeKey: number = 0;
   isDownloading: boolean = false;
-  private leaseFormSubscription?: Subscription;
+  leaseReloadSubscription?: Subscription;
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'officeConfigurations', 'organization', 'property', 'leaseInformation', 'reservation', 'lease'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -88,7 +89,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private documentExportService: DocumentExportService,
     private documentService: DocumentService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private leaseReloadService: LeaseReloadService
   ) {
     this.form = this.buildForm();
   }
@@ -103,6 +105,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.loadProperty();
     this.loadLeaseInformation();
     this.getLease();
+    
+    // Subscribe to lease reload events
+    this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe(() => {
+      this.reloadLease();
+    });
   }
 
 
@@ -128,6 +135,17 @@ export class LeaseComponent implements OnInit, OnDestroy {
          }
        }
      });
+  }
+
+  reloadLease(): void {
+    // Reload reservation data to get latest information
+    if (this.reservationId) {
+      this.loadReservation();
+    }
+    // Reload lease information to get latest data
+    if (this.propertyId) {
+      this.loadLeaseInformation();
+    }
   }
 
   saveLease(): void {
@@ -209,7 +227,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       lease: new FormControl(''),
@@ -1045,7 +1063,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.leaseFormSubscription?.unsubscribe();
+    this.leaseReloadSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion
