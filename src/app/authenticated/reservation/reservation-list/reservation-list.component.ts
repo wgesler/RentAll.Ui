@@ -59,9 +59,11 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService) {
   }
 
+  //#region Reservation List
   ngOnInit(): void {
     this.loadContacts();
     this.loadProperties();
+    this.getReservations();
   }
 
   addReservation(): void {
@@ -114,23 +116,21 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
   }
 
-  // Data Load Methods
+  goToContact(event: ReservationListDisplay): void {
+    if (event.contactId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    }
+  }
+  //#endregion
+
+  //#region Data Load Methods
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
+    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts;
-        // Try to get reservations if properties are also loaded
-        if (this.properties.length > 0) {
-          this.getReservations();
-        }
       },
       error: (err: HttpErrorResponse) => {
-        // Contacts are handled globally, just handle gracefully
         this.contacts = [];
-        // Try to get reservations if properties are also loaded
-        if (this.properties.length > 0) {
-          this.getReservations();
-        }
       }
     });
   }
@@ -157,8 +157,9 @@ export class ReservationListComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Filtering Methods
+  //#region Filtering Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -169,8 +170,9 @@ export class ReservationListComponent implements OnInit, OnDestroy {
       ? this.allReservations
       : this.allReservations.filter(reservation => reservation.isActive === true);
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -183,5 +185,6 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

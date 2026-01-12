@@ -55,11 +55,12 @@ export class ContactComponent implements OnInit, OnDestroy {
     private companyService: CompanyService,
     private vendorService: VendorService
   ) {
-    this.loadStates();
   }
 
+  //#region Contacts
   ngOnInit(): void {
     this.initializeContactTypes();
+    this.loadStates();
     this.loadCompanies();
     this.loadVendors();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
@@ -158,8 +159,9 @@ export class ContactComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Form methods
+  //#region Form methods
   buildForm(): void {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
@@ -290,17 +292,9 @@ export class ContactComponent implements OnInit, OnDestroy {
       .trim()
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
-  
-  // Phone helpers
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
-  }
+  //#endregion
 
-  onPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
-  }
-
-  // Data loading methods
+  //#region Data loading methods
   loadCompanies(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
@@ -357,9 +351,19 @@ export class ContactComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Phone helpers
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
 
-  // Utility methods
+  onPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
+  }
+  //#endregion
+
+  //#region Utility methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -376,5 +380,6 @@ export class ContactComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.ContactList);
   }
+  //#endregion
 }
 

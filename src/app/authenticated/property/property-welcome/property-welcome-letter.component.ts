@@ -83,13 +83,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.form = this.buildForm();
   }
 
+  //#region Welcome Letter
   ngOnInit(): void {
-    this.loadOffices();
+    this.loadOrganization();
     this.loadContacts();
+    this.loadOffices();
     this.loadBuildings();
     this.loadReservations();
     this.loadPropertyLetterInformation();
-    this.loadOrganization();
     this.loadProperty();
     this.getWelcomeLetter();
   }
@@ -186,8 +187,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Form Building Methods
+  //#region Form Building Methods
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
@@ -195,8 +197,23 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       selectedOfficeId: new FormControl(null)
     });
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
+  loadContacts(): void {
+    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts || [];
+      },
+      error: (err: HttpErrorResponse) => {
+        this.contacts = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load contacts at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
   loadProperty(): void {
     if (!this.propertyId) {
       this.removeLoadItem('property');
@@ -210,20 +227,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
-
-  loadContacts(): void {
-    this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts || [];
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load contacts at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
     });
@@ -301,7 +304,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load reservations at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('reservations');
       }
     });
   }
@@ -315,7 +317,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('organization');
       }
     });
   }
@@ -340,8 +341,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Form Response Functions
+  //#region Form Response Functions
   onOfficeSelected(officeId: number | null): void {
     if (officeId) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
@@ -365,8 +367,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     }
     this.generatePreviewIframe();
   }
-
-  // Form Replacement Functions
+  //#endregion
+  
+  //#region Form Replacement Functions
   getOrganizationName(): string {
     if (!this.organization) return '';
     if (this.selectedOffice) {
@@ -529,8 +532,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
     return building?.name || null;
   }
+  //#endregion
 
-  // Preview, Download, Print, Email Functions
+  //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected and welcome letter exists
     if (!this.selectedOffice || !this.selectedReservation || !this.propertyHtml?.welcomeLetter) {
@@ -721,8 +725,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       this.toastr.error('Error opening email client. Please try again.', 'Error');
     }
   }
+  //#endregion
 
-  // HTML Generation Functions
+  //#region HTML Generation Functions
   getPreviewHtmlWithStyles(): string {
     const bodyContent = this.extractBodyContent();
     const printStyles = this.getPrintStyles(true);
@@ -823,8 +828,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       </body>
       </html>`;
   }
+  //#endregion
 
-  // Utility Functions
+  //#region Utility Functions
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -837,4 +843,5 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }

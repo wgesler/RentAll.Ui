@@ -17,6 +17,8 @@ import { ColorResponse, ColorListDisplay } from '../authenticated/organization-c
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
 import { OfficeConfigurationResponse, OfficeConfigurationListDisplay } from '../authenticated/organization-configuration/office-configuration/models/office-configuration.model';
 import { FormatterService } from './formatter-service';
+import { BoardProperty } from '../authenticated/reservation/models/reservation-board-model';
+import { PropertyStatus } from '../authenticated/property/models/property-enums';
 
 @Injectable({
     providedIn: 'root'
@@ -343,5 +345,89 @@ export class MappingService {
       'Unknown': 'Unknown'
     };
     return userGroups.map(g => groupLabels[g] || g).join(', ');
+  }
+
+  // Reservation Board Mapping Functions
+  createContactMap(contacts: ContactResponse[]): Map<string, ContactResponse> {
+    const contactMap = new Map<string, ContactResponse>();
+    contacts.forEach(contact => {
+      contactMap.set(contact.contactId, contact);
+    });
+    return contactMap;
+  }
+
+  createColorMap(colors: ColorResponse[]): Map<number, string> {
+    const colorMap = new Map<number, string>();
+    colors.forEach(color => {
+      colorMap.set(color.reservationStatusId, color.color);
+    });
+    return colorMap;
+  }
+
+  getPropertyStatusLetter(statusId: number): string {
+    const statusMap: { [key: number]: string } = {
+      [PropertyStatus.NotProcessed]: 'N',
+      [PropertyStatus.Cleaned]: 'C',
+      [PropertyStatus.Inspected]: 'I',
+      [PropertyStatus.Ready]: 'R',
+      [PropertyStatus.Occupied]: 'O',
+      [PropertyStatus.Maintenance]: 'M',
+      [PropertyStatus.Offline]: 'F'
+    };
+    return statusMap[statusId] || '?';
+  }
+
+  getMonthlyRateFromReservation(propertyId: string, reservations: ReservationResponse[]): number | null {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Find reservations for this property that are active today
+    const activeReservations = reservations.filter(r => {
+      if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
+        return false;
+      }
+      const arrival = new Date(r.arrivalDate);
+      arrival.setHours(0, 0, 0, 0);
+      const departure = new Date(r.departureDate);
+      departure.setHours(0, 0, 0, 0);
+      return today >= arrival && today <= departure;
+    });
+
+    // If we have active reservations, use the first one (or most recent by arrival date)
+    if (activeReservations.length > 0) {
+      // Sort by arrival date descending to get the most recent
+      activeReservations.sort((a, b) => {
+        if (!a.arrivalDate || !b.arrivalDate) return 0;
+        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
+      });
+      return activeReservations[0].billingRate;
+    }
+
+    // If no active reservation today, look for the most recent reservation for this property
+    const propertyReservations = reservations.filter(r => r.propertyId === propertyId);
+    if (propertyReservations.length > 0) {
+      // Sort by arrival date descending to get the most recent
+      propertyReservations.sort((a, b) => {
+        if (!a.arrivalDate || !b.arrivalDate) return 0;
+        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
+      });
+      return propertyReservations[0].billingRate;
+    }
+
+    return null;
+  }
+
+  mapPropertiesToBoardProperties(properties: PropertyResponse[], reservations: ReservationResponse[]): BoardProperty[] {
+    return (properties || []).map(p => {
+      const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId, reservations);
+      return {
+        propertyId: p.propertyId,
+        propertyCode: p.propertyCode,
+        address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
+        monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
+        bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
+        statusLetter: this.getPropertyStatusLetter(p.propertyStatusId)
+      };
+    });
   }
 }

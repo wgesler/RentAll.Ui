@@ -61,11 +61,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   loadStates(): void {
     this.commonService.loadStates();
-    this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),
-      take(1),
-      finalize(() => { this.removeLoadItem('states'); })
-    ).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1),finalize(() => { this.removeLoadItem('states'); })).subscribe({
       next: () => {},
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {

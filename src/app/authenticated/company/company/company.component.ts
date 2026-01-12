@@ -55,10 +55,10 @@ export class CompanyComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private utilityService: UtilityService
   ) {
-    this.loadStates();
   }
 
   ngOnInit(): void {
+    this.loadStates();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.companyId = paramMap.get('id');

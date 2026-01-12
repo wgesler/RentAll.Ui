@@ -48,9 +48,14 @@ export class ContactService {
     this.contactsLoaded$.next(false);
   }
 
-  // Get all contacts as observable
+  // Get all contacts as observable (returns BehaviorSubject - components should filter for non-empty)
   getAllContacts(): Observable<ContactResponse[]> {
     return this.allContacts$;
+  }
+
+  // Get all contacts value synchronously (returns current value)
+  getAllContactsValue(): ContactResponse[] {
+    return this.allContacts$.value;
   }
 
   // Get company contacts (filtered by EntityType.Company)

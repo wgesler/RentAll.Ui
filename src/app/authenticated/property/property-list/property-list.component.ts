@@ -6,6 +6,7 @@ import { PropertyResponse, PropertyListDisplay } from '../models/property.model'
 import { PropertyService } from '../services/property.service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
+import { EntityType } from '../../contact/models/contact-type';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -56,26 +57,9 @@ export class PropertyListComponent implements OnInit, OnDestroy {
     private contactService: ContactService) {
   }
 
+  //#region Property-List
   ngOnInit(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1)).subscribe({
-      next: () => {
-        this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
-          next: (contacts: ContactResponse[]) => {
-            this.contacts = contacts || [];
-            this.getProperties();
-          },
-          error: (err: HttpErrorResponse) => {
-            // Contacts are handled globally, just handle gracefully
-            this.contacts = [];
-            this.getProperties();
-          }
-        });
-      },
-      error: () => {
-        this.contacts = [];
-        this.getProperties();
-      }
-    });
+    this.loadContacts(); // calls get properties
   }
 
   addProperty(): void {
@@ -93,7 +77,6 @@ export class PropertyListComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load Properties', CommonMessage.ServiceError);
         }
-        this.removeLoadItem('properties');
       }
     });
   }
@@ -115,8 +98,24 @@ export class PropertyListComponent implements OnInit, OnDestroy {
       });
     }
   }
+  //#endregion
 
-  // Routing Methods
+  //#region Data Load Methods
+  loadContacts():void {
+    this.contactService.getAllOwnerContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
+      next: (response: ContactResponse[]) => {
+        this.contacts = response;
+        this.getProperties();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.contacts = [];
+        this.getProperties();
+      }
+    });
+  }
+  //#endregion
+  
+  //#region Routing Methods
   goToProperty(event: PropertyListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
   }
@@ -126,8 +125,9 @@ export class PropertyListComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
     }
   }
+  //#endregion
 
-  // Filter Methods
+  //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -138,8 +138,9 @@ export class PropertyListComponent implements OnInit, OnDestroy {
       ? this.allProperties
       : this.allProperties.filter(property => property.isActive);
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -152,5 +153,6 @@ export class PropertyListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

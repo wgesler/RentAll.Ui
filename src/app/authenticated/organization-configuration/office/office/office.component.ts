@@ -59,10 +59,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContext: NavigationContextService,
     private commonService: CommonService
   ) {
-    this.loadStates();
   }
 
   ngOnInit(): void {
+    this.loadStates();
     // Check for returnTo query parameter
     this.route.queryParams.subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';

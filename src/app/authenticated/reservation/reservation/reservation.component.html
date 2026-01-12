@@ -87,19 +87,7 @@
                   <input matInput formControlName="propertyAddress" readonly>
                 </mat-form-field>
 
-                <!-- Add Mode: Line 2: Reservation Status, Reservation Type, Reservation Notice, Agent (all 1/4 each) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Status</mat-label>
-                  <mat-select formControlName="reservationStatusId" required>
-                    @for (status of availableReservationStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
-                    <mat-error>Reservation Status is required</mat-error>
-                  }
-                </mat-form-field>
-
+                <!-- Add Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Type</mat-label>
                   <mat-select formControlName="reservationTypeId" required>
@@ -110,6 +98,18 @@
                   </mat-select>
                   @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
                     <mat-error>Reservation Type is required</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Reservation Status</mat-label>
+                  <mat-select formControlName="reservationStatusId" required>
+                    @for (status of availableReservationStatuses; track status.value) {
+                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
+                    <mat-error>Reservation Status is required</mat-error>
                   }
                 </mat-form-field>
 
@@ -138,19 +138,7 @@
               }
 
               @if (!isAddMode) {
-                <!-- Edit Mode: Line 2: Reservation Status, Reservation Type, Reservation Notice, Agent (all 1/4 each) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Status</mat-label>
-                  <mat-select formControlName="reservationStatusId" required>
-                    @for (status of availableReservationStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
-                    <mat-error>Reservation Status is required</mat-error>
-                  }
-                </mat-form-field>
-
+                <!-- Edit Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Type</mat-label>
                   <mat-select formControlName="reservationTypeId" required>
@@ -161,6 +149,18 @@
                   </mat-select>
                   @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
                     <mat-error>Reservation Type is required</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Reservation Status</mat-label>
+                  <mat-select formControlName="reservationStatusId" required>
+                    @for (status of availableReservationStatuses; track status.value) {
+                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
+                    <mat-error>Reservation Status is required</mat-error>
                   }
                 </mat-form-field>
 

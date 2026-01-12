@@ -52,10 +52,10 @@ export class VendorComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private authService: AuthService
   ) {
-    this.loadStates();
   }
 
   ngOnInit(): void {
+    this.loadStates();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.vendorId = paramMap.get('id');
@@ -278,6 +278,5 @@ export class VendorComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.VendorList);
   }
-
 }
 

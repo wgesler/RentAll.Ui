@@ -15,6 +15,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
+import { EntityType } from '../../contact/models/contact-type';
 import { MappingService } from '../../../services/mapping.service';
 import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
@@ -109,15 +110,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private buildingService: BuildingService,
     public utilityService: UtilityService
   ) {
-      this.loadStates();
   }
 
+  //#region Property
   ngOnInit(): void {
+    this.loadStates();
+    this.loadContacts();
+    this.loadLocationLookups();
+
     // Initialize dropdown menus
-    this.trashDays = Object.keys(TrashDays)
-      .filter(key => !isNaN(Number(TrashDays[key])))
-      .map(key => ({ value: Number(TrashDays[key]), label: key }));
-    
+    this.initializeTrashDays();
     this.initializePropertyStyles();
     this.initializePropertyStatuses();
     this.initializePropertyTypes();
@@ -126,20 +128,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     // Build form first so template can access it
     this.buildForm();
-
-    this.loadLocationLookups();
-    
-    // Load owner contacts from already-cached source
-    this.contactService.getAllOwnerContacts().pipe(
-      filter((contacts: ContactResponse[]) => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (response: ContactResponse[]) => {
-        this.contacts = this.mappingService.mapContacts(response);
-      },
-      error: (err: HttpErrorResponse) => {
-        // Contacts are handled globally, just handle gracefully
-      }
-    });
-    
+  
     // Set isAddMode from route params and load property if needed
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -147,7 +136,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
         this.isAddMode = this.propertyId === 'new';
         
         // Set panel expansion state based on mode
-        // In Add Mode: all panels open, In Edit Mode: all panels closed
         const allExpanded = this.isAddMode;
         this.expandedSections = {
           basic: allExpanded,
@@ -190,8 +178,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     // Set up alarm and keypadAccess field enable/disable logic
     this.setupConditionalFields();
-    
-
   }
 
   getProperty(): void {
@@ -347,8 +333,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       });
     }
   }
-
-  // Form methods
+  //#endregion
+  
+  //#region Form methods
   buildForm(): void {
     const contactValidators = [];
     const codeValidators = this.isAddMode ? [Validators.required] : [];
@@ -522,8 +509,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       this.form.patchValue(formData);
     }
   }
+  //#endregion
 
-  // Formatting handlers
+  //#region Formatting handlers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -572,8 +560,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const item = list.find(item => item[codeField] === code);
     return item?.[idField] || null;
   }
+  //#endregion
 
-  // Setup and Initialize 
+  //#region Setup and Initialize 
   setupConditionalFields(): void {
     // Subscribe to alarm checkbox changes to enable/disable alarm code field
     this.form.get('alarm')?.valueChanges.subscribe(value => {
@@ -653,6 +642,12 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }
   }
 
+  initializeTrashDays(): void {
+    this.trashDays = Object.keys(TrashDays)
+      .filter(key => !isNaN(Number(TrashDays[key])))
+      .map(key => ({ value: Number(TrashDays[key]), label: key })); 
+  }
+
   initializePropertyStyles(): void {
     this.propertyStyles = Object.keys(PropertyStyle)
       .filter(key => isNaN(Number(key))) // Filter out numeric keys
@@ -694,8 +689,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.checkInTimes = this.utilityService.getCheckInTimes();
     this.checkOutTimes = this.utilityService.getCheckOutTimes();
   }
+  //#endregion
 
-  // Formatting enum labels
+  //#region Formatting enum labels
   formatBedSizeTypeLabel(enumKey: string): string {
     // Convert enum key to a readable label
     return enumKey
@@ -728,14 +724,22 @@ export class PropertyComponent implements OnInit, OnDestroy {
       .trim()
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
+  loadContacts(): void {
+    this.contactService.getAllOwnerContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
+      next: (response: ContactResponse[]) => {
+        this.contacts = this.mappingService.mapContacts(response);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.contacts = [];
+      }
+    });
+  }
+
   loadLocationLookups(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('locationLookups');
-      return;
-    }
 
     forkJoin({
       offices: this.officeService.getOffices().pipe(take(1)),
@@ -779,9 +783,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.commonService.getStates().pipe(
-      filter(states => states && states.length > 0),take(1)
-    ).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1)).subscribe({
       next: (states) => {
         this.states = [...states];
       },
@@ -790,8 +792,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
-  // Utility Methods
+  //#endregion
+
+  //#region Utility Methods
   onCodeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const upperValue = input.value.toUpperCase();
@@ -815,5 +818,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.TenantList);
   }
+  //#endregion
 }
 

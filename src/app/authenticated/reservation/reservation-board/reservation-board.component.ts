@@ -5,8 +5,7 @@ import { MaterialModule } from '../../../material.module';
 import { FormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { PropertyStatus } from '../../property/models/property-enums';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationService } from '../services/reservation.service';
 import { ReservationResponse } from '../models/reservation-model';
@@ -21,6 +20,7 @@ import { PropertySelectionResponse } from '../../property/models/property-select
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MappingService } from '../../../services/mapping.service';
 
 
 
@@ -53,15 +53,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private colorService: ColorService,
     private router: Router,
     private authService: AuthService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private mappingService: MappingService
   ) { }
 
   ngOnInit(): void {
     this.setDefaultDateRange();
     this.generateCalendarDays();
-    this.loadColors();
     this.loadContacts();
-    this.loadReservations(); // This will call loadProperties() after reservations are loaded
+    this.loadColors();
+    this.loadReservations(); 
   }
 
   setDefaultDateRange(): void {
@@ -105,16 +106,28 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.generateCalendarDays();
   }
 
-  // Data Loading Methods
+  //#region Data Loading Methods
+  loadContacts(): void {
+    this.contactService.getAllContacts().pipe(
+      filter(contacts => contacts && contacts.length > 0),
+      take(1)
+    ).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts;
+        this.contactMap = this.mappingService.createContactMap(contacts);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.contacts = [];
+        this.contactMap = new Map();
+      }
+    });
+  }
+
   loadColors(): void {
     this.colorService.getColors().pipe(take(1), finalize(() => { this.removeLoadItem('colors'); })).subscribe({
       next: (colors: ColorResponse[]) => {
         this.colors = colors;
-        // Create a lookup map for quick access by reservationStatusId
-        this.colorMap = new Map();
-        colors.forEach(color => {
-          this.colorMap.set(color.reservationStatusId, color.color);
-        });
+        this.colorMap = this.mappingService.createColorMap(colors);
       },
       error: (err: HttpErrorResponse) => {
         this.colors = [];
@@ -122,57 +135,22 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load colors. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('colors');
-      }
-    });
-  }
-
-  loadContacts(): void {
-    this.contactService.getAllContacts().pipe(take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-        // Create a lookup map for quick access
-        this.contactMap = new Map();
-        contacts.forEach(contact => {
-          this.contactMap.set(contact.contactId, contact);
-        });
-      },
-      error: (err: HttpErrorResponse) => {
-        // Contacts are handled globally, just handle gracefully
-        this.contacts = [];
-        this.contactMap = new Map();
       }
     });
   }
 
   loadProperties(): void {
     const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      this.properties = [];
-      this.removeLoadItem('properties');
-      return;
-    }
 
     this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
-        this.properties = (properties || []).map(p => {
-          const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId);
-          return {
-            propertyId: p.propertyId,
-            propertyCode: p.propertyCode,
-            address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
-            monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
-            bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
-            statusLetter: this.getStatusLetter(p.propertyStatusId)
-          };
-        });
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(properties, this.reservations);
       },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
         if (err.status !== 400) {
           this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('properties');
       }
     });
   }
@@ -189,67 +167,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load reservations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('reservations');
-        // Still load properties even if reservations fail
         this.loadProperties();
       }
     });
   }
+  //#endregion
 
-  // Field Formatting Methods
-  getMonthlyRateFromReservation(propertyId: string): number | null {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Find reservations for this property that are active today
-    const activeReservations = this.reservations.filter(r => {
-      if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
-        return false;
-      }
-      const arrival = new Date(r.arrivalDate);
-      arrival.setHours(0, 0, 0, 0);
-      const departure = new Date(r.departureDate);
-      departure.setHours(0, 0, 0, 0);
-      return today >= arrival && today <= departure;
-    });
-
-    // If we have active reservations, use the first one (or most recent by arrival date)
-    if (activeReservations.length > 0) {
-      // Sort by arrival date descending to get the most recent
-      activeReservations.sort((a, b) => {
-        if (!a.arrivalDate || !b.arrivalDate) return 0;
-        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
-      });
-      return activeReservations[0].billingRate;
-    }
-
-    // If no active reservation today, look for the most recent reservation for this property
-    const propertyReservations = this.reservations.filter(r => r.propertyId === propertyId);
-    if (propertyReservations.length > 0) {
-      // Sort by arrival date descending to get the most recent
-      propertyReservations.sort((a, b) => {
-        if (!a.arrivalDate || !b.arrivalDate) return 0;
-        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
-      });
-      return propertyReservations[0].billingRate;
-    }
-
-    return null;
-  }
-
-  getStatusLetter(statusId: number): string {
-    const statusMap: { [key: number]: string } = {
-      [PropertyStatus.NotProcessed]: 'N',
-      [PropertyStatus.Cleaned]: 'C',
-      [PropertyStatus.Inspected]: 'I',
-      [PropertyStatus.Ready]: 'R',
-      [PropertyStatus.Occupied]: 'O',
-      [PropertyStatus.Maintenance]: 'M',
-      [PropertyStatus.Offline]: 'F'
-    };
-    return statusMap[statusId] || '?';
-  }
-
+  //#region Board Supporting Methods
   generateCalendarDays(): void {
     const days: CalendarDay[] = [];
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -379,8 +303,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     if (compareDate.getTime() === departure.getTime()) {
       return 'reservation-departure';
     }
-    
-    // No status-based CSS classes - colors come from API via inline styles
     return '';
   }
 
@@ -493,7 +415,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return 'R';
   }
 
-  // Navigation Methods
+  //#region Navigation Methods
   getPropertyRoute(propertyId: string): string {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
@@ -523,8 +445,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -537,4 +460,5 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }

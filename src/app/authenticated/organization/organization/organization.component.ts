@@ -50,10 +50,10 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private formatterService: FormatterService
   ) {
-    this.loadStates();
   }
 
   ngOnInit(): void {
+    this.loadStates();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.organizationId = paramMap.get('id');
