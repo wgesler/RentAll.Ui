@@ -489,15 +489,24 @@ export class LeaseComponent implements OnInit, OnDestroy {
       : `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
-  getDepositRequirementText(): string {
+  getSecurityDepositText(): string {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.depositTypeId === DepositType.CLR) 
-      return `Corporate Letter of Responsibility`;
+      return '$0.00';
     else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
       return '$' + this.selectedReservation.deposit.toFixed(2) + ' per month';
     else 
       return '$' + this.selectedReservation.deposit.toFixed(2) + ' ';
+  }
 
+  getDepositRequirementText(): string {
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.depositTypeId === DepositType.CLR) 
+      return 'Corporate Letter of Responsibility';
+    else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
+      return '$' + this.selectedReservation.deposit.toFixed(2) + ' per month';
+    else 
+      return '$' + this.selectedReservation.deposit.toFixed(2) + ' ';
   }
   
   getDepositRequirementText2(): string {
@@ -573,7 +582,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Placeholder Replacement Logic
-  // Main method: Layered approach - first replace lease info placeholders, then replace all other placeholders
   replacePlaceholders(html: string): string {
     let result = html;
 
@@ -586,8 +594,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  // Layer 1: Replace lease information placeholders with their text values
-  // This does NOT process nested placeholders - that happens in Layer 2
   replaceLeaseInformationPlaceholders(html: string): string {
     let result = html;
 
@@ -621,8 +627,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  // Layer 2: Replace all other placeholders (everything except lease information placeholders)
-  // This processes the entire HTML after lease info placeholders have been replaced
   replaceAllOtherPlaceholders(html: string): string {
     let result = html;
 
@@ -664,6 +668,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{billingType\}\}/g, this.getBillingTypeText());
       result = result.replace(/\{\{billingRate\}\}/g, (this.selectedReservation.billingRate || 0).toFixed(2));
       result = result.replace(/\{\{deposit\}\}/g, (this.selectedReservation.deposit || 0).toFixed(2));
+      result = result.replace(/\{\{securityDepositText\}\}/g, this.getSecurityDepositText());
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
       result = result.replace(/\{\{reservationDate\}\}/g, this.formatterService.formatDateStringLong(new Date().toISOString()) || '');
@@ -722,12 +727,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  // Legacy method - kept for backward compatibility if needed elsewhere
-  replacePlaceholdersInText(text: string): string {
-    if (!text) return '';
-    // Just replace all other placeholders (lease info placeholders should already be replaced)
-    return this.replaceAllOtherPlaceholders(text);
-  }
   //#endregion
 
   //#region Preview, Download, Print, Email Functions
