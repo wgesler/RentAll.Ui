@@ -5,6 +5,9 @@ export interface OfficeConfigurationRequest {
   afterHoursInstructions?: string;
   defaultDeposit: number;
   defaultSdw: number;
+  defaultKeyFee: number;
+  undisclosedPetFee: number;
+  minimumSmokingFee: number;
   utilityOneBed: number;
   utilityTwoBed: number;
   utilityThreeBed: number;
@@ -28,6 +31,9 @@ export interface OfficeConfigurationResponse {
   afterHoursInstructions?: string;
   defaultDeposit: number;
   defaultSdw: number;
+  defaultKeyFee: number;
+  undisclosedPetFee: number;
+  minimumSmokingFee: number;
   utilityOneBed: number;
   utilityTwoBed: number;
   utilityThreeBed: number;

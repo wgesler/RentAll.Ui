@@ -17,7 +17,7 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { finalize, take, Observable, filter, BehaviorSubject, map, Subscription } from 'rxjs';
+import { finalize, take, Observable, filter, BehaviorSubject, map, Subscription, forkJoin, of } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -450,6 +450,16 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return '';
   }
 
+    getReservationDayNotice(): string {
+    if (this.selectedReservation?.reservationNoticeId === null || this.selectedReservation?.reservationNoticeId === undefined) return '';
+    if (this.selectedReservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
+      return '30';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FourteenDays) {
+      return '14';
+    }
+    return '';
+  }
+
   getPetText(): string {
     if (!this.selectedReservation) return '';
     return this.selectedReservation.hasPets 
@@ -482,6 +492,30 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return '';
   }
 
+  getBillingDayText(): string {
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
+      return 'month';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Daily) {
+      return 'day';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Nightly) {
+      return 'night';
+    }
+    return '';
+  }
+
+  getBillingTypeLowerText(): string {
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
+      return 'mnthly';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Daily) {
+      return 'daily';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Nightly) {
+      return 'nightly';
+    }
+    return '';
+  }
+
   getResponsibleParty(): string {
     if(!this.contact ) return '';
     return (this.contact.entityTypeId === EntityType.Company && this.company) 
@@ -497,6 +531,16 @@ export class LeaseComponent implements OnInit, OnDestroy {
       return '$' + this.selectedReservation.deposit.toFixed(2) + ' per month';
     else 
       return '$' + this.selectedReservation.deposit.toFixed(2) + ' ';
+  }
+
+  getPartialMonthText(): string {
+    if (!this.property) return '';
+    if (this.selectedReservation.billingTypeId === BillingType.Daily) 
+      return '$' + this.selectedReservation.billingRate.toFixed(2) + ' per day.';
+    else if (this.selectedReservation.billingTypeId === BillingType.Nightly) 
+      return '$' + this.selectedReservation.billingRate.toFixed(2) + ' per night.';
+    else (this.selectedReservation.billingTypeId === BillingType.Monthly) 
+      return 'Monthly Rate divided by 30 days.';
   }
 
   getDepositRequirementText(): string {
@@ -518,6 +562,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
     else return `(See below)`;
   }
 
+  getDefaultKeyFeeText(): string {
+    return '$' + this.selectedOfficeConfiguration.defaultKeyFee.toFixed(2);
+  }
+  
   getDefaultUtilityFeeText(): string {
     if(!this.property || !this.selectedOfficeConfiguration) return '';
 
@@ -666,15 +714,19 @@ export class LeaseComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
       result = result.replace(/\{\{numberOfPeople\}\}/g, (this.selectedReservation.numberOfPeople || 0).toString());
       result = result.replace(/\{\{billingType\}\}/g, this.getBillingTypeText());
+      result = result.replace(/\{\{billingTypeDay\}\}/g, this.getBillingDayText());
+      result = result.replace(/\{\{billingTypeLower\}\}/g, this.getBillingTypeLowerText());
       result = result.replace(/\{\{billingRate\}\}/g, (this.selectedReservation.billingRate || 0).toFixed(2));
       result = result.replace(/\{\{deposit\}\}/g, (this.selectedReservation.deposit || 0).toFixed(2));
-      result = result.replace(/\{\{securityDepositText\}\}/g, this.getSecurityDepositText());
+      result = result.replace(/\{\{securityText\}\}/g, this.getSecurityDepositText());
+      result = result.replace(/\{\{partialMonthText\}\}/g, this.getPartialMonthText());
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
       result = result.replace(/\{\{reservationDate\}\}/g, this.formatterService.formatDateStringLong(new Date().toISOString()) || '');
       result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());
+     result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getReservationDayNotice());
       result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));
       result = result.replace(/\{\{tenantPets\}\}/g, this.getPetText());
       result = result.replace(/\{\{extensionsPossible\}\}/g, this.getExtensionsPossible());
@@ -701,6 +753,19 @@ export class LeaseComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A');
     }
 
+    if (this.selectedOfficeConfiguration) {
+      result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getDefaultUtilityFeeText());
+      result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getDefaultMaidServiceFeeText());
+      result = result.replace(/\{\{defaultKeyFee\}\}/g, '$' + this.selectedOfficeConfiguration.defaultKeyFee.toFixed(2));
+      result = result.replace(/\{\{undisclosedPetFee\}\}/g, '$' + this.selectedOfficeConfiguration.undisclosedPetFee.toFixed(2));
+      result = result.replace(/\{\{minimumSmokingFee\}\}/g, '$' + this.selectedOfficeConfiguration.minimumSmokingFee.toFixed(2));
+      result = result.replace(/\{\{parkingPenaltyLow\}\}/g, '$' + this.selectedOfficeConfiguration.parkingLowEnd.toFixed(2));
+      result = result.replace(/\{\{parkingPenaltyHigh\}\}/g, '$' + this.selectedOfficeConfiguration.parkingHighEnd.toFixed(2));
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOfficeConfiguration.maintenanceEmail);
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOfficeConfiguration.afterHoursPhone));
+      result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOfficeConfiguration.afterHoursInstructions);
+   }
+
     // Handle logo
     const logoDataUrl = this.organization?.fileDetails?.dataUrl;
     if (!logoDataUrl) {
@@ -709,14 +774,12 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
     // Replace organization placeholders
     if (this.organization) {
-      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
+      result = result.replace(/\{\{\}\}/g, this.getOrganizationName());
       result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');
       result = result.replace(/\{\{organizationHref\}\}/g, this.getWebsiteWithProtocol());
-      result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getDefaultUtilityFeeText());
-      result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getDefaultMaidServiceFeeText());
-      if (logoDataUrl) {
+       if (logoDataUrl) {
         result = result.replace(/\{\{logoBase64\}\}/g, logoDataUrl);
       }
     }

@@ -69,7 +69,7 @@
             </div>
           }
 
-          <!-- First Row: Office, Default Rental Deposit, Default SDW -->
+          <!-- First Row: Office, Default Rental Deposit, Security Deposit Waver, Default Key Fee -->
           <div class="flex gap-4 mb-4">
             <!-- Office Selection -->
             <mat-form-field appearance="outline" class="flex-1">
@@ -91,18 +91,45 @@
                 (focus)="selectAllOnFocus($event)">
             </mat-form-field>
 
-            <!-- Default SDW -->
+            <!-- Security Deposit Waver -->
             <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Default SDW</mat-label>
+              <mat-label>Security Deposit Waver</mat-label>
               <input matInput type="text" formControlName="defaultSdw" placeholder="0.00"
                 (blur)="formatDecimal('defaultSdw')"
                 (input)="onDecimalInput($event, 'defaultSdw')"
                 (focus)="selectAllOnFocus($event)">
             </mat-form-field>
+
+            <!-- Default Key Fee -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Default Key Fee</mat-label>
+              <input matInput type="text" formControlName="defaultKeyFee" placeholder="0.00"
+                (blur)="formatDecimal('defaultKeyFee')"
+                (input)="onDecimalInput($event, 'defaultKeyFee')"
+                (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
           </div>
 
-          <!-- Second Row: Maintenance Email, After Hours Phone -->
+          <!-- Second Row: Undisclosed Pet Fee, Minimum Smoking Fee, Maintenance Email, After Hours Phone -->
           <div class="flex gap-4 mb-4">
+            <!-- Undisclosed Pet Fee -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Undisclosed Pet Fee</mat-label>
+              <input matInput type="text" formControlName="undisclosedPetFee" placeholder="0.00"
+                (blur)="formatDecimal('undisclosedPetFee')"
+                (input)="onDecimalInput($event, 'undisclosedPetFee')"
+                (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
+
+            <!-- Minimum Smoking Fee -->
+            <mat-form-field appearance="outline" class="flex-1">
+              <mat-label>Minimum Smoking Fee</mat-label>
+              <input matInput type="text" formControlName="minimumSmokingFee" placeholder="0.00"
+                (blur)="formatDecimal('minimumSmokingFee')"
+                (input)="onDecimalInput($event, 'minimumSmokingFee')"
+                (focus)="selectAllOnFocus($event)">
+            </mat-form-field>
+
             <!-- Maintenance Email -->
             <mat-form-field appearance="outline" class="flex-1">
               <mat-label>Maintenance Email</mat-label>

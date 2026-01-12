@@ -55,6 +55,7 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
   ) {
   }
 
+  //#region Office Configuration
   ngOnInit(): void {
     this.loadOffices();
     // Check for returnTo query parameter
@@ -146,16 +147,6 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
     });
   }
 
-  onOfficeDropdownSelected(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
-    if (officeId) {
-      this.getOfficeConfiguration(officeId);
-    } else {
-      this.officeConfiguration = null;
-      this.resetForm();
-    }
-  }
-
   saveOfficeConfiguration(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
@@ -178,6 +169,9 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       afterHoursInstructions: formValue.afterHoursInstructions || undefined,
       defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : 0,
       defaultSdw: formValue.defaultSdw ? parseFloat(formValue.defaultSdw.toString()) : 0,
+      defaultKeyFee: formValue.defaultKeyFee ? parseFloat(formValue.defaultKeyFee.toString()) : 0,
+      undisclosedPetFee: formValue.undisclosedPetFee ? parseFloat(formValue.undisclosedPetFee.toString()) : 0,
+      minimumSmokingFee: formValue.minimumSmokingFee ? parseFloat(formValue.minimumSmokingFee.toString()) : 0,
       utilityOneBed: formValue.utilityOneBed ? parseFloat(formValue.utilityOneBed.toString()) : 0,
       utilityTwoBed: formValue.utilityTwoBed ? parseFloat(formValue.utilityTwoBed.toString()) : 0,
       utilityThreeBed: formValue.utilityThreeBed ? parseFloat(formValue.utilityThreeBed.toString()) : 0,
@@ -216,29 +210,19 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       }
     });
   }
-
-  // Data Loading Methods
-  loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.removeLoadItem('offices');
-      return;
+  
+  onOfficeDropdownSelected(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    if (officeId) {
+      this.getOfficeConfiguration(officeId);
+    } else {
+      this.officeConfiguration = null;
+      this.resetForm();
     }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       maintenanceEmail: new FormControl<string>(''),
@@ -246,6 +230,9 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       afterHoursInstructions: new FormControl<string>(''),
       defaultDeposit: new FormControl<string>('0.00'),
       defaultSdw: new FormControl<string>('0.00'),
+      defaultKeyFee: new FormControl<string>('0.00'),
+      undisclosedPetFee: new FormControl<string>('0.00'),
+      minimumSmokingFee: new FormControl<string>('0.00'),
       utilityOneBed: new FormControl<string>('0.00'),
       utilityTwoBed: new FormControl<string>('0.00'),
       utilityThreeBed: new FormControl<string>('0.00'),
@@ -273,6 +260,9 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       afterHoursInstructions: this.officeConfiguration.afterHoursInstructions || '',
       defaultDeposit: this.officeConfiguration.defaultDeposit !== null && this.officeConfiguration.defaultDeposit !== undefined ? this.officeConfiguration.defaultDeposit.toFixed(2) : '0.00',
       defaultSdw: this.officeConfiguration.defaultSdw !== null && this.officeConfiguration.defaultSdw !== undefined ? this.officeConfiguration.defaultSdw.toFixed(2) : '0.00',
+      defaultKeyFee: this.officeConfiguration.defaultKeyFee !== null && this.officeConfiguration.defaultKeyFee !== undefined ? this.officeConfiguration.defaultKeyFee.toFixed(2) : '0.00',
+      undisclosedPetFee: this.officeConfiguration.undisclosedPetFee !== null && this.officeConfiguration.undisclosedPetFee !== undefined ? this.officeConfiguration.undisclosedPetFee.toFixed(2) : '0.00',
+      minimumSmokingFee: this.officeConfiguration.minimumSmokingFee !== null && this.officeConfiguration.minimumSmokingFee !== undefined ? this.officeConfiguration.minimumSmokingFee.toFixed(2) : '0.00',
       utilityOneBed: this.officeConfiguration.utilityOneBed !== null && this.officeConfiguration.utilityOneBed !== undefined ? this.officeConfiguration.utilityOneBed.toFixed(2) : '0.00',
       utilityTwoBed: this.officeConfiguration.utilityTwoBed !== null && this.officeConfiguration.utilityTwoBed !== undefined ? this.officeConfiguration.utilityTwoBed.toFixed(2) : '0.00',
       utilityThreeBed: this.officeConfiguration.utilityThreeBed !== null && this.officeConfiguration.utilityThreeBed !== undefined ? this.officeConfiguration.utilityThreeBed.toFixed(2) : '0.00',
@@ -295,6 +285,9 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       afterHoursInstructions: '',
       defaultDeposit: '0.00',
       defaultSdw: '0.00',
+      defaultKeyFee: '0.00',
+      undisclosedPetFee: '0.00',
+      minimumSmokingFee: '0.00',
       utilityOneBed: '0.00',
       utilityTwoBed: '0.00',
       utilityThreeBed: '0.00',
@@ -309,8 +302,31 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       isActive: true
     });
   }
+  //#endregion
+  
+  //#region Data Loading Methods
+  loadOffices(): void {
+    const orgId = this.authService.getUser()?.organizationId || '';
+    if (!orgId) {
+      this.removeLoadItem('offices');
+      return;
+    }
 
-  // Decimal input formatting
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+  //#endregion
+
+  //#region Decimal input formatting
   formatDecimal(fieldName: string): void {
     this.formatterService.formatDecimalControl(this.form.get(fieldName));
   }
@@ -322,44 +338,19 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
   selectAllOnFocus(event: Event): void {
     (event.target as HTMLInputElement).select();
   }
+  //#endregion
 
-  // Phone formatting methods
+  //#region Phone formatting methods
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('afterHoursPhone'));
   }
 
   onPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get('afterHoursPhone');
-    const phone = this.formatterService.stripPhoneFormatting(input.value);
-    
-    if (phone.length <= 10) {
-      let formatted = phone;
-      if (phone.length > 6) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-      } else if (phone.length > 3) {
-        formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-      } else if (phone.length > 0) {
-        formatted = `(${phone}`;
-      }
-      
-      // Update both the input element and form control to ensure proper display
-      input.value = formatted;
-      if (control) {
-        control.setValue(formatted, { emitEvent: false });
-      }
-    } else {
-      // If more than 10 digits, keep only the first 10
-      const trimmedPhone = phone.substring(0, 10);
-      const formatted = `(${trimmedPhone.substring(0, 3)}) ${trimmedPhone.substring(3, 6)}-${trimmedPhone.substring(6)}`;
-      input.value = formatted;
-      if (control) {
-        control.setValue(formatted, { emitEvent: false });
-      }
-    }
+    this.formatterService.formatPhoneInput(event, this.form.get('afterHoursPhone'));
   }
-
-  // Utility Methods
+  //#endregion
+  
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -383,5 +374,6 @@ export class OfficeConfigurationComponent implements OnInit, OnDestroy, OnChange
       this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
     }
   }
+  //#endregion
 }
 
