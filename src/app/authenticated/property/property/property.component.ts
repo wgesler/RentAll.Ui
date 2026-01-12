@@ -29,6 +29,7 @@ import { AreaResponse } from '../../organization-configuration/area/models/area.
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterInformationComponent } from '../property-information/property-letter-information.component';
+import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
   selector: 'app-property',
@@ -108,7 +109,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService,
-    public utilityService: UtilityService
+    public utilityService: UtilityService,
+    private welcomeLetterReloadService: WelcomeLetterReloadService
   ) {
   }
 
@@ -307,6 +309,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           // Update the URL to reflect edit mode
           this.router.navigate(['/tenants', this.propertyId], { replaceUrl: true });
           this.populateForm();
+          
+          // Trigger welcome letter reload event
+          this.welcomeLetterReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -324,6 +329,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           // Update the property data with the response
           this.property = response;
           this.populateForm();
+          
+          // Trigger welcome letter reload event
+          this.welcomeLetterReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {

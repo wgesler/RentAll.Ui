@@ -30,7 +30,9 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentType, DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentType, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -59,6 +61,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
+  welcomeLetterReloadSubscription?: Subscription;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -78,7 +81,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private officeConfigurationService: OfficeConfigurationService,
     private documentExportService: DocumentExportService,
-    private documentService: DocumentService
+    private documentService: DocumentService,
+    private welcomeLetterReloadService: WelcomeLetterReloadService
   ) {
     this.form = this.buildForm();
   }
@@ -93,6 +97,26 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.loadPropertyLetterInformation();
     this.loadProperty();
     this.getWelcomeLetter();
+    
+    // Subscribe to welcome letter reload events
+    this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
+      this.reloadWelcomeLetter();
+    });
+  }
+
+  reloadWelcomeLetter(): void {
+    // Reload property data to get latest information
+    if (this.propertyId) {
+      this.loadProperty();
+    }
+    // Reload property letter information to get latest data
+    if (this.propertyId) {
+      this.loadPropertyLetterInformation();
+    }
+    // Reload welcome letter HTML
+    if (this.propertyId) {
+      this.getWelcomeLetter();
+    }
   }
 
   getWelcomeLetter(): void {
@@ -837,6 +861,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.welcomeLetterReloadSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

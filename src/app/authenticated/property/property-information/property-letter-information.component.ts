@@ -14,6 +14,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
+import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 
 @Component({
@@ -42,7 +43,8 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private welcomeLetterReloadService: WelcomeLetterReloadService
   ) {
     this.form = this.buildForm();
   }
@@ -139,6 +141,8 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
         this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter updated successfully', CommonMessage.Success);
+            // Trigger welcome letter reload event
+            this.welcomeLetterReloadService.triggerReload();
           },
           error: (err: HttpErrorResponse) => {
             if (err.status !== 400) {
@@ -152,6 +156,8 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
         this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter created successfully', CommonMessage.Success);
+            // Trigger welcome letter reload event
+            this.welcomeLetterReloadService.triggerReload();
           },
           error: (err: HttpErrorResponse) => {
             if (err.status !== 400) {
