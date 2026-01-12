@@ -573,7 +573,57 @@ export class LeaseComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Placeholder Replacement Logic
+  // Main method: Layered approach - first replace lease info placeholders, then replace all other placeholders
   replacePlaceholders(html: string): string {
+    let result = html;
+
+    // LAYER 1: Replace lease information placeholders first (with their raw text values)
+    result = this.replaceLeaseInformationPlaceholders(result);
+
+    // LAYER 2: Replace all other placeholders (reservation, property, contact, organization, etc.)
+    result = this.replaceAllOtherPlaceholders(result);
+
+    return result;
+  }
+
+  // Layer 1: Replace lease information placeholders with their text values
+  // This does NOT process nested placeholders - that happens in Layer 2
+  replaceLeaseInformationPlaceholders(html: string): string {
+    let result = html;
+
+    if (this.leaseInformation) {
+      result = result.replace(/\{\{rentalPayment\}\}/g, this.leaseInformation.rentalPayment || '');
+      result = result.replace(/\{\{securityDeposit\}\}/g, this.leaseInformation.securityDeposit || '');
+      result = result.replace(/\{\{cancellationPolicy\}\}/g, this.leaseInformation.cancellationPolicy || '');
+      result = result.replace(/\{\{keyPickUpDropOff\}\}/g, this.leaseInformation.keyPickUpDropOff || '');
+      result = result.replace(/\{\{partialMonth\}\}/g, this.leaseInformation.partialMonth || '');
+      result = result.replace(/\{\{departureNotification\}\}/g, this.leaseInformation.departureNotification || '');
+      result = result.replace(/\{\{holdover\}\}/g, this.leaseInformation.holdover || '');
+      result = result.replace(/\{\{departureServiceFee\}\}/g, this.leaseInformation.departureServiceFee || '');
+      result = result.replace(/\{\{checkoutProcedure\}\}/g, this.leaseInformation.checkoutProcedure || '');
+      result = result.replace(/\{\{parking\}\}/g, this.leaseInformation.parking || '');
+      result = result.replace(/\{\{rulesAndRegulations\}\}/g, this.leaseInformation.rulesAndRegulations || '');
+      result = result.replace(/\{\{occupyingTenants\}\}/g, this.leaseInformation.occupyingTenants || '');
+      result = result.replace(/\{\{utilityAllowance\}\}/g, this.leaseInformation.utilityAllowance || '');
+      result = result.replace(/\{\{maidService\}\}/g, this.leaseInformation.maidService || '');
+      result = result.replace(/\{\{pets\}\}/g, this.leaseInformation.pets || '');
+      result = result.replace(/\{\{smoking\}\}/g, this.leaseInformation.smoking || '');
+      result = result.replace(/\{\{emergencies\}\}/g, this.leaseInformation.emergencies || '');
+      result = result.replace(/\{\{homeownersAssociation\}\}/g, this.leaseInformation.homeownersAssociation || '');
+      result = result.replace(/\{\{indemnification\}\}/g, this.leaseInformation.indemnification || '');
+      result = result.replace(/\{\{defaultClause\}\}/g, this.leaseInformation.defaultClause || '');
+      result = result.replace(/\{\{attorneyCollectionFees\}\}/g, this.leaseInformation.attorneyCollectionFees || '');
+      result = result.replace(/\{\{reservedRights\}\}/g, this.leaseInformation.reservedRights || '');
+      result = result.replace(/\{\{propertyUse\}\}/g, this.leaseInformation.propertyUse || '');
+      result = result.replace(/\{\{miscellaneous\}\}/g, this.leaseInformation.miscellaneous || '');
+    }
+
+    return result;
+  }
+
+  // Layer 2: Replace all other placeholders (everything except lease information placeholders)
+  // This processes the entire HTML after lease info placeholders have been replaced
+  replaceAllOtherPlaceholders(html: string): string {
     let result = html;
 
     // Replace contact/company placeholders
@@ -623,7 +673,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));
       result = result.replace(/\{\{tenantPets\}\}/g, this.getPetText());
       result = result.replace(/\{\{extensionsPossible\}\}/g, this.getExtensionsPossible());
-     }
+    }
 
     // Replace property placeholders
     if (this.property) {
@@ -644,35 +694,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     if (this.selectedOffice) {
       result = result.replace(/\{\{officeDescription\}\}/g, this.selectedOffice.name || '');
       result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A');
-    } 
-
-    // Replace lease information placeholders
-    if (this.leaseInformation) {
-      // Process each leaseInformation field to replace nested placeholders
-      result = result.replace(/\{\{rentalPayment\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.rentalPayment || ''));
-      result = result.replace(/\{\{securityDeposit\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.securityDeposit || ''));
-      result = result.replace(/\{\{cancellationPolicy\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.cancellationPolicy || ''));
-      result = result.replace(/\{\{keyPickUpDropOff\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.keyPickUpDropOff || ''));
-      result = result.replace(/\{\{partialMonth\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.partialMonth || ''));
-      result = result.replace(/\{\{departureNotification\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.departureNotification || ''));
-      result = result.replace(/\{\{holdover\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.holdover || ''));
-      result = result.replace(/\{\{departureServiceFee\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.departureServiceFee || ''));
-      result = result.replace(/\{\{checkoutProcedure\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.checkoutProcedure || ''));
-      result = result.replace(/\{\{parking\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.parking || ''));
-      result = result.replace(/\{\{rulesAndRegulations\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.rulesAndRegulations || ''));
-      result = result.replace(/\{\{occupyingTenants\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.occupyingTenants || ''));
-      result = result.replace(/\{\{utilityAllowance\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.utilityAllowance || ''));
-      result = result.replace(/\{\{maidService\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.maidService || ''));
-      result = result.replace(/\{\{pets\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.pets || ''));
-      result = result.replace(/\{\{smoking\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.smoking || ''));
-      result = result.replace(/\{\{emergencies\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.emergencies || ''));
-      result = result.replace(/\{\{homeownersAssociation\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.homeownersAssociation || ''));
-      result = result.replace(/\{\{indemnification\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.indemnification || ''));
-      result = result.replace(/\{\{defaultClause\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.defaultClause || ''));
-      result = result.replace(/\{\{attorneyCollectionFees\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.attorneyCollectionFees || ''));
-      result = result.replace(/\{\{reservedRights\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.reservedRights || ''));
-      result = result.replace(/\{\{propertyUse\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.propertyUse || ''));
-      result = result.replace(/\{\{miscellaneous\}\}/g, this.replacePlaceholdersInText(this.leaseInformation.miscellaneous || ''));
     }
 
     // Handle logo
@@ -701,35 +722,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return result;
   }
 
+  // Legacy method - kept for backward compatibility if needed elsewhere
   replacePlaceholdersInText(text: string): string {
     if (!text) return '';
-    let result = text;
-
-    // Replace organization/office name
-    if (this.organization) {
-      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
-    }
-
-    // Replace reservation placeholders
-    if (this.selectedReservation) {
-      result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
-      result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());
-      result = result.replace(/\{\{billingType\}\}/g,  this.getBillingTypeText());
-      result = result.replace(/\{\{billingRate\}\}/g, (this.selectedReservation.billingRate || 0).toFixed(2));
-      result = result.replace(/\{\{deposit\}\}/g, (this.selectedReservation.deposit || 0).toFixed(2));
-      result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));
-      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
-    }
-
-    // Replace property placeholders
-    if (this.property) {
-      result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
-      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
-    }
-
-    return result;
+    // Just replace all other placeholders (lease info placeholders should already be replaced)
+    return this.replaceAllOtherPlaceholders(text);
   }
   //#endregion
 
