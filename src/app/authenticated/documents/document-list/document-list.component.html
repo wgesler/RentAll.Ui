@@ -21,12 +21,16 @@
               [hasFilter]="true"
               [hasToggleTop]="true"
               [hasActionsRowClick]="true"
+              [hasActionsView]="true"
               [hasActionsEdit]="true"
+              [hasActionsDownload]="true"
               [hasActionsDelete]="true"
               [itemsPerPage]="100"
               buttonToggleTextTop="Deleted"
               (topToggleButtonEvent)="toggleDeleted()"
+              (viewEvent)="viewDocument($event)"
               (editEvent)="goToDocument($event)"
+              (downloadEvent)="downloadDocument($event)"
               (rowClickEvent)="goToDocument($event)"
               (deleteEvent)="deleteDocument($event)"/>
           </div>

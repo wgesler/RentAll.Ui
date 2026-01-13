@@ -61,30 +61,6 @@
             </mat-form-field>
           </div>
 
-          <!-- File Upload Section -->
-          <div class="mb-4">
-            <div class="mb-2">
-              <label for="fileInput" class="block mb-2 text-sm font-medium">File</label>
-              <input 
-                type="file" 
-                id="fileInput"
-                (change)="onFileSelected($event)" 
-                accept="*/*"
-                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-            </div>
-            @if (selectedFile) {
-              <div class="mb-2 text-sm text-gray-600">
-                Selected: {{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(2) }} KB)
-              </div>
-            }
-
-            @if (filePreview) {
-              <div class="mb-4">
-                <img [src]="filePreview" alt="File preview" style="max-width: 300px; max-height: 300px; border: 1px solid #ccc; border-radius: 4px;">
-              </div>
-            }
-          </div>
-
           <!-- File Information -->
           <div class="mb-4 flex items-center gap-3">
             <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
@@ -112,26 +88,30 @@
             </mat-form-field>
           </div>
 
-          <!-- Document Path -->
+          <!-- File Upload Section -->
           <div class="mb-4">
-            <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Document Path</mat-label>
-              <input matInput formControlName="documentPath" required>
-              @if (form.get('documentPath')?.hasError('required') && form.get('documentPath')?.touched) {
-                <mat-error>Document Path is required</mat-error>
-              }
-            </mat-form-field>
+            <div class="mb-2">
+              <label for="fileInput" class="block mb-2 text-sm font-medium">File</label>
+              <input 
+                type="file" 
+                id="fileInput"
+                (change)="onFileSelected($event)" 
+                accept="*/*"
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            @if (selectedFile) {
+              <div class="mb-2 text-sm text-gray-600">
+                Selected: {{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(2) }} KB)
+              </div>
+            }
+
+            @if (filePreview) {
+              <div class="mb-4">
+                <img [src]="filePreview" alt="File preview" style="max-width: 300px; max-height: 300px; border: 1px solid #ccc; border-radius: 4px;">
+              </div>
+            }
           </div>
 
-          <!-- Download button for existing documents -->
-          @if (!isAddMode && document) {
-            <div class="mb-4">
-              <button mat-raised-button type="button" color="accent" (click)="downloadDocument()">
-                <mat-icon>download</mat-icon>
-                Download Document
-              </button>
-            </div>
-          }
         </form>
       </mat-card>
     </section>

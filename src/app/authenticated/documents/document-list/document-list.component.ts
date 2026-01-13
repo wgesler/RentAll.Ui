@@ -12,10 +12,11 @@ import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentType } from '../models/document.model';
+import { DocumentType } from '../models/document.enum';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
   selector: 'app-document-list',
@@ -35,12 +36,11 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   organizationId: string = '';
 
   documentsDisplayedColumns: ColumnSet = {
-    'fileName': { displayAs: 'File Name', maxWidth: '30ch', sortType: 'natural' },
-    'documentType': { displayAs: 'Type', maxWidth: '20ch' },
-    'fileExtension': { displayAs: 'Extension', maxWidth: '15ch' },
-    'createdOn': { displayAs: 'Created On', maxWidth: '20ch' },
-    'isDeleted': { displayAs: 'Is Deleted', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
-  };
+    'fileName': { displayAs: 'File Name', maxWidth: '40ch', sortType: 'natural' },
+    'documentTypeName': { displayAs: 'Type', maxWidth: '20ch'},
+    'fileExtension': { displayAs: 'Extension', maxWidth: '15ch'},
+    'createdOn': { displayAs: 'Created On', maxWidth: '30ch' },
+   };
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['documents', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -52,7 +52,8 @@ export class DocumentListComponent implements OnInit, OnDestroy {
     public router: Router,
     public forms: FormsModule,
     private authService: AuthService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private formatterService: FormatterService
   ) {
   }
 
@@ -117,20 +118,72 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   goToDocument(event: DocumentListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId]));
   }
+
+  viewDocument(event: DocumentListDisplay): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.DocumentView, [event.documentId]));
+  }
   
   downloadDocument(doc: DocumentListDisplay): void {
-    this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = doc.fileName + '.' + doc.fileExtension;
-        link.click();
-        window.URL.revokeObjectURL(url);
-        this.toastr.success('Document downloaded successfully', CommonMessage.Success);
+    // First get the document to access FileDetails
+    this.documentService.getDocumentByGuid(doc.documentId).pipe(take(1)).subscribe({
+      next: (documentResponse: DocumentResponse) => {
+        // Use FileDetails.dataUrl if available
+        if (documentResponse.fileDetails?.dataUrl) {
+          const link = window.document.createElement('a');
+          link.href = documentResponse.fileDetails.dataUrl;
+          link.download = doc.fileName + '.' + doc.fileExtension;
+          link.click();
+          this.toastr.success('Document downloaded successfully', CommonMessage.Success);
+        } else if (documentResponse.fileDetails?.file && documentResponse.fileDetails?.contentType) {
+          // Convert base64 to blob and download
+          const byteCharacters = atob(documentResponse.fileDetails.file);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: documentResponse.fileDetails.contentType });
+          const url = window.URL.createObjectURL(blob);
+          const link = window.document.createElement('a');
+          link.href = url;
+          link.download = doc.fileName + '.' + doc.fileExtension;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          this.toastr.success('Document downloaded successfully', CommonMessage.Success);
+        } else {
+          // Fallback to download endpoint
+          this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
+            next: (blob: Blob) => {
+              const url = window.URL.createObjectURL(blob);
+              const link = window.document.createElement('a');
+              link.href = url;
+              link.download = doc.fileName + '.' + doc.fileExtension;
+              link.click();
+              window.URL.revokeObjectURL(url);
+              this.toastr.success('Document downloaded successfully', CommonMessage.Success);
+            },
+            error: (err: HttpErrorResponse) => {
+              this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
+          });
+        }
       },
       error: (err: HttpErrorResponse) => {
-        this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        // If getDocumentByGuid fails, fallback to download endpoint
+        this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
+          next: (blob: Blob) => {
+            const url = window.URL.createObjectURL(blob);
+            const link = window.document.createElement('a');
+            link.href = url;
+            link.download = doc.fileName + '.' + doc.fileExtension;
+            link.click();
+            window.URL.revokeObjectURL(url);
+            this.toastr.success('Document downloaded successfully', CommonMessage.Success);
+          },
+          error: (err: HttpErrorResponse) => {
+            this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
+        });
       }
     });
   }
@@ -168,10 +221,28 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   // Utility Methods
   mapToDisplay(doc: DocumentResponse): DocumentListDisplay {
+    // Convert documentTypeId (number) to DocumentType enum, then get the user-friendly label
+    const documentType = doc.documentTypeId as DocumentType;
+    const documentTypeName = this.getDocumentTypeLabel(documentType);
+    
+    // Format createdOn date to human-readable format with time (MM/DD/YYYY hh:mm AM/PM)
+    const formattedCreatedOn = this.formatterService.formatDateTimeString(doc.createdOn);
+    
     return {
       ...doc,
-      documentTypeName: DocumentType[doc.documentType] || 'Unknown'
+      documentTypeName: documentTypeName,
+      createdOn: formattedCreatedOn
     };
+  }
+
+  // Helper method to get DocumentType label as string for display
+  getDocumentTypeLabel(documentType: DocumentType): string {
+    const typeLabels: { [key in DocumentType]: string } = {
+      [DocumentType.Other]: 'Other',
+      [DocumentType.PropertyLetter]: 'Property Letter',
+      [DocumentType.ReservationLease]: 'Reservation Lease'
+    };
+    return typeLabels[documentType] || DocumentType[documentType] || 'Other';
   }
   
   removeLoadItem(key: string): void {

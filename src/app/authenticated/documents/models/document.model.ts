@@ -1,20 +1,20 @@
-export enum DocumentType {
-  Unknown = 0,
-  PropertyLetter = 1,
-  ReservationLease = 2
-}
+import { DocumentType } from './document.enum';
 
 export interface FileDetails {
   size?: number;
   uploadedBy?: string;
   uploadedOn?: string;
+  dataUrl?: string;
+  file?: string;
+  contentType?: string;
+  fileName?: string;
 }
 
 export interface DocumentRequest {
   documentId?: string;
   organizationId: string;
   officeId?: number | null;
-  documentType: DocumentType;
+  documentTypeId: number;
   fileName: string;
   fileExtension: string;
   contentType: string;
@@ -27,7 +27,7 @@ export interface DocumentResponse {
   documentId: string;
   organizationId: string;
   officeId?: number | null;
-  documentType: DocumentType;
+  documentTypeId: number;
   fileName: string;
   fileExtension: string;
   contentType: string;
@@ -44,7 +44,7 @@ export interface DocumentListDisplay {
   documentId: string;
   organizationId: string;
   officeId?: number | null;
-  documentType: DocumentType;
+  documentTypeId: number;
   fileName: string;
   fileExtension: string;
   contentType: string;

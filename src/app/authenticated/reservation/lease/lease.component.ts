@@ -30,7 +30,8 @@ import { OfficeConfigurationService } from '../../organization-configuration/off
 import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentType, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentType } from '../../documents/models/document.enum';
 import { PropertyHtmlRequest, PropertyHtmlResponse } from '../../property/models/property-html.model';
 import { PropertyHtmlService } from '../../property/services/property-html.service';
 import { LeaseReloadService } from '../services/lease-reload.service';

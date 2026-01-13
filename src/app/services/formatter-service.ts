@@ -71,6 +71,20 @@ export class FormatterService {
         }
     }
 
+    // Formats a date string to MM/DD/YYYY hh:mm AM/PM format
+    formatDateTimeString(dateString?: string): string {
+        if (!dateString) return '';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return '';
+            }
+            return this.datePipe.transform(date, 'MM/dd/yyyy hh:mm a') || '';
+        } catch {
+            return '';
+        }
+    }
+
     // Formats a date string to long format (e.g., "December 25, 2023")
     formatDateStringLong(dateString?: string): string {
         if (!dateString) return '';

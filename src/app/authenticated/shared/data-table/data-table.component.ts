@@ -51,6 +51,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
   @Input() hasActionsSelect: boolean = false;
+  @Input() hasActionsView: boolean = false;
 
   @Input() isColumnFirstActions: boolean = false;
   @Input() areColumnsUniform: boolean = false;
@@ -81,6 +82,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
+  @Output() viewEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
@@ -214,6 +216,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.cancelEvent.emit(rowItem);
   }
 
+  emitViewEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.viewEvent.emit(rowItem);
+  }
+
   emitRowClickEvent(rowItem: PurposefulAny): void {
     this.rowClickEvent.emit(rowItem);
   }
@@ -300,7 +307,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -324,6 +331,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   private setActions(): void {
     this.buttons = [];
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
+    if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#2196F3', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});

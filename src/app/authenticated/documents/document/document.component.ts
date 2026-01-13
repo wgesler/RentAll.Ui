@@ -8,11 +8,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { DocumentResponse, DocumentRequest, DocumentType } from '../models/document.model';
+import { DocumentResponse, DocumentRequest } from '../models/document.model';
+import { DocumentType } from '../models/document.enum';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { FileDetails } from '../../../shared/models/fileDetails';
 
 @Component({
   selector: 'app-document',
@@ -35,11 +37,13 @@ export class DocumentComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   selectedFile: File | null = null;
   filePreview: string | null = null;
+  fileDetails: FileDetails = null;
+  hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   offices: OfficeResponse[] = [];
   organizationId: string = '';
 
   documentTypes: { value: DocumentType, label: string }[] = [
-    { value: DocumentType.Unknown, label: 'Unknown' },
+    { value: DocumentType.Other, label: 'Other' },
     { value: DocumentType.PropertyLetter, label: 'Property Letter' },
     { value: DocumentType.ReservationLease, label: 'Reservation Lease' }
   ];
@@ -110,15 +114,20 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
     this.isSubmitting = true;
     const formValue = this.form.value;
+    // Convert DocumentType enum to documentTypeId (number) for API request
+    const documentTypeId = Number(formValue.documentType);
+    
     const documentRequest: DocumentRequest = {
       documentId: this.isAddMode ? undefined : formValue.documentId,
       organizationId: formValue.organizationId,
       officeId: formValue.officeId,
-      documentType: formValue.documentType,
+      documentTypeId: documentTypeId,
       fileName: formValue.fileName,
       fileExtension: formValue.fileExtension,
       contentType: formValue.contentType,
-      documentPath: formValue.documentPath,
+      documentPath: '', // Set to empty string since it's removed from form
+      // Only send fileDetails if a new file was uploaded (not from API response)
+      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       isDeleted: formValue.isDeleted
     };
 
@@ -135,13 +144,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
           `Document ${this.isAddMode ? 'created' : 'updated'} successfully`,
           CommonMessage.Success
         );
-        
-        // If file was selected, upload it
-        if (this.selectedFile) {
-          this.uploadFile(response.documentId);
-        } else {
-          this.back();
-        }
+        this.back();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -170,6 +173,25 @@ export class DocumentComponent implements OnInit, OnDestroy {
         fileExtension: fileExtension,
         contentType: contentType
       });
+
+      // Collect FileDetails similar to company logo
+      this.hasNewFileUpload = true; // Mark that this is a new file upload
+      
+      this.fileDetails = <FileDetails>({ 
+        contentType: this.selectedFile.type, 
+        fileName: this.selectedFile.name, 
+        file: '', 
+        dataUrl: '' 
+      });
+      
+      const fileReader = new FileReader();
+      fileReader.onload = (): void => {
+        // Convert file to base64 string
+        const base64String = btoa(fileReader.result as string);
+        this.fileDetails.file = base64String;
+        this.fileDetails.dataUrl = `data:${this.selectedFile.type};base64,${base64String}`;
+      };
+      fileReader.readAsBinaryString(this.selectedFile);
 
       // Create preview for images
       if (this.selectedFile.type.startsWith('image/')) {
@@ -206,11 +228,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
       documentId: new FormControl(''),
       organizationId: new FormControl(this.organizationId, [Validators.required]),
       officeId: new FormControl<number | null>(null),
-      documentType: new FormControl<DocumentType>(DocumentType.Unknown, [Validators.required]),
+      documentType: new FormControl<DocumentType>(DocumentType.Other, [Validators.required]),
       fileName: new FormControl('', [Validators.required]),
       fileExtension: new FormControl('', [Validators.required]),
       contentType: new FormControl('', [Validators.required]),
-      documentPath: new FormControl('', [Validators.required]),
       isDeleted: new FormControl(false)
     });
   }
@@ -218,15 +239,31 @@ export class DocumentComponent implements OnInit, OnDestroy {
   patchFormFromResponse(document: DocumentResponse): void {
     if (!this.form) return;
 
+    // Convert documentTypeId (number) to DocumentType enum for form
+    const documentTypeValue = Number(document.documentTypeId) as DocumentType;
+
+    // Load fileDetails from API response if present
+    if (document.fileDetails && document.fileDetails.file) {
+      // Convert document model FileDetails to shared FileDetails format
+      this.fileDetails = {
+        fileName: document.fileDetails.fileName || document.fileName || '',
+        contentType: document.fileDetails.contentType || document.contentType || '',
+        file: document.fileDetails.file,
+        dataUrl: document.fileDetails.dataUrl || (document.fileDetails.contentType && document.fileDetails.file 
+          ? `data:${document.fileDetails.contentType};base64,${document.fileDetails.file}` 
+          : '')
+      };
+      this.hasNewFileUpload = false; // FileDetails from API, not a new upload
+    }
+
     this.form.patchValue({
       documentId: document.documentId,
       organizationId: document.organizationId,
       officeId: document.officeId,
-      documentType: document.documentType,
+      documentType: documentTypeValue as DocumentType,
       fileName: document.fileName,
       fileExtension: document.fileExtension,
       contentType: document.contentType,
-      documentPath: document.documentPath,
       isDeleted: document.isDeleted
     });
   }
@@ -289,6 +326,12 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.DocumentList);
+  }
+
+  // Helper method to get DocumentType enum name as string for display
+  getDocumentTypeName(documentType: DocumentType): string {
+    const docType = this.documentTypes.find(dt => dt.value === documentType);
+    return docType ? docType.label : DocumentType[documentType] || 'Other';
   }
 }
 

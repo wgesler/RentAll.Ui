@@ -1,0 +1,52 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading document...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">description</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ document?.fileName || 'Document Viewer' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+            [disabled]="!document" class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>download</mat-icon>
+            Download
+          </button>
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+        
+      <mat-card>
+        <div class="document-view-container">
+          @if (iframeSrc) {
+            <div class="iframe-container">
+              <iframe 
+                [src]="iframeSrc" 
+                class="document-iframe"
+                [attr.key]="iframeKey"
+                frameborder="0">
+              </iframe>
+            </div>
+          } @else {
+            <div class="error-container">
+              <p>Unable to load document content.</p>
+            </div>
+          }
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}
+
+

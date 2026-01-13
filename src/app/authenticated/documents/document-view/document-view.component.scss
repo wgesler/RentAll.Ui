@@ -1,0 +1,38 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+  gap: 20px;
+}
+
+.error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+}
+
+.document-view-container {
+  width: 100%;
+  padding: 20px;
+}
+
+.iframe-container {
+  width: 100%;
+  height: calc(100vh - 250px);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.document-iframe {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex: 1;
+}
+
+

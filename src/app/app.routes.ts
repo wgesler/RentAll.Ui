@@ -9,6 +9,7 @@ import { PropertyComponent } from './authenticated/property/property/property.co
 import { PropertyListComponent } from './authenticated/property/property-list/property-list.component';
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
+import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { ContactComponent } from './authenticated/contact/contact/contact.component';
 import { ContactListComponent } from './authenticated/contact/contact-list/contact-list.component';
 import { UserComponent } from './authenticated/user/user/user.component';
@@ -50,6 +51,7 @@ export enum RouterToken {
   Property = RouterToken.TenantList + '/:id',
   DocumentList = 'documents',
   Document = RouterToken.DocumentList + '/:id',
+  DocumentView = RouterToken.DocumentList + '/:id/view',
   ReservationList = 'reservations',
   Reservation = RouterToken.ReservationList + '/:id',
   ReservationBoard = 'boards',
@@ -86,6 +88,7 @@ export enum RouterUrl {
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
   DocumentList           = `${RouterToken.Auth}/${RouterToken.DocumentList}`,
   Document               = `${RouterToken.Auth}/${RouterToken.Document}`,
+  DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
   Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
   ReservationBoard      = `${RouterToken.Auth}/${RouterToken.ReservationBoard}`,
@@ -128,6 +131,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.TenantList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
