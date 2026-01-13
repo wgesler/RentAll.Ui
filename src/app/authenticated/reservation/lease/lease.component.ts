@@ -68,7 +68,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   isDownloading: boolean = false;
   leaseReloadSubscription?: Subscription;
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'officeConfigurations', 'organization', 'property', 'leaseInformation', 'reservation', 'lease'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'officeConfigurations', 'organization', 'property', 'leaseInformation', 'reservation'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -104,14 +104,17 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.loadReservation();
     this.loadProperty();
     this.loadLeaseInformation();
-    this.getLease();
     
+    // Load the lease after we have all necessary data
+    this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
+      this.getLease();
+    });
+
     // Subscribe to lease reload events
     this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe(() => {
       this.reloadLease();
     });
   }
-
 
   getLease(): void {
     if (!this.propertyId) {
@@ -123,9 +126,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
        next: (response: PropertyHtmlResponse) => {
          if (response) {
            this.propertyHtml = response;
-           this.form.patchValue({
-             lease: response.lease || ''
-           });
+           this.form.patchValue({ lease: response.lease || '' });
            this.generatePreviewIframe();
          }
        },
@@ -269,7 +270,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('organization');
       }
     });
   }
@@ -303,11 +303,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
  
   loadProperty(): void {
-    if (!this.propertyId) {
-      this.removeLoadItem('property');
-      return;
-    }
-
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
@@ -323,11 +318,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   loadLeaseInformation(): void {
-    if (!this.propertyId) {
-      this.removeLoadItem('leaseInformation');
-      return;
-    }
-
     this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
@@ -342,16 +332,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
   
   loadReservation(): void {
-    if (!this.reservationId) {
-      this.removeLoadItem('reservation');
-      return;
-    }
-
     this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
         this.loadContact();
-        this.generatePreviewIframe();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -450,7 +434,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     return '';
   }
 
-    getReservationDayNotice(): string {
+  getReservationDayNotice(): string {
     if (this.selectedReservation?.reservationNoticeId === null || this.selectedReservation?.reservationNoticeId === undefined) return '';
     if (this.selectedReservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
       return '30';
@@ -507,7 +491,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   getBillingTypeLowerText(): string {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
-      return 'mnthly';
+      return 'monthly';
     } else if (this.selectedReservation.billingTypeId === BillingType.Daily) {
       return 'daily';
     } else if (this.selectedReservation.billingTypeId === BillingType.Nightly) {
@@ -774,7 +758,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
     // Replace organization placeholders
     if (this.organization) {
-      result = result.replace(/\{\{\}\}/g, this.getOrganizationName());
+      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
       result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');

@@ -79,9 +79,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   officeConfigurations: OfficeConfigurationResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
-  selectedOfficeConfiguration: OfficeConfigurationResponse | null = null; 
+  selectedOfficeConfiguration: OfficeConfigurationResponse | null = null;
+  handlersSetup: boolean = false;
  
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'reservation']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'offices', 'officeConfigurations', 'reservation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -109,15 +110,19 @@ export class ReservationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadContacts();  
     this.loadOrganization();
-    this.loadAgents();
-
     this.loadProperties();
+    this.loadAgents();
     this.loadCompanies();
     this.loadOffices();
     this.loadOfficeConfigurations();
     
     // Initialize form immediately to prevent template errors
     this.buildForm();
+    
+    // Set up handlers after all data is loaded
+    this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
+      this.setupFormHandlers();
+    });
  
     // Proceed with route params after contacts are loaded
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
@@ -144,6 +149,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.reservationService.getReservationByGuid(this.reservationId).pipe( take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
       next: (response: ReservationResponse) => {
         this.reservation = response;
+        this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
@@ -312,7 +318,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
       notes: new FormControl('')
     });
 
-    // Setup all form value change handlers (dropdowns only)
+    // Initialize field states
+    this.initializeEnums();
+  }
+
+  setupFormHandlers(): void {
+    // Prevent setting up handlers multiple times
+    if (this.handlersSetup) {
+      return;
+    }
+    
+    // Set up handlers that depend on loaded data (officeConfiguration, properties, etc.)
     this.setupPropertySelectionHandler();
     this.setupContactSelectionHandler();
     this.setupReservationTypeHandler();
@@ -321,8 +337,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.setupPetFeeHandler();
     this.setupMaidServiceHandler();
     
-    // Initialize field states
-    this.initializeEnums();
+    this.handlersSetup = true;
   }
 
   populateForm(): void {
@@ -337,6 +352,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     // Update office and configuration based on selected property
     this.updateOfficeAndConfiguration();
+    
+    // Ensure handlers are set up before patching values (in case they weren't set up yet)
+    // This handles the case where data loads faster than expected
+    if (!this.handlersSetup) {
+      this.setupFormHandlers();
+    }
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
     this.form.patchValue({ reservationTypeId: this.reservation.reservationTypeId }, { emitEvent: false });
@@ -814,19 +835,18 @@ export class ReservationComponent implements OnInit, OnDestroy {
     let extraFee2 = parseFloat(this.form.get('extraFee2')?.value || '0');
      
     if (extraFee > 0 || !isNaN(extraFee)) {
-      this.form.get('extraFee2')!.setValue('0.00', { emitEvent: false });
-      this.disableFieldWithValidation('extraFeeName');
-      this.disableFieldWithValidation('extraFee2');
-      this.disableFieldWithValidation('extraFee2Name');
-    } 
-    else {
       this.enableFieldWithValidation('extraFeeName', [Validators.required]);
       this.enableFieldWithValidation('extraFee2');     
       if (extraFee2 > 0 && !isNaN(extraFee2)) 
         this.enableFieldWithValidation('extraFee2Name', [Validators.required]);
       else
         this.disableFieldWithValidation('extraFee2Name');
-    }
+    } else {
+      this.form.get('extraFee2')!.setValue('0.00', { emitEvent: false });
+      this.disableFieldWithValidation('extraFeeName');
+      this.disableFieldWithValidation('extraFee2');
+      this.disableFieldWithValidation('extraFee2Name');
+   }
   }
   //#endregion
 
@@ -871,8 +891,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   loadProperties(): void {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
-         this.properties = properties;
-      },
+        this.properties = properties;
+       },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
         if (err.status !== 400) {
@@ -900,6 +920,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (offices: OfficeResponse[]) => {
         this.offices = offices || [];
+        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
@@ -911,6 +932,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.officeConfigurationService.getAllOfficeConfigurations().pipe(take(1), finalize(() => { this.removeLoadItem('officeConfigurations'); })).subscribe({
       next: (configs: OfficeConfigurationResponse[]) => {
         this.officeConfigurations = configs;
+        this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === this.selectedProperty?.officeId) || null;
       },
       error: (err: HttpErrorResponse) => {
         this.officeConfigurations = [];
