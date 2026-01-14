@@ -17,6 +17,8 @@ import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { CompanyService } from '../../company/services/company.service';
+import { CompanyResponse } from '../../company/models/company.model';
 
 @Component({
   selector: 'app-reservation-list',
@@ -33,13 +35,17 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
   contacts: ContactResponse[] = [];
+  companies: CompanyResponse[] = [];
   properties: PropertyResponse[] = [];
+  startDate: Date | null = null;
+  endDate: Date | null = null;
 
   reservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '25ch' },
     'arrivalDate': { displayAs: 'Arrival Date', maxWidth: '20ch' },
     'departureDate': { displayAs: 'Departure Date', maxWidth: '20ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
@@ -56,12 +62,14 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     public forms: FormsModule,
     public mappingService: MappingService,
     private contactService: ContactService,
+    private companyService: CompanyService,
     private propertyService: PropertyService) {
   }
 
   //#region Reservation List
   ngOnInit(): void {
     this.loadContacts();
+    this.loadCompanies();
     this.loadProperties();  // Will call get reservations
   }
 
@@ -78,7 +86,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
 
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
-        this.allReservations = this.mappingService.mapReservations(response, this.contacts, this.properties);
+        this.allReservations = this.mappingService.mapReservations(response, this.contacts, this.properties, this.companies);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -133,6 +141,20 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadCompanies(): void {
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
+      next: (companies: CompanyResponse[]) => {
+        this.companies = companies;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.companies = [];
+        if (err.status !== 400) {
+          this.toastr.error('Could not load companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });  
+  }
+
   loadProperties(): void {
     this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
       next: (properties: PropertyResponse[]) => {
@@ -163,10 +185,72 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
+  clearDateFilters(): void {
+    this.startDate = null;
+    this.endDate = null;
+    this.applyFilters();
+  }
+
+  onStartDateChange(): void {
+    this.applyFilters();
+  }
+
+  onEndDateChange(): void {
+    this.applyFilters();
+  }
+
   applyFilters(): void {
-    this.reservationsDisplay = this.showInactive
-      ? this.allReservations
-      : this.allReservations.filter(reservation => reservation.isActive === true);
+    let filtered = this.allReservations;
+
+    // Filter by active/inactive
+    if (!this.showInactive) {
+      filtered = filtered.filter(reservation => reservation.isActive === true);
+    }
+
+    // Filter by date range - show reservations where EITHER arrival OR departure falls within the range
+    if (this.startDate || this.endDate) {
+      filtered = filtered.filter(reservation => {
+        // Normalize filter dates to midnight for accurate comparison
+        const start = this.startDate ? new Date(this.startDate) : null;
+        const end = this.endDate ? new Date(this.endDate) : null;
+        
+        if (start) {
+          start.setHours(0, 0, 0, 0);
+        }
+        if (end) {
+          end.setHours(0, 0, 0, 0);
+        }
+
+        // Check if arrival date falls within range (inclusive)
+        if (reservation.arrivalDate) {
+          const arrivalDate = new Date(reservation.arrivalDate);
+          arrivalDate.setHours(0, 0, 0, 0);
+          
+          const arrivalMatches = (!start || arrivalDate.getTime() >= start.getTime()) && 
+                                 (!end || arrivalDate.getTime() <= end.getTime());
+          if (arrivalMatches) {
+            return true;
+          }
+        }
+
+        // Check if departure date falls within range (inclusive)
+        if (reservation.departureDate) {
+          const departureDate = new Date(reservation.departureDate);
+          departureDate.setHours(0, 0, 0, 0);
+          
+          const departureMatches = (!start || departureDate.getTime() >= start.getTime()) && 
+                                   (!end || departureDate.getTime() <= end.getTime());
+          if (departureMatches) {
+            return true;
+          }
+        }
+
+        // Neither date falls within range
+        return false;
+      });
+    }
+
+    this.reservationsDisplay = filtered;
   }
   //#endregion
 

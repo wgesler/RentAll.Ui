@@ -87,6 +87,7 @@ export interface ReservationListDisplay {
   propertyCode: string;
   contactId: string;
   contactName: string;
+  companyName: string;
   arrivalDate?: string;
   departureDate?: string;
   reservationStatus: string;

@@ -6,10 +6,47 @@
           <mat-icon mat-list-icon class="mr-5">calendar_today</mat-icon>
           <h2 class="m-0">Reservations</h2>
         </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addReservation()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
+        <div class="flex items-center gap-3">
+          <mat-form-field appearance="outline" class="scale-90" style="width: 170px;">
+            <mat-label>Start Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="startDatePicker"
+              [(ngModel)]="startDate"
+              [ngModelOptions]="{ standalone: true }"
+              (dateChange)="onStartDateChange()"
+              [max]="endDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="scale-90" style="width: 170px;">
+            <mat-label>End Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="endDatePicker"
+              [(ngModel)]="endDate"
+              [ngModelOptions]="{ standalone: true }"
+              (dateChange)="onEndDateChange()"
+              [min]="startDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #endDatePicker></mat-datepicker>
+          </mat-form-field>
+
+          <button 
+            mat-raised-button 
+            type="button" 
+            (click)="clearDateFilters()" 
+            class="scale-90 text-nowrap clear-button"
+            [disabled]="!startDate && !endDate">
+            Clear
+          </button>
+
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addReservation()" class="scale-90 text-nowrap">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+        </div>
       </div>
       <mat-card>
         <div class="mat">

@@ -309,8 +309,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        //this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
-        //this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === this.property.officeId) || null;
+        this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
+        this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === this.property.officeId) || null;
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -738,6 +738,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
     if (this.selectedOffice) {
       result = result.replace(/\{\{officeDescription\}\}/g, this.selectedOffice.name || '');
       result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A');
+      result = result.replace(/\{\{officeFax\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.fax) || 'N/A');
     }
 
     if (this.selectedOfficeConfiguration) {

@@ -35,6 +35,23 @@ body {
     }
 }
 
+// Pink Clear button
+.clear-button {
+    background-color: #e91e63 !important;
+    color: white !important;
+    
+    &:hover:not(:disabled) {
+        background-color: #c2185b !important;
+    }
+    
+    &:disabled {
+        background-color: rgba(233, 30, 99, 0.3) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+}
+
+
+
 
 
 

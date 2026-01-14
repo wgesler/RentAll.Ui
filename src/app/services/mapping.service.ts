@@ -222,13 +222,20 @@ export class MappingService {
     });
   }
 
-  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[]): ReservationListDisplay[] {
+  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[], companies?: CompanyResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationResponse) => {
       let contactName = '';
+      let companyName = 'N/A';
       if (o.contactId && contacts) {
         const contact = contacts.find(c => c.contactId === o.contactId);
         if (contact) {
           contactName = contact.firstName + ' ' + contact.lastName;
+          if(contact.entityTypeId == EntityType.Company && companies) {
+            const company = companies.find(comp => comp.companyId === contact.entityId);
+            if (company) {
+              companyName = company.name;
+            }
+          }
         } else {
           // If contact not found, use tenantName as fallback
           contactName = o.tenantName || '';
@@ -252,6 +259,7 @@ export class MappingService {
         propertyCode: propertyCode, 
         contactId: o.contactId || '',
         contactName: contactName || '',
+        companyName: companyName || '',
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
         reservationStatus: this.formatReservationStatus(o.reservationStatusId),
