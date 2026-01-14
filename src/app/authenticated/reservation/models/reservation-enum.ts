@@ -31,7 +31,8 @@ export enum Frequency {
 
 export enum ReservationNotice {
   ThirtyDays = 0,
-  FourteenDays = 1
+  FifteenDays = 1,
+  FourteenDays = 2
 }
 
 export enum DepositType {

@@ -532,7 +532,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     this.availableReservationNotices = [
       { value: ReservationNotice.ThirtyDays, label: '30 Days' }, // 0
-      { value: ReservationNotice.FourteenDays, label: '14 Days' } // 1
+      { value: ReservationNotice.FifteenDays, label: '15 Days' }, // 1
+      { value: ReservationNotice.FourteenDays, label: '14 Days' } // 2
     ];
 
     this.availableDepositTypes = [
