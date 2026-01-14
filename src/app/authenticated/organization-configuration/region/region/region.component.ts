@@ -125,10 +125,9 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load region info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('region');
       }
     });
   }
@@ -165,8 +164,8 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create region request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });
@@ -192,8 +191,8 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
           }
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update region request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });
@@ -214,8 +213,9 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        this.isServiceError = true;
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });

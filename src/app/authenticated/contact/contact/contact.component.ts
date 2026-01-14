@@ -89,8 +89,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load contact info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -152,9 +152,8 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.ContactList);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          const failMessage = this.isAddMode ? 'Create contact request has failed. ' : 'Update contact request has failed. ';
-          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -307,10 +306,10 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Unable to load Companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.companies = [];
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
+        }
       }
     });
   }
@@ -327,10 +326,10 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Unable to load Vendors. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.vendors = [];
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
+        }
       }
     });
   }

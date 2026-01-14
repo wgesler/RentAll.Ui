@@ -94,8 +94,8 @@ export class CompanyComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -156,9 +156,8 @@ export class CompanyComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.CompanyList);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          const failMessage = this.isAddMode ? 'Create company request has failed. ' : 'Update company request has failed. ';
-          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });

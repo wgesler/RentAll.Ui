@@ -2,9 +2,11 @@ export enum CommonMessage {
 	Error = 'Error...',
 	Success = 'Success...',
 	ServiceError = 'Service Error...',
-	TryAgain = ' Please try again later, or contact your administrator.',
 	Unauthorized = 'Unauthorized...',
-	Unexpected = 'An unexpected error has occurred.'
+	TryAgain = ' Please try again later, or contact your administrator.',
+	Unexpected = 'An unexpected error has occurred.',
+	SessionTimeout = 'Your session has expired. Please log in again.',
+	UnauthorizedAction = 'You are not authorized to perform this action.'
   }
   
   export enum CommonTimeouts {

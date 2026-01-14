@@ -44,7 +44,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   documentTypes: { value: DocumentType, label: string }[] = [
     { value: DocumentType.Other, label: 'Other' },
-    { value: DocumentType.PropertyLetter, label: 'Property Letter' },
+    { value: DocumentType.PropertyLetter, label: 'Welcome Letter' },
     { value: DocumentType.ReservationLease, label: 'Reservation Lease' }
   ];
 
@@ -98,10 +98,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('document');
       }
     });
   }
@@ -147,13 +146,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
         this.back();
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error(
-            `Could not ${this.isAddMode ? 'create' : 'update'} document. ${CommonMessage.TryAgain}`,
-            CommonMessage.ServiceError
-          );
-        } else {
-          this.toastr.error(err.error?.message || `Could not ${this.isAddMode ? 'create' : 'update'} document`, CommonMessage.Error);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -224,10 +218,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        this.isServiceError = true;
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('offices');
       }
     });
   }

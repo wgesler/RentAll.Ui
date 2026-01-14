@@ -80,10 +80,9 @@ export class UserComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load user info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('user');
       }
     });
   }
@@ -113,8 +112,8 @@ export class UserComponent implements OnInit, OnDestroy {
           this.router.navigateByUrl(RouterUrl.UserList);
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create user request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });
@@ -126,8 +125,8 @@ export class UserComponent implements OnInit, OnDestroy {
           this.router.navigateByUrl(RouterUrl.UserList);
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update user request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });

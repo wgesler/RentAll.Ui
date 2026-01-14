@@ -63,10 +63,9 @@ export class CompanyListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('companies');
       }
     });
   }
@@ -83,10 +82,8 @@ export class CompanyListComponent implements OnInit, OnDestroy {
           this.getCompanies(); // Refresh the list
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete company. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete company', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });

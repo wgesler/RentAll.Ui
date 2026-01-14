@@ -63,10 +63,9 @@ export class VendorListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Vendors', CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('vendors');
       }
     });
   }
@@ -83,10 +82,8 @@ export class VendorListComponent implements OnInit, OnDestroy {
           this.getVendors(); // Refresh the list
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete vendor. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete vendor', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });

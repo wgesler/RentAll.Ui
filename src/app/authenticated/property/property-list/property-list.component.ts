@@ -74,8 +74,8 @@ export class PropertyListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Properties', CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -89,10 +89,8 @@ export class PropertyListComponent implements OnInit, OnDestroy {
           this.getProperties(); // Refresh the list
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete property. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete property', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });
@@ -109,6 +107,9 @@ export class PropertyListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.contacts = [];
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
+        }
         this.getProperties();
       }
     });

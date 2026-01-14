@@ -76,10 +76,9 @@ export class RegionListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Regions', CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('regions');
       }
     });
   }
@@ -92,10 +91,8 @@ export class RegionListComponent implements OnInit, OnDestroy {
           this.getRegions();
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete region. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete region', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });
@@ -120,8 +117,9 @@ export class RegionListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        this.isServiceError = true;
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
         this.getRegions();
       }

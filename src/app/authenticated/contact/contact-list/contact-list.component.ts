@@ -67,8 +67,8 @@ export class ContactListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Contacts', CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
@@ -82,10 +82,8 @@ export class ContactListComponent implements OnInit, OnDestroy {
           this.getContacts(); // Refresh the list
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete contact. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete contact', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });

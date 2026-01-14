@@ -91,10 +91,9 @@ export class VendorComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load vendor info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('vendor');
       }
     });
   }
@@ -154,9 +153,8 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.VendorList);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          const failMessage = this.isAddMode ? 'Create vendor request has failed. ' : 'Update vendor request has failed. ';
-          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });

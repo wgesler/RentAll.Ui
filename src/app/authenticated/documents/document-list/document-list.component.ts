@@ -66,9 +66,9 @@ export class DocumentListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
-        this.removeLoadItem('offices');
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        this.isServiceError = true;
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
         this.getDocuments(); // Still load documents even if offices fail
       }
@@ -88,10 +88,9 @@ export class DocumentListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Documents. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('documents');
       }
     });
   }
@@ -104,10 +103,8 @@ export class DocumentListComponent implements OnInit, OnDestroy {
           this.getDocuments(); // Refresh the list
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete document', CommonMessage.Error);
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
           }
         }
       });

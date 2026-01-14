@@ -93,10 +93,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load organization info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-        this.removeLoadItem('organization');
       }
     });
   }
@@ -154,9 +153,8 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.OrganizationList);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          const failMessage = this.isAddMode ? 'Create organization request has failed. ' : 'Update organization request has failed. ';
-          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
       }
     });
