@@ -29,7 +29,7 @@
         
       <mat-card>
         <div class="document-view-container">
-          @if (iframeSrc) {
+          @if (canViewInBrowser && iframeSrc) {
             <div class="iframe-container">
               <iframe 
                 [src]="iframeSrc" 
@@ -37,6 +37,18 @@
                 [attr.key]="iframeKey"
                 frameborder="0">
               </iframe>
+            </div>
+          } @else if (!canViewInBrowser) {
+            <div class="download-only-container">
+              <mat-icon class="large-icon">description</mat-icon>
+              <h3>{{ document?.fileName }}.{{ document?.fileExtension }}</h3>
+              <p>This document type cannot be previewed in the browser.</p>
+              <p class="text-muted">Please download the file to view it.</p>
+              <button mat-raised-button type="button" color="primary" (click)="onDownload()" 
+                class="mt-4">
+                <mat-icon>download</mat-icon>
+                Download Document
+              </button>
             </div>
           } @else {
             <div class="error-container">

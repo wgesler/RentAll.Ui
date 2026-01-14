@@ -190,20 +190,30 @@ export class DocumentComponent implements OnInit, OnDestroy {
         const base64String = btoa(fileReader.result as string);
         this.fileDetails.file = base64String;
         this.fileDetails.dataUrl = `data:${this.selectedFile.type};base64,${base64String}`;
+        
+        // Create preview for images
+        if (this.selectedFile.type.startsWith('image/')) {
+          this.filePreview = this.fileDetails.dataUrl;
+        } else {
+          this.filePreview = null;
+        }
       };
       fileReader.readAsBinaryString(this.selectedFile);
-
-      // Create preview for images
-      if (this.selectedFile.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          this.filePreview = e.target?.result as string;
-        };
-        reader.readAsDataURL(this.selectedFile);
-      } else {
-        this.filePreview = null;
-      }
     }
+  }
+
+  removeFile(): void {
+    this.selectedFile = null;
+    this.filePreview = null;
+    this.fileDetails = null;
+    this.hasNewFileUpload = false;
+    
+    // Clear file-related form fields
+    this.form.patchValue({
+      fileName: '',
+      fileExtension: '',
+      contentType: ''
+    });
   }
 
   // Data Loading Methods
@@ -254,6 +264,16 @@ export class DocumentComponent implements OnInit, OnDestroy {
           : '')
       };
       this.hasNewFileUpload = false; // FileDetails from API, not a new upload
+      
+      // Set filePreview for display (images only)
+      if (document.contentType?.startsWith('image/')) {
+        this.filePreview = this.fileDetails.dataUrl || `data:${this.fileDetails.contentType};base64,${this.fileDetails.file}`;
+      } else {
+        this.filePreview = null;
+      }
+    } else {
+      this.fileDetails = null;
+      this.filePreview = null;
     }
 
     this.form.patchValue({

@@ -29,15 +29,14 @@ import { FormatterService } from '../../../services/formatter-service';
 export class DocumentListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
-  showDeleted: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
   offices: OfficeResponse[] = [];
-  organizationId: string = '';
 
   documentsDisplayedColumns: ColumnSet = {
-    'fileName': { displayAs: 'File Name', maxWidth: '40ch', sortType: 'natural' },
-    'documentTypeName': { displayAs: 'Type', maxWidth: '20ch'},
+    'office': { displayAs: 'Office', maxWidth: '15ch' },
+    'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
+    'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
     'fileExtension': { displayAs: 'Extension', maxWidth: '15ch'},
     'createdOn': { displayAs: 'Created On', maxWidth: '30ch' },
    };
@@ -58,13 +57,22 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Get organization ID from auth service
-    const user = this.authService.getUser();
-    this.organizationId = user?.organizationId || '';
-
-    // Load offices and documents in parallel
-    this.loadOffices();
-    this.getDocuments();
+    // Load offices first, then documents (so office names can be mapped)
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices) => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.getDocuments(); // Load documents after offices are loaded
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        this.removeLoadItem('offices');
+        if (err.status !== 400) {
+          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.getDocuments(); // Still load documents even if offices fail
+      }
+    });
   }
 
 
@@ -73,19 +81,10 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   }
 
   getDocuments(): void {
-    if (!this.organizationId) {
-      this.toastr.warning('Organization ID not found', CommonMessage.Error);
-      this.removeLoadItem('documents');
-      return;
-    }
-
-    this.documentService.getDocumentsByOrganization(this.organizationId).pipe(
-      take(1), 
-      finalize(() => { this.removeLoadItem('documents'); })
-    ).subscribe({
+    this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
       next: (documents) => {
         this.allDocuments = documents.map(doc => this.mapToDisplay(doc));
-        this.applyFilters();
+        this.documentsDisplay = this.allDocuments;
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -188,58 +187,65 @@ export class DocumentListComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Data Loading Methods
-  loadOffices(): void {
-    this.officeService.getOffices().pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('offices'); })
-    ).subscribe({
-      next: (offices) => {
-        this.offices = offices || [];
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.removeLoadItem('offices');
-      }
-    });
-  }
-
-  // Filter methods
-  toggleDeleted(): void {
-    this.showDeleted = !this.showDeleted;
-    this.applyFilters();
-  }
-  
-  applyFilters(): void {
-    this.documentsDisplay = this.showDeleted
-      ? this.allDocuments
-      : this.allDocuments.filter(doc => !doc.isDeleted);
-  }
 
   // Utility Methods
   mapToDisplay(doc: DocumentResponse): DocumentListDisplay {
     // Convert documentTypeId (number) to DocumentType enum, then get the user-friendly label
     const documentType = doc.documentTypeId as DocumentType;
     const documentTypeName = this.getDocumentTypeLabel(documentType);
-    
-    // Format createdOn date to human-readable format with time (MM/DD/YYYY hh:mm AM/PM)
     const formattedCreatedOn = this.formatterService.formatDateTimeString(doc.createdOn);
+    const canView = this.isViewableInBrowser(doc.contentType, doc.fileExtension);
+    
+    // Find office name from officeId
+    const office = doc.officeId ? this.offices.find(o => o.officeId === doc.officeId)?.name || '' : '';
     
     return {
       ...doc,
       documentTypeName: documentTypeName,
-      createdOn: formattedCreatedOn
+      createdOn: formattedCreatedOn,
+      canView: canView,
+      office: office
     };
+  }
+
+  // Check if document type can be viewed directly in browser
+  isViewableInBrowser(contentType: string, fileExtension: string): boolean {
+    if (!contentType && !fileExtension) {
+      return false;
+    }
+
+    const ext = fileExtension?.toLowerCase() || '';
+    const mimeType = contentType?.toLowerCase() || '';
+
+    // PDFs - always viewable
+    if (mimeType === 'application/pdf' || ext === 'pdf') {
+      return true;
+    }
+
+    // Images - viewable
+    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+      return true;
+    }
+
+    // HTML - viewable
+    if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') {
+      return true;
+    }
+
+    // Text files - viewable
+    if (mimeType.startsWith('text/') || ext === 'txt') {
+      return true;
+    }
+
+    // Office documents and other binary formats - not viewable in browser
+    return false;
   }
 
   // Helper method to get DocumentType label as string for display
   getDocumentTypeLabel(documentType: DocumentType): string {
     const typeLabels: { [key in DocumentType]: string } = {
       [DocumentType.Other]: 'Other',
-      [DocumentType.PropertyLetter]: 'Property Letter',
+      [DocumentType.PropertyLetter]: 'Welcome Letter',
       [DocumentType.ReservationLease]: 'Reservation Lease'
     };
     return typeLabels[documentType] || DocumentType[documentType] || 'Other';

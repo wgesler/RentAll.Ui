@@ -90,26 +90,47 @@
 
           <!-- File Upload Section -->
           <div class="mb-4">
-            <div class="mb-2">
-              <label for="fileInput" class="block mb-2 text-sm font-medium">File</label>
+            <h3 class="pt-3 mb-3">File</h3>
+            <div class="flex justify-start items-start mb-4 gap-4">
+              @if (fileDetails && fileDetails.file) {
+                <!-- Display existing file (from API or newly selected) -->
+                <div class="flex flex-col items-start">
+                  @if (filePreview) {
+                    <!-- Image preview -->
+                    <img class="object-contain max-w-xs max-h-44 border-2 border-gray-300 rounded p-2" id="file-preview" alt="File Preview" title="File Preview" [src]="filePreview" />
+                  } @else {
+                    <!-- Non-image file icon/placeholder -->
+                    <div class="flex items-center justify-center max-w-xs max-h-44 border-2 border-gray-300 rounded p-8">
+                      <mat-icon class="text-6xl text-gray-400">description</mat-icon>
+                    </div>
+                  }
+                  @if (fileDetails.fileName) {
+                    <span class="text-sm font-semibold mt-2">{{ fileDetails.fileName }}</span>
+                  }
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="fileInput.click()" style="width: auto; min-width: 120px;">
+                    Choose File
+                  </button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeFile()" style="width: auto; min-width: 120px;">
+                    Remove File
+                  </button>
+                </div>
+              } @else {
+                <!-- No file selected - show file input button -->
+                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="fileInput.click()">
+                  Choose File
+                </button>
+              }
+              <!-- Hidden file input -->
               <input 
                 type="file" 
+                #fileInput
                 id="fileInput"
                 (change)="onFileSelected($event)" 
                 accept="*/*"
-                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                style="display: none;">
             </div>
-            @if (selectedFile) {
-              <div class="mb-2 text-sm text-gray-600">
-                Selected: {{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(2) }} KB)
-              </div>
-            }
-
-            @if (filePreview) {
-              <div class="mb-4">
-                <img [src]="filePreview" alt="File preview" style="max-width: 300px; max-height: 300px; border: 1px solid #ccc; border-radius: 4px;">
-              </div>
-            }
           </div>
 
         </form>

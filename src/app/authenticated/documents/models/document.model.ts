@@ -56,12 +56,15 @@ export interface DocumentListDisplay {
   modifiedOn: string;
   modifiedBy: string;
   documentTypeName?: string;
+  canView?: boolean; // Whether document can be viewed in browser
+  office?: string; // Office name for display
 }
 
 export interface GenerateDocumentFromHtmlDto {
   htmlContent: string;
   organizationId: string;
   officeId?: number | null;
+  officeName: string |null;
   documentType: DocumentType;
   fileName: string;
 }

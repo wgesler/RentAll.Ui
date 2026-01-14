@@ -24,6 +24,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   iframeSrc: SafeResourceUrl | null = null;
   iframeKey: number = 0;
   isServiceError: boolean = false;
+  canViewInBrowser: boolean = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -79,6 +80,14 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Check if document type can be viewed in browser
+    this.canViewInBrowser = this.isViewableInBrowser(this.document.contentType, this.document.fileExtension);
+
+    // If not viewable, don't try to load in iframe
+    if (!this.canViewInBrowser) {
+      return;
+    }
+
     // Use FileDetails.dataUrl if available, otherwise fall back to download endpoint
     if (this.document.fileDetails?.dataUrl) {
       // Use the dataUrl directly from FileDetails
@@ -104,6 +113,39 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
         }
       });
     }
+  }
+
+  // Check if document type can be viewed directly in browser
+  isViewableInBrowser(contentType: string, fileExtension: string): boolean {
+    if (!contentType && !fileExtension) {
+      return false;
+    }
+
+    const ext = fileExtension?.toLowerCase() || '';
+    const mimeType = contentType?.toLowerCase() || '';
+
+    // PDFs - always viewable
+    if (mimeType === 'application/pdf' || ext === 'pdf') {
+      return true;
+    }
+
+    // Images - viewable
+    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+      return true;
+    }
+
+    // HTML - viewable
+    if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') {
+      return true;
+    }
+
+    // Text files - viewable
+    if (mimeType.startsWith('text/') || ext === 'txt') {
+      return true;
+    }
+
+    // Office documents and other binary formats - not viewable in browser
+    return false;
   }
 
   onDownload(): void {

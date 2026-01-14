@@ -188,12 +188,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
     // Generate HTML with styles for PDF
     const htmlWithStyles = this.getPdfHtmlWithStyles();
-    const fileName = `${this.organization?.name}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
+    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
+    const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
     
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization.organizationId,
       officeId: this.selectedOffice.officeId,
+      officeName: this.selectedOffice.name,
       documentType: DocumentType.PropertyLetter,
       fileName: fileName
     };
@@ -669,12 +671,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.isDownloading = true;
     
     const htmlWithStyles = this.getPdfHtmlWithStyles();
-    const fileName = `${this.selectedReservation?.reservationCode}_WelcomeLetter_${new Date().toISOString().split('T')[0]}.pdf`;
+    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
+    const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization.organizationId,
       officeId: this.selectedOffice.officeId,
+      officeName: this.selectedOffice.name,
       documentType: DocumentType.PropertyLetter,
       fileName: fileName
     };

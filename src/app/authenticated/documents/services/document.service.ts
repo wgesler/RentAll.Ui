@@ -27,11 +27,6 @@ export class DocumentService {
     return this.http.get<DocumentResponse>(this.controller + documentId);
   }
 
-  // GET: Get documents by organization ID
-  getDocumentsByOrganization(organizationId: string): Observable<DocumentResponse[]> {
-    return this.http.get<DocumentResponse[]>(this.controller);
-  }
-
   // GET: Get documents by office ID
   getDocumentsByOffice(officeId: number): Observable<DocumentResponse[]> {
     return this.http.get<DocumentResponse[]>(this.controller + 'office/' + officeId);

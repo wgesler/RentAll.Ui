@@ -19,19 +19,16 @@
               [columns]="documentsDisplayedColumns"
               [hasColumnIndex]="false"
               [hasFilter]="true"
-              [hasToggleTop]="true"
+              [hasToggleTop]="false"
               [hasActionsRowClick]="true"
               [hasActionsView]="true"
-              [hasActionsEdit]="true"
+              [hasActionsEdit]="false"
               [hasActionsDownload]="true"
               [hasActionsDelete]="true"
               [itemsPerPage]="100"
-              buttonToggleTextTop="Deleted"
-              (topToggleButtonEvent)="toggleDeleted()"
               (viewEvent)="viewDocument($event)"
-              (editEvent)="goToDocument($event)"
               (downloadEvent)="downloadDocument($event)"
-              (rowClickEvent)="goToDocument($event)"
+              (rowClickEvent)="viewDocument($event)"
               (deleteEvent)="deleteDocument($event)"/>
           </div>
         </div>
