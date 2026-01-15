@@ -61,6 +61,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   ) {
   }
 
+  //#region Office
   ngOnInit(): void {
     this.loadStates();
     // Check for returnTo query parameter
@@ -184,7 +185,27 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       // Otherwise: send logoPath (existing path, or null if logo was removed)
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
-      isActive: formValue.isActive
+      isActive: formValue.isActive,
+      // Configuration fields
+      maintenanceEmail: formValue.maintenanceEmail || undefined,
+      afterHoursPhone: formValue.afterHoursPhone ? this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone) : undefined,
+      afterHoursInstructions: formValue.afterHoursInstructions || undefined,
+      defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : 0,
+      defaultSdw: formValue.defaultSdw ? parseFloat(formValue.defaultSdw.toString()) : 0,
+      defaultKeyFee: formValue.defaultKeyFee ? parseFloat(formValue.defaultKeyFee.toString()) : 0,
+      undisclosedPetFee: formValue.undisclosedPetFee ? parseFloat(formValue.undisclosedPetFee.toString()) : 0,
+      minimumSmokingFee: formValue.minimumSmokingFee ? parseFloat(formValue.minimumSmokingFee.toString()) : 0,
+      utilityOneBed: formValue.utilityOneBed ? parseFloat(formValue.utilityOneBed.toString()) : 0,
+      utilityTwoBed: formValue.utilityTwoBed ? parseFloat(formValue.utilityTwoBed.toString()) : 0,
+      utilityThreeBed: formValue.utilityThreeBed ? parseFloat(formValue.utilityThreeBed.toString()) : 0,
+      utilityFourBed: formValue.utilityFourBed ? parseFloat(formValue.utilityFourBed.toString()) : 0,
+      utilityHouse: formValue.utilityHouse ? parseFloat(formValue.utilityHouse.toString()) : 0,
+      maidOneBed: formValue.maidOneBed ? parseFloat(formValue.maidOneBed.toString()) : 0,
+      maidTwoBed: formValue.maidTwoBed ? parseFloat(formValue.maidTwoBed.toString()) : 0,
+      maidThreeBed: formValue.maidThreeBed ? parseFloat(formValue.maidThreeBed.toString()) : 0,
+      maidFourBed: formValue.maidFourBed ? parseFloat(formValue.maidFourBed.toString()) : 0,
+      parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
+      parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0
     };
 
     if (this.isAddMode) {
@@ -211,6 +232,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(officeIdNum)) {
         this.toastr.error('Invalid office ID', CommonMessage.Error);
+        this.isSubmitting = false;
         return;
       }
       officeRequest.officeId = officeIdNum;
@@ -235,8 +257,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -253,8 +276,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       officeCode: new FormControl('', [Validators.required]),
@@ -269,7 +293,27 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
       website: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
-      isActive: new FormControl(true)
+      isActive: new FormControl(true),
+      // Configuration fields
+      maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
+      afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      afterHoursInstructions: new FormControl<string>(''),
+      defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
+      defaultSdw: new FormControl<string>('0.00', [Validators.required]),
+      defaultKeyFee: new FormControl<string>('0.00', [Validators.required]),
+      undisclosedPetFee: new FormControl<string>('0.00', [Validators.required]),
+      minimumSmokingFee: new FormControl<string>('0.00', [Validators.required]),
+      utilityOneBed: new FormControl<string>('0.00', [Validators.required]),
+      utilityTwoBed: new FormControl<string>('0.00', [Validators.required]),
+      utilityThreeBed: new FormControl<string>('0.00', [Validators.required]),
+      utilityFourBed: new FormControl<string>('0.00', [Validators.required]),
+      utilityHouse: new FormControl<string>('0.00', [Validators.required]),
+      maidOneBed: new FormControl<string>('0.00', [Validators.required]),
+      maidTwoBed: new FormControl<string>('0.00', [Validators.required]),
+      maidThreeBed: new FormControl<string>('0.00', [Validators.required]),
+      maidFourBed: new FormControl<string>('0.00', [Validators.required]),
+      parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
+      parkingHighEnd: new FormControl<string>('0.00', [Validators.required])
     });
   }
 
@@ -290,9 +334,34 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         isActive: this.office.isActive
       });
     }
+    // Populate configuration fields from office response
+    if (this.office && this.form) {
+      this.form.patchValue({
+        maintenanceEmail: this.office.maintenanceEmail || '',
+        afterHoursPhone: this.formatterService.phoneNumber(this.office.afterHoursPhone) || '',
+        afterHoursInstructions: this.office.afterHoursInstructions || '',
+        defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
+        defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
+        defaultKeyFee: this.office.defaultKeyFee !== null && this.office.defaultKeyFee !== undefined ? this.office.defaultKeyFee.toFixed(2) : '0.00',
+        undisclosedPetFee: this.office.undisclosedPetFee !== null && this.office.undisclosedPetFee !== undefined ? this.office.undisclosedPetFee.toFixed(2) : '0.00',
+        minimumSmokingFee: this.office.minimumSmokingFee !== null && this.office.minimumSmokingFee !== undefined ? this.office.minimumSmokingFee.toFixed(2) : '0.00',
+        utilityOneBed: this.office.utilityOneBed !== null && this.office.utilityOneBed !== undefined ? this.office.utilityOneBed.toFixed(2) : '0.00',
+        utilityTwoBed: this.office.utilityTwoBed !== null && this.office.utilityTwoBed !== undefined ? this.office.utilityTwoBed.toFixed(2) : '0.00',
+        utilityThreeBed: this.office.utilityThreeBed !== null && this.office.utilityThreeBed !== undefined ? this.office.utilityThreeBed.toFixed(2) : '0.00',
+        utilityFourBed: this.office.utilityFourBed !== null && this.office.utilityFourBed !== undefined ? this.office.utilityFourBed.toFixed(2) : '0.00',
+        utilityHouse: this.office.utilityHouse !== null && this.office.utilityHouse !== undefined ? this.office.utilityHouse.toFixed(2) : '0.00',
+        maidOneBed: this.office.maidOneBed !== null && this.office.maidOneBed !== undefined ? this.office.maidOneBed.toFixed(2) : '0.00',
+        maidTwoBed: this.office.maidTwoBed !== null && this.office.maidTwoBed !== undefined ? this.office.maidTwoBed.toFixed(2) : '0.00',
+        maidThreeBed: this.office.maidThreeBed !== null && this.office.maidThreeBed !== undefined ? this.office.maidThreeBed.toFixed(2) : '0.00',
+        maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
+        parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
+        parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00'
+      });
+    }
   }
+  //#endregion
 
-  // Logo methods
+  //#region Logo methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -328,8 +397,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.form.get('fileUpload').updateValueAndValidity();
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
+  
+  selectAllOnFocus(event: Event): void {
+    (event.target as HTMLInputElement).select();
+  }
+  //#endregion
 
-    // Phone helpers
+  //#region Phone helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -346,7 +420,26 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.formatterService.formatPhoneInput(event, this.form.get('fax'));
   }
 
-  // Utility Methods
+  formatConfigPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('afterHoursPhone'));
+  }
+
+  onConfigPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('afterHoursPhone'));
+  }
+  //#endregion
+
+  // #region Decimal formatting
+  formatDecimal(fieldName: string): void {
+    this.formatterService.formatDecimalControl(this.form.get(fieldName));
+  }
+
+  onDecimalInput(event: Event, fieldName: string): void {
+    this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+  //#endregion
+
+  //#region Utility Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('officeCode'));
   }
@@ -374,5 +467,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.router.navigateByUrl(RouterUrl.OfficeList);
     }
   }
+//#endregion
 }
 

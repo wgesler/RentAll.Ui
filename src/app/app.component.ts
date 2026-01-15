@@ -7,6 +7,7 @@ import { CommonService } from './services/common.service';
 import { ContactService } from './authenticated/contact/services/contact.service';
 import { OrganizationListService } from './authenticated/organization/services/organization-list.service';
 import { OrganizationService } from './authenticated/organization/services/organization.service';
+import { OfficeService } from './authenticated/organization-configuration/office/services/office.service';
 import { Observable, filter, take, BehaviorSubject, map, finalize } from 'rxjs';
 import { MatIconModule } from '@angular/material/icon'; 
 import { MatButtonModule } from '@angular/material/button';
@@ -26,7 +27,7 @@ import { CommonMessage } from './enums/common-message.enum';
 export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private contactService: ContactService,
     private organizationListService: OrganizationListService,
     private organizationService: OrganizationService,
+    private officeService: OfficeService,
     private toastr: ToastrService
   ) { }
 
@@ -43,18 +45,21 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadDailyQuote();
     this.loadStates();
 
-    // Initialize organization list and load contacts when user is logged in
+    // Initialize organization list and load contacts/offices when user is logged in
     this.initializeOrganizationList();
     this.loadContacts();
+    this.loadOffices();
 
-    // Watch for login changes and re-initialize organization list and contacts
+    // Watch for login changes and re-initialize organization list, contacts, and offices
     this.authService.getIsLoggedIn$().subscribe(isLoggedIn => {
       if (isLoggedIn) {
         this.initializeOrganizationList();
         this.loadContacts();
+        this.loadOffices();
       } else {
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
+        this.officeService.clearOffices();
       }
     });
   }
@@ -106,6 +111,27 @@ export class AppComponent implements OnInit, OnDestroy {
       next: () => {},
       error: () => {
         this.removeLoadItem('contacts');
+      }
+    });
+  }
+
+  loadOffices(): void {
+    if (!this.authService.getIsLoggedIn()) {
+      this.removeLoadItem('offices');
+      return;
+    }
+
+    const user = this.authService.getUser();
+    if (!user || !user.organizationId) {
+      this.removeLoadItem('offices');
+      return;
+    }
+
+    this.officeService.loadAllOffices();
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: () => {},
+      error: () => {
+        this.removeLoadItem('offices');
       }
     });
   }

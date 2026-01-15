@@ -8,15 +8,14 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentType } from '../models/document.enum';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-document-list',
@@ -32,9 +31,10 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
   offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
 
   documentsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '15ch' },
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
     'fileExtension': { displayAs: 'Extension', maxWidth: '15ch'},
@@ -52,29 +52,14 @@ export class DocumentListComponent implements OnInit, OnDestroy {
     public forms: FormsModule,
     private authService: AuthService,
     private officeService: OfficeService,
-    private formatterService: FormatterService
+    private mappingService: MappingService
   ) {
   }
 
+  //#region Document-List
   ngOnInit(): void {
-    // Load offices first, then documents (so office names can be mapped)
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices) => {
-        this.offices = offices || [];
-        this.removeLoadItem('offices');
-        this.getDocuments(); // Load documents after offices are loaded
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-        this.getDocuments(); // Still load documents even if offices fail
-      }
-    });
+    this.loadOffices();
   }
-
 
   addDocument(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, ['new']));
@@ -83,7 +68,7 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   getDocuments(): void {
     this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
       next: (documents) => {
-        this.allDocuments = documents.map(doc => this.mapToDisplay(doc));
+        this.allDocuments = this.mappingService.mapDocuments(documents, this.offices);
         this.documentsDisplay = this.allDocuments;
       },
       error: (err: HttpErrorResponse) => {
@@ -114,7 +99,22 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   goToDocument(event: DocumentListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId]));
   }
+  //#endregion
 
+  //#region Data Load Methods
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.getDocuments(); // Load documents after offices are loaded
+      });
+    });
+  }
+  //#endregion
+
+  //#region Document Buttons
   viewDocument(event: DocumentListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.DocumentView, [event.documentId]));
   }
@@ -183,71 +183,9 @@ export class DocumentListComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-
-  // Utility Methods
-  mapToDisplay(doc: DocumentResponse): DocumentListDisplay {
-    // Convert documentTypeId (number) to DocumentType enum, then get the user-friendly label
-    const documentType = doc.documentTypeId as DocumentType;
-    const documentTypeName = this.getDocumentTypeLabel(documentType);
-    const formattedCreatedOn = this.formatterService.formatDateTimeString(doc.createdOn);
-    const canView = this.isViewableInBrowser(doc.contentType, doc.fileExtension);
-    
-    // Find office name from officeId
-    const office = doc.officeId ? this.offices.find(o => o.officeId === doc.officeId)?.name || '' : '';
-    
-    return {
-      ...doc,
-      documentTypeName: documentTypeName,
-      createdOn: formattedCreatedOn,
-      canView: canView,
-      office: office
-    };
-  }
-
-  // Check if document type can be viewed directly in browser
-  isViewableInBrowser(contentType: string, fileExtension: string): boolean {
-    if (!contentType && !fileExtension) {
-      return false;
-    }
-
-    const ext = fileExtension?.toLowerCase() || '';
-    const mimeType = contentType?.toLowerCase() || '';
-
-    // PDFs - always viewable
-    if (mimeType === 'application/pdf' || ext === 'pdf') {
-      return true;
-    }
-
-    // Images - viewable
-    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
-      return true;
-    }
-
-    // HTML - viewable
-    if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') {
-      return true;
-    }
-
-    // Text files - viewable
-    if (mimeType.startsWith('text/') || ext === 'txt') {
-      return true;
-    }
-
-    // Office documents and other binary formats - not viewable in browser
-    return false;
-  }
-
-  // Helper method to get DocumentType label as string for display
-  getDocumentTypeLabel(documentType: DocumentType): string {
-    const typeLabels: { [key in DocumentType]: string } = {
-      [DocumentType.Other]: 'Other',
-      [DocumentType.PropertyLetter]: 'Welcome Letter',
-      [DocumentType.ReservationLease]: 'Reservation Lease'
-    };
-    return typeLabels[documentType] || DocumentType[documentType] || 'Other';
-  }
-  
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -258,7 +196,9 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

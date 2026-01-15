@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { RegionService } from '../services/region.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -15,6 +15,7 @@ import { NavigationContextService } from '../../../../services/navigation-contex
 import { OfficeService } from '../../office/services/office.service';
 import { OfficeResponse } from '../../office/models/office.model';
 import { FormatterService } from '../../../../services/formatter-service';
+import { MappingService } from '../../../../services/mapping.service';
 
 @Component({
   selector: 'app-region',
@@ -37,6 +38,8 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['region', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -50,10 +53,12 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private navigationContext: NavigationContextService,
     private officeService: OfficeService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private mappingService: MappingService
   ) {
   }
 
+  //#region Region
   ngOnInit(): void {
     this.loadOffices();
     // Check for returnTo query parameter
@@ -198,30 +203,22 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
       this.removeLoadItem('offices');
-      return;
-    }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
     });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       regionCode: new FormControl('', [Validators.required]),
@@ -243,8 +240,9 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('regionCode'));
   }
@@ -272,5 +270,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.router.navigateByUrl(RouterUrl.RegionList);
     }
   }
+  //#endregion
 }
 

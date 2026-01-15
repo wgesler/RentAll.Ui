@@ -37,21 +37,31 @@
               </mat-checkbox>
             </div>
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex items-center gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-1">
+              <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
+                @if (!isAddMode) {
+                  <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                    <mat-label>Code</mat-label>
+                    <input matInput [value]="company?.companyCode || ''" readonly disabled>
+                  </mat-form-field>
+                }
+
+                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                  <mat-label>Office</mat-label>
+                  <mat-select formControlName="officeId">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                
+                <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>Name</mat-label>
                   <input matInput formControlName="name" required>
                   @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
                     <mat-error>Name is required</mat-error>
                   }
                 </mat-form-field>
-
-                @if (!isAddMode) {
-                  <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
-                    <mat-label>Code</mat-label>
-                    <input matInput [value]="company?.companyCode || ''" readonly disabled>
-                  </mat-form-field>
-                }
               </div>
 
               <div class="col-span-4 flex gap-x-1.5">

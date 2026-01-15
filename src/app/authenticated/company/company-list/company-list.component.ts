@@ -8,11 +8,13 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-company-list',
@@ -28,8 +30,11 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allCompanies: CompanyListDisplay[] = [];
   companiesDisplay: CompanyListDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
 
   companiesDisplayedColumns: ColumnSet = {
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'companyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'city': { displayAs: 'City' },
@@ -39,7 +44,7 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -48,17 +53,19 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
   }
 
+  //#region Company-List
   ngOnInit(): void {
-    this.getCompanies();
+    this.loadOffices();
   }
 
   getCompanies(): void {
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies) => {
-        this.allCompanies = this.mappingService.mapCompanies(companies);
+        this.allCompanies = this.mappingService.mapCompanies(companies, undefined, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -90,12 +97,25 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Routing methods
   goToCompany(event: CompanyListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, [event.companyId]));
   }
+  //#endregion
 
-  // Filter methods
+  //#region Data Load Methods
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.getCompanies();
+      });
+    });
+  }
+  //#endregion
+
+  //#region Filter methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -106,7 +126,9 @@ export class CompanyListComponent implements OnInit, OnDestroy {
       ? this.allCompanies
       : this.allCompanies.filter(company => company.isActive);
   }
+  //#endregion
 
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -117,7 +139,9 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

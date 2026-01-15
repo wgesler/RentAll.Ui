@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
@@ -33,6 +33,8 @@ export class RegionListComponent implements OnInit, OnDestroy {
   allRegions: RegionListDisplay[] = [];
   regionsDisplay: RegionListDisplay[] = [];
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
 
   regionsDisplayedColumns: ColumnSet = {
     'regionCode': { displayAs: 'Code', maxWidth: '20ch' },
@@ -55,6 +57,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
     private officeService: OfficeService) {
   }
 
+  //#region Region-List
   ngOnInit(): void {
     this.loadOffices();
   }
@@ -107,26 +110,23 @@ export class RegionListComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(url);
     }
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        this.getRegions();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-        this.getRegions();
-      }
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+      this.removeLoadItem('offices');
+      this.getRegions();
     });
   }
+  //#endregion
 
-  // Filtering Methods
+  //#region Filtering Methods
   applyFilters(): void {
     this.regionsDisplay = this.showInactive
       ? this.allRegions
@@ -137,8 +137,9 @@ export class RegionListComponent implements OnInit, OnDestroy {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -149,7 +150,9 @@ export class RegionListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

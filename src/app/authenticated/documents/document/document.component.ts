@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, map, take, finalize } from 'rxjs';
+import { BehaviorSubject, Observable, map, take, finalize, filter, Subscription } from 'rxjs';
 import { DocumentService } from '../services/document.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -15,6 +15,7 @@ import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { FileDetails } from '../../../shared/models/fileDetails';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-document',
@@ -39,8 +40,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
   filePreview: string | null = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
+  officesSubscription?: Subscription;
   offices: OfficeResponse[] = [];
-  organizationId: string = '';
+  availableOffices: { value: number, name: string }[] = [];
+ organizationId: string = '';
 
   documentTypes: { value: DocumentType, label: string }[] = [
     { value: DocumentType.Other, label: 'Other' },
@@ -58,10 +61,12 @@ export class DocumentComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private mappingService: MappingService
   ) {
   }
 
+  //#region Documents
   ngOnInit(): void {
     // Get organization ID from auth service
     const user = this.authService.getUser();
@@ -94,7 +99,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
       next: (document) => {
         this.document = document;
         this.buildForm();
-        this.patchFormFromResponse(document);
+        this.patchForm(document);
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -209,24 +214,22 @@ export class DocumentComponent implements OnInit, OnDestroy {
       contentType: ''
     });
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices) => {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+      this.removeLoadItem('offices');
     });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       documentId: new FormControl(''),
@@ -240,7 +243,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
     });
   }
 
-  patchFormFromResponse(document: DocumentResponse): void {
+  patchForm(document: DocumentResponse): void {
     if (!this.form) return;
 
     // Convert documentTypeId (number) to DocumentType enum for form
@@ -281,8 +284,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
       isDeleted: document.isDeleted
     });
   }
+  //#endregion
 
-  // File Request Methods
+  //#region File Request Methods
   uploadFile(documentId: string): void {
     if (!this.selectedFile) {
       this.back();
@@ -323,8 +327,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
+  getDocumentTypeName(documentType: DocumentType): string {
+    const docType = this.documentTypes.find(dt => dt.value === documentType);
+    return docType ? docType.label : DocumentType[documentType] || 'Other';
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -335,17 +345,13 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.DocumentList);
   }
-
-  // Helper method to get DocumentType enum name as string for display
-  getDocumentTypeName(documentType: DocumentType): string {
-    const docType = this.documentTypes.find(dt => dt.value === documentType);
-    return docType ? docType.label : DocumentType[documentType] || 'Other';
-  }
+  //#endregion
 }
 

@@ -6,6 +6,7 @@ export interface UserRequest {
   email: string;
   password: string;
   userGroups: string[];
+  officeAccess: number[];
   isActive: boolean;
 }
 
@@ -18,6 +19,7 @@ export interface UserResponse {
   email: string;
   password: string;
   userGroups: string[];
+  officeAccess: number[];
   isActive: boolean;
 }
 

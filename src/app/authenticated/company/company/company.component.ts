@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { CompanyService } from '../services/company.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -17,6 +17,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-company',
@@ -40,6 +42,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['company']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -53,12 +58,16 @@ export class CompanyComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private formatterService: FormatterService,
     private authService: AuthService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private officeService: OfficeService,
+    private mappingService: MappingService
   ) {
   }
 
+  //#region Company
   ngOnInit(): void {
     this.loadStates();
+    this.loadOffices();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.companyId = paramMap.get('id');
@@ -117,6 +126,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
     const companyRequest: CompanyRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
+      officeId: formValue.officeId || undefined,
       address1: (formValue.address1 || '').trim(),
       address2: formValue.address2 || '',
       suite: formValue.suite || '',
@@ -162,8 +172,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Data Loadiing Methods
+  //#region Data Loadiing Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -180,8 +191,19 @@ export class CompanyComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
-  // Logo methods
+
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+    });
+  }
+  //#endregion
+
+  //#region Logo methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -214,12 +236,14 @@ export class CompanyComponent implements OnInit, OnDestroy {
     this.form.get('fileUpload').updateValueAndValidity();
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
+  //#endregion
 
-  // Form methods
+  //#region Form methods
   buildForm(): void {
     this.form = this.fb.group({
       companyCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
+      officeId: new FormControl(null),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
       suite: new FormControl(''),
@@ -239,6 +263,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
       this.form.patchValue({
         companyCode: this.company.companyCode?.toUpperCase() || '',
         name: this.company.name,
+        officeId: this.company.officeId || null,
         address1: this.company.address1,
         address2: this.company.address2 || '',
         suite: this.company.suite || '',
@@ -252,8 +277,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
       });
     }
   }
+  //#endregion
 
-  // Phone helpers
+  //#region Phone helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -261,8 +287,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
-  
-  // Utility Methods
+  //#endregion
+
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -273,12 +300,13 @@ export class CompanyComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.CompanyList);
   }
-
+  //#endregion
 }
 

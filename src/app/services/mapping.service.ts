@@ -15,10 +15,11 @@ import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization
 import { RegionResponse, RegionListDisplay } from '../authenticated/organization-configuration/region/models/region.model';
 import { ColorResponse, ColorListDisplay } from '../authenticated/organization-configuration/color/models/color.model';
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
-import { OfficeConfigurationResponse, OfficeConfigurationListDisplay } from '../authenticated/organization-configuration/office-configuration/models/office-configuration.model';
 import { FormatterService } from './formatter-service';
 import { BoardProperty } from '../authenticated/reservation/models/reservation-board-model';
 import { PropertyStatus } from '../authenticated/property/models/property-enums';
+import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
+import { DocumentType } from '../authenticated/documents/models/document.enum';
 
 @Injectable({
     providedIn: 'root'
@@ -95,11 +96,17 @@ export class MappingService {
     }));
   }
 
-  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
+  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[], offices?: OfficeResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
+      let office = '';
+      if (o.officeId && offices) {
+        const officeObj = offices.find(off => off.officeId === o.officeId);
+        office = officeObj?.name || '';
+      }
       return {
         companyId: o.companyId,
         companyCode: o.companyCode,
+        office: office || undefined,
         name: o.name,
         city: o.city,
         state: o.state,
@@ -111,11 +118,17 @@ export class MappingService {
     });
   }
 
-  mapVendors(vendors: VendorResponse[]): VendorListDisplay[] {
+  mapVendors(vendors: VendorResponse[], offices?: OfficeResponse[]): VendorListDisplay[] {
     return vendors.map<VendorListDisplay>((o: VendorResponse) => {
+      let office = '';
+      if (o.officeId && offices) {
+        const officeObj = offices.find(off => off.officeId === o.officeId);
+        office = officeObj?.name || '';
+      }
       return {
         vendorId: o.vendorId,
         vendorCode: o.vendorCode,
+        office: office || undefined,
         name: o.name,
         city: o.city,
         state: o.state,
@@ -126,16 +139,33 @@ export class MappingService {
     });
   }
 
-  mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
-    return contacts.map<ContactListDisplay>((o: ContactResponse) => ({
-      contactId: o.contactId,
-      contactCode: o.contactCode,
-      fullName: o.firstName + ' ' + o.lastName,
-      contactType: this.formatContactType(o.entityTypeId),
-      phone: this.formatPhoneNumber(o.phone),
-      email: o.email,
-      isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
-    }));
+  mapContacts(contacts: ContactResponse[], offices?: OfficeResponse[]): ContactListDisplay[] {
+    return contacts.map<ContactListDisplay>((o: ContactResponse) => {
+      let office = '';
+      if (o.officeId && offices) {
+        const officeObj = offices.find(off => off.officeId === o.officeId);
+        office = officeObj?.name || '';
+      }
+      return {
+        contactId: o.contactId,
+        contactCode: o.contactCode,
+        office: office || undefined,
+        fullName: o.firstName + ' ' + o.lastName,
+        contactType: this.formatContactType(o.entityTypeId),
+        phone: this.formatPhoneNumber(o.phone),
+        email: o.email,
+        isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
+      };
+    });
+  }
+
+  mapOfficesToDropdown(offices: OfficeResponse[]): { value: number, name: string }[] {
+    return offices
+      .filter(office => office.isActive)
+      .map(office => ({
+        value: office.officeId,
+        name: office.name
+      }));
   }
 
   mapOffices(offices: OfficeResponse[]): OfficeListDisplay[] {
@@ -152,7 +182,12 @@ export class MappingService {
       phone: this.formatPhoneNumber(o.phone),
       fax: this.formatPhoneNumber(o.fax),
       website: o.website,
-      isActive: o.isActive
+      isActive: o.isActive,
+      // Configuration display fields
+      maintenanceEmail: o.maintenanceEmail,
+      afterHoursPhone: this.formatPhoneNumber(o.afterHoursPhone),
+      defaultDeposit: o.defaultDeposit || 0,
+      defaultSdw: o.defaultSdw || 0
     }));
   }
 
@@ -173,7 +208,7 @@ export class MappingService {
     }));
   }
 
-  mapProperties(properties: PropertyResponse[], contacts?: ContactResponse[]): PropertyListDisplay[] {
+  mapProperties(properties: PropertyResponse[], contacts?: ContactResponse[], offices?: OfficeResponse[]): PropertyListDisplay[] {
     return properties.map<PropertyListDisplay>((o: PropertyResponse) => {
       let ownerName = '';
       let owner1Id = '';
@@ -184,11 +219,17 @@ export class MappingService {
           owner1Id = contact.contactId;
         }
       }
+      let office = '';
+      if (o.officeId && offices) {
+        const officeObj = offices.find(off => off.officeId === o.officeId);
+        office = officeObj?.name || '';
+      }
       // Use address1 as name since API doesn't have a name field
       const propertyName = o.address1 || o.propertyCode || '';
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
+        office: office || undefined,
         owner: ownerName || '',
         owner1Id: owner1Id || o.owner1Id || '',
         owner2Id: o.owner2Id || '',
@@ -222,7 +263,7 @@ export class MappingService {
     });
   }
 
-  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[], companies?: CompanyResponse[]): ReservationListDisplay[] {
+  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[], companies?: CompanyResponse[], offices?: OfficeResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationResponse) => {
       let contactName = '';
       let companyName = 'N/A';
@@ -246,16 +287,26 @@ export class MappingService {
 
       // Get propertyCode by looking it up from properties using propertyId
       let propertyCode = '';
+      let officeId: number | undefined;
       if (o.propertyId && properties) {
         const property = properties.find(p => p.propertyId === o.propertyId);
         if (property) {
           propertyCode = property.propertyCode || '';
+          officeId = property.officeId;
         }
+      }
+
+      // Get office name from property's officeId
+      let office = '';
+      if (officeId && offices) {
+        const officeObj = offices.find(off => off.officeId === officeId);
+        office = officeObj?.name || '';
       }
 
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
+        office: office || undefined,
         propertyCode: propertyCode, 
         contactId: o.contactId || '',
         contactName: contactName || '',
@@ -286,18 +337,6 @@ export class MappingService {
     });
   }
 
-  mapOfficeConfigurations(configs: OfficeConfigurationResponse[]): OfficeConfigurationListDisplay[] {
-    return configs.map<OfficeConfigurationListDisplay>((o: OfficeConfigurationResponse) => ({
-      officeId: o.officeId,
-      officeCode: o.officeCode || '',
-      officeName: o.name || '',
-      maintenanceEmail: o.maintenanceEmail,
-      afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
-      defaultDeposit: o.defaultDeposit,
-      defaultSdw:o.defaultSdw,
-      isActive: o.isActive
-    }));
-  }
 
   // Helper/format functions
   formatContactType(contactTypeId?: number): string {
@@ -437,5 +476,73 @@ export class MappingService {
         statusLetter: this.getPropertyStatusLetter(p.propertyStatusId)
       };
     });
+  }
+
+  mapDocuments(documents: DocumentResponse[], offices?: OfficeResponse[]): DocumentListDisplay[] {
+    return documents.map<DocumentListDisplay>((doc: DocumentResponse) => {
+      // Convert documentTypeId (number) to DocumentType enum, then get the user-friendly label
+      const documentType = doc.documentTypeId as DocumentType;
+      const documentTypeName = this.getDocumentTypeLabel(documentType);
+      const formattedCreatedOn = this.formatter.formatDateTimeString(doc.createdOn);
+      const canView = this.isViewableInBrowser(doc.contentType, doc.fileExtension);
+      
+      // Find office name from officeId
+      let office = '';
+      if (doc.officeId && offices) {
+        const officeObj = offices.find(o => o.officeId === doc.officeId);
+        office = officeObj?.name || '';
+      }
+      
+      return {
+        ...doc,
+        documentTypeName: documentTypeName,
+        createdOn: formattedCreatedOn,
+        canView: canView,
+        office: office || undefined
+      };
+    });
+  }
+
+  // Helper method to get DocumentType label as string for display
+  getDocumentTypeLabel(documentType: DocumentType): string {
+    const typeLabels: { [key in DocumentType]: string } = {
+      [DocumentType.Other]: 'Other',
+      [DocumentType.PropertyLetter]: 'Welcome Letter',
+      [DocumentType.ReservationLease]: 'Reservation Lease'
+    };
+    return typeLabels[documentType] || DocumentType[documentType] || 'Other';
+  }
+
+  // Check if document type can be viewed directly in browser
+  isViewableInBrowser(contentType: string, fileExtension: string): boolean {
+    if (!contentType && !fileExtension) {
+      return false;
+    }
+
+    const ext = fileExtension?.toLowerCase() || '';
+    const mimeType = contentType?.toLowerCase() || '';
+
+    // PDFs - always viewable
+    if (mimeType === 'application/pdf' || ext === 'pdf') {
+      return true;
+    }
+
+    // Images - viewable
+    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+      return true;
+    }
+
+    // HTML - viewable
+    if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') {
+      return true;
+    }
+
+    // Text files - viewable
+    if (mimeType.startsWith('text/') || ext === 'txt') {
+      return true;
+    }
+
+    // Office documents and other binary formats - not viewable in browser
+    return false;
   }
 }

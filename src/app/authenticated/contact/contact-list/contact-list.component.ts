@@ -8,11 +8,13 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-contact-list',
@@ -28,8 +30,11 @@ export class ContactListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
 
   contactsDisplayedColumns: ColumnSet = {
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
@@ -38,7 +43,7 @@ export class ContactListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -47,12 +52,13 @@ export class ContactListComponent implements OnInit, OnDestroy {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
   }
 
   //#region Contacts
   ngOnInit(): void {
-    this.getContacts();
+    this.loadOffices();
   }
 
   addContact(): void {
@@ -62,7 +68,7 @@ export class ContactListComponent implements OnInit, OnDestroy {
   getContacts(): void {
     this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
       next: (response: ContactResponse[]) => {
-        this.allContacts = this.mappingService.mapContacts(response);
+        this.allContacts = this.mappingService.mapContacts(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -95,7 +101,20 @@ export class ContactListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Filter methods
+  //#region Data Load Methods
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.getContacts();
+      });
+    });
+  }
+  //#endregion
+
+  //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -119,6 +138,7 @@ export class ContactListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

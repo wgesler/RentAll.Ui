@@ -53,6 +53,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService) {
   }
 
+  //#region User-List
   ngOnInit(): void {
     this.getUsers();
   }
@@ -133,8 +134,9 @@ export class UserListComponent implements OnInit, OnDestroy {
   goToUser(event: UserListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Filter Methods
   applyFilters(): void {
     this.usersDisplay = this.showInactive
       ? this.allUsers
@@ -145,8 +147,9 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -159,5 +162,6 @@ export class UserListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

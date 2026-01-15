@@ -58,6 +58,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   ) {
   }
 
+  //#region Color
   ngOnInit(): void {
     // Check for returnTo query parameter
     this.route.queryParams.subscribe(params => {
@@ -210,7 +211,14 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  // Form methods
+  onColorChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const colorValue = input.value;
+    this.form.patchValue({ color: colorValue }, { emitEvent: true });
+  }
+  //#endregion
+
+  //#region Form methods
   buildForm(): void {
     this.form = this.fb.group({
       reservationStatusId: new FormControl('', [Validators.required]),
@@ -226,14 +234,9 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
-  onColorChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const colorValue = input.value;
-    this.form.patchValue({ color: colorValue }, { emitEvent: true });
-  }
-
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -257,5 +260,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.router.navigateByUrl(RouterUrl.ColorList);
     }
   }
+  //#endregion
 }
 

@@ -79,8 +79,25 @@
                 </mat-form-field>
               }
 
-              <div class="col-span-4 flex items-center gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-1">
+              <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
+                @if (!isAddMode) {
+                  <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                    <mat-label>Code</mat-label>
+                    <input matInput [value]="contact?.contactCode || ''" readonly disabled>
+                  </mat-form-field>
+                }
+
+                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                  <mat-label>Office</mat-label>
+                  <mat-select formControlName="officeId">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                
+                <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>First Name</mat-label>
                   <input matInput formControlName="firstName" required>
                   @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
@@ -88,20 +105,13 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="flex-1">
+                <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>Last Name</mat-label>
                   <input matInput formControlName="lastName" required>
                   @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
                     <mat-error>Last Name is required</mat-error>
                   }
                 </mat-form-field>
-
-                @if (!isAddMode) {
-                  <mat-form-field appearance="outline" style="width: 20ch; min-width: 20ch; flex-shrink: 0;">
-                    <mat-label>Contact Code</mat-label>
-                    <input matInput [value]="contact?.contactCode || ''" readonly disabled>
-                  </mat-form-field>
-                }
               </div>
 
               <mat-form-field appearance="outline" class="col-span-2">

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, Subscription, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, Subscription, BehaviorSubject, Observable, map, filter } from 'rxjs';
 import { UserService } from '../services/user.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -13,6 +13,10 @@ import { UserGroups } from '../models/user-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { OrganizationListService } from '../../organization/services/organization-list.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { AuthService } from '../../../services/auth.service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-user',
@@ -34,6 +38,9 @@ export class UserComponent implements OnInit, OnDestroy {
   availableUserGroups: { value: string, label: string }[] = [];
   organizations: OrganizationResponse[] = [];
   organizationsSubscription: Subscription;
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['user']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -44,13 +51,18 @@ export class UserComponent implements OnInit, OnDestroy {
     public fb: FormBuilder,
     private route: ActivatedRoute,
     private toastr: ToastrService,
-    private organizationListService: OrganizationListService
+    private organizationListService: OrganizationListService,
+    private officeService: OfficeService,
+    private authService: AuthService,
+    private mappingService: MappingService
   ) {
   }
 
+  //#region User
   ngOnInit(): void {
     this.initializeUserGroups();
     this.loadOrganizations();
+    this.loadOffices();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.userId = paramMap.get('id');
@@ -102,6 +114,7 @@ export class UserComponent implements OnInit, OnDestroy {
       email: formValue.email,
       password: this.isAddMode ? formValue.password : (formValue.password || ''), // Required in add mode, optional in edit mode
       userGroups: formValue.userGroups || [],
+      officeAccess: formValue.officeAccess || [],
       isActive: formValue.isActive
     };
 
@@ -132,8 +145,9 @@ export class UserComponent implements OnInit, OnDestroy {
       });
     }
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadOrganizations(): void {
     this.organizationsSubscription = this.organizationListService.getOrganizations().subscribe({
       next: (organizations) => {
@@ -145,24 +159,19 @@ export class UserComponent implements OnInit, OnDestroy {
     });
   }
 
-  initializeUserGroups(): void {
-    this.availableUserGroups = Object.keys(UserGroups)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
-      .map(key => ({
-        value: key,
-        label: this.formatUserGroupLabel(key)
-      }));
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.filterOfficesByOrganization();
+      });
+    });
   }
+  //#endregion
 
-  formatUserGroupLabel(enumKey: string): string {
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
-  // Form methods
+  //#region Form methods
   buildForm(): void {
     const passwordValidators = this.isAddMode 
       ? [Validators.required, this.passwordStrengthValidator] 
@@ -180,8 +189,16 @@ export class UserComponent implements OnInit, OnDestroy {
       password: new FormControl('', passwordValidators),
       confirmPassword: new FormControl('', confirmPasswordValidators),
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
+      officeAccess: new FormControl([]),
       isActive: new FormControl(true)
     }, { validators: this.passwordMatchValidator });
+    
+    // Reload offices when organization changes
+    this.form.get('organizationId')?.valueChanges.subscribe(() => {
+      this.filterOfficesByOrganization();
+      // Clear office access when organization changes
+      this.form.get('officeAccess')?.setValue([]);
+    });
   }
 
   populateForm(): void {
@@ -232,10 +249,52 @@ export class UserComponent implements OnInit, OnDestroy {
       
       // Set userGroups separately to ensure the array is properly set
       this.form.get('userGroups')?.setValue(validUserGroups);
+      
+      // Set officeAccess - normalize to array of numbers
+      const officeAccess = this.user.officeAccess || [];
+      const officeAccessNumbers = Array.isArray(officeAccess) 
+        ? officeAccess.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id))
+        : [];
+      this.form.get('officeAccess')?.setValue(officeAccessNumbers);
      }
   }
+  //#endregion
+  
+  //#region Filter & Formatting
+  filterOfficesByOrganization(): void {
+    // Get organization from form if available, otherwise from logged-in user
+    const organizationId = this.form?.get('organizationId')?.value || this.authService.getUser()?.organizationId;
+    
+    if (organizationId) {
+      const filteredOffices = this.offices.filter(office => 
+        office.organizationId === organizationId && office.isActive
+      );
+      this.availableOffices = this.mappingService.mapOfficesToDropdown(filteredOffices);
+    } else {
+      // If no organization selected, show all active offices (fallback)
+      this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices.filter(office => office.isActive));
+    }
+  }
 
-  // User Group Helpers
+  initializeUserGroups(): void {
+    this.availableUserGroups = Object.keys(UserGroups)
+      .filter(key => isNaN(Number(key))) // Filter out numeric keys
+      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
+      .map(key => ({
+        value: key,
+        label: this.formatUserGroupLabel(key)
+      }));
+  }
+
+  formatUserGroupLabel(enumKey: string): string {
+    return enumKey
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .trim()
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+  //#endregion
+
+  //#region User Group Helpers
   userGroupsRequiredValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
     if (!value || !Array.isArray(value) || value.length === 0) {
@@ -256,8 +315,9 @@ export class UserComponent implements OnInit, OnDestroy {
   get allUserGroupOptions(): string[] {
     return this.availableUserGroups.map(g => g.value);
   }
+  //#endregion
 
-  // Password Helpers
+  //#region Password Helpers
   setupPasswordValidation(): void {
     // Re-validate confirmPassword when password changes (real-time validation)
     this.form.get('password')?.valueChanges.subscribe(() => {
@@ -376,8 +436,9 @@ export class UserComponent implements OnInit, OnDestroy {
     // This means if password fulfills criteria, no hint will be shown
     return passwordControl.invalid && (passwordControl.touched || passwordControl.value);
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -388,6 +449,7 @@ export class UserComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     if (this.organizationsSubscription) {
       this.organizationsSubscription.unsubscribe();
     }
@@ -397,6 +459,6 @@ export class UserComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.UserList);
   }
-
+  //#endregion
 }
 

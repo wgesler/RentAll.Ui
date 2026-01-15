@@ -129,26 +129,48 @@ export class AuthService {
                     jwtUserObj = JSON.parse(atob(token.user));
                 } catch (e) {
                     // If it's not base64, try parsing directly
-                    jwtUserObj = typeof token.user === 'string' ? JSON.parse(token.user) : token.user;
+                    try {
+                        jwtUserObj = typeof token.user === 'string' ? JSON.parse(token.user) : token.user;
+                    } catch (parseError) {
+                        console.error('Error parsing token.user:', parseError);
+                        console.error('Token.user value:', token.user);
+                        // If parsing fails, try using token.user directly if it's already an object
+                        jwtUserObj = typeof token.user === 'object' ? token.user : null;
+                    }
                 }
-            } else if (token.UserGuid || token.userGuid) {
+            } else if (token.UserGuid || token.userGuid || token.UserId || token.userId) {
                 // If user properties are directly on the token
                 jwtUserObj = token;
             } else {
                 console.error('JWT token does not contain user property or user data. Token structure:', token);
+                console.error('Available token keys:', Object.keys(token));
                 return;
             }
 
             if (!jwtUserObj) {
                 console.error('Failed to parse user object from JWT');
+                console.error('Token structure:', token);
                 return;
             }
+            
+            // Log the parsed user object for debugging
+            console.log('Parsed JWT User Object:', jwtUserObj);
 
-            const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);
-
-            this.storageService.addItem(StorageKey.AuthData, JSON.stringify(response));
-            this.jwtContainer$.next(jwtContainer);
-            this.isLoggedIn$.next(this.getIsLoggedIn());
+            try {
+                const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);
+                
+                this.storageService.addItem(StorageKey.AuthData, JSON.stringify(response));
+                this.jwtContainer$.next(jwtContainer);
+                this.isLoggedIn$.next(this.getIsLoggedIn());
+            } catch (containerError) {
+                console.error('Error creating JwtContainer:', containerError);
+                console.error('JWT User Object:', jwtUserObj);
+                console.error('Token:', token);
+                // Clear any partial state
+                this.jwtContainer$.next(undefined);
+                this.isLoggedIn$.next(false);
+                return;
+            }
         } catch (error) {
             console.error('Error in setAuthData:', error);
             // Clear any partial state

@@ -26,14 +26,13 @@ import { BuildingService } from '../../organization-configuration/building/servi
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { OfficeConfigurationService } from '../../organization-configuration/office-configuration/services/office-configuration.service';
-import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { Subscription } from 'rxjs';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -56,8 +55,10 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   contacts: ContactResponse[] = [];
   buildings: BuildingResponse[] = [];
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
+  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  officeConfiguration: OfficeConfigurationResponse | null = null;
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   iframeKey: number = 0;
@@ -80,7 +81,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
-    private officeConfigurationService: OfficeConfigurationService,
+    private mappingService: MappingService,
     private documentExportService: DocumentExportService,
     private documentService: DocumentService,
     private welcomeLetterReloadService: WelcomeLetterReloadService
@@ -228,16 +229,12 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
-      next: (contacts: ContactResponse[]) => {
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
         this.contacts = contacts || [];
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load contacts at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      });
+      this.removeLoadItem('contacts');
     });
   }
 
@@ -280,38 +277,16 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId;
-    if (!orgId) {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
       this.removeLoadItem('offices');
-      return;
-    }
-
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = (offices || []).filter(o => o.organizationId === orgId && o.isActive);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
     });
   }
 
-  loadOfficeConfiguration(officeId: number): void {
-    this.officeConfigurationService.getOfficeConfigurationByOfficeId(officeId).pipe(take(1)).subscribe({
-      next: (config: OfficeConfigurationResponse) => {
-        this.officeConfiguration = config;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.officeConfiguration = null;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load office configuration at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
 
   loadReservations(): void {
     this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
@@ -374,10 +349,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   onOfficeSelected(officeId: number | null): void {
     if (officeId) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.loadOfficeConfiguration(officeId);
     } else {
       this.selectedOffice = null;
-      this.officeConfiguration = null;
     }
     this.generatePreviewIframe();
   }
@@ -460,9 +433,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     }
 
     // Replace organization placeholders
-    if (this.officeConfiguration) {
-      const maintenanceEmail = (this.officeConfiguration as any).maintenanceEmail || '';
-      const afterHoursPhone = (this.officeConfiguration as any).afterHoursPhone || '';
+    if (this.selectedOffice) {
+      const maintenanceEmail = this.selectedOffice.maintenanceEmail || '';
+      const afterHoursPhone = this.selectedOffice.afterHoursPhone || '';
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
       // Replace logo placeholder with dataUrl if it exists
@@ -866,6 +839,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
     this.welcomeLetterReloadSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

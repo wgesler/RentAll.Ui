@@ -8,11 +8,13 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-vendor-list',
@@ -28,6 +30,7 @@ export class VendorListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
 
   vendorsDisplayedColumns: ColumnSet = {
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'vendorCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'city': { displayAs: 'City' },
@@ -38,8 +41,10 @@ export class VendorListComponent implements OnInit, OnDestroy {
   };
   allVendors: VendorListDisplay[] = [];
   vendorsDisplay: VendorListDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['vendors']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['vendors', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -48,17 +53,29 @@ export class VendorListComponent implements OnInit, OnDestroy {
     public route: ActivatedRoute,
     public router: Router,
     public forms: FormsModule,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
   }
 
   ngOnInit(): void {
-    this.getVendors();
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.getVendors();
+      });
+    });
   }
 
   getVendors(): void {
     this.vendorService.getVendors().pipe(take(1), finalize(() => { this.removeLoadItem('vendors'); })).subscribe({
       next: (vendors) => {
-        this.allVendors = this.mappingService.mapVendors(vendors);
+        this.allVendors = this.mappingService.mapVendors(vendors, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -117,6 +134,7 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 }

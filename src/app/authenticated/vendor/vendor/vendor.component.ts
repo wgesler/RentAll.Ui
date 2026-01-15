@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { VendorService } from '../services/vendor.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -15,6 +15,9 @@ import { fileValidator } from '../../../validators/file-validator';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-vendor',
@@ -38,6 +41,9 @@ export class VendorComponent implements OnInit, OnDestroy {
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['vendor']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -50,12 +56,17 @@ export class VendorComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private commonService: CommonService,
     private formatterService: FormatterService,
-    private authService: AuthService
+    private authService: AuthService,
+    private officeService: OfficeService,
+    private mappingService: MappingService
   ) {
   }
 
+  //#region Vendors
   ngOnInit(): void {
     this.loadStates();
+    this.loadOffices();
+
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.vendorId = paramMap.get('id');
@@ -123,6 +134,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       website: formValue.website || '',
       notes: formValue.notes || '',
       phone: phoneDigits,
+      officeId: formValue.officeId || undefined,
       // Only send fileDetails if a new file was uploaded (not from API response)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
@@ -159,8 +171,9 @@ export class VendorComponent implements OnInit, OnDestroy {
       }
     });
   }
-
-  // Data Loading Methods
+  //#endregion
+  
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -178,7 +191,18 @@ export class VendorComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Logo methods
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+    });
+  }
+  //#endregion
+
+  //#region Logo methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -211,8 +235,9 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.form.get('fileUpload').updateValueAndValidity();
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
+  //#endregion
 
-  // Form methods
+  //#region Form methods
   buildForm(): void {
     this.form = this.fb.group({
       vendorCode: new FormControl(''), // Not required - only shown in Edit Mode
@@ -226,6 +251,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
+      officeId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -245,12 +271,14 @@ export class VendorComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.vendor.phone),
         website: this.vendor.website || '',
         notes: this.vendor.notes || '',
+        officeId: this.vendor.officeId || null,
         isActive: this.vendor.isActive // Convert number to boolean for checkbox
       });
     }
   }
+  //#endregion
 
-  // Phone helpers
+  //#region Phone helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -258,8 +286,9 @@ export class VendorComponent implements OnInit, OnDestroy {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -270,11 +299,13 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.VendorList);
   }
+  //#endregion
 }
 

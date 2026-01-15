@@ -11,7 +11,7 @@
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">store</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Office' : 'Edit Office' }}
+            {{ isAddMode ? 'Add Office' : 'Edit ' + (office?.name || '') + ' Office' }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -33,7 +33,7 @@
           <span class="flex flex-column items-center gap-2">
             <mat-icon class="flex-shrink-0">store</mat-icon>
             <span class="flex-shrink-0 text-lg font-medium">
-              {{ isAddMode ? 'Add Office' : 'Edit Office' }}
+              {{ isAddMode ? 'Add Office' : 'Edit ' + (office?.name || '') + ' Office' }}
             </span>
           </span>
           <div class="flex gap-2">
@@ -57,7 +57,18 @@
                 Is Active
               </mat-checkbox>
             </div>
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            
+            <mat-accordion>
+              <!-- Office Details Panel -->
+              <mat-expansion-panel expanded="true">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-icon class="mr-2">store</mat-icon>
+                    Office Details
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
+                
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <div class="col-span-4 flex gap-x-1.5">
                 <mat-form-field appearance="outline" class="flex-[0.5]">
                   <mat-label>Office Code</mat-label>
@@ -194,9 +205,251 @@
               </div>
             }
             <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+              </mat-expansion-panel>
+
+              <!-- Configuration Panel -->
+              <mat-expansion-panel>
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-icon class="mr-2">settings</mat-icon>
+                    Configuration
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <!-- First Row: Default Rental Deposit, Security Deposit Waver, Default Key Fee -->
+                <div class="flex gap-4 mb-4">
+                  <!-- Default Rental Deposit -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Default Rental Deposit</mat-label>
+                    <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00" required
+                      (blur)="formatDecimal('defaultDeposit')"
+                      (input)="onDecimalInput($event, 'defaultDeposit')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('defaultDeposit')?.hasError('required') && form.get('defaultDeposit')?.touched) {
+                      <mat-error>Default Rental Deposit is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- Security Deposit Waver -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Security Deposit Waver</mat-label>
+                    <input matInput type="text" formControlName="defaultSdw" placeholder="0.00" required
+                      (blur)="formatDecimal('defaultSdw')"
+                      (input)="onDecimalInput($event, 'defaultSdw')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('defaultSdw')?.hasError('required') && form.get('defaultSdw')?.touched) {
+                      <mat-error>Security Deposit Waver is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- Default Key Fee -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Default Key Fee</mat-label>
+                    <input matInput type="text" formControlName="defaultKeyFee" placeholder="0.00" required
+                      (blur)="formatDecimal('defaultKeyFee')"
+                      (input)="onDecimalInput($event, 'defaultKeyFee')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('defaultKeyFee')?.hasError('required') && form.get('defaultKeyFee')?.touched) {
+                      <mat-error>Default Key Fee is required</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+
+                <!-- Second Row: Undisclosed Pet Fee, Minimum Smoking Fee, Maintenance Email, After Hours Phone -->
+                <div class="flex gap-4 mb-4">
+                  <!-- Undisclosed Pet Fee -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Undisclosed Pet Fee</mat-label>
+                    <input matInput type="text" formControlName="undisclosedPetFee" placeholder="0.00" required
+                      (blur)="formatDecimal('undisclosedPetFee')"
+                      (input)="onDecimalInput($event, 'undisclosedPetFee')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('undisclosedPetFee')?.hasError('required') && form.get('undisclosedPetFee')?.touched) {
+                      <mat-error>Undisclosed Pet Fee is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- Minimum Smoking Fee -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Minimum Smoking Fee</mat-label>
+                    <input matInput type="text" formControlName="minimumSmokingFee" placeholder="0.00" required
+                      (blur)="formatDecimal('minimumSmokingFee')"
+                      (input)="onDecimalInput($event, 'minimumSmokingFee')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('minimumSmokingFee')?.hasError('required') && form.get('minimumSmokingFee')?.touched) {
+                      <mat-error>Minimum Smoking Fee is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- Maintenance Email -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Maintenance Email</mat-label>
+                    <input matInput type="email" formControlName="maintenanceEmail" placeholder="email@example.com" required>
+                    @if (form.get('maintenanceEmail')?.hasError('required') && form.get('maintenanceEmail')?.touched) {
+                      <mat-error>Maintenance Email is required</mat-error>
+                    }
+                    @if (form.get('maintenanceEmail')?.hasError('email') && form.get('maintenanceEmail')?.touched && !form.get('maintenanceEmail')?.hasError('required')) {
+                      <mat-error>Invalid email format</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- After Hours Phone -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>After Hours Phone</mat-label>
+                    <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555" required
+                      maxlength="14" (blur)="formatConfigPhone()" (input)="onConfigPhoneInput($event)" (focus)="selectAllOnFocus($event)">
+                    @if (form.get('afterHoursPhone')?.hasError('required') && form.get('afterHoursPhone')?.touched) {
+                      <mat-error>After Hours Phone is required</mat-error>
+                    }
+                    @if (form.get('afterHoursPhone')?.hasError('pattern') && form.get('afterHoursPhone')?.touched && !form.get('afterHoursPhone')?.hasError('required')) {
+                      <mat-error>Invalid phone format</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+
+                <!-- After Hours Instructions -->
+                <div class="mb-4">
+                  <mat-form-field appearance="outline" style="width: 100%;">
+                    <mat-label>After Hours Instructions</mat-label>
+                    <textarea matInput formControlName="afterHoursInstructions" rows="3" placeholder="Instructions..."></textarea>
+                  </mat-form-field>
+                </div>
+
+                <!-- Utility Charges Subsection -->
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Ceilings</h3>
+                  <div class="flex gap-4">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>1 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="utilityOneBed" placeholder="0.00" required
+                        (blur)="formatDecimal('utilityOneBed')"
+                        (input)="onDecimalInput($event, 'utilityOneBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('utilityOneBed')?.hasError('required') && form.get('utilityOneBed')?.touched) {
+                        <mat-error>1 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>2 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="utilityTwoBed" placeholder="0.00" required
+                        (blur)="formatDecimal('utilityTwoBed')"
+                        (input)="onDecimalInput($event, 'utilityTwoBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('utilityTwoBed')?.hasError('required') && form.get('utilityTwoBed')?.touched) {
+                        <mat-error>2 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>3 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="utilityThreeBed" placeholder="0.00" required
+                        (blur)="formatDecimal('utilityThreeBed')"
+                        (input)="onDecimalInput($event, 'utilityThreeBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('utilityThreeBed')?.hasError('required') && form.get('utilityThreeBed')?.touched) {
+                        <mat-error>3 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>4 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="utilityFourBed" placeholder="0.00" required
+                        (blur)="formatDecimal('utilityFourBed')"
+                        (input)="onDecimalInput($event, 'utilityFourBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('utilityFourBed')?.hasError('required') && form.get('utilityFourBed')?.touched) {
+                        <mat-error>4 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>House</mat-label>
+                      <input matInput type="text" formControlName="utilityHouse" placeholder="0.00" required
+                        (blur)="formatDecimal('utilityHouse')"
+                        (input)="onDecimalInput($event, 'utilityHouse')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('utilityHouse')?.hasError('required') && form.get('utilityHouse')?.touched) {
+                        <mat-error>House is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <!-- Maid Charges Subsection -->
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Default Lease Maid Fees</h3>
+                  <div class="flex gap-4">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>1 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="maidOneBed" placeholder="0.00" required
+                        (blur)="formatDecimal('maidOneBed')"
+                        (input)="onDecimalInput($event, 'maidOneBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('maidOneBed')?.hasError('required') && form.get('maidOneBed')?.touched) {
+                        <mat-error>1 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>2 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="maidTwoBed" placeholder="0.00" required
+                        (blur)="formatDecimal('maidTwoBed')"
+                        (input)="onDecimalInput($event, 'maidTwoBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('maidTwoBed')?.hasError('required') && form.get('maidTwoBed')?.touched) {
+                        <mat-error>2 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>3 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="maidThreeBed" placeholder="0.00" required
+                        (blur)="formatDecimal('maidThreeBed')"
+                        (input)="onDecimalInput($event, 'maidThreeBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('maidThreeBed')?.hasError('required') && form.get('maidThreeBed')?.touched) {
+                        <mat-error>3 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>4 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="maidFourBed" placeholder="0.00" required
+                        (blur)="formatDecimal('maidFourBed')"
+                        (input)="onDecimalInput($event, 'maidFourBed')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('maidFourBed')?.hasError('required') && form.get('maidFourBed')?.touched) {
+                        <mat-error>4 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <!-- Parking Charges Subsection -->
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Default Parking Penalty Range Fees</h3>
+                  <div class="flex gap-4">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Low End</mat-label>
+                      <input matInput type="text" formControlName="parkingLowEnd" placeholder="0.00" required
+                        (blur)="formatDecimal('parkingLowEnd')"
+                        (input)="onDecimalInput($event, 'parkingLowEnd')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('parkingLowEnd')?.hasError('required') && form.get('parkingLowEnd')?.touched) {
+                        <mat-error>Low End is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>High End</mat-label>
+                      <input matInput type="text" formControlName="parkingHighEnd" placeholder="0.00" required
+                        (blur)="formatDecimal('parkingHighEnd')"
+                        (input)="onDecimalInput($event, 'parkingHighEnd')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('parkingHighEnd')?.hasError('required') && form.get('parkingHighEnd')?.touched) {
+                        <mat-error>High End is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
 
             @if (isSubmitting) {
-              <div class="flex justify-start gap-3 items-center">
+              <div class="flex justify-start gap-3 items-center mt-4">
                 <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
                 <span>Saving...</span>
               </div>

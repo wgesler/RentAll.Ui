@@ -12,13 +12,15 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-reservation-list',
@@ -35,12 +37,16 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
   contacts: ContactResponse[] = [];
+  contactsSubscription?: Subscription;
   companies: CompanyResponse[] = [];
   properties: PropertyResponse[] = [];
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
   startDate: Date | null = null;
   endDate: Date | null = null;
 
   reservationsDisplayedColumns: ColumnSet = {
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
@@ -51,7 +57,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -63,14 +69,26 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService,
     private contactService: ContactService,
     private companyService: CompanyService,
-    private propertyService: PropertyService) {
+    private propertyService: PropertyService,
+    private officeService: OfficeService) {
   }
 
   //#region Reservation List
   ngOnInit(): void {
-    this.loadContacts();
-    this.loadCompanies();
-    this.loadProperties();  // Will call get reservations
+    this.loadOffices();
+  }
+
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.removeLoadItem('offices');
+        this.loadContacts();
+        this.loadCompanies();
+        this.loadProperties();  // Will call get reservations
+      });
+    });
   }
 
   addReservation(): void {
@@ -131,13 +149,11 @@ export class ReservationListComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-      }
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+        this.contacts = contacts || [];
+      });
     });
   }
 
@@ -265,6 +281,8 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.contactsSubscription?.unsubscribe();
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

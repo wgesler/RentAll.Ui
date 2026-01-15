@@ -225,6 +225,7 @@ export interface PropertyResponse {
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
+  office?: string;
   owner: string;
   owner1Id?: string;
   owner2Id?: string;

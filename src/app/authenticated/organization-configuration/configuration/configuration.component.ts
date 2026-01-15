@@ -16,8 +16,6 @@ import { BuildingListComponent } from '../building/building-list/building-list.c
 import { BuildingComponent } from '../building/building/building.component';
 import { ColorListComponent } from '../color/color-list/color-list.component';
 import { ColorComponent } from '../color/color/color.component';
-import { OfficeConfigurationListComponent } from '../office-configuration/office-configuration-list/office-configuration-list.component';
-import { OfficeConfigurationComponent } from '../office-configuration/office-configuration/office-configuration.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 
 @Component({
@@ -39,9 +37,7 @@ import { NavigationContextService } from '../../../services/navigation-context.s
     BuildingListComponent,
     BuildingComponent,
     ColorListComponent,
-    ColorComponent,
-    OfficeConfigurationListComponent,
-    OfficeConfigurationComponent
+    ColorComponent
   ],
   templateUrl: './configuration.component.html',
   styleUrls: ['./configuration.component.scss']
@@ -53,8 +49,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     regions: false,
     area: false,
     building: false,
-    color: false,
-    officeConfiguration: false
+    color: false
   };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
@@ -68,8 +63,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   buildingId: string | number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
-  isEditingOfficeConfiguration: boolean = false;
-  officeConfigurationId: string | number | null = null;
 
   constructor(
     private router: Router,
@@ -97,18 +90,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.isEditingOffice = false;
   }
   
-  onOfficeConfigurationSelected(officeConfigurationId: string | number | null): void {
-    this.officeConfigurationId = officeConfigurationId;
-    this.isEditingOfficeConfiguration = officeConfigurationId !== null;
-    if (this.isEditingOfficeConfiguration) {
-      this.expandedSections.officeConfiguration = true;
-    }
-  }
-
-  onOfficeConfigurationBack(): void {
-    this.officeConfigurationId = null;
-    this.isEditingOfficeConfiguration = false;
-  }
 
   onAgentSelected(agentId: string | number | null): void {
     this.agentId = agentId !== null ? agentId.toString() : null;

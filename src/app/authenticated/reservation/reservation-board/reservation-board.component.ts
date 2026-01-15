@@ -5,7 +5,7 @@ import { MaterialModule } from '../../../material.module';
 import { FormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationService } from '../services/reservation.service';
 import { ReservationResponse } from '../models/reservation-model';
@@ -36,6 +36,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   calendarDays: CalendarDay[] = [];
   reservations: ReservationResponse[] = [];
   contacts: ContactResponse[] = [];
+  contactsSubscription?: Subscription;
   contactMap: Map<string, ContactResponse> = new Map();
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
@@ -108,18 +109,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(
-      filter(contacts => contacts && contacts.length > 0),
-      take(1)
-    ).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-        this.contactMap = this.mappingService.createContactMap(contacts);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-        this.contactMap = new Map();
-      }
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+        this.contacts = contacts || [];
+        this.contactMap = this.mappingService.createContactMap(this.contacts);
+      });
     });
   }
 
@@ -458,6 +453,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

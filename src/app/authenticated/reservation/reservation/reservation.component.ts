@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of, Subscription } from 'rxjs';
 import { ReservationService } from '../services/reservation.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -18,8 +18,6 @@ import { AgentService } from '../../organization-configuration/agent/services/ag
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { OfficeConfigurationService } from '../../organization-configuration/office-configuration/services/office-configuration.service';
-import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
@@ -36,6 +34,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { LeaseReloadService } from '../services/lease-reload.service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-reservation',
@@ -77,12 +76,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
   properties: PropertyResponse[] = [];
   selectedProperty: PropertyResponse | null = null;
   offices: OfficeResponse[] = [];
-  officeConfigurations: OfficeConfigurationResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
+  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  selectedOfficeConfiguration: OfficeConfigurationResponse | null = null;
   handlersSetup: boolean = false;
  
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'offices', 'officeConfigurations', 'reservation']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'offices', 'reservation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -96,13 +96,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private agentService: AgentService,
     private companyService: CompanyService,
     private officeService: OfficeService,
-    private officeConfigurationService: OfficeConfigurationService,
     private commonService: CommonService,
     private authService: AuthService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
-    private leaseReloadService: LeaseReloadService
+    private leaseReloadService: LeaseReloadService,
+    private mappingService: MappingService
   ) {
   }
 
@@ -114,7 +114,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadAgents();
     this.loadCompanies();
     this.loadOffices();
-    this.loadOfficeConfigurations();
     
     // Initialize form immediately to prevent template errors
     this.buildForm();
@@ -328,7 +327,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Set up handlers that depend on loaded data (officeConfiguration, properties, etc.)
+    // Set up handlers that depend on loaded data (office, properties, etc.)
     this.setupPropertySelectionHandler();
     this.setupContactSelectionHandler();
     this.setupReservationTypeHandler();
@@ -725,11 +724,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
     const officeId = this.selectedProperty.officeId;
     this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    this.selectedOfficeConfiguration = this.officeConfigurations.find(c => c.officeId === officeId) || null;
   }
 
   updateDepositValues(): void {
-    if (!this.selectedOfficeConfiguration) {
+    if (!this.selectedOffice) {
       return;
     }
 
@@ -738,9 +736,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     let defaultDeposit = '0.00';
     if (depositType === DepositType.SDW) {
-      defaultDeposit = this.selectedOfficeConfiguration.defaultSdw.toFixed(2);
+      defaultDeposit = this.selectedOffice.defaultSdw.toFixed(2);
     } else if (depositType === DepositType.Deposit) {
-      defaultDeposit = this.selectedOfficeConfiguration.defaultDeposit.toFixed(2);
+      defaultDeposit = this.selectedOffice.defaultDeposit.toFixed(2);
     }
 
     depositControl.setValue(defaultDeposit, { emitEvent: false });
@@ -853,14 +851,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+        this.contacts = contacts || [];
         this.updateContactsByReservationType();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-      }
+      });
     });
   }
 
@@ -918,28 +914,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices: OfficeResponse[]) => {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-      }
+      });
+      this.removeLoadItem('offices');
     });
   }
 
-  loadOfficeConfigurations(): void {
-    this.officeConfigurationService.getAllOfficeConfigurations().pipe(take(1), finalize(() => { this.removeLoadItem('officeConfigurations'); })).subscribe({
-      next: (configs: OfficeConfigurationResponse[]) => {
-        this.officeConfigurations = configs;
-        this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === this.selectedProperty?.officeId) || null;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.officeConfigurations = [];
-      }
-    });
-  }
   //#endregion
 
   //#region Validator Update Methods
@@ -1109,6 +1094,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

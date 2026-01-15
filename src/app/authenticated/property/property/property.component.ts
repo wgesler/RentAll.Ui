@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -55,6 +55,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   states: string[] = [];
   contacts: ContactListDisplay[] = [];
+  contactsSubscription?: Subscription;
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
@@ -736,13 +737,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.getAllOwnerContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (response: ContactResponse[]) => {
-        this.contacts = this.mappingService.mapContacts(response);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-      }
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllOwnerContacts().subscribe(response => {
+        this.contacts = this.mappingService.mapContacts(response || []);
+      });
     });
   }
 
@@ -820,6 +819,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

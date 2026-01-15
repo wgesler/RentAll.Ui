@@ -29,23 +29,6 @@
             </div>
           </mat-expansion-panel>
 
-          <!-- Office Configuration Section -->
-          <mat-expansion-panel [expanded]="expandedSections.officeConfiguration" 
-            (opened)="onPanelOpened('officeConfiguration')" 
-            (closed)="onPanelClosed('officeConfiguration')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Office Configurations</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingOfficeConfiguration && officeConfigurationId) {
-                <app-office-configuration [officeId]="officeConfigurationId" [embeddedMode]="true" (backEvent)="onOfficeConfigurationBack()"></app-office-configuration>
-              } @else {
-                <app-office-configuration-list [embeddedInSettings]="true" (officeConfigurationSelected)="onOfficeConfigurationSelected($event)"></app-office-configuration-list>
-              }
-            </div>
-          </mat-expansion-panel>
-
           <!-- Agents Section -->
           <mat-expansion-panel [expanded]="expandedSections.agents" 
             (opened)="onPanelOpened('agents')" 

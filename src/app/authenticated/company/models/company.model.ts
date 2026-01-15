@@ -5,6 +5,7 @@ export interface CompanyRequest {
   organizationId: string;
   companyCode?: string;
   name: string;
+  officeId?: number;
   address1: string;
   address2?: string;
   suite?: string;
@@ -24,6 +25,7 @@ export interface CompanyResponse {
   organizationId: string;
   companyCode: string;
   name: string;
+  officeId?: number;
   address1: string;
   address2?: string;
   suite?: string;
@@ -45,6 +47,7 @@ export interface CompanyResponse {
 export interface CompanyListDisplay {
   companyId: string;
   companyCode: string;
+  office?: string;
   name: string;
   city: string;
   state: string;

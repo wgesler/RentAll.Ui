@@ -52,6 +52,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   ) {
   }
 
+  //#region Organization
   ngOnInit(): void {
     this.loadStates();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
@@ -159,8 +160,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       name: new FormControl('', [Validators.required]),
@@ -195,8 +197,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       });
     }
   }
+  //#endregion
 
-  // Logo Methods
+  //#region Logo Methods
   upload(event: Event): void {
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
@@ -232,8 +235,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     this.form.get('fileUpload').updateValueAndValidity();
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
+  //#endregion
 
-  // Phone Helpers
+  //#region Phone Helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -249,8 +253,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   onFaxInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('fax'));
   }
+  //#endregion
 
-  // Data Loading Methods
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -267,8 +272,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -285,5 +291,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }
+  //#endregion
 }
 

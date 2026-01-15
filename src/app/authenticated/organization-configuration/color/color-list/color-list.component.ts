@@ -47,6 +47,7 @@ export class ColorListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService) {
   }
 
+  //#region Color-List
   ngOnInit(): void {
     this.getColors();
   }
@@ -89,8 +90,9 @@ export class ColorListComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(url);
     }
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -103,5 +105,6 @@ export class ColorListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

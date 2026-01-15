@@ -52,6 +52,7 @@ export class OfficeListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService) {
   }
 
+  //#region Office-List
   ngOnInit(): void {
     this.getOffices();
   }
@@ -107,8 +108,9 @@ export class OfficeListComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(url);
     }
   }
+  //#endregion
 
-  // Filter methods
+  //#region Filter methods
   applyFilters(): void {
     this.officesDisplay = this.showInactive
       ? this.allOffices
@@ -119,8 +121,9 @@ export class OfficeListComponent implements OnInit, OnDestroy {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -133,6 +136,7 @@ export class OfficeListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 
 

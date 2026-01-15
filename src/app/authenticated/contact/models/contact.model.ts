@@ -6,6 +6,7 @@ export interface ContactRequest {
   entityId?: string | null;
   firstName: string;
   lastName: string;
+  officeId?: number;
   companyId?: string;
   address1?: string;
   address2?: string;
@@ -26,6 +27,7 @@ export interface ContactResponse {
   entityId?: string | null;
   firstName: string;
   lastName: string;
+  officeId?: number;
   companyId?: string;
   address1?: string;
   address2?: string;
@@ -41,6 +43,7 @@ export interface ContactResponse {
 export interface ContactListDisplay {
   contactId: string;
   contactCode: string;
+  office?: string;
   fullName: string;
   contactType: string;
   phone: string;

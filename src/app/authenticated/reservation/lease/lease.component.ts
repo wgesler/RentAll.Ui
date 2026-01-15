@@ -26,8 +26,6 @@ import { UtilityService } from '../../../services/utility.service';
 import { ReservationNotice, BillingType, DepositType } from '../models/reservation-enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { OfficeConfigurationService } from '../../organization-configuration/office-configuration/services/office-configuration.service';
-import { OfficeConfigurationResponse } from '../../organization-configuration/office-configuration/models/office-configuration.model';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
@@ -35,6 +33,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { PropertyHtmlRequest, PropertyHtmlResponse } from '../../property/models/property-html.model';
 import { PropertyHtmlService } from '../../property/services/property-html.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-lease',
@@ -59,9 +58,10 @@ export class LeaseComponent implements OnInit, OnDestroy {
   contact: ContactResponse | null = null;
   company: CompanyResponse | null = null;
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
+  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  officeConfigurations: OfficeConfigurationResponse[] = [];
-  selectedOfficeConfiguration: OfficeConfigurationResponse | null = null;
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   safeHtml: SafeHtml | null = null;
@@ -69,7 +69,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   isDownloading: boolean = false;
   leaseReloadSubscription?: Subscription;
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'officeConfigurations', 'organization', 'property', 'leaseInformation', 'reservation'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -82,7 +82,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
-    private officeConfigurationService: OfficeConfigurationService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -91,7 +90,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     private documentExportService: DocumentExportService,
     private documentService: DocumentService,
     private sanitizer: DomSanitizer,
-    private leaseReloadService: LeaseReloadService
+    private leaseReloadService: LeaseReloadService,
+    private mappingService: MappingService
   ) {
     this.form = this.buildForm();
   }
@@ -101,7 +101,6 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.loadOrganization();
     this.loadContacts();
     this.loadOffices();
-    this.loadOfficeConfigurations();
     this.loadReservation();
     this.loadProperty();
     this.loadLeaseInformation();
@@ -243,10 +242,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
   onOfficeSelected(officeId: number | null): void {
     if (officeId) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === officeId) || null;
     } else {
       this.selectedOffice = null;
-      this.selectedOfficeConfiguration = null;
     }
     this.generatePreviewIframe();
   }
@@ -254,13 +251,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
 
    //#region Data Loading Methods 
   loadContacts(): void {
-    this.contactService.getAllContacts().pipe(filter(contacts => contacts && contacts.length > 0), take(1)).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = contacts;
-       },
-      error: (err: HttpErrorResponse) => {
-        this.contacts = [];
-      }
+    // Wait for contacts to be loaded initially, then subscribe to changes for updates
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+        this.contacts = contacts || [];
+      });
     });
   }
 
@@ -278,39 +273,21 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-     this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-       next: (offices: OfficeResponse[]) => {
-        this.offices = offices;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.offices = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+      this.removeLoadItem('offices');
     });
   }
 
-  loadOfficeConfigurations(): void {
-    this.officeConfigurationService.getAllOfficeConfigurations().pipe(take(1), finalize(() => { this.removeLoadItem('officeConfigurations'); })).subscribe({
-      next: (configs: OfficeConfigurationResponse[]) => {
-        this.officeConfigurations = configs;
-       },
-       error: (err: HttpErrorResponse) => {
-         this.offices = [];
-         if (err.status !== 400) {
-           this.toastr.error('Could not load offices at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-         }
-       }
-     });
-  }
- 
   loadProperty(): void {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
-        this.selectedOfficeConfiguration = this.officeConfigurations.find(o => o.officeId === this.property.officeId) || null;
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -431,6 +408,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     if (this.selectedReservation?.reservationNoticeId === null || this.selectedReservation?.reservationNoticeId === undefined) return '';
     if (this.selectedReservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
       return '(30 day written notice is required)';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FifteenDays) {
+      return '(15 day written notice is required)';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FourteenDays) {
       return '(14 day written notice is required)';
     }
@@ -441,6 +420,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
     if (this.selectedReservation?.reservationNoticeId === null || this.selectedReservation?.reservationNoticeId === undefined) return '';
     if (this.selectedReservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
       return '30';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FifteenDays) {
+      return '15';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FourteenDays) {
       return '14';
     }
@@ -550,31 +531,32 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   getDefaultKeyFeeText(): string {
-    return '$' + this.selectedOfficeConfiguration.defaultKeyFee.toFixed(2);
+    if (!this.selectedOffice) return '';
+    return '$' + this.selectedOffice.defaultKeyFee.toFixed(2);
   }
   
   getDefaultUtilityFeeText(): string {
-    if(!this.property || !this.selectedOfficeConfiguration) return '';
+    if(!this.property || !this.selectedOffice) return '';
 
     const bedrooms = this.property.bedrooms;
     let utilityFee: number | undefined;
 
     switch(bedrooms) {
       case 1:
-        utilityFee = this.selectedOfficeConfiguration.utilityOneBed;
+        utilityFee = this.selectedOffice.utilityOneBed;
         break;
       case 2:
-        utilityFee = this.selectedOfficeConfiguration.utilityTwoBed;
+        utilityFee = this.selectedOffice.utilityTwoBed;
         break;
       case 3:
-        utilityFee = this.selectedOfficeConfiguration.utilityThreeBed;
+        utilityFee = this.selectedOffice.utilityThreeBed;
         break;
       case 4:
-        utilityFee = this.selectedOfficeConfiguration.utilityFourBed;
+        utilityFee = this.selectedOffice.utilityFourBed;
         break;
       default:
         // For 5+ bedrooms or house, use utilityHouse
-        utilityFee = this.selectedOfficeConfiguration.utilityHouse;
+        utilityFee = this.selectedOffice.utilityHouse;
         break;
     }
 
@@ -585,27 +567,27 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   getDefaultMaidServiceFeeText(): string {
-    if(!this.property || !this.selectedOfficeConfiguration) return '';
+    if(!this.property || !this.selectedOffice) return '';
 
     const bedrooms = this.property.bedrooms;
     let maidFee: number | undefined;
 
     switch(bedrooms) {
       case 1:
-        maidFee = this.selectedOfficeConfiguration.maidOneBed;
+        maidFee = this.selectedOffice.maidOneBed;
         break;
       case 2:
-        maidFee = this.selectedOfficeConfiguration.maidTwoBed;
+        maidFee = this.selectedOffice.maidTwoBed;
         break;
       case 3:
-        maidFee = this.selectedOfficeConfiguration.maidThreeBed;
+        maidFee = this.selectedOffice.maidThreeBed;
         break;
       case 4:
-        maidFee = this.selectedOfficeConfiguration.maidFourBed;
+        maidFee = this.selectedOffice.maidFourBed;
         break;
       default:
         // For 5+ bedrooms, use maidFourBed as fallback
-        maidFee = this.selectedOfficeConfiguration.maidFourBed;
+        maidFee = this.selectedOffice.maidFourBed;
         break;
     }
 
@@ -741,17 +723,17 @@ export class LeaseComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{officeFax\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.fax) || 'N/A');
     }
 
-    if (this.selectedOfficeConfiguration) {
+    if (this.selectedOffice) {
       result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getDefaultUtilityFeeText());
       result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getDefaultMaidServiceFeeText());
-      result = result.replace(/\{\{defaultKeyFee\}\}/g, '$' + this.selectedOfficeConfiguration.defaultKeyFee.toFixed(2));
-      result = result.replace(/\{\{undisclosedPetFee\}\}/g, '$' + this.selectedOfficeConfiguration.undisclosedPetFee.toFixed(2));
-      result = result.replace(/\{\{minimumSmokingFee\}\}/g, '$' + this.selectedOfficeConfiguration.minimumSmokingFee.toFixed(2));
-      result = result.replace(/\{\{parkingPenaltyLow\}\}/g, '$' + this.selectedOfficeConfiguration.parkingLowEnd.toFixed(2));
-      result = result.replace(/\{\{parkingPenaltyHigh\}\}/g, '$' + this.selectedOfficeConfiguration.parkingHighEnd.toFixed(2));
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOfficeConfiguration.maintenanceEmail);
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOfficeConfiguration.afterHoursPhone));
-      result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOfficeConfiguration.afterHoursInstructions);
+      result = result.replace(/\{\{defaultKeyFee\}\}/g, '$' + this.selectedOffice.defaultKeyFee.toFixed(2));
+      result = result.replace(/\{\{undisclosedPetFee\}\}/g, '$' + this.selectedOffice.undisclosedPetFee.toFixed(2));
+      result = result.replace(/\{\{minimumSmokingFee\}\}/g, '$' + this.selectedOffice.minimumSmokingFee.toFixed(2));
+      result = result.replace(/\{\{parkingPenaltyLow\}\}/g, '$' + this.selectedOffice.parkingLowEnd.toFixed(2));
+      result = result.replace(/\{\{parkingPenaltyHigh\}\}/g, '$' + this.selectedOffice.parkingHighEnd.toFixed(2));
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOffice.maintenanceEmail || '');
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
+      result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
    }
 
     // Handle logo
@@ -1112,6 +1094,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
     this.leaseReloadSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

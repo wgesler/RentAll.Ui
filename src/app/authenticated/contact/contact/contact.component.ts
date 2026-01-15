@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { ContactService } from '../services/contact.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -18,6 +18,9 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { VendorService } from '../../vendor/services/vendor.service';
 import { VendorResponse } from '../../vendor/models/vendor.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-contact',
@@ -38,6 +41,9 @@ export class ContactComponent implements OnInit, OnDestroy {
   availableContactTypes: { value: number, label: string }[] = [];
   companies: CompanyResponse[] = [];
   vendors: VendorResponse[] = [];
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact', 'companies', 'vendors']));
@@ -53,7 +59,9 @@ export class ContactComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private authService: AuthService,
     private companyService: CompanyService,
-    private vendorService: VendorService
+    private vendorService: VendorService,
+    private officeService: OfficeService,
+    private mappingService: MappingService
   ) {
   }
 
@@ -61,6 +69,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initializeContactTypes();
     this.loadStates();
+    this.loadOffices();
     this.loadCompanies();
     this.loadVendors();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
@@ -122,6 +131,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId, // Map contactTypeId from form to entityTypeId in request
       entityId: entityId,
+      officeId: formValue.officeId || undefined,
       address1: formValue.address1 || '',
       address2: formValue.address2 || '',
       city: formValue.city || '',
@@ -167,6 +177,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
+      officeId: new FormControl(null),
       companyId: new FormControl(null),
       vendorId: new FormControl(null),
       phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
@@ -233,6 +244,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         contactTypeId: contactTypeId, // Map entityTypeId from response to contactTypeId in form
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
+        officeId: this.contact.officeId || null,
         companyId: companyId,
         vendorId: vendorId,
         address1: this.contact.address1 || '',
@@ -294,6 +306,33 @@ export class ContactComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data loading methods
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err) => {
+        console.error('Contact Component - Error loading states:', err);
+      }
+    });
+  }
+
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+    });
+  }
+  
   loadCompanies(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
@@ -333,23 +372,6 @@ export class ContactComponent implements OnInit, OnDestroy {
       }
     });
   }
-
-   loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
-      return;
-    }
-    
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Contact Component - Error loading states:', err);
-      }
-    });
-  }
   //#endregion
 
   //#region Phone helpers
@@ -373,6 +395,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

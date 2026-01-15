@@ -84,6 +84,7 @@ export interface ReservationResponse {
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
+  office?: string;
   propertyCode: string;
   contactId: string;
   contactName: string;

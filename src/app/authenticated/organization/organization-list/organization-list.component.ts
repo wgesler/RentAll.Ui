@@ -52,6 +52,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     private mappingService: MappingService) {
   }
 
+  //#region Organization-List
   ngOnInit(): void {
     this.getOrganizations();
   }
@@ -91,12 +92,12 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Routing Methods
   goToOrganization(event: OrganizationListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Organization, [event.organizationId]));
   }
+  //#endregion
 
-  // Filter Methods
+  //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -107,8 +108,9 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
       ? this.allOrganizations
       : this.allOrganizations.filter(org => org.isActive);
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -121,5 +123,6 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 
