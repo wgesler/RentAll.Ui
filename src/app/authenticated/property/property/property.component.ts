@@ -54,7 +54,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   states: string[] = [];
-  contacts: ContactListDisplay[] = [];
+  contacts: ContactResponse[] = [];
   contactsSubscription?: Subscription;
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
@@ -69,7 +69,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
   // Accordion expansion states - will be initialized based on isAddMode
@@ -739,8 +739,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllOwnerContacts().subscribe(response => {
-        this.contacts = this.mappingService.mapContacts(response || []);
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+        this.contacts = contacts?.filter(c => c.entityTypeId === EntityType.Owner) || [];
       });
     });
   }

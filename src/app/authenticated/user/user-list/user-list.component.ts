@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { UserResponse, UserListDisplay } from '../models/user.model';
 import { UserGroups } from '../models/user-type';
@@ -47,9 +47,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     public userService: UserService,
     private organizationService: OrganizationService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     public mappingService: MappingService) {
   }
 

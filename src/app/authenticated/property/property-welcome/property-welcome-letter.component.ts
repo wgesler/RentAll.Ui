@@ -231,12 +231,12 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
-      });
-      this.removeLoadItem('contacts');
+       });
     });
   }
+
 
   loadProperty(): void {
     if (!this.propertyId) {
@@ -289,18 +289,19 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
 
   loadReservations(): void {
-    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    if (!this.propertyId) {
+      return;
+    }
+    
+    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
       next: (response: ReservationResponse[]) => {
-        // Filter reservations by propertyId
-        if (this.propertyId) {
-          this.reservations = response.filter(r => r.propertyId === this.propertyId);
-          // Sort by tenant name
-          this.reservations.sort((a, b) => {
-            const nameA = (a.tenantName || '').toLowerCase();
-            const nameB = (b.tenantName || '').toLowerCase();
-            return nameA.localeCompare(nameB);
-          });
-        }
+        this.reservations = response;
+        // Sort by tenant name
+        this.reservations.sort((a, b) => {
+          const nameA = (a.tenantName || '').toLowerCase();
+          const nameB = (b.tenantName || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {

@@ -13,7 +13,7 @@ export interface FileDetails {
 export interface DocumentRequest {
   documentId?: string;
   organizationId: string;
-  officeId?: number | null;
+  officeId: number | null;
   documentTypeId: number;
   fileName: string;
   fileExtension: string;
@@ -26,7 +26,8 @@ export interface DocumentRequest {
 export interface DocumentResponse {
   documentId: string;
   organizationId: string;
-  officeId?: number | null;
+  officeId: number;
+  officeName: string;
   documentTypeId: number;
   fileName: string;
   fileExtension: string;
@@ -43,7 +44,8 @@ export interface DocumentResponse {
 export interface DocumentListDisplay {
   documentId: string;
   organizationId: string;
-  officeId?: number | null;
+  officeId: number;
+  officeName: string;
   documentTypeId: number;
   fileName: string;
   fileExtension: string;
@@ -63,8 +65,8 @@ export interface DocumentListDisplay {
 export interface GenerateDocumentFromHtmlDto {
   htmlContent: string;
   organizationId: string;
-  officeId?: number | null;
-  officeName: string |null;
+  officeId: number;
+  officeName: string;
   documentType: DocumentType;
   fileName: string;
 }

@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../../material.module';
 import { ColorResponse, ColorListDisplay } from '../models/color.model';
 import { ColorService } from '../services/color.service';
@@ -41,9 +41,7 @@ export class ColorListComponent implements OnInit, OnDestroy {
   constructor(
     public colorService: ColorService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     public mappingService: MappingService) {
   }
 

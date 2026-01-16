@@ -13,7 +13,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, 
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { PropertyService } from '../../property/services/property.service';
-import { PropertyResponse } from '../../property/models/property.model';
+import { PropertyListResponse } from '../../property/models/property.model';
 import { AgentService } from '../../organization-configuration/agent/services/agent.service';
 import { AgentResponse } from '../../organization-configuration/agent/models/agent.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
@@ -73,8 +73,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   contacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
   selectedContact: ContactResponse | null = null;
-  properties: PropertyResponse[] = [];
-  selectedProperty: PropertyResponse | null = null;
+  properties: PropertyListResponse[] = [];
+  selectedProperty: PropertyListResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -82,7 +82,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
  
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'offices', 'reservation']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts', 'reservation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -118,20 +118,25 @@ export class ReservationComponent implements OnInit, OnDestroy {
     // Initialize form immediately to prevent template errors
     this.buildForm();
     
-    // Set up handlers after all data is loaded
-    this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
-      this.setupFormHandlers();
-    });
- 
-    // Proceed with route params after contacts are loaded
+    // Get route params first
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       this.reservationId = paramMap.get('id') || null;
       this.isAddMode = !this.reservationId || this.reservationId === 'new';
       
+      // Remove 'reservation' from itemsToLoad$ - we'll load it separately after other data is ready
+      this.removeLoadItem('reservation');
+      
       if (this.isAddMode) {
-        this.removeLoadItem('reservation');
         this.billingPanelOpen = false;
-      } else {
+      }
+    });
+    
+    // Set up handlers after all data is loaded, then load reservation if needed
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.setupFormHandlers();
+      
+      // Load reservation after all supporting data is ready
+      if (this.reservationId && !this.isAddMode) {
         this.getReservation();
       }
     });
@@ -149,6 +154,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       next: (response: ReservationResponse) => {
         this.reservation = response;
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
+        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
@@ -321,24 +327,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.initializeEnums();
   }
 
-  setupFormHandlers(): void {
-    // Prevent setting up handlers multiple times
-    if (this.handlersSetup) {
-      return;
-    }
-    
-    // Set up handlers that depend on loaded data (office, properties, etc.)
-    this.setupPropertySelectionHandler();
-    this.setupContactSelectionHandler();
-    this.setupReservationTypeHandler();
-    this.setupDepositHandlers();
-    this.setupBillingTypeHandler();
-    this.setupPetFeeHandler();
-    this.setupMaidServiceHandler();
-    
-    this.handlersSetup = true;
-  }
-
   populateForm(): void {
     if (!this.reservation || !this.form) {
       return;
@@ -346,17 +334,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     // Set selected property
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-    const propertyAddress = this.selectedProperty ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim() : '';
-    const propertyCode = this.selectedProperty?.propertyCode || '';
+    this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
+    this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
 
-    // Update office and configuration based on selected property
-    this.updateOfficeAndConfiguration();
-    
-    // Ensure handlers are set up before patching values (in case they weren't set up yet)
-    // This handles the case where data loads faster than expected
-    if (!this.handlersSetup) {
-      this.setupFormHandlers();
-    }
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
     this.form.patchValue({ reservationTypeId: this.reservation.reservationTypeId }, { emitEvent: false });
@@ -370,8 +350,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       allowExtensions: this.reservation.allowExtensions ?? true,
       reservationCode: this.reservation.reservationCode || '',
       propertyId: this.reservation.propertyId,
-      propertyCode: propertyCode,
-      propertyAddress: propertyAddress,
+      propertyCode: this.selectedProperty?.propertyCode || '',
+      propertyAddress: this.selectedProperty?.shortAddress || '',
       agentId: this.reservation.agentId || null,
       contactId: this.reservation.contactId || null,
       tenantName: this.reservation.tenantName || '',
@@ -410,16 +390,41 @@ export class ReservationComponent implements OnInit, OnDestroy {
     // Update pet and maid service fields after patching
     this.updatePetFields();
     this.updateMaidServiceFields();
+   
+    // Update pet and maid service fields after patching
+    this.updatePetFields();
+    this.updateMaidServiceFields();
 
   }
+    
+  setupFormHandlers(): void {
+    // Prevent setting up handlers multiple times
+    if (this.handlersSetup) {
+      return;
+    }
+    
+    // Set up handlers that depend on loaded data (office, properties, etc.)
+    this.setupPropertySelectionHandler();
+    this.setupContactSelectionHandler();
+    this.setupReservationTypeHandler();
+    this.setupDepositHandlers();
+    this.setupBillingTypeHandler();
+    this.setupPetFeeHandler();
+    this.setupMaidServiceHandler();
+    
+    this.handlersSetup = true;
+  }
+
   //#endregion
 
   //#region Form Value Change Handlers
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
       this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
-      
-      const propertyAddress = this.selectedProperty ? `${this.selectedProperty.address1}${this.selectedProperty.suite ? ' ' + this.selectedProperty.suite : ''}`.trim() : '';
+      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
+      this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+
+      const propertyAddress = this.selectedProperty?.shortAddress || '';
       const propertyCode = this.selectedProperty?.propertyCode || '';
       this.form.patchValue({ 
         propertyAddress: propertyAddress,
@@ -427,7 +432,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       }, { emitEvent: false });
      
       // Property affects the deposit and billing amounts
-      this.updateOfficeAndConfiguration();
       this.updateDepositValues();
       this.updateBillingValues();
       this.updateDepartureFeeValue();
@@ -550,72 +554,18 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
 
     const reservationTypeId = this.form.get('reservationTypeId')?.value as number;
-    // Get contactId from form first, fall back to reservation.contactId (in case form hasn't been patched yet)
     const contactId = this.form.get('contactId')?.value || this.reservation?.contactId;
 
-    if (reservationTypeId === ReservationType.Private) {
-      // Get tenants
-      this.contactService.getAllTenantContacts().pipe(take(1)).subscribe({
-        next: (tenants: ContactResponse[]) => {
-          this.filteredContacts = tenants;
-          // If contactId is already set, find and update contact fields
-          if (contactId) {
-            this.repopulateContactFromContactId(contactId);
-          }
-         },
-        error: (err: HttpErrorResponse) => {
-           this.filteredContacts = [];
-        }
-      });
-    } else if (reservationTypeId === ReservationType.Corporate) {
-      // Get companies
-      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-        next: (companies: ContactResponse[]) => {
-          this.filteredContacts = companies;
-          // If contactId is already set, find and update contact fields
-          if (contactId) {
-            this.repopulateContactFromContactId(contactId);
-          }
-        },
-        error: (err: HttpErrorResponse) => {
-          this.filteredContacts = [];
-        }
-      });
-    } else if (reservationTypeId === ReservationType.Owner) {
-      // Get owners
-      this.contactService.getAllOwnerContacts().pipe(take(1)).subscribe({
-        next: (owners: ContactResponse[]) => {
-          this.filteredContacts = owners;
-          // If contactId is already set, find and update contact fields
-          if (contactId) {
-            this.repopulateContactFromContactId(contactId);
-          }
-        },
-        error: (err: HttpErrorResponse) => {
-          // Contacts are handled globally, just handle gracefully
-          this.filteredContacts = [];
-        }
-      });
-    } else {
-      this.filteredContacts = [];
-    }
-  }
-
-  repopulateContactFromContactId(contactId: string): void {
-    if (!contactId) {
-      return;
-    }
+    if (reservationTypeId === ReservationType.Private) 
+      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
+    else if (reservationTypeId === ReservationType.Corporate) 
+      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+    else if (reservationTypeId === ReservationType.Owner) 
+      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Owner);
+    else
+      this.filteredContacts = this.contacts;
     
-    this.selectedContact = this.contacts.find(c => c.contactId === contactId) || null;
-    if (this.selectedContact) {
-      // Set company name if contact is a company
-      this.selectedCompanyName = '';
-      if (this.selectedContact.entityTypeId === EntityType.Company && this.selectedContact.entityId) {
-        const company = this.companies.find(c => c.companyId === this.selectedContact.entityId);
-        if (company) {
-          this.selectedCompanyName = company.name;
-        }
-      }
+    if (contactId)  {
       this.updateContactFields();
     }
   }
@@ -717,14 +667,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       }
     }
  }
-
-  updateOfficeAndConfiguration(): void {
-    if (!this.selectedProperty) {
-      return;
-    }
-    const officeId = this.selectedProperty.officeId;
-    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-  }
 
   updateDepositValues(): void {
     if (!this.selectedOffice) {
@@ -853,12 +795,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
-        this.updateContactsByReservationType();
-      });
+       });
     });
   }
+
 
   loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
@@ -886,8 +828,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
-      next: (properties: PropertyResponse[]) => {
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+      next: (properties: PropertyListResponse[]) => {
         this.properties = properties;
        },
       error: (err: HttpErrorResponse) => {
@@ -914,14 +856,21 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
-      });
-      this.removeLoadItem('offices');
+    // Wait for offices to be loaded initially, then subscribe to changes for updates
+    // Offices are loaded globally on login, so we just subscribe to the global state
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+      next: () => {
+        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.offices = [];
+        this.availableOffices = [];
+        // Offices are handled globally, just handle gracefully
+      }
     });
   }
 

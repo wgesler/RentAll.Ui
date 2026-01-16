@@ -1,5 +1,5 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -42,7 +42,7 @@ import { MappingService } from '../../../services/mapping.service';
   templateUrl: './lease.component.html',
   styleUrl: './lease.component.scss'
 })
-export class LeaseComponent implements OnInit, OnDestroy {
+export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   
@@ -69,7 +69,7 @@ export class LeaseComponent implements OnInit, OnDestroy {
   isDownloading: boolean = false;
   leaseReloadSubscription?: Subscription;
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -102,8 +102,12 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.loadContacts();
     this.loadOffices();
     this.loadReservation();
-    this.loadProperty();
-    this.loadLeaseInformation();
+    
+    // Only load property and lease info if propertyId is available
+    if (this.propertyId) {
+      this.loadProperty();
+      this.loadLeaseInformation();
+    }
     
     // Load the lease after we have all necessary data
     this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
@@ -114,6 +118,14 @@ export class LeaseComponent implements OnInit, OnDestroy {
     this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe(() => {
       this.reloadLease();
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // When propertyId becomes available, load property and lease information
+    if (changes['propertyId'] && changes['propertyId'].currentValue && !changes['propertyId'].previousValue) {
+      this.loadProperty();
+      this.loadLeaseInformation();
+    }
   }
 
   getLease(): void {
@@ -253,11 +265,12 @@ export class LeaseComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
-      });
+       });
     });
   }
+
 
   loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
@@ -284,6 +297,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   loadProperty(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('property');
+      return;
+    }
+    
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
@@ -298,6 +316,11 @@ export class LeaseComponent implements OnInit, OnDestroy {
   }
 
   loadLeaseInformation(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('leaseInformation');
+      return;
+    }
+    
     this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
@@ -331,8 +354,8 @@ export class LeaseComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId);
-    if (this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
+    this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
+    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
         this.loadCompany(this.contact.entityId);
     } else {
         this.company = null;

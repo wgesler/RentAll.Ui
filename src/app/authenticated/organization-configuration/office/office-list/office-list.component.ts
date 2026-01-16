@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../../material.module';
 import { OfficeResponse, OfficeListDisplay } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
@@ -46,9 +46,7 @@ export class OfficeListComponent implements OnInit, OnDestroy {
   constructor(
     public officeService: OfficeService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     public mappingService: MappingService) {
   }
 

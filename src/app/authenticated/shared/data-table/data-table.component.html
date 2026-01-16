@@ -141,6 +141,12 @@
                                   id="table-owner-link-{{templateTableId}}-{{i}}">
                                 {{item[column.name]}}
                             </span>
+                        } @case ('ownerName') {
+                            <span (click)="onContactClick($event, item)" 
+                                  class="text-blue-700 underline cursor-pointer" 
+                                  id="table-owner-link-{{templateTableId}}-{{i}}">
+                                {{item[column.name]}}
+                            </span>
                         } @case ('website') {
                             @if (item[column.name]) {
                                 <a [href]="item[column.name]" 

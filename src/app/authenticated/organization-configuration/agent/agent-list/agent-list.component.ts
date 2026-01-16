@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../../material.module';
 import { AgentResponse, AgentListDisplay } from '../models/agent.model';
 import { AgentService } from '../services/agent.service';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../../services/mapping.service';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
@@ -32,9 +32,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allAgents: AgentListDisplay[] = [];
   agentsDisplay: AgentListDisplay[] = [];
-  offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
 
   agentsDisplayedColumns: ColumnSet = {
     'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
@@ -43,22 +40,19 @@ export class AgentListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public agentService: AgentService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     public mappingService: MappingService,
     private officeService: OfficeService) {
   }
 
   //#region Agent-List
   ngOnInit(): void {
-    this.loadOffices();
   }
 
   addAgent(): void {
@@ -73,7 +67,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
   getAgents(): void {
     this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents'); })).subscribe({
       next: (response: AgentResponse[]) => {
-        this.allAgents = this.mappingService.mapAgents(response, this.offices);
+        this.allAgents = this.mappingService.mapAgents(response);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -114,20 +108,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Data Loading Methods
-  loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-      });
-      this.removeLoadItem('offices');
-      this.getAgents();
-    });
-  }
-  //#endregion
-
   //#region Filtering Methods
   applyFilters(): void {
     this.agentsDisplay = this.showInactive
@@ -152,7 +132,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

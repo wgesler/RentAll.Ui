@@ -159,6 +159,7 @@ export interface PropertyResponse {
   
     // Location section
   officeId: number;
+  officeName: string;
   regionId?: number | null;
   areaId?: number | null;
   buildingId?: number | null;
@@ -222,18 +223,43 @@ export interface PropertyResponse {
   notes?: string;
 }
 
+export interface PropertyListResponse{
+  propertyId: string;
+  propertyCode: string;
+  shortAddress: string;
+  officeId: number;  
+  officeName: string;
+  owner1Id: string;
+  ownerName: string;
+  bedrooms: number;
+  bathrooms: number;
+  accomodates: number;
+  squareFeet: number;
+  monthlyRate: number;
+  dailyRate: number;
+  departureFee: number;
+  petFee: number;
+  maidServiceFee: number;
+  propertyStatusId: number;
+  isActive: boolean;
+}
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
-  office?: string;
-  owner: string;
-  owner1Id?: string;
-  owner2Id?: string;
-  owner3Id?: string;
-  accomodates: number;
+  shortAddress:string;
+  officeId: number;  
+  officeName: string;
+  owner1Id: string;
+  ownerName: string;
   bedrooms: number;
   bathrooms: number;
+  accomodates: number;
   squareFeet: number;
   monthlyRate: number;
+  dailyRate: number;
+  departureFee: number;
+  petFee: number;
+  maidServiceFee: number;
+  propertyStatusId: number;
   isActive: boolean;
 }

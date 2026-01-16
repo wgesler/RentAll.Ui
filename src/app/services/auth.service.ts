@@ -152,9 +152,6 @@ export class AuthService {
                 console.error('Token structure:', token);
                 return;
             }
-            
-            // Log the parsed user object for debugging
-            console.log('Parsed JWT User Object:', jwtUserObj);
 
             try {
                 const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);

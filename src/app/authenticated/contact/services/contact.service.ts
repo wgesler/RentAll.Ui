@@ -60,30 +60,22 @@ export class ContactService {
 
   // Get company contacts (filtered by EntityType.Company)
   getAllCompanyContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Company))
-    );
+    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Company)));
   }
 
   // Get owner contacts (filtered by EntityType.Owner)
   getAllOwnerContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Owner))
-    );
+    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Owner)));
   }
 
   // Get tenant contacts (filtered by EntityType.Tenant)
   getAllTenantContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Tenant))
-    );
+    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Tenant)));
   }
 
     // Get vendor contacts (filtered by EntityType.Tenant)
   getAllVendorContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(
-      map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Vendor))
-    );
+    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Vendor)));
   }
 
   // GET: Get all contacts

@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { DocumentResponse, DocumentListDisplay } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
@@ -8,13 +8,10 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
 
 @Component({
@@ -30,35 +27,30 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
-  offices: OfficeResponse[] = [];
-  officesSubscription?: Subscription;
+
 
   documentsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '20ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
     'fileExtension': { displayAs: 'Extension', maxWidth: '15ch'},
     'createdOn': { displayAs: 'Created On', maxWidth: '30ch' },
    };
   
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['documents', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['documents']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public documentService: DocumentService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
-    private authService: AuthService,
-    private officeService: OfficeService,
     private mappingService: MappingService
   ) {
   }
 
   //#region Document-List
   ngOnInit(): void {
-    this.loadOffices();
+    this.getDocuments();
   }
 
   addDocument(): void {
@@ -68,7 +60,7 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   getDocuments(): void {
     this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
       next: (documents) => {
-        this.allDocuments = this.mappingService.mapDocuments(documents, this.offices);
+        this.allDocuments = this.mappingService.mapDocuments(documents);
         this.documentsDisplay = this.allDocuments;
       },
       error: (err: HttpErrorResponse) => {
@@ -98,19 +90,6 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   goToDocument(event: DocumentListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, [event.documentId]));
-  }
-  //#endregion
-
-  //#region Data Load Methods
-  loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.removeLoadItem('offices');
-        this.getDocuments(); // Load documents after offices are loaded
-      });
-    });
   }
   //#endregion
 
@@ -196,7 +175,6 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

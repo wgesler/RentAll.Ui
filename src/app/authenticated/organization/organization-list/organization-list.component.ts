@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { OrganizationListDisplay } from '../models/organization.model';
 import { OrganizationService } from '../services/organization.service';
@@ -46,9 +46,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   constructor(
     public organizationService: OrganizationService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     private mappingService: MappingService) {
   }
 

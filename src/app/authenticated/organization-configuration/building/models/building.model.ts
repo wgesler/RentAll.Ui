@@ -1,7 +1,7 @@
 export interface BuildingRequest {
   buildingId?: number;
   organizationId: string;
-  officeId?: string;
+  officeId: string;
   buildingCode: string;
   name: string;
   description?: string;
@@ -14,7 +14,8 @@ export interface BuildingRequest {
 export interface BuildingResponse {
   buildingId: number;
   organizationId: string;
-  officeId?: string;
+  officeId: string;
+  officeName: string;
   buildingCode: string;
   name: string;
   description?: string;
@@ -29,8 +30,8 @@ export interface BuildingListDisplay {
   buildingCode: string;
   name: string;
   description?: string;
-  officeId?: string;
-  officeName?: string;
+  officeId: string;
+  officeName: string;
   hoaName?: string;
   hoaPhone?: string;
   hoaEmail?: string;

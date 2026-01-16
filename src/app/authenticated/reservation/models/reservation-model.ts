@@ -3,8 +3,8 @@
 export interface ReservationRequest {
   reservationId?: string;
   organizationId: string;
-  officeId?: number | null;
-  agentId?: string | null;
+  officeId: number | null;
+  agentId: string | null;
   propertyId: string;
   contactId: string;
   reservationCode?: string;
@@ -42,7 +42,9 @@ export interface ReservationRequest {
 export interface ReservationResponse {
   reservationId: string;
   organizationId: string;
-  agentId?: string | null;
+  officeId: number;
+  officeName: string;
+  agentId: string | null;
   propertyId: string;
   contactId: string;
   reservationCode: string;
@@ -81,19 +83,45 @@ export interface ReservationResponse {
   modifiedBy?: string; 
 }
 
+export interface ReservationListResponse {
+  reservationId: string;
+  reservationCode: string;
+  propertyId: string;
+  propertyCode: string;
+  officeId: number;
+  officeName: string;
+  contactId: string;
+  contactName: string;
+  tenantName: string;
+  companyName: string;
+  agentCode: string;
+  monthlyRate: number;
+  arrivalDate: string;
+  departureDate: string;
+  reservationStatusId: number;
+  isActive: boolean;
+  createdOn: string;
+}
+
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
-  office?: string;
+  propertyId: string;
   propertyCode: string;
+  officeId: number;
+  officeName: string;
+  office?: string;
   contactId: string;
   contactName: string;
+  tenantName: string;
   companyName: string;
-  arrivalDate?: string;
-  departureDate?: string;
-  reservationStatus: string;
-  reservationStatusId?: number; // Added for proper sorting by numeric ID
+  agentCode: string;
+  monthlyRate: number;
+  arrivalDate: string;
+  departureDate: string;
+  reservationStatusId: number;
   isActive: boolean;
+  createdOn: string;
 }
 
 

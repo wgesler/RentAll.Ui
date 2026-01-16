@@ -1,26 +1,22 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { ReservationResponse, ReservationListDisplay } from '../models/reservation-model';
+import { ReservationListResponse, ReservationListDisplay } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
-import { ContactService } from '../../contact/services/contact.service';
-import { ContactResponse } from '../../contact/models/contact.model';
 import { PropertyService } from '../../property/services/property.service';
-import { PropertyResponse } from '../../property/models/property.model';
+import { PropertyListResponse } from '../../property/models/property.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-reservation-list',
@@ -36,12 +32,8 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
-  contacts: ContactResponse[] = [];
-  contactsSubscription?: Subscription;
   companies: CompanyResponse[] = [];
-  properties: PropertyResponse[] = [];
-  offices: OfficeResponse[] = [];
-  officesSubscription?: Subscription;
+  properties: PropertyListResponse[] = [];
   startDate: Date | null = null;
   endDate: Date | null = null;
 
@@ -49,46 +41,29 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     'office': { displayAs: 'Office', maxWidth: '20ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'reservationStatus': { displayAs: 'Status', maxWidth: '20ch' },
-    'contactName': { displayAs: 'Contact', maxWidth: '25ch' },
-    'companyName': { displayAs: 'Company', maxWidth: '25ch' },
-    'arrivalDate': { displayAs: 'Arrival Date', maxWidth: '20ch' },
-    'departureDate': { displayAs: 'Departure Date', maxWidth: '20ch' },
+    'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
+    'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
+    'arrivalDate': { displayAs: 'Arrival', maxWidth: '15ch' },
+    'departureDate': { displayAs: 'Departure', maxWidth: '15ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public reservationService: ReservationService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
     public mappingService: MappingService,
-    private contactService: ContactService,
     private companyService: CompanyService,
-    private propertyService: PropertyService,
-    private officeService: OfficeService) {
+    private propertyService: PropertyService) {
   }
 
   //#region Reservation List
   ngOnInit(): void {
-    this.loadOffices();
-  }
-
-  loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.removeLoadItem('offices');
-        this.loadContacts();
-        this.loadCompanies();
-        this.loadProperties();  // Will call get reservations
-      });
-    });
+    this.getReservations();
   }
 
   addReservation(): void {
@@ -102,14 +77,19 @@ export class ReservationListComponent implements OnInit, OnDestroy {
       return; // Already loaded or loading
     }
 
-    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
-      next: (response: ReservationResponse[]) => {
-        this.allReservations = this.mappingService.mapReservations(response, this.contacts, this.properties, this.companies);
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (response: ReservationListResponse[]) => {
+        this.isServiceError = false;
+        this.allReservations = this.mappingService.mapReservationList(response);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
+        this.allReservations = [];
+        this.reservationsDisplay = [];
+        // Don't show toast for 401 - interceptor handles it
+        // Don't show toast for 400 - API handles it
+        if (err.status !== 400 && err.status !== 401) {
           this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
         }
       }
@@ -148,15 +128,6 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
-  loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
-        this.contacts = contacts || [];
-      });
-    });
-  }
-
   loadCompanies(): void {
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
@@ -172,13 +143,11 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    this.propertyService.getProperties().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
-      next: (properties: PropertyResponse[]) => {
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+      next: (properties: PropertyListResponse[]) => {
         this.properties = properties;
-        // Try to get reservations if contacts are also loaded
-        if (this.contacts.length > 0) {
-          this.getReservations();
-        }
+        // Get reservations - ReservationListResponse already includes contactName, so we don't need contacts
+        this.getReservations();
       },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
@@ -186,10 +155,8 @@ export class ReservationListComponent implements OnInit, OnDestroy {
           this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.removeLoadItem('properties');
-        // Try to get reservations even if properties failed
-        if (this.contacts.length > 0) {
-          this.getReservations();
-        }
+        // Get reservations even if properties failed - ReservationListResponse already includes contactName
+        this.getReservations();
       }
     });
   }
@@ -281,8 +248,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.contactsSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
+
     this.itemsToLoad$.complete();
   }
   //#endregion

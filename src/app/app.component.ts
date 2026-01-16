@@ -45,11 +45,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadDailyQuote();
     this.loadStates();
 
-    // Initialize organization list and load contacts/offices when user is logged in
-    this.initializeOrganizationList();
-    this.loadContacts();
-    this.loadOffices();
-
     // Watch for login changes and re-initialize organization list, contacts, and offices
     this.authService.getIsLoggedIn$().subscribe(isLoggedIn => {
       if (isLoggedIn) {
@@ -79,11 +74,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   loadDailyQuote(): void {
     this.commonService.loadDailyQuote();
-    this.commonService.getDailyQuote().pipe(
-      filter(quote => quote !== null),
-      take(1),
-      finalize(() => { this.removeLoadItem('dailyQuote'); })
-    ).subscribe({
+    this.commonService.getDailyQuote().pipe(filter(quote => quote !== null), take(1), finalize(() => { this.removeLoadItem('dailyQuote'); })).subscribe({
       next: () => {},
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -95,17 +86,6 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadContacts(): void {
-    if (!this.authService.getIsLoggedIn()) {
-      this.removeLoadItem('contacts');
-      return;
-    }
-
-    const user = this.authService.getUser();
-    if (!user || !user.organizationId) {
-      this.removeLoadItem('contacts');
-      return;
-    }
-
     this.contactService.loadAllContacts();
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
       next: () => {},
@@ -116,17 +96,6 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    if (!this.authService.getIsLoggedIn()) {
-      this.removeLoadItem('offices');
-      return;
-    }
-
-    const user = this.authService.getUser();
-    if (!user || !user.organizationId) {
-      this.removeLoadItem('offices');
-      return;
-    }
-
     this.officeService.loadAllOffices();
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: () => {},
@@ -137,17 +106,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   initializeOrganizationList(): void {
-    if (!this.authService.getIsLoggedIn()) {
-      this.removeLoadItem('organizations');
-      return;
-    }
-
     const user = this.authService.getUser();
-    if (!user || !user.userId) {
-      this.removeLoadItem('organizations');
-      return;
-    }
-
     const userGuid = user.userId;
     const adminUserGuid = '00000000-0000-0000-0000-000000000000';
 

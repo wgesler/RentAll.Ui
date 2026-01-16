@@ -235,7 +235,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
         regionCode: this.region.regionCode?.toUpperCase() || '',
         name: this.region.name,
         description: this.region.description || '',
-        officeId: this.region.officeId ? parseInt(this.region.officeId, 10) : null,
+        officeId: this.region.officeId,
         isActive: this.region.isActive
       });
     }

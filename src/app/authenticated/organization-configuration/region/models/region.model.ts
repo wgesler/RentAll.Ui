@@ -3,7 +3,7 @@ import { of } from "rxjs";
 export interface RegionRequest {
   regionId?: number;
   organizationId: string;
-  officeId?: string;
+  officeId: string;
   regionCode: string;
   name: string;
   description?: string;
@@ -13,7 +13,8 @@ export interface RegionRequest {
 export interface RegionResponse {
   regionId: number;
   organizationId: string;
-  officeId?: string;
+  officeId: number;
+  officeName: string;
   regionCode: string;
   name: string;
   description?: string;
@@ -23,8 +24,8 @@ export interface RegionResponse {
 export interface RegionListDisplay {
   regionId: number;
   regionCode: string;
-  officeId?: string;
-  officeName?: string;
+  officeId: number;
+  officeName: string;
   name: string;
   description?: string;
   isActive: boolean;

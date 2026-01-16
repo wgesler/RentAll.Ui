@@ -4,11 +4,11 @@ import { RouterLink, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { FormsModule } from '@angular/forms';
 import { PropertyService } from '../../property/services/property.service';
-import { PropertyResponse } from '../../property/models/property.model';
+import { PropertyListResponse } from '../../property/models/property.model';
 import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationService } from '../services/reservation.service';
-import { ReservationResponse } from '../models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationStatus } from '../models/reservation-enum';
 import { RouterUrl } from '../../../app.routes';
 import { ContactService } from '../../contact/services/contact.service';
@@ -34,7 +34,7 @@ import { MappingService } from '../../../services/mapping.service';
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   properties: BoardProperty[] = [];
   calendarDays: CalendarDay[] = [];
-  reservations: ReservationResponse[] = [];
+  reservations: ReservationListResponse[] = [];
   contacts: ContactResponse[] = [];
   contactsSubscription?: Subscription;
   contactMap: Map<string, ContactResponse> = new Map();
@@ -44,7 +44,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   startDate: Date = null;
   endDate: Date = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -111,12 +111,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
-        this.contactMap = this.mappingService.createContactMap(this.contacts);
-      });
+       });
     });
   }
+
 
   loadColors(): void {
     this.colorService.getColors().pipe(take(1), finalize(() => { this.removeLoadItem('colors'); })).subscribe({
@@ -138,7 +138,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const userId = this.authService.getUser()?.userId || '';
 
     this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
-      next: (properties: PropertyResponse[]) => {
+      next: (properties: PropertyListResponse[]) => {
         this.properties = this.mappingService.mapPropertiesToBoardProperties(properties, this.reservations);
       },
       error: (err: HttpErrorResponse) => {
@@ -151,8 +151,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
   
   loadReservations(): void {
-    this.reservationService.getReservations().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
-      next: (reservations: ReservationResponse[]) => {
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (reservations: ReservationListResponse[]) => {
         this.reservations = reservations.filter(r => r.isActive);
         // Load properties after reservations are loaded so we can use reservation monthly rates
         this.loadProperties();
@@ -239,7 +239,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return groups;
   }
 
-  getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationResponse | null {
+  getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationListResponse | null {
     const matchingReservations = this.reservations.filter(r => {
       if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
         return false;
@@ -277,7 +277,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return matchingReservations[0];
   }
 
-  getReservationStatusClass(reservation: ReservationResponse | null, date: Date): string {
+  getReservationStatusClass(reservation: ReservationListResponse | null, date: Date): string {
     if (!reservation) {
       return '';
     }
@@ -301,7 +301,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  getReservationColor(reservation: ReservationResponse | null, date: Date): string | null {
+  getReservationColor(reservation: ReservationListResponse | null, date: Date): string | null {
     if (!reservation) {
       return null;
     }
@@ -342,7 +342,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
-  getReservationDisplayText(reservation: ReservationResponse | null, date: Date): string {
+  getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
     if (!reservation) {
       return '';
     }

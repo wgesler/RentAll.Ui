@@ -1,12 +1,11 @@
 import { Injectable } from '@angular/core';
 import { CompanyResponse, CompanyListDisplay } from '../authenticated/company/models/company.model';
 import { VendorResponse, VendorListDisplay } from '../authenticated/vendor/models/vendor.model';
-import { PropertyResponse, PropertyListDisplay } from '../authenticated/property/models/property.model';
+import { PropertyListDisplay, PropertyListResponse } from '../authenticated/property/models/property.model';
 import { ContactResponse, ContactListDisplay } from '../authenticated/contact/models/contact.model';
 import { EntityType } from '../authenticated/contact/models/contact-type';
 import { UserResponse, UserListDisplay } from '../authenticated/user/models/user.model';
-import { UserGroups } from '../authenticated/user/models/user-type';
-import { ReservationResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
+import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
 import { ReservationStatus } from '../authenticated/reservation/models/reservation-enum';
 import { AgentResponse, AgentListDisplay } from '../authenticated/organization-configuration/agent/models/agent.model';
 import { AreaResponse, AreaListDisplay } from '../authenticated/organization-configuration/area/models/area.model';
@@ -28,36 +27,26 @@ import { DocumentType } from '../authenticated/documents/models/document.enum';
 export class MappingService {
   constructor(private formatter: FormatterService) { }
   
-  mapAgents(agents: AgentResponse[], offices?: OfficeResponse[]): AgentListDisplay[] {
+  mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
     return agents.map<AgentListDisplay>((o: AgentResponse) => {
-      let officeName = '';
-      if (o.officeId && offices) {
-        const office = offices.find(off => off.officeId === o.officeId);
-        officeName = office?.name || '';
-      }
       return {
         agentId: o.agentId,
         agentCode: o.agentCode,
         officeId: o.officeId,
-        officeName: officeName || undefined,
+        officeName: o.officeName,
         name: o.name,
         isActive: o.isActive
       };
     });
   }
 
-  mapAreas(areas: AreaResponse[], offices?: OfficeResponse[]): AreaListDisplay[] {
+  mapAreas(areas: AreaResponse[]): AreaListDisplay[] {
     return areas.map<AreaListDisplay>((o: AreaResponse) => {
-      let officeName = '';
-      if (o.officeId && offices) {
-        const office = offices.find(off => String(off.officeId) === String(o.officeId));
-        officeName = office?.name || '';
-      }
       return {
         areaId: o.areaId,
         areaCode: o.areaCode,
         officeId: o.officeId,
-        officeName: officeName || undefined,
+        officeName: o.officeName,
         name: o.name,
         description: o.description,
         isActive: o.isActive
@@ -65,20 +54,15 @@ export class MappingService {
     });
   }
 
-  mapBuildings(buildings: BuildingResponse[], offices?: OfficeResponse[]): BuildingListDisplay[] {
+  mapBuildings(buildings: BuildingResponse[]): BuildingListDisplay[] {
     return buildings.map<BuildingListDisplay>((o: BuildingResponse) => {
-      let officeName = '';
-      if (o.officeId && offices) {
-        const office = offices.find(off => String(off.officeId) === String(o.officeId));
-        officeName = office?.name || '';
-      }
       return {
         buildingId: o.buildingId,
         buildingCode: o.buildingCode,
         name: o.name,
         description: o.description,
         officeId: o.officeId,
-        officeName: officeName || undefined,
+        officeName: o.officeName,
         hoaName: o.hoaName,
         hoaPhone: o.hoaPhone,
         hoaEmail: o.hoaEmail,
@@ -96,17 +80,13 @@ export class MappingService {
     }));
   }
 
-  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[], offices?: OfficeResponse[]): CompanyListDisplay[] {
+  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
-      let office = '';
-      if (o.officeId && offices) {
-        const officeObj = offices.find(off => off.officeId === o.officeId);
-        office = officeObj?.name || '';
-      }
       return {
         companyId: o.companyId,
         companyCode: o.companyCode,
-        office: office || undefined,
+        officeId: o.officeId,
+        officeName: o.officeName,
         name: o.name,
         city: o.city,
         state: o.state,
@@ -118,17 +98,13 @@ export class MappingService {
     });
   }
 
-  mapVendors(vendors: VendorResponse[], offices?: OfficeResponse[]): VendorListDisplay[] {
+  mapVendors(vendors: VendorResponse[]): VendorListDisplay[] {
     return vendors.map<VendorListDisplay>((o: VendorResponse) => {
-      let office = '';
-      if (o.officeId && offices) {
-        const officeObj = offices.find(off => off.officeId === o.officeId);
-        office = officeObj?.name || '';
-      }
-      return {
+     return {
         vendorId: o.vendorId,
         vendorCode: o.vendorCode,
-        office: office || undefined,
+        officeId: o.officeId,
+        officeName: o.officeName,
         name: o.name,
         city: o.city,
         state: o.state,
@@ -139,18 +115,14 @@ export class MappingService {
     });
   }
 
-  mapContacts(contacts: ContactResponse[], offices?: OfficeResponse[]): ContactListDisplay[] {
+  mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
-      let office = '';
-      if (o.officeId && offices) {
-        const officeObj = offices.find(off => off.officeId === o.officeId);
-        office = officeObj?.name || '';
-      }
       return {
         contactId: o.contactId,
         contactCode: o.contactCode,
-        office: office || undefined,
-        fullName: o.firstName + ' ' + o.lastName,
+        officeId: o.officeId,
+        officeName: o.officeName,
+        fullName: o.fullName,
         contactType: this.formatContactType(o.entityTypeId),
         phone: this.formatPhoneNumber(o.phone),
         email: o.email,
@@ -208,54 +180,38 @@ export class MappingService {
     }));
   }
 
-  mapProperties(properties: PropertyResponse[], contacts?: ContactResponse[], offices?: OfficeResponse[]): PropertyListDisplay[] {
-    return properties.map<PropertyListDisplay>((o: PropertyResponse) => {
-      let ownerName = '';
-      let owner1Id = '';
-      if (o.owner1Id && contacts) {
-        const contact = contacts.find(c => c.contactId === o.owner1Id);
-        if (contact) {
-          ownerName = contact.firstName + ' ' + contact.lastName;
-          owner1Id = contact.contactId;
-        }
-      }
-      let office = '';
-      if (o.officeId && offices) {
-        const officeObj = offices.find(off => off.officeId === o.officeId);
-        office = officeObj?.name || '';
-      }
-      // Use address1 as name since API doesn't have a name field
-      const propertyName = o.address1 || o.propertyCode || '';
+  mapProperties(properties: PropertyListResponse[]): PropertyListDisplay[] {
+    return properties.map<PropertyListDisplay>((o: PropertyListResponse) => {
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
-        office: office || undefined,
-        owner: ownerName || '',
-        owner1Id: owner1Id || o.owner1Id || '',
-        owner2Id: o.owner2Id || '',
-        owner3Id: o.owner3Id || '',
-        accomodates: o.accomodates,
+        shortAddress: o.shortAddress,
+        officeId: o.officeId,
+        officeName: o.officeName,
+        owner1Id: o.owner1Id,
+        ownerName: o.ownerName,
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,
+        accomodates: o.accomodates,
         squareFeet: o.squareFeet,
         monthlyRate: o.monthlyRate,
+        dailyRate: o.dailyRate,
+        departureFee: o.departureFee,
+        petFee: o.petFee,
+        maidServiceFee: o.maidServiceFee,
+        propertyStatusId: o.propertyStatusId,
         isActive: o.isActive, 
       };
     });
   }
 
-  mapRegions(regions: RegionResponse[], offices?: OfficeResponse[]): RegionListDisplay[] {
+  mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
     return regions.map<RegionListDisplay>((o: RegionResponse) => {
-      let officeName = '';
-      if (o.officeId && offices) {
-        const office = offices.find(off => String(off.officeId) === String(o.officeId));
-        officeName = office?.name || '';
-      }
       return {
         regionId: o.regionId,
         regionCode: o.regionCode,
         officeId: o.officeId,
-        officeName: officeName || undefined,
+        officeName: o.officeName,
         name: o.name,
         description: o.description,
         isActive: o.isActive
@@ -263,59 +219,54 @@ export class MappingService {
     });
   }
 
-  mapReservations(reservations: ReservationResponse[], contacts?: ContactResponse[], properties?: PropertyResponse[], companies?: CompanyResponse[], offices?: OfficeResponse[]): ReservationListDisplay[] {
-    return reservations.map<ReservationListDisplay>((o: ReservationResponse) => {
-      let contactName = '';
-      let companyName = 'N/A';
-      if (o.contactId && contacts) {
-        const contact = contacts.find(c => c.contactId === o.contactId);
-        if (contact) {
-          contactName = contact.firstName + ' ' + contact.lastName;
-          if(contact.entityTypeId == EntityType.Company && companies) {
-            const company = companies.find(comp => comp.companyId === contact.entityId);
-            if (company) {
-              companyName = company.name;
-            }
-          }
-        } else {
-          // If contact not found, use tenantName as fallback
-          contactName = o.tenantName || '';
-        }
-      } else if (o.tenantName) {
-        contactName = o.tenantName;
-      }
-
-      // Get propertyCode by looking it up from properties using propertyId
-      let propertyCode = '';
-      let officeId: number | undefined;
-      if (o.propertyId && properties) {
-        const property = properties.find(p => p.propertyId === o.propertyId);
-        if (property) {
-          propertyCode = property.propertyCode || '';
-          officeId = property.officeId;
-        }
-      }
-
-      // Get office name from property's officeId
-      let office = '';
-      if (officeId && offices) {
-        const officeObj = offices.find(off => off.officeId === officeId);
-        office = officeObj?.name || '';
-      }
-
+  // Map ReservationListResponse[] (full detail) to ReservationListDisplay
+  mapReservations(reservations: ReservationListResponse[]): ReservationListDisplay[] {
+    return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
-        office: office || undefined,
-        propertyCode: propertyCode, 
+        propertyId: o.propertyId,
+        propertyCode: o.propertyCode,
+        officeId: o.officeId,
+        officeName: o.officeName,
+        office: o.officeName || undefined,
         contactId: o.contactId || '',
-        contactName: contactName || '',
-        companyName: companyName || '',
+        contactName: o.contactName,
+        tenantName: o.tenantName,
+        companyName: o.companyName,
+        agentCode: o.agentCode,
+        monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
-        reservationStatus: this.formatReservationStatus(o.reservationStatusId),
-        reservationStatusId: o.reservationStatusId, // Added for proper sorting
-        isActive: o.isActive
+        reservationStatusId: o.reservationStatusId,
+        isActive: o.isActive,
+        createdOn: this.formatter.formatDateTimeString(o.createdOn)
+      };
+    });
+  }
+
+  // Map ReservationListResponse[] (list view) to ReservationListDisplay
+  mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
+    return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
+      return {
+        reservationId: o.reservationId,
+        reservationCode: o.reservationCode,
+        propertyId: o.propertyId,
+        propertyCode: o.propertyCode,
+        officeId: o.officeId,
+        officeName: o.officeName,
+        office: o.officeName || undefined,
+        contactId: o.contactId,
+        contactName: o.contactName,
+        tenantName: o.tenantName,
+        companyName: o.companyName || 'N/A',
+        agentCode: o.agentCode,
+        monthlyRate: o.monthlyRate,
+        arrivalDate: this.formatter.formatDateString(o.arrivalDate),
+        departureDate: this.formatter.formatDateString(o.departureDate),
+        reservationStatusId: o.reservationStatusId,
+        isActive: o.isActive,
+        createdOn: this.formatter.formatDateTimeString(o.createdOn)
       };
     });
   }
@@ -424,61 +375,20 @@ export class MappingService {
     return statusMap[statusId] || '?';
   }
 
-  getMonthlyRateFromReservation(propertyId: string, reservations: ReservationResponse[]): number | null {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // Find reservations for this property that are active today
-    const activeReservations = reservations.filter(r => {
-      if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
-        return false;
-      }
-      const arrival = new Date(r.arrivalDate);
-      arrival.setHours(0, 0, 0, 0);
-      const departure = new Date(r.departureDate);
-      departure.setHours(0, 0, 0, 0);
-      return today >= arrival && today <= departure;
-    });
-
-    // If we have active reservations, use the first one (or most recent by arrival date)
-    if (activeReservations.length > 0) {
-      // Sort by arrival date descending to get the most recent
-      activeReservations.sort((a, b) => {
-        if (!a.arrivalDate || !b.arrivalDate) return 0;
-        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
-      });
-      return activeReservations[0].billingRate;
-    }
-
-    // If no active reservation today, look for the most recent reservation for this property
-    const propertyReservations = reservations.filter(r => r.propertyId === propertyId);
-    if (propertyReservations.length > 0) {
-      // Sort by arrival date descending to get the most recent
-      propertyReservations.sort((a, b) => {
-        if (!a.arrivalDate || !b.arrivalDate) return 0;
-        return new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime();
-      });
-      return propertyReservations[0].billingRate;
-    }
-
-    return null;
-  }
-
-  mapPropertiesToBoardProperties(properties: PropertyResponse[], reservations: ReservationResponse[]): BoardProperty[] {
+  mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {
     return (properties || []).map(p => {
-      const reservationMonthlyRate = this.getMonthlyRateFromReservation(p.propertyId, reservations);
       return {
         propertyId: p.propertyId,
         propertyCode: p.propertyCode,
-        address: `${p.address1}${p.suite ? ' ' + p.suite : ''}`.trim(),
-        monthlyRate: reservationMonthlyRate ?? p.monthlyRate ?? 0,
+        address: p.shortAddress,
+        monthlyRate: p.monthlyRate,
         bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
         statusLetter: this.getPropertyStatusLetter(p.propertyStatusId)
       };
     });
   }
 
-  mapDocuments(documents: DocumentResponse[], offices?: OfficeResponse[]): DocumentListDisplay[] {
+  mapDocuments(documents: DocumentResponse[]): DocumentListDisplay[] {
     return documents.map<DocumentListDisplay>((doc: DocumentResponse) => {
       // Convert documentTypeId (number) to DocumentType enum, then get the user-friendly label
       const documentType = doc.documentTypeId as DocumentType;
@@ -486,20 +396,12 @@ export class MappingService {
       const formattedCreatedOn = this.formatter.formatDateTimeString(doc.createdOn);
       const canView = this.isViewableInBrowser(doc.contentType, doc.fileExtension);
       
-      // Find office name from officeId
-      let office = '';
-      if (doc.officeId && offices) {
-        const officeObj = offices.find(o => o.officeId === doc.officeId);
-        office = officeObj?.name || '';
-      }
-      
       return {
         ...doc,
         documentTypeName: documentTypeName,
         createdOn: formattedCreatedOn,
         canView: canView,
-        office: office || undefined
-      };
+       };
     });
   }
 

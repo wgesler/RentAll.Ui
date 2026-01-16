@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 
 @Injectable({
@@ -18,9 +18,9 @@ export class PropertyService {
       private configService: ConfigService) {
   }
 
-  // GET: Get all properties
-  getProperties(): Observable<PropertyResponse[]> {
-    return this.http.get<PropertyResponse[]>(this.controller);
+  // GET: Get property list (summary view)
+  getPropertyList(): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'list');
   }
 
   // GET: Get property by ID
@@ -59,8 +59,8 @@ export class PropertyService {
   }
 
   // POST: Get properties by selection criteria
-  getPropertiesBySelectionCritera(userId: string): Observable<PropertyResponse[]> {
-    return this.http.get<PropertyResponse[]>(this.controller + 'user/' + userId);
+  getPropertiesBySelectionCritera(userId: string): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
   }
 }
 

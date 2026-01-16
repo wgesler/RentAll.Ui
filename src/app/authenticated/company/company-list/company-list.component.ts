@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { CompanyResponse, CompanyListDisplay } from '../models/company.model';
 import { CompanyService } from '../services/company.service';
@@ -8,13 +8,11 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-company-list',
@@ -30,11 +28,9 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allCompanies: CompanyListDisplay[] = [];
   companiesDisplay: CompanyListDisplay[] = [];
-  offices: OfficeResponse[] = [];
-  officesSubscription?: Subscription;
 
   companiesDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '20ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'companyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'city': { displayAs: 'City' },
@@ -44,28 +40,25 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public companyService: CompanyService,
     public toastr: ToastrService,
-    public route: ActivatedRoute,
     public router: Router,
-    public forms: FormsModule,
-    public mappingService: MappingService,
-    private officeService: OfficeService) {
+    public mappingService: MappingService) {
   }
 
   //#region Company-List
   ngOnInit(): void {
-    this.loadOffices();
+    this.getCompanies();
   }
 
   getCompanies(): void {
     this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
       next: (companies) => {
-        this.allCompanies = this.mappingService.mapCompanies(companies, undefined, this.offices);
+        this.allCompanies = this.mappingService.mapCompanies(companies, undefined);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -102,19 +95,6 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Data Load Methods
-  loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.removeLoadItem('offices');
-        this.getCompanies();
-      });
-    });
-  }
-  //#endregion
-
   //#region Filter methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
@@ -139,7 +119,6 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

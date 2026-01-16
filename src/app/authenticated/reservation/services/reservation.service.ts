@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { ReservationRequest, ReservationResponse, ReservationListResponse } from '../models/reservation-model';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +16,12 @@ export class ReservationService {
     private configService: ConfigService) {
   }
 
-  // GET: Get all reservations
+  // GET: Get reservation list (summary view)
+  getReservationList(): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'list');
+  }
+
+  // GET: Get all reservations (full detail)
   getReservations(): Observable<ReservationResponse[]> {
     return this.http.get<ReservationResponse[]>(this.controller);
   }
