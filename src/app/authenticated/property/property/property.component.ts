@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
@@ -32,6 +32,7 @@ import { PropertyLetterInformationComponent } from '../property-information/prop
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
 
 @Component({
   selector: 'app-property',
@@ -50,8 +51,11 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 })
 
 export class PropertyComponent implements OnInit, OnDestroy {
+  @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
+  
   DocumentType = DocumentType; // Make DocumentType available in template
   isServiceError: boolean = false;
+  selectedTabIndex: number = 0;
   propertyId: string;
   property: PropertyResponse;
   form: FormGroup;
@@ -115,7 +119,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private areaService: AreaService,
     private buildingService: BuildingService,
     public utilityService: UtilityService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService
+    private welcomeLetterReloadService: WelcomeLetterReloadService,
+    private documentReloadService: DocumentReloadService
   ) {
   }
 
@@ -180,6 +185,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.itemsToLoad$.next(newSet);
           this.getProperty();
         }
+      }
+    });
+    
+    // Check query params for tab selection
+    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+      if (queryParams['tab'] === 'documents') {
+        this.selectedTabIndex = 3; // Documents tab
       }
     });
     
@@ -317,6 +329,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           
           // Trigger welcome letter reload event
           this.welcomeLetterReloadService.triggerReload();
+          
+          // Trigger document reload event
+          this.documentReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -337,6 +352,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           
           // Trigger welcome letter reload event
           this.welcomeLetterReloadService.triggerReload();
+          
+          // Trigger document reload event
+          this.documentReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -829,6 +847,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.TenantList);
+  }
+
+  onTabChange(event: any): void {
+    // When Documents tab (index 3) is selected, reload the document list
+    if (event.index === 3 && this.propertyDocumentList) {
+      this.propertyDocumentList.reload();
+    }
   }
   //#endregion
 }

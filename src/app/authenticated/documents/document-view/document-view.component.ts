@@ -25,6 +25,12 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   iframeKey: number = 0;
   isServiceError: boolean = false;
   canViewInBrowser: boolean = false;
+  
+  // Return context
+  returnTo?: string;
+  propertyId?: string;
+  reservationId?: string;
+  documentTypeId?: number;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -39,6 +45,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Get route params
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
       if (id) {
@@ -48,6 +55,14 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
         this.toastr.error('Invalid document ID', CommonMessage.Error);
         this.back();
       }
+    });
+    
+    // Get query params for return context
+    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+      this.returnTo = queryParams['returnTo'];
+      this.propertyId = queryParams['propertyId'];
+      this.reservationId = queryParams['reservationId'];
+      this.documentTypeId = queryParams['documentTypeId'] ? Number(queryParams['documentTypeId']) : undefined;
     });
   }
 
@@ -194,7 +209,24 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.DocumentList);
+    // If we came from a tab, navigate back to that tab
+    if (this.returnTo === 'tab' && this.propertyId && this.documentTypeId !== undefined) {
+      if (this.documentTypeId === 2 && this.reservationId) {
+        // Return to reservation Documents tab
+        const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [this.reservationId]);
+        this.router.navigateByUrl(reservationUrl + '?tab=documents');
+      } else if (this.documentTypeId === 1) {
+        // Return to property Documents tab
+        const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [this.propertyId]);
+        this.router.navigateByUrl(propertyUrl + '?tab=documents');
+      } else {
+        // Fallback to document list
+        this.router.navigateByUrl(RouterUrl.DocumentList);
+      }
+    } else {
+      // Default: return to sidebar document list
+      this.router.navigateByUrl(RouterUrl.DocumentList);
+    }
   }
 
   removeLoadItem(key: string): void {

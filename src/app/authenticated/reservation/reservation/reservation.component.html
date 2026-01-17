@@ -23,7 +23,7 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="0" class="reservation-tabs">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Reservation">
             @if (form) {
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
@@ -482,7 +482,7 @@
             }
           </mat-tab>
           
-          <mat-tab label="Lease Information">
+          <mat-tab label="Information">
             <app-lease-information 
               [reservationId]="isAddMode ? null : reservationId"
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null"
@@ -496,6 +496,7 @@
           
           <mat-tab label="Documents">
             <app-document-list 
+              #reservationDocumentList
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null" 
               [documentTypeId]="DocumentType.ReservationLease"
               [hideHeader]="true">

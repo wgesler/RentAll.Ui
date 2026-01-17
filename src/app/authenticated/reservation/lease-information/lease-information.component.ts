@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
@@ -18,7 +18,7 @@ import { LeaseReloadService } from '../services/lease-reload.service';
   templateUrl: './lease-information.component.html',
   styleUrl: './lease-information.component.scss'
 })
-export class LeaseInformationComponent implements OnInit, OnDestroy {
+export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;
   @Input() propertyId: string | null = null;
   @Input() contactId: string | null = null;
@@ -44,6 +44,31 @@ export class LeaseInformationComponent implements OnInit, OnDestroy {
     if (this.propertyId && this.contactId) {
       this.getLeaseInformation();
     } else {
+      this.removeLoadItem('leaseInformation');
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Reload lease information when propertyId or contactId changes
+    const propertyIdChanged = changes['propertyId'] && 
+      (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
+    const contactIdChanged = changes['contactId'] && 
+      (changes['contactId'].previousValue !== changes['contactId'].currentValue);
+    
+    // If either changed and both are now available, load the lease information
+    if ((propertyIdChanged || contactIdChanged) && this.propertyId && this.contactId) {
+      // Reset loading state
+      const currentSet = this.itemsToLoad$.value;
+      if (!currentSet.has('leaseInformation')) {
+        const newSet = new Set(currentSet);
+        newSet.add('leaseInformation');
+        this.itemsToLoad$.next(newSet);
+      }
+      this.getLeaseInformation();
+    } else if ((propertyIdChanged || contactIdChanged) && (!this.propertyId || !this.contactId)) {
+      // If inputs became null/undefined, clear the form
+      this.leaseInformation = null;
+      this.form.reset();
       this.removeLoadItem('leaseInformation');
     }
   }

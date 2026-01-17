@@ -286,3 +286,13 @@
     margin: 0 0 16px 0 !important;
   }
 }
+
+// Property tabs styling - make all tabs equal width
+::ng-deep .property-tabs {
+  .mat-mdc-tab-header {
+    .mdc-tab {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+}

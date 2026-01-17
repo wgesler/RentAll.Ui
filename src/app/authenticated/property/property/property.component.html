@@ -23,7 +23,7 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="0" class="property-tabs">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Property">
             <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
             <!-- First line: IsActive and save button right justified -->
@@ -638,7 +638,7 @@
         </form>
           </mat-tab>
           
-          <mat-tab label="Letter Information">
+          <mat-tab label="Information">
             <app-property-letter-information [propertyId]="isAddMode ? null : propertyId"></app-property-letter-information>
           </mat-tab>
           
@@ -648,6 +648,7 @@
           
           <mat-tab label="Documents">
             <app-document-list 
+              #propertyDocumentList
               [propertyId]="isAddMode ? null : propertyId" 
               [documentTypeId]="DocumentType.PropertyLetter"
               [hideHeader]="true">

@@ -33,6 +33,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -83,7 +84,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private documentExportService: DocumentExportService,
     private documentService: DocumentService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService
+    private welcomeLetterReloadService: WelcomeLetterReloadService,
+    private documentReloadService: DocumentReloadService
   ) {
     this.form = this.buildForm();
   }
@@ -209,6 +211,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         this.toastr.success('Document generated successfully', 'Success');
         this.isSubmitting = false;
         this.generatePreviewIframe();
+        
+        // Trigger document list reload
+        this.documentReloadService.triggerReload();
       },
       error: (err: HttpErrorResponse) => {
         this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);

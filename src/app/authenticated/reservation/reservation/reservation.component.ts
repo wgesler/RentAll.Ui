@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of, Subscription } from 'rxjs';
@@ -32,6 +32,7 @@ import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -47,7 +48,10 @@ import { MappingService } from '../../../services/mapping.service';
 })
 
 export class ReservationComponent implements OnInit, OnDestroy {
+  @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
+  
   isServiceError: boolean = false;
+  selectedTabIndex: number = 0;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
@@ -105,7 +109,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private documentReloadService: DocumentReloadService
   ) {
   }
 
@@ -131,6 +136,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       
       if (this.isAddMode) {
         this.billingPanelOpen = false;
+      }
+    });
+    
+    // Check query params for tab selection
+    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+      if (queryParams['tab'] === 'documents') {
+        this.selectedTabIndex = 3; // Documents tab
       }
     });
     
@@ -1053,6 +1065,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.ReservationList);
+  }
+
+  onTabChange(event: any): void {
+    // When Documents tab (index 3) is selected, reload the document list
+    if (event.index === 3 && this.reservationDocumentList) {
+      this.reservationDocumentList.reload();
+    }
   }
   //#endregion
 }
