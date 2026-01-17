@@ -29,6 +29,8 @@ import { AreaResponse } from '../../organization-configuration/area/models/area.
 import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterInformationComponent } from '../property-information/property-letter-information.component';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
@@ -40,13 +42,15 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
     FormsModule, 
     ReactiveFormsModule,
     PropertyWelcomeLetterComponent,
-    PropertyLetterInformationComponent
+    PropertyLetterInformationComponent,
+    DocumentListComponent
   ],
   templateUrl: './property.component.html',
   styleUrls: ['./property.component.scss']
 })
 
 export class PropertyComponent implements OnInit, OnDestroy {
+  DocumentType = DocumentType; // Make DocumentType available in template
   isServiceError: boolean = false;
   propertyId: string;
   property: PropertyResponse;

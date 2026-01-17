@@ -32,6 +32,11 @@ export class DocumentService {
     return this.http.get<DocumentResponse[]>(this.controller + 'office/' + officeId);
   }
 
+  // GET: Get documents by property ID and type
+  getByPropertyType(propertyId: string, id: number): Observable<DocumentResponse[]> {
+    return this.http.get<DocumentResponse[]>(this.controller + 'property/' + propertyId + '/type/' + id);
+  }
+
   // POST: Create a new document
   createDocument(document: DocumentRequest): Observable<DocumentResponse> {
     return this.http.post<DocumentResponse>(this.controller, document);
@@ -69,7 +74,10 @@ export class DocumentService {
       htmlContent: dto.htmlContent,
       organizationId: dto.organizationId,
       officeId: dto.officeId,
-      documentTypeId: dto.documentType as number, // Convert enum to number for API
+      officeName: dto.officeName,
+      propertyId: dto.propertyId || null,
+      reservationId: dto.reservationId || null,
+      documentTypeId: Number(dto.documentType), // Explicitly convert enum to number
       fileName: dto.fileName
     };
     return this.http.post(this.controller + 'generate-download', requestBody, { responseType: 'blob' });
@@ -82,7 +90,10 @@ export class DocumentService {
       htmlContent: dto.htmlContent,
       organizationId: dto.organizationId,
       officeId: dto.officeId,
-      documentTypeId: dto.documentType as number, // Convert enum to number for API
+      officeName: dto.officeName,
+      propertyId: dto.propertyId || null,
+      reservationId: dto.reservationId || null,
+      documentTypeId: Number(dto.documentType), // Explicitly convert enum to number
       fileName: dto.fileName
     };
     return this.http.post<DocumentResponse>(this.controller + 'generate', requestBody);

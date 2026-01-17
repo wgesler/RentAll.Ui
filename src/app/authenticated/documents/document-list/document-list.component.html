@@ -1,17 +1,8 @@
 @if (!(isLoading$ | async)) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-        <div class="flex items-baseline">
-          <mat-icon mat-list-icon class="mr-5">description</mat-icon>
-          <h2 class="m-0">Documents</h2>
-        </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addDocument()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
-      </div>
-      <mat-card>
+  @if (hideHeader) {
+    <!-- Full-page layout when inside a tab -->
+    <div class="document-list-tab-container">
+      <mat-card class="full-height-card">
         <div class="mat">
           <div class="tableDiv">
             <app-data-table
@@ -33,8 +24,46 @@
           </div>
         </div>
       </mat-card>
-    </section>
-  </div>
+    </div>
+  } @else {
+    <!-- Standard layout with header -->
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+          <div class="flex items-baseline">
+            <mat-icon mat-list-icon class="mr-5">description</mat-icon>
+            <h2 class="m-0">Documents</h2>
+          </div>
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addDocument()" class="scale-90 text-nowrap">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+        </div>
+        <mat-card>
+          <div class="mat">
+            <div class="tableDiv">
+              <app-data-table
+                [data]="documentsDisplay"
+                [columns]="documentsDisplayedColumns"
+                [hasColumnIndex]="false"
+                [hasFilter]="true"
+                [hasToggleTop]="false"
+                [hasActionsRowClick]="true"
+                [hasActionsView]="true"
+                [hasActionsEdit]="false"
+                [hasActionsDownload]="true"
+                [hasActionsDelete]="true"
+                [itemsPerPage]="100"
+                (viewEvent)="viewDocument($event)"
+                (downloadEvent)="downloadDocument($event)"
+                (rowClickEvent)="viewDocument($event)"
+                (deleteEvent)="deleteDocument($event)"/>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
 } @else {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>

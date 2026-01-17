@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -13,6 +13,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MappingService } from '../../../services/mapping.service';
+import { DocumentType } from '../models/document.enum';
 
 @Component({
   selector: 'app-document-list',
@@ -22,7 +23,11 @@ import { MappingService } from '../../../services/mapping.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class DocumentListComponent implements OnInit, OnDestroy {
+export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() propertyId?: string;
+  @Input() documentTypeId?: number;
+  @Input() hideHeader: boolean = false;
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
@@ -31,6 +36,8 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   documentsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
     'fileExtension': { displayAs: 'Extension', maxWidth: '15ch'},
@@ -50,7 +57,32 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   //#region Document-List
   ngOnInit(): void {
-    this.getDocuments();
+    // Only load if propertyId and documentTypeId are already available
+    if (this.propertyId && this.documentTypeId !== undefined) {
+      this.getDocuments();
+    } else if (!this.propertyId && this.documentTypeId === undefined) {
+      // Only load all documents if no filters are provided
+      this.getDocuments();
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Reload documents when propertyId or documentTypeId changes
+    const propertyIdChanged = changes['propertyId'] && 
+      (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
+    const documentTypeIdChanged = changes['documentTypeId'] && 
+      (changes['documentTypeId'].previousValue !== changes['documentTypeId'].currentValue);
+    
+    if (propertyIdChanged || documentTypeIdChanged) {
+      // Reset loading state
+      const currentSet = this.itemsToLoad$.value;
+      if (!currentSet.has('documents')) {
+        const newSet = new Set(currentSet);
+        newSet.add('documents');
+        this.itemsToLoad$.next(newSet);
+      }
+      this.getDocuments();
+    }
   }
 
   addDocument(): void {
@@ -58,18 +90,37 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   }
 
   getDocuments(): void {
-    this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
-      next: (documents) => {
-        this.allDocuments = this.mappingService.mapDocuments(documents);
-        this.documentsDisplay = this.allDocuments;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
+    // If propertyId and documentTypeId are provided, use getByPropertyType
+    if (this.propertyId && this.documentTypeId !== undefined) {
+      this.documentService.getByPropertyType(this.propertyId, this.documentTypeId)
+        .pipe(take(1), finalize(() => { this.removeLoadItem('documents'); }))
+        .subscribe({
+          next: (documents) => {
+            this.allDocuments = this.mappingService.mapDocuments(documents);
+            this.documentsDisplay = this.allDocuments;
+          },
+          error: (err: HttpErrorResponse) => {
+            this.isServiceError = true;
+            if (err.status !== 400 && err.status !== 404) {
+              this.toastr.error('Could not load documents at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
+          }
+        });
+    } else {
+      // Otherwise, get all documents
+      this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
+        next: (documents) => {
+          this.allDocuments = this.mappingService.mapDocuments(documents);
+          this.documentsDisplay = this.allDocuments;
+        },
+        error: (err: HttpErrorResponse) => {
+          this.isServiceError = true;
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   deleteDocument(document: DocumentListDisplay): void {

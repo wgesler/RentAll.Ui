@@ -55,7 +55,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   contacts: ContactResponse[] = [];
   buildings: BuildingResponse[] = [];
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
@@ -197,9 +196,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       organizationId: this.organization.organizationId,
       officeId: this.selectedOffice.officeId,
       officeName: this.selectedOffice.name,
+      propertyId: this.propertyId || null,
+      reservationId: this.selectedReservation?.reservationId || null,
       documentType: DocumentType.PropertyLetter,
       fileName: fileName
     };
+
+    console.log('Generating document with:', generateDto); // Debug log
 
     this.documentService.generate(generateDto).pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
@@ -221,8 +224,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl(null),
-      selectedOfficeId: new FormControl(null)
+      selectedReservationId: new FormControl(null)
     });
   }
   //#endregion
@@ -247,6 +249,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
+        // Set selected office based on property's officeId
+        if (response.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
+          // Generate preview if reservation is already selected
+          if (this.selectedOffice && this.selectedReservation) {
+            this.generatePreviewIframe();
+          }
+        }
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -281,7 +291,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        // Set selected office based on property's officeId if property is already loaded
+        if (this.property?.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
+          // Generate preview if reservation is already selected
+          if (this.selectedOffice && this.selectedReservation) {
+            this.generatePreviewIframe();
+          }
+        }
       });
       this.removeLoadItem('offices');
     });
@@ -347,15 +364,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Functions
-  onOfficeSelected(officeId: number | null): void {
-    if (officeId) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    } else {
-      this.selectedOffice = null;
-    }
-    this.generatePreviewIframe();
-  }
-
   onReservationSelected(reservationId: string | null): void {
     if (reservationId) {
       this.selectedReservation = this.reservations.find(r => r.reservationId === reservationId) || null;
@@ -653,6 +661,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       organizationId: this.organization.organizationId,
       officeId: this.selectedOffice.officeId,
       officeName: this.selectedOffice.name,
+      propertyId: this.propertyId || null,
+      reservationId: this.selectedReservation?.reservationId || null,
       documentType: DocumentType.PropertyLetter,
       fileName: fileName
     };

@@ -197,20 +197,12 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   saveLeaseAsDocument(): void {
-    const formValue = this.form.getRawValue();
-    const officeId = formValue.selectedOfficeId;
-
-    if (!officeId) {
+    if (!this.selectedOffice) {
       this.isSubmitting = false;
       return;
     }
 
     this.isSubmitting = true;
-
-    // Ensure this.selectedOffice is set
-    if (!this.selectedOffice && officeId) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    }
 
     // Generate HTML with styles for PDF
     const htmlWithStyles = this.getPdfHtmlWithStyles();
@@ -222,6 +214,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       organizationId: this.organization!.organizationId,
       officeId: this.selectedOffice!.officeId,
       officeName: this.selectedOffice!.name,
+      propertyId: this.propertyId || null,
+      reservationId: this.selectedReservation?.reservationId || null,
       documentType: DocumentType.ReservationLease,
       fileName: fileName
     };
@@ -247,17 +241,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return this.fb.group({
       lease: new FormControl(''),
       selectedReservationId: new FormControl(null),
-      selectedOfficeId: new FormControl(null)
+      selectedOfficeId: new FormControl({ value: null, disabled: true }) // Disabled since it's readonly
     });
-  }
-
-  onOfficeSelected(officeId: number | null): void {
-    if (officeId) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    } else {
-      this.selectedOffice = null;
-    }
-    this.generatePreviewIframe();
   }
   //#endregion
 
@@ -291,6 +276,14 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        // Set selected office based on reservation's officeId if reservation is already loaded
+        if (this.selectedReservation?.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
+          // Update form control if office is found
+          if (this.selectedOffice) {
+            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+          }
+        }
       });
       this.removeLoadItem('offices');
     });
@@ -338,6 +331,14 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
+        // Set selected office based on reservation's officeId
+        if (reservation.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+          // Update form control if office is found
+          if (this.selectedOffice) {
+            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+          }
+        }
         this.loadContact();
       },
       error: (err: HttpErrorResponse) => {
@@ -913,6 +914,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         organizationId: this.organization.organizationId,
         officeId: this.selectedOffice.officeId,
         officeName: this.selectedOffice.name,
+        propertyId: this.propertyId || null,
+        reservationId: this.selectedReservation?.reservationId || null,
         documentType: DocumentType.ReservationLease,
         fileName: fileName
       };

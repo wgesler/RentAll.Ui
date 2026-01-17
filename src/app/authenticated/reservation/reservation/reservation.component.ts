@@ -30,6 +30,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -39,7 +41,7 @@ import { MappingService } from '../../../services/mapping.service';
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })
@@ -53,6 +55,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   billingPanelOpen: boolean = true;
   ReservationType = ReservationType; // Expose enum to template
   EntityType = EntityType; // Expose enum to template
+  DocumentType = DocumentType; // Expose enum to template
   departureDateStartAt: Date | null = null;
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
