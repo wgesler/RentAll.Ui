@@ -145,6 +145,7 @@ export class MappingService {
       officeId: o.officeId,
       officeCode: o.officeCode,
       name: o.name,
+      address: o.city + ',  ' + o.state, 
       address1: o.address1,
       address2: o.address2,
       suite: o.suite,

@@ -35,8 +35,8 @@ export class AgentListComponent implements OnInit, OnDestroy {
 
   agentsDisplayedColumns: ColumnSet = {
     'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
-    'officeName': { displayAs: 'Primary Office', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
@@ -53,6 +53,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
 
   //#region Agent-List
   ngOnInit(): void {
+    this.getAgents();
   }
 
   addAgent(): void {

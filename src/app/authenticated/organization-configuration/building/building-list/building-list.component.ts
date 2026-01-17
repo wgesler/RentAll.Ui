@@ -54,6 +54,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
 
   //#region Building-List
   ngOnInit(): void {
+    this.getBuildings();
   }
 
   addBuilding(): void {

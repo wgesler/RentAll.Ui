@@ -110,18 +110,21 @@ export class LoginComponent {
       },
       error: (err: HttpErrorResponse) => {
         const loginFailed = 'Login Failed...';
-        if (err.status !== 400) {
-          this.toastr.error('Could not request login at this time. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        } else {
-          if (err.error.message.includes('invalid_grant')) {
-            this.toastr.error('Invalid Credentials', loginFailed);
+        if (err.status === 400 || err.status === 401) {
+          if (err.error?.message?.includes('invalid_grant')) {
+            this.toastr.error('Invalid email or password', loginFailed);
           }
-          else if (err.error.message.includes('not verified')) {
+          else if (err.error?.message?.includes('not verified')) {
             this.toastr.error('Please verify your email', loginFailed);
           } 
           else {
-            this.toastr.error(err.error.message, loginFailed);
+            // Show a user-friendly message, fallback to server message if available
+            const errorMessage = err.error?.message || 'Invalid email or password';
+            this.toastr.error(errorMessage, loginFailed);
           }
+        } else {
+          // For all other errors (network, server errors, etc.), show login failed message
+          this.toastr.error('Please try again', loginFailed);
         }
       }
     });

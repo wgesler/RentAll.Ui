@@ -18,7 +18,7 @@
 
     @if (isLoggedIn | async) {
       <div class="mat-toolbar-rightside">
-        <button mat-button [matMenuTriggerFor]="menu" aria-label="profile button" id="profile-button">
+        <button mat-button [matMenuTriggerFor]="menu" #menuTrigger="matMenuTrigger" aria-label="profile button" id="profile-button">
           <span class="flex justify-end items-center">
             <span class="mobile-hide text-xs font-semibold mr-2">{{ user?.firstName + ' ' + user?.lastName }}</span>
             <mat-icon>person</mat-icon>
@@ -29,10 +29,12 @@
         <mat-menu #menu="matMenu" xPosition="after" class="header-mat-menu">
           <div class="w-full px-4 pt-2">
             <p class="text-sm mb-0 text-end">Logged in as:</p>
-            <div class="w-full text-end">
-              <div class="text-xs font-normal">{{ user?.firstName + ' ' + user?.lastName }}</div>
-              <div class="text-xs font-normal text-blue-600 mb-1">{{ user?.email }}</div>
-            </div>
+            <button mat-button class="w-full text-end p-0 min-w-0 h-auto" (click)="openUserDialog(); menuTrigger.closeMenu()" style="text-transform: none;">
+              <div class="w-full text-end">
+                <div class="text-xs font-normal">{{ user?.firstName + ' ' + user?.lastName }}</div>
+                <div class="text-xs font-normal text-blue-600 mb-1">{{ user?.email }}</div>
+              </div>
+            </button>
           </div>
   
           <mat-divider></mat-divider>

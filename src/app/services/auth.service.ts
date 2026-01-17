@@ -70,6 +70,10 @@ export class AuthService {
             tap((response: AuthResponse) => this.buildRefreshAuthData(response)));
     }
 
+    updatePassword(password: string, newPassword: string): Observable<any> {
+        return this.http.put<any>(this.controller + 'password', { password, newPassword });
+    }
+
     getAuthData(): AuthResponse | null {
         return JSON.parse(this.storageService.getItem(StorageKey.AuthData) || null);
     }

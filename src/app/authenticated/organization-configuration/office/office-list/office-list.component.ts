@@ -32,8 +32,9 @@ export class OfficeListComponent implements OnInit, OnDestroy {
   officesDisplay: OfficeListDisplay[] = [];
 
   officesDisplayedColumns: ColumnSet = {
-    'officeCode': { displayAs: 'Code', maxWidth: '15ch' },
-    'name': { displayAs: 'Name', maxWidth: '20ch' },
+    'officeCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'name': { displayAs: 'Name', maxWidth: '25ch' },
+    'address': { displayAs: 'Location', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch' },
     'fax': { displayAs: 'Fax', maxWidth: '20ch' },
     'website': { displayAs: 'Website', maxWidth: '30ch' },

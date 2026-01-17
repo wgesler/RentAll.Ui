@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, Optional } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, Subscription, BehaviorSubject, Observable, map, filter } from 'rxjs';
+import { take, finalize, Subscription, BehaviorSubject, Observable, map, filter, forkJoin, of } from 'rxjs';
 import { UserService } from '../services/user.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -17,6 +17,13 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+
+export interface UserDialogData {
+  userId: string;
+  isDialog?: boolean;
+  selfEdit?: boolean;
+}
 
 @Component({
   selector: 'app-user',
@@ -33,6 +40,9 @@ export class UserComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  isDialog: boolean = false;
+  selfEdit: boolean = false;
+  hideCurrentPassword: boolean = true;
   hidePassword: boolean = true;
   hideConfirmPassword: boolean = true;
   availableUserGroups: { value: string, label: string }[] = [];
@@ -54,8 +64,17 @@ export class UserComponent implements OnInit, OnDestroy {
     private organizationListService: OrganizationListService,
     private officeService: OfficeService,
     private authService: AuthService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: UserDialogData,
+    @Optional() private dialogRef?: MatDialogRef<UserComponent>
   ) {
+    // Check if component is opened in a dialog
+    this.isDialog = !!dialogData?.isDialog;
+    this.selfEdit = !!dialogData?.selfEdit;
+    if (this.isDialog && dialogData?.userId) {
+      this.userId = dialogData.userId;
+      this.isAddMode = false;
+    }
   }
 
   //#region User
@@ -63,22 +82,31 @@ export class UserComponent implements OnInit, OnDestroy {
     this.initializeUserGroups();
     this.loadOrganizations();
     this.loadOffices();
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.userId = paramMap.get('id');
-        this.isAddMode = this.userId === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('user');
-          this.buildForm();
-          this.setupPasswordValidation();
-        } else {
-          this.getUser();
-        }
-      }
-    });
-    if (!this.isAddMode) {
+    
+    // If opened in dialog, use dialog data
+    if (this.isDialog && this.userId) {
       this.buildForm();
       this.setupPasswordValidation();
+      this.getUser();
+    } else {
+      // Otherwise, use route params (existing behavior)
+      this.route.paramMap.subscribe((paramMap: ParamMap) => {
+        if (paramMap.has('id')) {
+          this.userId = paramMap.get('id');
+          this.isAddMode = this.userId === 'new';
+          if (this.isAddMode) {
+            this.removeLoadItem('user');
+            this.buildForm();
+            this.setupPasswordValidation();
+          } else {
+            this.getUser();
+          }
+        }
+      });
+      if (!this.isAddMode) {
+        this.buildForm();
+        this.setupPasswordValidation();
+      }
     }
   }
 
@@ -106,7 +134,27 @@ export class UserComponent implements OnInit, OnDestroy {
     }
 
     this.isSubmitting = true;
-    const formValue = this.form.value;
+    // Use getRawValue() to include disabled form controls
+    const formValue = this.form.getRawValue();
+    
+    // Check if password change is being made in selfEdit mode
+    let passwordChangeRequest: Observable<any> | null = null;
+    if (this.selfEdit) {
+      const currentPassword = formValue.currentPassword?.trim() || '';
+      const newPassword = formValue.password?.trim() || '';
+      const confirmPassword = formValue.confirmPassword?.trim() || '';
+      const passwordControl = this.form.get('password');
+      const confirmPasswordControl = this.form.get('confirmPassword');
+      
+      // Only send password change if all fields are provided and valid
+      if (currentPassword !== '' && newPassword !== '' && confirmPassword !== '' &&
+          passwordControl?.valid && confirmPasswordControl?.valid && 
+          newPassword === confirmPassword) {
+        passwordChangeRequest = this.authService.updatePassword(currentPassword, newPassword);
+      }
+    }
+
+    // Build user request (excluding password fields for selfEdit mode)
     const userRequest: UserRequest = {
       organizationId: formValue.organizationId,
       firstName: formValue.firstName,
@@ -118,11 +166,20 @@ export class UserComponent implements OnInit, OnDestroy {
       isActive: formValue.isActive
     };
 
+    // For selfEdit mode, don't send password in user update
+    if (this.selfEdit && !this.isAddMode) {
+      userRequest.password = '';
+    }
+
     if (this.isAddMode) {
       this.userService.createUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: UserResponse) => {
           this.toastr.success('User created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.UserList);
+          if (this.isDialog && this.dialogRef) {
+            this.dialogRef.close(true);
+          } else {
+            this.router.navigateByUrl(RouterUrl.UserList);
+          }
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -132,17 +189,73 @@ export class UserComponent implements OnInit, OnDestroy {
       });
     } else {
       userRequest.userId = this.userId;
-      this.userService.updateUser(this.userId, userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: UserResponse) => {
-          this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.UserList);
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+      
+      // Check if there are any user updates (compare with original user data)
+      const hasUserUpdates = this.user && (
+        userRequest.firstName !== this.user.firstName ||
+        userRequest.lastName !== this.user.lastName ||
+        userRequest.email !== this.user.email ||
+        JSON.stringify(userRequest.userGroups) !== JSON.stringify(this.user.userGroups) ||
+        JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
+        userRequest.isActive !== this.user.isActive ||
+        userRequest.organizationId !== this.user.organizationId
+      );
+
+      // Handle password change and user update
+      if (this.selfEdit) {
+        const requests: Observable<any>[] = [];
+        
+        if (passwordChangeRequest) {
+          requests.push(passwordChangeRequest);
         }
-      });
+        
+        if (hasUserUpdates) {
+          requests.push(this.userService.updateUser(this.userId, userRequest));
+        }
+
+        if (requests.length === 0) {
+          // No changes to save
+          this.isSubmitting = false;
+          return;
+        }
+
+        // Execute all requests
+        forkJoin(requests).pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
+          next: () => {
+            const messages = [];
+            if (passwordChangeRequest) messages.push('Password updated');
+            if (hasUserUpdates) messages.push('User information updated');
+            this.toastr.success(messages.join(' and ') + ' successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            if (this.isDialog && this.dialogRef) {
+              this.dialogRef.close(true);
+            } else {
+              this.router.navigateByUrl(RouterUrl.UserList);
+            }
+          },
+          error: (err: HttpErrorResponse) => {
+            if (err.status === 404) {
+              // Handle not found error if business logic requires
+            }
+          }
+        });
+      } else {
+        // Regular admin update
+        this.userService.updateUser(this.userId, userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+          next: (response: UserResponse) => {
+            this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            if (this.isDialog && this.dialogRef) {
+              this.dialogRef.close(true);
+            } else {
+              this.router.navigateByUrl(RouterUrl.UserList);
+            }
+          },
+          error: (err: HttpErrorResponse) => {
+            if (err.status === 404) {
+              // Handle not found error if business logic requires
+            }
+          }
+        });
+      }
     }
   }
   //#endregion
@@ -178,10 +291,10 @@ export class UserComponent implements OnInit, OnDestroy {
       : [this.passwordStrengthValidator];
     
     const confirmPasswordValidators = this.isAddMode 
-      ? [Validators.required, this.passwordMatchValidator.bind(this)] 
-      : [this.passwordMatchValidator.bind(this)];
+      ? [Validators.required, this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)] 
+      : [this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)];
     
-    this.form = this.fb.group({
+    const formControls: any = {
       organizationId: new FormControl('', [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
@@ -191,7 +304,34 @@ export class UserComponent implements OnInit, OnDestroy {
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
       officeAccess: new FormControl([]),
       isActive: new FormControl(true)
-    }, { validators: this.passwordMatchValidator });
+    };
+
+    // Add currentPassword field for selfEdit mode
+    if (this.selfEdit) {
+      formControls.currentPassword = new FormControl('', []);
+      // In selfEdit mode, if currentPassword is provided, new password becomes required
+      // This will be handled via conditional validation
+    }
+
+    this.form = this.fb.group(formControls, { validators: this.passwordMatchValidator });
+    
+    // Add conditional validation for selfEdit mode: if currentPassword is provided, password and confirmPassword are required
+    if (this.selfEdit) {
+      this.form.get('currentPassword')?.valueChanges.subscribe(() => {
+        const currentPassword = this.form.get('currentPassword')?.value;
+        const passwordControl = this.form.get('password');
+        const confirmPasswordControl = this.form.get('confirmPassword');
+        if (currentPassword && currentPassword.trim() !== '') {
+          passwordControl?.setValidators([Validators.required, this.passwordStrengthValidator]);
+          confirmPasswordControl?.setValidators([Validators.required, this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]);
+        } else {
+          passwordControl?.setValidators([this.passwordStrengthValidator]);
+          confirmPasswordControl?.setValidators([this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]);
+        }
+        passwordControl?.updateValueAndValidity({ emitEvent: false });
+        confirmPasswordControl?.updateValueAndValidity({ emitEvent: false });
+      });
+    }
     
     // Reload offices when organization changes
     this.form.get('organizationId')?.valueChanges.subscribe(() => {
@@ -291,6 +431,28 @@ export class UserComponent implements OnInit, OnDestroy {
       .replace(/([A-Z])/g, ' $1') // Add space before capital letters
       .trim()
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+  }
+
+  getOrganizationName(): string {
+    if (!this.user?.organizationId) {
+      return 'N/A';
+    }
+    const org = this.organizations.find(o => o.organizationId === this.user.organizationId);
+    return org?.name || 'N/A';
+  }
+
+  getOfficeAccessNames(): string {
+    if (!this.user?.officeAccess || this.user.officeAccess.length === 0) {
+      return 'None';
+    }
+    const officeIds = this.user.officeAccess.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
+    const officeNames = officeIds
+      .map(id => {
+        const office = this.offices.find(o => o.officeId === id);
+        return office?.name;
+      })
+      .filter(name => name !== undefined);
+    return officeNames.length > 0 ? officeNames.join(', ') : 'None';
   }
   //#endregion
 
@@ -410,6 +572,10 @@ export class UserComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  toggleCurrentPasswordVisibility(): void {
+    this.hideCurrentPassword = !this.hideCurrentPassword;
+  }
+
   togglePasswordVisibility(): void {
     this.hidePassword = !this.hidePassword;
   }
@@ -457,7 +623,11 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.UserList);
+    if (this.isDialog && this.dialogRef) {
+      this.dialogRef.close();
+    } else {
+      this.router.navigateByUrl(RouterUrl.UserList);
+    }
   }
   //#endregion
 }

@@ -35,8 +35,8 @@ export class AreaListComponent implements OnInit, OnDestroy {
 
   areasDisplayedColumns: ColumnSet = {
     'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
+    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
-    'officeName': { displayAs: 'Office', maxWidth: '30ch' },
     'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
@@ -54,6 +54,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
 
   //#region Area-List
   ngOnInit(): void {
+    this.getAreas();
   }
 
   addArea(): void {

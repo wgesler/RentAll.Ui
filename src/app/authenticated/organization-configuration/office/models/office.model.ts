@@ -81,6 +81,7 @@ export interface OfficeResponse {
 export interface OfficeListDisplay {
   officeId: number;
   officeCode: string;
+  address: string;
   name: string;
   phone: string;
   fax?: string;

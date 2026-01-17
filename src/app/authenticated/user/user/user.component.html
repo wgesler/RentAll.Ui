@@ -4,7 +4,7 @@
     <p>Loading user...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center" [class.dialog-mode]="isDialog" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
@@ -14,11 +14,20 @@
           </span>
         </span>
         <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
+          @if (!isDialog) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+          @if (isDialog) {
+            <button mat-raised-button type="button" id="close-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0" style="background-color: #e91e63; color: white;">
+              <mat-icon>close</mat-icon>
+              Close
+            </button>
+          }
           <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveUser()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
@@ -37,7 +46,7 @@
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Organization</mat-label>
-                <mat-select formControlName="organizationId" required>
+                <mat-select formControlName="organizationId" [disabled]="selfEdit" required>
                   <mat-option value="">Select Organization</mat-option>
                   @for (org of organizations; track org.organizationId) {
                     <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
@@ -46,6 +55,15 @@
                 @if (form.get('organizationId')?.hasError('required') && form.get('organizationId')?.touched) {
                   <mat-error>Organization is required</mat-error>
                 }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Office Access</mat-label>
+                <mat-select formControlName="officeAccess" [disabled]="selfEdit" multiple>
+                  @for (office of availableOffices; track office.value) {
+                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
@@ -87,49 +105,105 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Office Access</mat-label>
-                <mat-select formControlName="officeAccess" multiple>
-                  @for (office of availableOffices; track office.value) {
-                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              @if (isAddMode || isDialog) {
+                @if (selfEdit) {
+                  <mat-form-field appearance="outline" class="col-span-4">
+                    <mat-label>Current Password</mat-label>
+                    <input matInput [type]="hideCurrentPassword ? 'password' : 'text'" formControlName="currentPassword">
+                    <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleCurrentPasswordVisibility()" [attr.aria-label]="'Hide current password'" [attr.aria-pressed]="hideCurrentPassword">
+                      <mat-icon>{{hideCurrentPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                    </button>
+                  </mat-form-field>
 
-              @if (isAddMode) {
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>Password</mat-label>
-                  <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" required>
-                  <button mat-icon-button matSuffix type="button" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
-                    <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
-                  </button>
-                  @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
-                    <mat-error>Password is required</mat-error>
-                  }
-                  @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
-                    <mat-error>Password must be at least 8 characters long</mat-error>
-                  }
-                  @if (form.get('password')?.hasError('passwordRequiresNumber') && form.get('password')?.touched) {
-                    <mat-error>Password must contain at least one number</mat-error>
-                  }
-                  @if (form.get('password')?.hasError('passwordRequiresSpecial') && form.get('password')?.touched) {
-                    <mat-error>Password must contain at least one special character</mat-error>
-                  }
-                  @if (shouldShowPasswordHint) {
-                    <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
-                  }
-                </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>New Password</mat-label>
+                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password">
+                    <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
+                      <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                    </button>
+                    @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
+                      <mat-error>Password must be at least 8 characters long</mat-error>
+                    }
+                    @if (form.get('password')?.hasError('passwordRequiresNumber') && form.get('password')?.touched) {
+                      <mat-error>Password must contain at least one number</mat-error>
+                    }
+                    @if (form.get('password')?.hasError('passwordRequiresSpecial') && form.get('password')?.touched) {
+                      <mat-error>Password must contain at least one special character</mat-error>
+                    }
+                    @if (shouldShowPasswordHint) {
+                      <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
+                    }
+                  </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>Confirm Password</mat-label>
-                  <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" required (blur)="onConfirmPasswordBlur()">
-                  <button mat-icon-button matSuffix type="button" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
-                    <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
-                  </button>
-                  @if ((form.get('confirmPassword')?.hasError('passwordMismatch') || form.hasError('passwordMismatch')) && (form.get('confirmPassword')?.touched || form.get('confirmPassword')?.value)) {
-                    <mat-error>Passwords must match</mat-error>
-                  }
-                </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Confirm Password</mat-label>
+                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" (blur)="onConfirmPasswordBlur()">
+                    <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
+                      <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                    </button>
+                    @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must be at least 8 characters long</mat-error>
+                    }
+                    @if (form.get('confirmPassword')?.hasError('passwordRequiresNumber') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must contain at least one number</mat-error>
+                    }
+                    @if (form.get('confirmPassword')?.hasError('passwordRequiresSpecial') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must contain at least one special character</mat-error>
+                    }
+                    @if ((form.get('confirmPassword')?.hasError('passwordMismatch') || form.hasError('passwordMismatch')) && (form.get('confirmPassword')?.touched || form.get('confirmPassword')?.value)) {
+                      <mat-error>Passwords must match</mat-error>
+                    }
+                  </mat-form-field>
+                } @else {
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Password</mat-label>
+                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" [required]="isAddMode">
+                    <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
+                      <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                    </button>
+                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched && isAddMode) {
+                      <mat-error>Password is required</mat-error>
+                    }
+                    @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
+                      <mat-error>Password must be at least 8 characters long</mat-error>
+                    }
+                    @if (form.get('password')?.hasError('passwordRequiresNumber') && form.get('password')?.touched) {
+                      <mat-error>Password must contain at least one number</mat-error>
+                    }
+                    @if (form.get('password')?.hasError('passwordRequiresSpecial') && form.get('password')?.touched) {
+                      <mat-error>Password must contain at least one special character</mat-error>
+                    }
+                    @if (shouldShowPasswordHint) {
+                      <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
+                    }
+                    @if (isDialog && !isAddMode) {
+                      <mat-hint>Leave blank to keep current password</mat-hint>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Confirm Password</mat-label>
+                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" [required]="isAddMode" (blur)="onConfirmPasswordBlur()">
+                    <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
+                      <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+                    </button>
+                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched && isAddMode) {
+                      <mat-error>Confirm Password is required</mat-error>
+                    }
+                    @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must be at least 8 characters long</mat-error>
+                    }
+                    @if (form.get('confirmPassword')?.hasError('passwordRequiresNumber') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must contain at least one number</mat-error>
+                    }
+                    @if (form.get('confirmPassword')?.hasError('passwordRequiresSpecial') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Password must contain at least one special character</mat-error>
+                    }
+                    @if ((form.get('confirmPassword')?.hasError('passwordMismatch') || form.hasError('passwordMismatch')) && (form.get('confirmPassword')?.touched || form.get('confirmPassword')?.value)) {
+                      <mat-error>Passwords must match</mat-error>
+                    }
+                  </mat-form-field>
+                }
               }
             </div>
 

@@ -11,3 +11,13 @@
     color: #666;
   }
 }
+
+// Dialog mode styling
+.content-card-wrap.dialog-mode {
+  margin-bottom: 0;
+  
+  .content-card {
+    width: 100%;
+    margin-top: 0;
+  }
+}

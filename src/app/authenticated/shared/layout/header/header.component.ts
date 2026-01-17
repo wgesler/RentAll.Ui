@@ -7,6 +7,8 @@ import { JwtUser } from '../../../../public/login/models/jwt';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
+import { MatDialog } from '@angular/material/dialog';
+import { UserComponent } from '../../../user/user/user.component';
 
 @Component({
   selector: 'app-header',
@@ -26,10 +28,28 @@ export class HeaderComponent {
   constructor(
     private authService: AuthService,
     private commonService: CommonService,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private dialog: MatDialog
   ) { }
   
   logout(): void {
     this.authService.logout();
+  }
+
+  openUserDialog(): void {
+    if (!this.user?.userId) {
+      return;
+    }
+
+    this.dialog.open(UserComponent, {
+      width: '90%',
+      maxWidth: '800px',
+      maxHeight: '90vh',
+      data: {
+        userId: this.user.userId,
+        isDialog: true,
+        selfEdit: true
+      }
+    });
   }
 }
