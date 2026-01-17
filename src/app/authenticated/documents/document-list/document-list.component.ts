@@ -72,16 +72,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Document-List
   ngOnInit(): void {
-    // Clear any existing documents first
-    this.allDocuments = [];
-    this.documentsDisplay = [];
-    
-    // Only load if propertyId and documentTypeId are already available (filtered mode)
-    // OR if neither are provided (unfiltered/all documents mode)
-    if ((this.propertyId && this.documentTypeId !== undefined) || 
-        (!this.propertyId && this.documentTypeId === undefined)) {
-      this.getDocuments();
-    }
+    this.getDocuments();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -122,7 +113,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   reload(): void {
-    // Public method to reload documents - can be called from parent components
     this.getDocuments();
   }
 
@@ -135,9 +125,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     // This ensures tabs show only filtered documents
     if (this.propertyId && this.documentTypeId !== undefined) {
       // FILTERED MODE: Get documents for specific property and type (used in tabs)
-      this.documentService.getByPropertyType(this.propertyId, this.documentTypeId)
-        .pipe(take(1), finalize(() => { this.removeLoadItem('documents'); }))
-        .subscribe({
+      this.documentService.getByPropertyType(this.propertyId, this.documentTypeId).pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
           next: (documents) => {
             // Double-check filter: ensure they match the requested documentTypeId
             const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
@@ -167,8 +155,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         }
       });
     }
-    // If partial inputs (e.g., only propertyId or only documentTypeId), do nothing
-    // This prevents incorrect API calls
   }
 
   deleteDocument(document: DocumentListDisplay): void {
@@ -212,10 +198,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams.returnTo = 'sidebar';
     }
     
-    this.router.navigate(
-      [RouterUrl.replaceTokens(RouterUrl.DocumentView, [event.documentId])],
-      { queryParams }
-    );
+    this.router.navigate([RouterUrl.replaceTokens(RouterUrl.DocumentView, [event.documentId])],{ queryParams });
   }
   
   downloadDocument(doc: DocumentListDisplay): void {
