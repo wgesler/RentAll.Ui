@@ -49,10 +49,17 @@
             <input matInput [value]="selectedReservation?.officeName || ''" readonly>
           </mat-form-field>
 
-          <!-- Reservation (readonly) -->
-          <mat-form-field appearance="outline" class="reservation-field">
+          <!-- Reservation Dropdown -->
+          <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Reservation</mat-label>
-            <input matInput [value]="getReservationDisplay()" readonly>
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @if (selectedReservation) {
+                <mat-option [value]="selectedReservation.reservationId">
+                  {{ selectedReservation.reservationCode || 'N/A' }}: <span style="font-weight: 600;">{{ selectedReservation.tenantName || 'Unnamed Tenant' }}</span>
+                </mat-option>
+              }
+            </mat-select>
           </mat-form-field>
         </div>
       </div>

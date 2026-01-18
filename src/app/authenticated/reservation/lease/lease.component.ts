@@ -244,6 +244,19 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       selectedOfficeId: new FormControl({ value: null, disabled: true }) // Disabled since it's readonly
     });
   }
+
+  onReservationSelected(reservationId: string | null): void {
+    // Note: selectedReservation should never be cleared once loaded
+    if (!reservationId) {
+      // Reset form control but keep selectedReservation intact
+      this.form.patchValue({ selectedReservationId: null });
+      // Clear preview to show textarea editor with raw HTML
+      this.generatePreviewIframe();
+    } else {
+      // Reservation selected - regenerate preview to show filled-out lease
+      this.generatePreviewIframe();
+    }
+  }
   //#endregion
 
    //#region Data Loading Methods 
@@ -276,13 +289,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        // Set selected office based on reservation's officeId if reservation is already loaded
         if (this.selectedReservation?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
-          // Update form control if office is found
-          if (this.selectedOffice) {
-            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
-          }
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
         }
       });
       this.removeLoadItem('offices');
@@ -298,7 +307,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -331,13 +339,10 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
-        // Set selected office based on reservation's officeId
+        this.form.patchValue({ selectedReservationId: reservation.reservationId });
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-          // Update form control if office is found
-          if (this.selectedOffice) {
-            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
-          }
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
         }
         this.loadContact();
       },
@@ -788,25 +793,26 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
-    if (!this.selectedOffice || !this.selectedReservation || !this.propertyHtml?.lease) {
+    if (!this.propertyHtml?.lease) {
       this.previewIframeHtml = '';
       return;
     }
 
-    const leaseHtml = this.propertyHtml.lease || '';
-    if (!leaseHtml.trim()) {
+    // Check form control value - if null, show html, else show the lease
+    const formReservationId = this.form.get('selectedReservationId')?.value;
+    if (!formReservationId) {
       this.previewIframeHtml = '';
       return;
     }
 
-    // If both office and reservation are selected, replace placeholders with actual data
-    // Otherwise, show raw lease HTML (similar to welcome letter)
-    let processedHtml: string;
-    if (this.selectedOffice && this.selectedReservation) {
-      processedHtml = this.replacePlaceholders(leaseHtml);
-    } else {
-      processedHtml = leaseHtml;
+    // If form control has value but missing office or reservation, don't show preview
+    if (!this.selectedOffice || !this.selectedReservation) {
+      this.previewIframeHtml = '';
+      return;
     }
+
+    // Process HTML with placeholder replacement
+    let processedHtml = this.replacePlaceholders(this.propertyHtml.lease);
 
     // Extract all <style> tags from the HTML
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
