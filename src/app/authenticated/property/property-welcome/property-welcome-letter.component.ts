@@ -204,8 +204,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       fileName: fileName
     };
 
-    console.log('Generating document with:', generateDto); // Debug log
-
     this.documentService.generate(generateDto).pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
         this.toastr.success('Document generated successfully', 'Success');
