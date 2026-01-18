@@ -17,7 +17,7 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { finalize, take, Observable, filter, BehaviorSubject, map, Subscription, forkJoin, of } from 'rxjs';
+import { finalize, take, Observable, filter, BehaviorSubject, map, Subscription, forkJoin, of, catchError } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -151,13 +151,66 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   reloadLease(): void {
+    // Build array of observables to wait for
+    const reloadObservables: Observable<any>[] = [];
+    
     // Reload reservation data to get latest information
     if (this.reservationId) {
-      this.loadReservation();
+      reloadObservables.push(
+        this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1),
+          map((reservation: ReservationResponse) => {
+            this.selectedReservation = reservation;
+            this.form.patchValue({ selectedReservationId: reservation.reservationId });
+            if (reservation.officeId && this.offices.length > 0) {
+              this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+              this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+            }
+            this.loadContact();
+            return { type: 'reservation', data: reservation };
+          }),
+          catchError((err: HttpErrorResponse) => {
+            if (err.status !== 400) {
+              this.toastr.error('Could not load reservation at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
+            return of({ type: 'reservation', data: null });
+          })
+        )
+      );
     }
+    
     // Reload lease information to get latest data
     if (this.propertyId) {
-      this.loadLeaseInformation();
+      reloadObservables.push(
+        this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1),
+          map((response: LeaseInformationResponse) => {
+            this.leaseInformation = response;
+            return { type: 'leaseInformation', data: response };
+          }),
+          catchError((err: HttpErrorResponse) => {
+            this.leaseInformation = null;
+            if (err.status !== 400) {
+              this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            }
+            return of({ type: 'leaseInformation', data: null });
+          })
+        )
+      );
+    }
+    
+    // Wait for all reloads to complete before regenerating preview
+    if (reloadObservables.length > 0) {
+      forkJoin(reloadObservables).pipe(take(1)).subscribe({
+        next: () => {
+          // Regenerate preview after all data is updated
+          this.generatePreviewIframe();
+        },
+        error: () => {
+          // Still try to regenerate preview even if there was an error
+          this.generatePreviewIframe();
+        }
+      });
+    } else {
+      this.generatePreviewIframe();
     }
   }
 
@@ -228,7 +281,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        console.error('Document save error:', err);
         this.isSubmitting = false;
         this.generatePreviewIframe();
       }
@@ -325,6 +377,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
+        this.generatePreviewIframe();
       },
       error: (err: HttpErrorResponse) => {
         this.leaseInformation = null;
@@ -345,6 +398,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
           this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
         }
         this.loadContact();
+        this.generatePreviewIframe();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -529,6 +583,26 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     else 
       return '$' + this.selectedReservation.deposit.toFixed(2) + ' ';
   }
+    
+  getSecurityProrateText(): string {
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.depositTypeId === DepositType.CLR) 
+      return '$0.00';
+    else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
+      return '$' + (this.selectedReservation.deposit/30).toFixed(2) + ' per month';
+    else 
+      return '$' + (this.selectedReservation.deposit/30).toFixed(2) + ' ';
+  }
+
+  getLetterOfResponsibilityText(): string {
+    if (!this.selectedReservation) return '';
+     else if (this.selectedReservation.depositTypeId === DepositType.CLR) {
+      return 'Corporate Letter of Responsibility';
+     }
+    else {
+      return 'Letter of Responsibility';
+    }
+  }
 
   getPartialMonthText(): string {
     if (!this.property) return '';
@@ -631,11 +705,45 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   replacePlaceholders(html: string): string {
     let result = html;
 
+    // LAYER 0: Handle conditional sections (must be done before placeholder replacement)
+    result = this.replaceConditionalSections(result);
+
     // LAYER 1: Replace lease information placeholders first (with their raw text values)
     result = this.replaceLeaseInformationPlaceholders(result);
 
     // LAYER 2: Replace all other placeholders (reservation, property, contact, organization, etc.)
     result = this.replaceAllOtherPlaceholders(result);
+
+    return result;
+  }
+
+  replaceConditionalSections(html: string): string {
+    let result = html;
+
+    // Handle conditional section: Security Deposit Waiver (only show if depositType is SDW)
+    // Pattern: {{#if depositTypeSDW}}...content...{{/if}}
+    // The content can contain placeholders that will be replaced in later layers
+    const depositTypeSDWPattern = /\{\{#if depositTypeSDW\}\}([\s\S]*?)\{\{\/if\}\}/g;
+    
+    if (this.selectedReservation?.depositTypeId === DepositType.SDW) {
+      // Replace the conditional wrapper with just the content (keep the content)
+      result = result.replace(depositTypeSDWPattern, '$1');
+    } else {
+      // Remove the entire conditional section
+      result = result.replace(depositTypeSDWPattern, '');
+    }
+
+    // Handle conditional section: Partial Month Calculation (only show if billingType is Monthly)
+    // Pattern: {{#if billingTypeMonthly}}...content...{{/if}}
+    const billingTypeMonthlyPattern = /\{\{#if billingTypeMonthly\}\}([\s\S]*?)\{\{\/if\}\}/g;
+    
+    if (this.selectedReservation?.billingTypeId === BillingType.Monthly) {
+      // Replace the conditional wrapper with just the content (keep the content)
+      result = result.replace(billingTypeMonthlyPattern, '$1');
+    } else {
+      // Remove the entire conditional section
+      result = result.replace(billingTypeMonthlyPattern, '');
+    }
 
     return result;
   }
@@ -646,6 +754,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     if (this.leaseInformation) {
       result = result.replace(/\{\{rentalPayment\}\}/g, this.leaseInformation.rentalPayment || '');
       result = result.replace(/\{\{securityDeposit\}\}/g, this.leaseInformation.securityDeposit || '');
+      result = result.replace(/\{\{securityDepositWaiver\}\}/g, this.leaseInformation.securityDepositWaiver || '');
       result = result.replace(/\{\{cancellationPolicy\}\}/g, this.leaseInformation.cancellationPolicy || '');
       result = result.replace(/\{\{keyPickUpDropOff\}\}/g, this.leaseInformation.keyPickUpDropOff || '');
       result = result.replace(/\{\{partialMonth\}\}/g, this.leaseInformation.partialMonth || '');
@@ -716,7 +825,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{billingTypeLower\}\}/g, this.getBillingTypeLowerText());
       result = result.replace(/\{\{billingRate\}\}/g, (this.selectedReservation.billingRate || 0).toFixed(2));
       result = result.replace(/\{\{deposit\}\}/g, (this.selectedReservation.deposit || 0).toFixed(2));
-      result = result.replace(/\{\{securityText\}\}/g, this.getSecurityDepositText());
+      result = result.replace(/\{\{securityText\}\}/g, this.getSecurityDepositText());      
+      result = result.replace(/\{\{securityProrateText\}\}/g, this.getSecurityProrateText());
+      result = result.replace(/\{\{letterOfResponsibilityText\}\}/g, this.getLetterOfResponsibilityText());
       result = result.replace(/\{\{partialMonthText\}\}/g, this.getPartialMonthText());
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
@@ -724,7 +835,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());
-     result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getReservationDayNotice());
+      result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getReservationDayNotice());
       result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));
       result = result.replace(/\{\{tenantPets\}\}/g, this.getPetText());
       result = result.replace(/\{\{extensionsPossible\}\}/g, this.getExtensionsPossible());
@@ -945,7 +1056,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         error: (error: HttpErrorResponse) => {
           this.isDownloading = false;
           this.toastr.error('Error generating PDF. Please try again.', 'Error');
-          console.error('PDF generation error:', error);
         }
       });
     } catch (error) {

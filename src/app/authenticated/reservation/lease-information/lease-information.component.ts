@@ -118,6 +118,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       contactId: this.contactId,
       rentalPayment: formValue.rentalPayment || null,
       securityDeposit: formValue.securityDeposit || null,
+      securityDepositWaiver: formValue.securityDepositWaiver || null,
       cancellationPolicy: formValue.cancellationPolicy || null,
       keyPickUpDropOff: formValue.keyPickUpDropOff || null,
       partialMonth: formValue.partialMonth || null,
@@ -169,6 +170,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
     return this.fb.group({
       rentalPayment: new FormControl<string | null>(null),
       securityDeposit: new FormControl<string | null>(null),
+      securityDepositWaiver: new FormControl<string | null>(null),
       cancellationPolicy: new FormControl<string | null>(null),
       keyPickUpDropOff: new FormControl<string | null>(null),
       partialMonth: new FormControl<string | null>(null),
@@ -198,6 +200,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
     this.form.patchValue({
       rentalPayment: leaseInformation.rentalPayment || null,
       securityDeposit: leaseInformation.securityDeposit || null,
+      securityDepositWaiver: leaseInformation.securityDepositWaiver || null,
       cancellationPolicy: leaseInformation.cancellationPolicy || null,
       keyPickUpDropOff: leaseInformation.keyPickUpDropOff || null,
       partialMonth: leaseInformation.partialMonth || null,

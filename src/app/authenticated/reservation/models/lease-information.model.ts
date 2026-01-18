@@ -5,6 +5,7 @@ export interface LeaseInformationRequest {
   contactId: string;
   rentalPayment?: string | null;
   securityDeposit?: string | null;
+  securityDepositWaiver?: string | null;
   cancellationPolicy?: string | null;
   keyPickUpDropOff?: string | null;
   partialMonth?: string | null;
@@ -36,6 +37,7 @@ export interface LeaseInformationResponse {
   contactId: string;
   rentalPayment?: string | null;
   securityDeposit?: string | null;
+  securityDepositWaiver?: string | null;
   cancellationPolicy?: string | null;
   keyPickUpDropOff?: string | null;
   partialMonth?: string | null;

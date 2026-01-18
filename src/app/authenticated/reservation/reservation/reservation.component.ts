@@ -711,9 +711,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     let billingRate = '0.00';
     if (billingTypeId === BillingType.Monthly) {
-      billingRate = this.selectedProperty.monthlyRate.toFixed(2);
+      const monthlyRate = this.selectedProperty.monthlyRate;
+      billingRate = monthlyRate != null ? monthlyRate.toFixed(2) : '0.00';
     } else {
-      billingRate = this.selectedProperty.dailyRate.toFixed(2);
+      const dailyRate = this.selectedProperty.dailyRate;
+      billingRate = dailyRate != null ? dailyRate.toFixed(2) : '0.00';
     }
 
     billingControl.setValue(billingRate, { emitEvent: false });
@@ -725,7 +727,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
 
     const departureControl = this.form.get('departureFee')!;
-    let departureFee = this.selectedProperty.departureFee.toFixed(2);;
+    const departureFee = this.selectedProperty.departureFee != null 
+      ? this.selectedProperty.departureFee.toFixed(2) 
+      : '0.00';
     departureControl.setValue(departureFee, { emitEvent: false });
   }
 
@@ -750,7 +754,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.disableFieldWithValidation('petDescription');  
     } 
     else {
-      petFeeControl.setValue(this.selectedProperty.petFee.toFixed(2), { emitEvent: false });
+      const petFee = this.selectedProperty.petFee != null 
+        ? this.selectedProperty.petFee.toFixed(2) 
+        : '0.00';
+      petFeeControl.setValue(petFee, { emitEvent: false });
       this.enableFieldWithValidation('petFee', [Validators.required]);
       
       numberOfPetsControl.setValue(1, { emitEvent: false });
