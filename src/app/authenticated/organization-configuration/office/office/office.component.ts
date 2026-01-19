@@ -133,9 +133,16 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
-          // Construct dataUrl from base64 file if not already set
-          if (!this.fileDetails.dataUrl && this.fileDetails.contentType && this.fileDetails.file) {
-            this.fileDetails.dataUrl = `data:${this.fileDetails.contentType};base64,${this.fileDetails.file}`;
+          // Always ensure dataUrl is set - construct from base64 file if missing or empty
+          if (!this.fileDetails.dataUrl || this.fileDetails.dataUrl.trim() === '') {
+            const contentType = this.fileDetails.contentType || 'image/png'; // Default to png if missing
+            // Check if file already includes data URL prefix
+            if (this.fileDetails.file.startsWith('data:')) {
+              this.fileDetails.dataUrl = this.fileDetails.file;
+            } else {
+              // Construct dataUrl from base64 string
+              this.fileDetails.dataUrl = `data:${contentType};base64,${this.fileDetails.file}`;
+            }
           }
           this.hasNewFileUpload = false; // FileDetails from API, not a new upload
         } else if (response.logoPath) {
@@ -377,14 +384,16 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '', dataUrl: '' });
       const fileReader = new FileReader();
       fileReader.onload = (): void => {
-        // Convert file to base64 string for preview and upload
-        const base64String = btoa(fileReader.result as string);
+        // readAsDataURL returns a data URL (e.g., "data:image/png;base64,iVBORw0KG...")
+        const dataUrl = fileReader.result as string;
+        this.fileDetails.dataUrl = dataUrl;
+        // Extract base64 string from data URL for API upload
+        // Format: "data:image/png;base64,iVBORw0KG..." -> extract part after comma
+        const base64String = dataUrl.split(',')[1];
         this.fileDetails.file = base64String;
-        // Construct dataUrl for display
-        this.fileDetails.dataUrl = `data:${file.type};base64,${base64String}`;
         this.isUploadingLogo = false;
       };
-      fileReader.readAsBinaryString(file);
+      fileReader.readAsDataURL(file);
     }
   }
   

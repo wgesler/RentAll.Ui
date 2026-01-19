@@ -900,7 +900,19 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
       result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
    
-      const officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
+      // Get office logo - construct dataUrl if needed
+      let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
+      if (!officeLogoDataUrl && this.selectedOffice?.fileDetails?.file) {
+        const fileDetails = this.selectedOffice.fileDetails;
+        const contentType = fileDetails.contentType || 'image/png';
+        // Check if file already includes data URL prefix
+        if (fileDetails.file.startsWith('data:')) {
+          officeLogoDataUrl = fileDetails.file;
+        } else {
+          // Construct dataUrl from base64 string
+          officeLogoDataUrl = `data:${contentType};base64,${fileDetails.file}`;
+        }
+      }
       if (officeLogoDataUrl) {
         result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
@@ -997,7 +1009,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
       this.processAndSetHtml(combinedHtml);
     } catch (error) {
-      console.error('Error generating preview:', error);
       this.previewIframeHtml = '';
     }
   }
