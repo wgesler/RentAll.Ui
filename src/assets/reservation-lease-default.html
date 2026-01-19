@@ -108,7 +108,7 @@
       text-align: center;
       color: #fff;
       margin: 0;
-      padding: 5px;
+      padding: 10px 5px 30px 5px;
       background-color: #222;
       letter-spacing: -0.5px;
     }
@@ -156,7 +156,11 @@
   <!-- ===================== HEADER ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <img src="{{officeLogoBase64}}" alt="Company Logo" align="center">
+      <tr>
+        <td colspan="1">
+          <img src="{{officeLogoBase64}}" alt="Company Logo" align="center">
+        </td>
+      </tr>
       <tr valign="top">
         <td>
           <h1>Month to Month Rental Agreement</h1>
@@ -225,8 +229,10 @@
   <br>
 
   <!-- ===================== TERMS ===================== -->
-  <tr valign="top">
-    <td id="terms" colspan="2">
+  <table cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td id="terms" colspan="2">
       <h2>Rental Payments</h2>
       <p>{{rentalPayment}}</p>
 
@@ -342,8 +348,10 @@
           </tbody>
         </table>
       </p>
-    </td>
-  </tr>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 </body>
 </html>

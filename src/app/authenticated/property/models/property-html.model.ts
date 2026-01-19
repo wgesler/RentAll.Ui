@@ -5,7 +5,7 @@ export interface PropertyHtmlRequest {
   lease: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
-  crediAuthorization: string;
+  creditAuthorization: string;
   creditApplication: string;
 }
 
@@ -16,6 +16,6 @@ export interface PropertyHtmlResponse {
   lease: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
-  crediAuthorization: string;
+  creditAuthorization: string;
   creditApplication: string;
 }

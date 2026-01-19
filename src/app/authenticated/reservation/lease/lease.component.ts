@@ -238,7 +238,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       lease: formValue.lease || '',
       letterOfResponsibility: formValue.lease || '',
       noticeToVacate: formValue.lease || '',
-      crediAuthorization: formValue.lease || '',
+      creditAuthorization: formValue.lease || '',
       creditApplication: formValue.lease || ''
     };
 
@@ -930,7 +930,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
-    console.log("generating")
     // Check if propertyHtml exists
     if (!this.propertyHtml) {
       this.previewIframeHtml = '';
@@ -949,7 +948,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       this.previewIframeHtml = '';
       return;
     }
-console.log("getting documents")
+
     // Get selected checkboxes
     const selectedDocuments: string[] = [];
 
@@ -962,8 +961,8 @@ console.log("getting documents")
     if (this.includeNoticeToVacate && this.propertyHtml.noticeToVacate) {
       selectedDocuments.push(this.propertyHtml.noticeToVacate);
     }
-    if (this.includeCreditCardAuthorization && this.propertyHtml.crediAuthorization) {
-      selectedDocuments.push(this.propertyHtml.crediAuthorization);
+    if (this.includeCreditCardAuthorization && this.propertyHtml.creditAuthorization) {
+      selectedDocuments.push(this.propertyHtml.creditAuthorization);
     }
     if (this.includeBusinessCreditApplication && this.propertyHtml.creditApplication) {
       selectedDocuments.push(this.propertyHtml.creditApplication);

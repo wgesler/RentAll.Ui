@@ -163,7 +163,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       lease: this.propertyHtml?.lease || '',
       letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
       noticeToVacate: this.propertyHtml?.noticeToVacate || '',
-      crediAuthorization: this.propertyHtml?.crediAuthorization || '',
+      creditAuthorization: this.propertyHtml?.creditAuthorization || '',
       creditApplication: this.propertyHtml?.creditApplication || '',
     };
 
