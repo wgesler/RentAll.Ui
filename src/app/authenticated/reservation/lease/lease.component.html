@@ -66,19 +66,19 @@
         <!-- Include Checkboxes Section -->
         <div class="include-controls">
           <span class="include-label">Include:</span>
-          <mat-checkbox formControlName="includeLease" class="include-checkbox">
+          <mat-checkbox formControlName="includeLease" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Lease
           </mat-checkbox>
-          <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox">
+          <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Letter of Responsibility
           </mat-checkbox>
-          <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox">
+          <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Notice to Vacate
           </mat-checkbox>
-          <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox">
+          <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Credit Card Authorization
           </mat-checkbox>
-          <mat-checkbox formControlName="includeBusinessCreditApplication" class="include-checkbox">
+          <mat-checkbox formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Business Credit Application
           </mat-checkbox>
         </div>

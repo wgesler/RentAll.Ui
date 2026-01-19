@@ -930,6 +930,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
+    console.log("generating")
     // Check if propertyHtml exists
     if (!this.propertyHtml) {
       this.previewIframeHtml = '';
@@ -948,7 +949,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       this.previewIframeHtml = '';
       return;
     }
-
+console.log("getting documents")
     // Get selected checkboxes
     const selectedDocuments: string[] = [];
 
