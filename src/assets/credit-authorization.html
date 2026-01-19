@@ -124,14 +124,32 @@
 
     .border {
       border: 1px solid #ddd;
-      padding: 10px;
-      margin-top: 10px;
-      margin-right: 5px;
-      margin-left: 5px;
+      padding: 10px !important;
+      margin-top: 10px !important;
+      margin-right: 5px !important;
+      margin-left: 5px !important;
+    }
+
+    table#container td {
+      padding: 5px;
     }
 
     .border p {
       margin: 0;
+    }
+
+    /* Make the first row's boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
+    /* Add padding to table cells to prevent margin collapse */
+    table#container td {
+      padding: 5px;
     }
 
     .borderless {
@@ -216,7 +234,7 @@
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td width="40%">
+        <td width="50%" style="width: 50% !important;">
           <div class="border">
             <p>
               <span style="font-weight: bold">Name: </span>{{contactName}}<br>
@@ -224,7 +242,7 @@
             </p>
           </div>
         </td>
-        <td width="60%">
+        <td width="50%" style="width: 50% !important;">
           <div class="border">
             <p>
               <span style="font-weight: bold">Reservation #: </span>{{reservationCode}}<br>

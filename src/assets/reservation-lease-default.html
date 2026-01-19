@@ -134,6 +134,15 @@
       margin: 0;
     }
 
+    /* Make the first row's boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
     .borderless {
       padding: 10px;
       margin-top: 10px;

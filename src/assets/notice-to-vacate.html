@@ -134,6 +134,20 @@
       margin: 0;
     }
 
+    /* Make the first row's boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
+    /* Reduce spacing after Today's Date section */
+    table#container tbody tr:nth-child(3) td .border {
+      margin-top: 0;
+    }
+
     .borderless {
       padding: 10px;
       margin-top: 10px;
