@@ -62,7 +62,28 @@
             </mat-select>
           </mat-form-field>
         </div>
+        
+        <!-- Include Checkboxes Section -->
+        <div class="include-controls">
+          <span class="include-label">Include:</span>
+          <mat-checkbox formControlName="includeLease" class="include-checkbox">
+            Lease
+          </mat-checkbox>
+          <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox">
+            Letter of Responsibility
+          </mat-checkbox>
+          <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox">
+            Notice to Vacate
+          </mat-checkbox>
+          <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox">
+            Credit Card Authorization
+          </mat-checkbox>
+          <mat-checkbox formControlName="includeBusinessCreditApplication" class="include-checkbox">
+            Business Credit Application
+          </mat-checkbox>
+        </div>
       </div>
+
 
       <!-- Lease Editor or Preview -->
       <div class="editor-section">

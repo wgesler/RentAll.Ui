@@ -68,6 +68,12 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   iframeKey: number = 0;
   isDownloading: boolean = false;
   leaseReloadSubscription?: Subscription;
+  includeLease: boolean = true;
+  includeLetterOfResponsibility: boolean = true;
+  includeNoticeToVacate: boolean = true;
+  includeCreditCardAuthorization: boolean = false;
+  includeBusinessCreditApplication: boolean = false;
+
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -229,7 +235,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       propertyId: this.propertyId,
       organizationId: this.authService.getUser()?.organizationId || '',
       welcomeLetter: this.propertyHtml?.welcomeLetter || '',
-      lease: formValue.lease || ''
+      lease: formValue.lease || '',
+      letterOfResponsibility: formValue.lease || '',
+      noticeToVacate: formValue.lease || '',
+      crediAuthorization: formValue.lease || '',
+      creditApplication: formValue.lease || ''
     };
 
     // Save the HTML using upsert
@@ -293,7 +303,12 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return this.fb.group({
       lease: new FormControl(''),
       selectedReservationId: new FormControl(null),
-      selectedOfficeId: new FormControl({ value: null, disabled: true }) // Disabled since it's readonly
+      selectedOfficeId: new FormControl({ value: null, disabled: true }), // Disabled since it's readonly
+      includeLease: new FormControl(this.includeLease),
+      includeLetterOfResponsibility: new FormControl(this.includeLetterOfResponsibility),
+      includeNoticeToVacate: new FormControl(this.includeNoticeToVacate),
+      includeCreditCardAuthorization: new FormControl(this.includeCreditCardAuthorization),
+      includeBusinessCreditApplication: new FormControl(this.includeBusinessCreditApplication)
     });
   }
 
@@ -308,6 +323,16 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       // Reservation selected - regenerate preview to show filled-out lease
       this.generatePreviewIframe();
     }
+  }
+
+  onIncludeCheckboxChange(): void {
+    this.includeLease = this.form.get('includeLease')?.value ?? true;
+    this.includeLetterOfResponsibility = this.form.get('includeLetterOfResponsibility')?.value ?? true;
+    this.includeNoticeToVacate = this.form.get('includeNoticeToVacate')?.value ?? true;
+    this.includeCreditCardAuthorization = this.form.get('includeCreditCardAuthorization')?.value ?? false;
+    this.includeBusinessCreditApplication = this.form.get('includeBusinessCreditApplication')?.value ?? false;
+
+    this.generatePreviewIframe();
   }
   //#endregion
 
@@ -874,12 +899,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOffice.maintenanceEmail || '');
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
       result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
-   }
-
-    // Handle logo
-    const logoDataUrl = this.organization?.fileDetails?.dataUrl;
-    if (!logoDataUrl) {
-      result = result.replace(/<img[^>]*\{\{logoBase64\}\}[^>]*\s*\/?>/gi, '');
+   
+      const officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
+      if (officeLogoDataUrl) {
+        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
+      }
     }
 
     // Replace organization placeholders
@@ -889,8 +913,10 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');
       result = result.replace(/\{\{organizationHref\}\}/g, this.getWebsiteWithProtocol());
-       if (logoDataUrl) {
-        result = result.replace(/\{\{logoBase64\}\}/g, logoDataUrl);
+
+      const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
+      if (orgLogoDataUrl) {
+        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
       }
     }
 
@@ -904,7 +930,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
-    if (!this.propertyHtml?.lease) {
+    // Check if propertyHtml exists
+    if (!this.propertyHtml) {
       this.previewIframeHtml = '';
       return;
     }
@@ -922,16 +949,67 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Process HTML with placeholder replacement
-    let processedHtml = this.replacePlaceholders(this.propertyHtml.lease);
+    // Get selected checkboxes
+    const selectedDocuments: string[] = [];
 
+    if (this.includeLease && this.propertyHtml.lease) {
+      selectedDocuments.push(this.propertyHtml.lease);
+    }
+    if (this.includeLetterOfResponsibility && this.propertyHtml.letterOfResponsibility) {
+      selectedDocuments.push(this.propertyHtml.letterOfResponsibility);
+    }
+    if (this.includeNoticeToVacate && this.propertyHtml.noticeToVacate) {
+      selectedDocuments.push(this.propertyHtml.noticeToVacate);
+    }
+    if (this.includeCreditCardAuthorization && this.propertyHtml.crediAuthorization) {
+      selectedDocuments.push(this.propertyHtml.crediAuthorization);
+    }
+    if (this.includeBusinessCreditApplication && this.propertyHtml.creditApplication) {
+      selectedDocuments.push(this.propertyHtml.creditApplication);
+    }
+
+    // If no documents selected, show empty
+    if (selectedDocuments.length === 0) {
+      this.previewIframeHtml = '';
+      return;
+    }
+
+    try {
+      // If only one document selected, use it as-is
+      if (selectedDocuments.length === 1) {
+        let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+        this.processAndSetHtml(processedHtml);
+        return;
+      }
+
+      // Multiple documents: process first as base, strip and concatenate the rest
+      // Process first document as base (full HTML)
+      let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
+      
+      // Process and strip remaining documents
+      for (let i = 1; i < selectedDocuments.length; i++) {
+        if (selectedDocuments[i]) {
+          const processed = this.replacePlaceholders(selectedDocuments[i]);
+          const stripped = this.stripAndReplace(processed);
+          combinedHtml += stripped;
+        }
+      }
+
+      this.processAndSetHtml(combinedHtml);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      this.previewIframeHtml = '';
+    }
+  }
+
+  processAndSetHtml(html: string): void {
     // Extract all <style> tags from the HTML
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     const extractedStyles: string[] = [];
     let match;
     
     styleRegex.lastIndex = 0;
-    while ((match = styleRegex.exec(processedHtml)) !== null) {
+    while ((match = styleRegex.exec(html)) !== null) {
       if (match[1]) {
         extractedStyles.push(match[1].trim());
       }
@@ -941,7 +1019,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.previewIframeStyles = extractedStyles.join('\n\n');
 
     // Remove <style> tags from HTML (we'll inject them dynamically)
-    processedHtml = processedHtml.replace(styleRegex, '');
+    let processedHtml = html.replace(styleRegex, '');
 
     // Remove <title> tag if it exists
     processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
@@ -1226,6 +1304,40 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  stripAndReplace(html: string): string {
+    if (!html) return '';
+    
+    let result = html;
+    
+    // Remove DOCTYPE declaration (case insensitive, with any attributes)
+    result = result.replace(/<!DOCTYPE\s+[^>]*>/gi, '');
+    
+    // Remove <html> opening tag (with any attributes)
+    result = result.replace(/<html[^>]*>/gi, '');
+    
+    // Remove </html> closing tag
+    result = result.replace(/<\/html>/gi, '');
+    
+    // Remove <head> section including all content inside (non-greedy match)
+    result = result.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    
+    // Remove opening <body> tag (with any attributes)
+    result = result.replace(/<body[^>]*>/gi, '');
+    
+    // Remove closing </body> tag
+    result = result.replace(/<\/body>/gi, '');
+    
+    // Trim whitespace and add page break at the beginning
+    result = result.trim();
+    
+    // Add page break if there's content
+    if (result) {
+      result = '<p class="breakhere"></p>\n' + result;
+    }
+    
+    return result;
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {

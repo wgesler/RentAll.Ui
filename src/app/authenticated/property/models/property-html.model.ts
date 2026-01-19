@@ -3,6 +3,10 @@ export interface PropertyHtmlRequest {
   organizationId: string;
   welcomeLetter: string;
   lease: string;
+  letterOfResponsibility: string;
+  noticeToVacate: string;
+  crediAuthorization: string;
+  creditApplication: string;
 }
 
 export interface PropertyHtmlResponse {
@@ -10,4 +14,8 @@ export interface PropertyHtmlResponse {
   organizationId: string;
   welcomeLetter: string;
   lease: string;
+  letterOfResponsibility: string;
+  noticeToVacate: string;
+  crediAuthorization: string;
+  creditApplication: string;
 }

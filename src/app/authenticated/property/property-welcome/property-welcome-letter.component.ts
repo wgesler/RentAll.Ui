@@ -160,7 +160,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       propertyId: this.propertyId,
       organizationId: this.authService.getUser()?.organizationId || '',
       welcomeLetter: formValue.welcomeLetter || '',
-      lease: this.propertyHtml?.lease || ''
+      lease: this.propertyHtml?.lease || '',
+      letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
+      noticeToVacate: this.propertyHtml?.noticeToVacate || '',
+      crediAuthorization: this.propertyHtml?.crediAuthorization || '',
+      creditApplication: this.propertyHtml?.creditApplication || '',
     };
 
     // Save the HTML using upsert

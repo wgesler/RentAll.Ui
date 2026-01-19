@@ -1,0 +1,263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+  <title>Business Credit Application</title>
+
+  <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style type="text/css">
+    P.breakhere {
+      page-break-before: always;
+    }
+
+    @media print {
+      @page {
+        margin: 0.75in;
+        size: letter;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+      }
+
+      #header, #footer {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+        background-color: #222 !important;
+        color: #fff !important;
+      }
+
+      #header h1, #footer {
+        color: #fff !important;
+      }
+    }
+  </style>
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: arial, sans-serif;
+      max-width: 8.5in;
+      width: 8.5in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    p {
+      font-size: 10pt;
+      line-height: 150%;
+    }
+
+    #container {
+      max-width: 100% !important;
+      width: 100% !important;
+      border: 2px solid #ddd;
+      padding: 10px;
+      background-color: #fff;
+    }
+
+    #header {
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
+    }
+
+    #header img {
+      width: 100% !important;
+      max-width: 100% !important;
+      display: block;
+      height: auto;
+    }
+
+    h1 {
+      font-size: 18pt;
+      font-weight: 600;
+      text-align: center;
+      color: #fff;
+      margin: 0;
+      padding: 10px 5px 30px 5px;
+      background-color: #222;
+      letter-spacing: -0.5px;
+    }
+
+    .border {
+      border: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    .border p {
+      margin: 0;
+    }
+
+    .grayline {
+      color: #ccc;
+    }
+
+    .grayline2 {
+      border-bottom: 1px solid #ccc;
+      width: 100%;
+      padding-top: 10px;
+    }
+
+    .smgraytext {
+      font-size: 9pt;
+      color: #999;
+    }
+
+    #footer {
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
+      font-size: 6pt;
+      color: #fff;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+  <!-- ===================== BUSINESS CREDIT APPLICATION ===================== -->
+  <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <img src="{{officeLogoBase64}}" alt="Company Logo" align="center">
+      <tr valign="top">
+        <td>
+          <h1>Business Credit Application</h1>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <!-- Reservation / Arrival -->
+      <tr valign="top">
+        <td width="50%" style="padding-right: 5px;">
+          <div class="border">
+            <p>
+              <span style="font-size: 9pt;">
+                <strong>Reservation #:</strong> {{reservationCode}}
+              </span>
+            </p>
+          </div>
+        </td>
+
+        <td width="50%" style="padding-left: 5px;">
+          <div class="border">
+            <p>
+              <span style="font-size: 9pt;">
+                <strong>Arrival Date:</strong> {{arrivalDate}}
+              </span>
+            </p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Company Info -->
+      <tr valign="top">
+        <td style="padding-right: 5px; padding-top: 10px;">
+          <p class="grayline2">Company Name:</p>
+          <p class="grayline2">Tax ID #:</p>
+          <p class="grayline2">Year Established:</p>
+          <p class="grayline2">Number of Employees:</p>
+          <p class="grayline2">How Long Under Current Ownership:</p>
+          <p class="grayline2">Dunn &amp; Bradstreet #:</p>
+        </td>
+
+        <td style="padding-left: 5px; padding-top: 10px;">
+          <p class="grayline2">Primary Contact Name:</p>
+          <p class="grayline2">Phone Number:</p>
+          <p class="grayline2">Fax Number:</p>
+          <p class="grayline2">Email:</p>
+          <p class="grayline2">Stock Symbol:</p>
+          <p class="grayline2">
+            Women Owned Business?
+            <strong>Y</strong>
+            <strong>N</strong>
+          </p>
+        </td>
+      </tr>
+
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <p class="grayline2">URL:</p>
+        </td>
+      </tr>
+
+      <!-- Billing -->
+      <tr valign="top">
+        <td style="padding-right: 5px; padding-top: 10px;">
+          <p class="grayline2">Billing Contact Name:</p>
+          <p class="grayline2">Billing Address:</p>
+        </td>
+
+        <td style="padding-left: 5px; padding-top: 10px;">
+          <p class="grayline2">Phone:</p>
+          <p class="grayline2">Email:</p>
+        </td>
+      </tr>
+
+      <!-- Bank Reference -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <p><strong>Bank Reference:</strong></p>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td style="padding-right: 5px; padding-top: 10px;">
+          <p class="grayline2">Bank Name:</p>
+          <p class="grayline2">Phone:</p>
+        </td>
+
+        <td style="padding-left: 5px; padding-top: 10px;">
+          <p class="grayline2">Contact:</p>
+          <p class="grayline2">Years at Current Bank:</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <p class="grayline2">Address:</p>
+          <p class="grayline2">Account No(s):</p>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td colspan="2">
+          <p align="center">
+            PLEASE COMPLETE AND RETURN TO {{organization-office}} - FAX: {{fax}}.
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td align="center">
+          <span style="font-weight: bold">{{organization-office}}</span><br>
+          {{organizationAddress}}<br>
+          <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
+          <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
