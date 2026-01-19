@@ -20,7 +20,7 @@ import { CommonService } from '../../../services/common.service';
 import { finalize, take, Observable, filter, BehaviorSubject, map, Subscription, forkJoin, of, catchError } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpClient } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ReservationNotice, BillingType, DepositType } from '../models/reservation-enum';
@@ -97,7 +97,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     private documentService: DocumentService,
     private sanitizer: DomSanitizer,
     private leaseReloadService: LeaseReloadService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private http: HttpClient
   ) {
     this.form = this.buildForm();
   }
@@ -942,12 +943,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
-    // Check if propertyHtml exists
-    if (!this.propertyHtml) {
-      this.previewIframeHtml = '';
-      return;
-    }
-
     // Check form control value - if null, show html, else show the lease
     const formReservationId = this.form.get('selectedReservationId')?.value;
     if (!formReservationId) {
@@ -961,32 +956,41 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Get selected checkboxes
-    const selectedDocuments: string[] = [];
+    // TEMPORARY: Load HTML from assets for faster testing
+    forkJoin({
+      lease: this.includeLease ? this.http.get('assets/reservation-lease-default.html', { responseType: 'text' }) : of(''),
+      letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
+      noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
+      creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),
+      creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application.html', { responseType: 'text' }) : of('')
+    }).pipe(take(1)).subscribe({
+      next: (htmlFiles) => {
+        // Get selected checkboxes
+        const selectedDocuments: string[] = [];
 
-    if (this.includeLease && this.propertyHtml.lease) {
-      selectedDocuments.push(this.propertyHtml.lease);
-    }
-    if (this.includeLetterOfResponsibility && this.propertyHtml.letterOfResponsibility) {
-      selectedDocuments.push(this.propertyHtml.letterOfResponsibility);
-    }
-    if (this.includeNoticeToVacate && this.propertyHtml.noticeToVacate) {
-      selectedDocuments.push(this.propertyHtml.noticeToVacate);
-    }
-    if (this.includeCreditCardAuthorization && this.propertyHtml.creditAuthorization) {
-      selectedDocuments.push(this.propertyHtml.creditAuthorization);
-    }
-    if (this.includeBusinessCreditApplication && this.propertyHtml.creditApplication) {
-      selectedDocuments.push(this.propertyHtml.creditApplication);
-    }
+        if (this.includeLease && htmlFiles.lease) {
+          selectedDocuments.push(htmlFiles.lease);
+        }
+        if (this.includeLetterOfResponsibility && htmlFiles.letterOfResponsibility) {
+          selectedDocuments.push(htmlFiles.letterOfResponsibility);
+        }
+        if (this.includeNoticeToVacate && htmlFiles.noticeToVacate) {
+          selectedDocuments.push(htmlFiles.noticeToVacate);
+        }
+        if (this.includeCreditCardAuthorization && htmlFiles.creditAuthorization) {
+          selectedDocuments.push(htmlFiles.creditAuthorization);
+        }
+        if (this.includeBusinessCreditApplication && htmlFiles.creditApplication) {
+          selectedDocuments.push(htmlFiles.creditApplication);
+        }
 
-    // If no documents selected, show empty
-    if (selectedDocuments.length === 0) {
-      this.previewIframeHtml = '';
-      return;
-    }
+        // If no documents selected, show empty
+        if (selectedDocuments.length === 0) {
+          this.previewIframeHtml = '';
+          return;
+        }
 
-    try {
+        try {
       // If only one document selected, use it as-is
       if (selectedDocuments.length === 1) {
         let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
@@ -998,19 +1002,73 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       // Process first document as base (full HTML)
       let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
       
-      // Process and strip remaining documents
+      // Extract and merge styles from all documents before stripping
+      const allExtractedStyles: string[] = [];
+      const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+      
+      // Extract styles from first document
+      let match;
+      styleRegex.lastIndex = 0;
+      while ((match = styleRegex.exec(combinedHtml)) !== null) {
+        if (match[1]) {
+          let styleContent = match[1].trim();
+          // Override gray text colors to black
+          styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+          styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+          allExtractedStyles.push(styleContent);
+        }
+      }
+      
+      // Process and strip remaining documents, extracting their styles first
       for (let i = 1; i < selectedDocuments.length; i++) {
         if (selectedDocuments[i]) {
           const processed = this.replacePlaceholders(selectedDocuments[i]);
+          
+          // Extract styles from this document before stripping
+          styleRegex.lastIndex = 0;
+          while ((match = styleRegex.exec(processed)) !== null) {
+            if (match[1]) {
+              let styleContent = match[1].trim();
+              // Override gray text colors to black
+              styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+              styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+              allExtractedStyles.push(styleContent);
+            }
+          }
+          
           const stripped = this.stripAndReplace(processed);
           combinedHtml += stripped;
         }
       }
+      
+      // Remove existing style tags from combinedHtml (they'll be re-injected)
+      combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+      
+      // Combine all extracted styles and inject them into the combined HTML
+      if (allExtractedStyles.length > 0) {
+        const combinedStyles = allExtractedStyles.join('\n\n');
+        // Insert styles into the head section if it exists, otherwise create one
+        if (combinedHtml.includes('<head>')) {
+          combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
+        } else {
+          // If no head exists, add one before the body or at the start
+          if (combinedHtml.includes('<body>')) {
+            combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
+          } else {
+            combinedHtml = `<head><style>${combinedStyles}</style></head>${combinedHtml}`;
+          }
+        }
+      }
 
-      this.processAndSetHtml(combinedHtml);
-    } catch (error) {
-      this.previewIframeHtml = '';
-    }
+        this.processAndSetHtml(combinedHtml);
+        } catch (error) {
+          this.previewIframeHtml = '';
+        }
+      },
+      error: () => {
+        this.previewIframeHtml = '';
+      }
+    });
   }
 
   processAndSetHtml(html: string): void {
@@ -1206,11 +1264,25 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   extractBodyContent(): string {
     let bodyContent = this.previewIframeHtml;
-    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch && bodyMatch[1]) {
-      return bodyMatch[1].trim();
+    
+    // Find the opening <body> tag
+    const bodyStartMatch = bodyContent.match(/<body[^>]*>/i);
+    if (bodyStartMatch) {
+      const bodyStartIndex = bodyStartMatch.index + bodyStartMatch[0].length;
+      // Extract everything from after <body> to the end (or before </html> if it exists)
+      let content = bodyContent.substring(bodyStartIndex);
+      
+      // Remove closing </body> tag if it exists (but keep content after it for concatenated documents)
+      content = content.replace(/<\/body>/i, '');
+      
+      // Remove closing </html> tag if it exists
+      content = content.replace(/<\/html>/i, '');
+      
+      return content.trim();
     }
-    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    
+    // Fallback: remove HTML structure tags
+    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '').replace(/<body[^>]*>|<\/body>/gi, '');
   }
 
   getPrintStyles(wrapInMediaQuery: boolean): string {

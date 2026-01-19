@@ -59,12 +59,25 @@
       line-height: 150%;
     }
 
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      border: 2px solid #ddd;
-      padding: 10px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -80,6 +93,15 @@
       height: auto;
     }
 
+    #terms h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0;
+    }
+
     h1 {
       font-size: 18pt;
       font-weight: 600;
@@ -91,12 +113,35 @@
       letter-spacing: -0.5px;
     }
 
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
     .border {
       border: 1px solid #ddd;
       padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
+      margin: 0;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
       margin: 0;
     }
 
@@ -105,7 +150,7 @@
     }
 
     .smgraytext {
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #999;
     }
 
@@ -113,9 +158,25 @@
       max-width: 100% !important;
       width: 100% !important;
       background-color: #222;
-      font-size: 6pt;
+      font-size: 10pt;
       color: #fff;
-      padding: 10px;
+      padding: 15px 5px 15px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
     }
   </style>
 </head>
@@ -141,15 +202,25 @@
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td>
+        <td width="50%" style="width: 50% !important; padding: 5px;">
           <div class="border">
             <p>
-              <strong>Date: </strong>{{reservationDate}}<br>
-              <strong>To: </strong>{{organization-office}}<br>
-              <strong>From: </strong>{{responsibleParty}}<br>
+              <span style="font-weight: bold">Date: </span>{{reservationDate}}<br>
+              <span style="font-weight: bold">To: </span>{{organization-office}}<br>
             </p>
           </div>
+        </td>
+        <td width="50%" style="width: 50% !important; padding: 5px;">
+          <div class="border">
+            <p>
+              <span style="font-weight: bold">From: </span>{{responsibleParty}}<br>
+            </p>
+          </div>
+        </td>
+      </tr>
 
+      <tr valign="top">
+        <td colspan="2" style="padding: 5px;">
           <div class="border">
             <p>
               {{responsibleParty}} will be responsible for the payment of rent, departure fee and additional fees incurred in connection to reservation number <b>#{{reservationCode}}</b>. This agreement shall remain in effect for the duration of our occupancy. In addition, we will be responsible for the payment, if applicable, of excessive cleaning or damage above wear in connection to the rental property listed below.
@@ -257,18 +328,20 @@
     </tbody>
   </table>
 
-  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
-    <tbody>
-      <tr valign="top">
-        <td align="center">
-          <span style="font-weight: bold">{{organization-office}}</span><br>
-          {{organizationAddress}}<br>
-          <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
-          <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <p>
+    <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td align="center">
+            <span style="font-weight: bold">{{organization-office}}</span><br>
+            {{organizationAddress}}<br>
+            <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
 </div>
 </body>
 </html>

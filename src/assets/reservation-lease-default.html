@@ -125,9 +125,23 @@
     .border {
       border: 1px solid #ddd;
       padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
+      margin: 0;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
       margin: 0;
     }
 
@@ -144,9 +158,25 @@
       max-width: 100% !important;
       width: 100% !important;
       background-color: #222;
-      font-size: 6pt;
+      font-size: 10pt;
       color: #fff;
-      padding: 10px;
+      padding: 15px 5px 15px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
     }
   </style>
 </head>
@@ -174,7 +204,7 @@
     <tbody>
       <tr valign="top">
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
-          <div style="margin-right: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
+          <div class="border">
             <h2 style="color: #000 !important;">Tenant Information</h2>
             <p>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
@@ -189,7 +219,7 @@
         </td>
 
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
-          <div style="margin-left: 5px; min-height: 300px; display: flex; flex-direction: column;" class="border">
+          <div class="border">
             <h2 style="color: #000 !important;">Rental information</h2>
             <p>
               <span style="font-weight: bold">Arrival Date:</span> {{arrivalDate}}<br>
@@ -209,16 +239,16 @@
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
           <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000 !important;">Property Information</h2>
-          <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+          <div class="border">
             <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
           </div>
-          <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+          <div class="border">
             <span style="font-weight: bold">Property Phone:</span> {{propertyPhone}}
           </div>
-          <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+          <div class="border">
             <span style="font-weight: bold">Parking:</span> {{propertyParking}}
           </div>
-          <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+          <div class="border">
             <span style="font-weight: bold">Unit Size:</span> {{propertyBedrooms}} Bedroom(s)/{{propertyBathrooms}} Bathroom(s)
           </div>
         </td>
@@ -333,7 +363,6 @@
         </tbody>
       </table>
 
-      <p><br></p>
       <p>
         <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
           <tbody>

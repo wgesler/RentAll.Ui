@@ -57,15 +57,27 @@
     p {
       font-size: 10pt;
       line-height: 150%;
-      margin-bottom: 12px;
+    }
+
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
     }
 
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      border: 2px solid #ddd;
-      padding: 10px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -81,6 +93,15 @@
       height: auto;
     }
 
+    #terms h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0;
+    }
+
     h1 {
       font-size: 18pt;
       font-weight: 600;
@@ -92,14 +113,36 @@
       letter-spacing: -0.5px;
     }
 
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
     .border {
       border: 1px solid #ddd;
       padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
       margin: 0;
-      margin-bottom: 12px;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
+      margin: 0;
     }
 
     .grayline {
@@ -107,7 +150,7 @@
     }
 
     .smgraytext {
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #999;
     }
 
@@ -115,9 +158,25 @@
       max-width: 100% !important;
       width: 100% !important;
       background-color: #222;
-      font-size: 9pt;
+      font-size: 10pt;
       color: #fff;
-      padding: 10px;
+      padding: 15px 5px 15px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
     }
   </style>
 </head>
@@ -143,16 +202,16 @@
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
-        <td width="50%">
-          <div style="margin-right: 5px" class="border">
+        <td width="50%" style="width: 50% !important; padding: 5px;">
+          <div class="border">
             <p>
               <span style="font-weight: bold">To: </span>{{organization-office}}<br>
               <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
             </p>
           </div>
         </td>
-        <td width="50%">
-          <div style="margin-left: 5px" class="border">
+        <td width="50%" style="width: 50% !important; padding: 5px;">
+          <div class="border">
             <p>
               <span style="font-weight: bold">From:</span> {{responsibleParty}}<br>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}
@@ -162,8 +221,8 @@
       </tr>
 
       <tr valign="top">
-        <td colspan="2">
-          <div style="margin-top: 10px; margin-bottom: 10px" class="border">
+        <td colspan="2" style="padding: 5px;">
+          <div class="border">
             <br>
             <p>
               <span style="font-weight: bold">Today's Date:</span> <span class="grayline">__________________</span><br>
@@ -173,7 +232,7 @@
       </tr>
 
       <tr valign="top">
-        <td colspan="2">
+        <td colspan="2" style="padding: 5px;">
           <div class="border">
             <p>
               In accordance with the terms of our lease agreement, I am hereby giving {{reservationNoticeDay}} days written notice of termination of our lease on the above mentioned property.
@@ -200,7 +259,7 @@
             </p>
           </div>
           <br><br>
-
+          <br>
           <table cellspacing="0" cellpadding="0" width="100%" align="center">
             <tbody>
               <tr valign="top">
@@ -232,6 +291,7 @@
                   <td style="padding-left: 10px" width="40%" align="center">
                     <hr class="grayline" noshade>
                     <span style="font-style: italic">Date</span>
+                    <br><br>
                   </td>
                 </tr>
               </tbody>
@@ -242,18 +302,20 @@
     </tbody>
   </table>
 
-  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
-    <tbody>
-      <tr valign="top">
-        <td align="center">
-          <span style="font-weight: bold">{{organization-office}}</span><br>
-          {{organizationAddress}}<br>
-          <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
-          <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <p>
+    <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td align="center">
+            <span style="font-weight: bold">{{organization-office}}</span><br>
+            {{organizationAddress}}<br>
+            <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
 </div>
 </body>
 </html>

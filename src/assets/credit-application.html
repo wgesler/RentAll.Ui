@@ -59,12 +59,25 @@
       line-height: 150%;
     }
 
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      border: 2px solid #ddd;
-      padding: 10px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -80,6 +93,15 @@
       height: auto;
     }
 
+    #terms h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0;
+    }
+
     h1 {
       font-size: 18pt;
       font-weight: 600;
@@ -91,12 +113,35 @@
       letter-spacing: -0.5px;
     }
 
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
     .border {
       border: 1px solid #ddd;
       padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
+      margin: 0;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
       margin: 0;
     }
 
@@ -111,7 +156,7 @@
     }
 
     .smgraytext {
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #999;
     }
 
@@ -119,9 +164,25 @@
       max-width: 100% !important;
       width: 100% !important;
       background-color: #222;
-      font-size: 6pt;
+      font-size: 10pt;
       color: #fff;
-      padding: 10px;
+      padding: 15px 5px 15px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
     }
   </style>
 </head>
@@ -170,72 +231,92 @@
       </tr>
 
       <!-- Company Info -->
-      <tr valign="top">
-        <td style="padding-right: 5px; padding-top: 10px;">
-          <p class="grayline2">Company Name:</p>
-          <p class="grayline2">Tax ID #:</p>
-          <p class="grayline2">Year Established:</p>
-          <p class="grayline2">Number of Employees:</p>
-          <p class="grayline2">How Long Under Current Ownership:</p>
-          <p class="grayline2">Dunn &amp; Bradstreet #:</p>
-        </td>
-
-        <td style="padding-left: 5px; padding-top: 10px;">
-          <p class="grayline2">Primary Contact Name:</p>
-          <p class="grayline2">Phone Number:</p>
-          <p class="grayline2">Fax Number:</p>
-          <p class="grayline2">Email:</p>
-          <p class="grayline2">Stock Symbol:</p>
-          <p class="grayline2">
-            Women Owned Business?
-            <strong>Y</strong>
-            <strong>N</strong>
-          </p>
-        </td>
-      </tr>
-
       <tr>
         <td colspan="2" style="padding-top: 10px;">
-          <p class="grayline2">URL:</p>
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%" style="padding-right: 5px;">
+                    <p class="grayline2">Company Name:</p>
+                    <p class="grayline2">Tax ID #:</p>
+                    <p class="grayline2">Year Established:</p>
+                    <p class="grayline2">Number of Employees:</p>
+                    <p class="grayline2">How Long Under Current Ownership:</p>
+                    <p class="grayline2">Dunn &amp; Bradstreet #:</p>
+                  </td>
+                  <td width="50%" style="padding-left: 5px;">
+                    <p class="grayline2">Primary Contact Name:</p>
+                    <p class="grayline2">Phone Number:</p>
+                    <p class="grayline2">Fax Number:</p>
+                    <p class="grayline2">Email:</p>
+                    <p class="grayline2">Stock Symbol:</p>
+                    <p class="grayline2">
+                      Women Owned Business?
+                      <strong>Y</strong>
+                      <strong>N</strong>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <p class="grayline2">URL:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </td>
       </tr>
 
       <!-- Billing -->
-      <tr valign="top">
-        <td style="padding-right: 5px; padding-top: 10px;">
-          <p class="grayline2">Billing Contact Name:</p>
-          <p class="grayline2">Billing Address:</p>
-        </td>
-
-        <td style="padding-left: 5px; padding-top: 10px;">
-          <p class="grayline2">Phone:</p>
-          <p class="grayline2">Email:</p>
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%" style="padding-right: 5px;">
+                    <p class="grayline2">Billing Contact Name:</p>
+                    <p class="grayline2">Billing Address:</p>
+                  </td>
+                  <td width="50%" style="padding-left: 5px;">
+                    <p class="grayline2">Phone:</p>
+                    <p class="grayline2">Email:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </td>
       </tr>
 
       <!-- Bank Reference -->
       <tr>
         <td colspan="2" style="padding-top: 10px;">
-          <p><strong>Bank Reference:</strong></p>
-        </td>
-      </tr>
-
-      <tr valign="top">
-        <td style="padding-right: 5px; padding-top: 10px;">
-          <p class="grayline2">Bank Name:</p>
-          <p class="grayline2">Phone:</p>
-        </td>
-
-        <td style="padding-left: 5px; padding-top: 10px;">
-          <p class="grayline2">Contact:</p>
-          <p class="grayline2">Years at Current Bank:</p>
-        </td>
-      </tr>
-
-      <tr>
-        <td colspan="2" style="padding-top: 10px;">
-          <p class="grayline2">Address:</p>
-          <p class="grayline2">Account No(s):</p>
+          <div class="border">
+            <p><strong>Bank Reference:</strong></p>
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%" style="padding-right: 5px;">
+                    <p class="grayline2">Bank Name:</p>
+                    <p class="grayline2">Phone:</p>
+                  </td>
+                  <td width="50%" style="padding-left: 5px;">
+                    <p class="grayline2">Contact:</p>
+                    <p class="grayline2">Years at Current Bank:</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <p class="grayline2">Address:</p>
+                    <p class="grayline2">Account No(s):</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </td>
       </tr>
 
@@ -250,18 +331,20 @@
     </tbody>
   </table>
 
-  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
-    <tbody>
-      <tr valign="top">
-        <td align="center">
-          <span style="font-weight: bold">{{organization-office}}</span><br>
-          {{organizationAddress}}<br>
-          <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
-          <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <p>
+    <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td align="center">
+            <span style="font-weight: bold">{{organization-office}}</span><br>
+            {{organizationAddress}}<br>
+            <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
 </div>
 </body>
 </html>

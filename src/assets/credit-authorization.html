@@ -59,12 +59,25 @@
       line-height: 150%;
     }
 
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+
     #container {
       max-width: 100% !important;
       width: 100% !important;
-      border: 2px solid #ddd;
-      padding: 10px;
-      background-color: #fff;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
     }
 
     #header {
@@ -80,6 +93,15 @@
       height: auto;
     }
 
+    #terms h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0;
+    }
+
     h1 {
       font-size: 18pt;
       font-weight: 600;
@@ -91,12 +113,35 @@
       letter-spacing: -0.5px;
     }
 
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
     .border {
       border: 1px solid #ddd;
       padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
+      margin: 0;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
       margin: 0;
     }
 
@@ -119,7 +164,7 @@
     }
 
     .smgraytext {
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #999;
     }
 
@@ -127,9 +172,25 @@
       max-width: 100% !important;
       width: 100% !important;
       background-color: #222;
-      font-size: 6pt;
+      font-size: 10pt;
       color: #fff;
-      padding: 10px;
+      padding: 15px 5px 15px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
     }
   </style>
 </head>
@@ -156,7 +217,7 @@
     <tbody>
       <tr valign="top">
         <td width="40%">
-          <div style="margin-right: 5px" class="border">
+          <div class="border">
             <p>
               <span style="font-weight: bold">Name: </span>{{contactName}}<br>
               <span style="font-weight: bold">Date: </span>{{reservationDate}}
@@ -164,7 +225,7 @@
           </div>
         </td>
         <td width="60%">
-          <div style="margin-left: 5px" class="border">
+          <div class="border">
             <p>
               <span style="font-weight: bold">Reservation #: </span>{{reservationCode}}<br>
               <span style="font-weight: bold">Rental Property Address: </span>{{apartmentAddress}}
@@ -174,95 +235,106 @@
       </tr>
 
       <tr valign="top">
-        <td style="padding-top: 10px" colspan="2">
-          <p>Thank you for reserving your furnished residence with {{organization-office}} ("{{organization-office}}"). All reservations require either a Company or Personal credit card, and will be confirmed upon receipt of this Authorization form.</p>
-          <p>
-            <table cellspacing="0" cellpadding="0" width="100%">
-              <tbody>
-                <tr valign="top">
-                  <td>I,</td>
-                  <td align="center">
-                    <div class="grayline2">(Name exactly as it appears on Card)</div>
-                  </td>
-                  <td>of</td>
-                  <td align="center">
-                    <div class="grayline2">(Company if corporate credit card)</div>
-                  </td>
-                  <td>hereby grant</td>
-                </tr>
-              </tbody>
-            </table>
-            {{organization-office}} authorization to charge my: <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
-          </p>
+        <td colspan="2">
+          <div class="border">
+            <p>Thank you for reserving your furnished residence with {{organization-office}} ("{{organization-office}}"). All reservations require either a Company or Personal credit card, and will be confirmed upon receipt of this Authorization form.</p>
+            <p>
+              <table cellspacing="0" cellpadding="0" width="100%">
+                <tbody>
+                  <tr valign="top">
+                    <td>I,</td>
+                    <td align="center">
+                      <div class="grayline2">(Name exactly as it appears on Card)</div>
+                    </td>
+                    <td>of</td>
+                    <td align="center">
+                      <div class="grayline2">(Company if corporate credit card)</div>
+                    </td>
+                    <td>hereby grant</td>
+                  </tr>
+                </tbody>
+              </table>
+              {{organization-office}} authorization to charge my: <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
+            </p>
+          </div>
+
           <div class="border">
             <p class="grayline3"><span style="font-weight: bold">Credit Card Number:</span></p>
             <p class="grayline3"><span style="font-weight: bold">Expiration Date:</span></p>
             <p class="grayline3"><span style="font-weight: bold">Security Code:</span></p>
             <p class="grayline3"><span style="font-weight: bold">Billing Address & Zip Code Of Credit Card:</span></p>
           </div>
-          <p>I agree that the credit card may be used for charges not otherwise paid, including but not limited to:</p>
-          <table cellspacing="0" cellpadding="0" width="100%">
-            <tbody>
-              <tr valign="top">
-                <td width="50%">
-                  <p>
-                    <input type="checkbox"> Rent<br>
-                    <input type="checkbox"> Departure Fee<br>
-                    <input type="checkbox"> Sec Dep / SDW
-                  </p>
-                </td>
-                <td width="50%">
-                  <p>
-                    <input type="checkbox"> Pet Fee (if applicable)<br>
-                    <input type="checkbox"> Other Phone/Cable Charges (if applicable)<br>
-                    <input type="checkbox"> Housekeeping (if applicable)
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td colspan="2">
-                  <p>
-                    <input type="checkbox"> Other: <span class="grayline">___________________________________________________________________</span>
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p>The credit card may also be used for miscellaneous charges incurred during my stay, outstanding lockout charges, missing items and damages beyond normal wear and tear.</p>
-          <p>I hereby represent that I have the authority to execute this credit card authorization and agree that this Authorization will be effective the date signed below. I understand and consent to the use of my credit card without my signature on the charge slip, that a photocopy or fax of this agreement will serve as an original, and this Credit Card Authorization cannot be revoked and will not terminate until 60 days after the leased premises are vacated or termination of the Lease whichever occurs later.</p>
-          <br>
-          <table cellspacing="0" cellpadding="0" width="100%" align="center">
-            <tbody>
-              <tr valign="top">
-                <td style="padding-right: 10px" width="60%" align="center">
-                  <hr class="grayline" noshade>
-                  <span style="font-style: italic">Cardholder's Signature</span>
-                </td>
-                <td style="padding-left: 10px" width="40%" align="center">
-                  <hr class="grayline" noshade>
-                  <span style="font-style: italic">Date</span>
-                  <p> </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+          <div class="border">
+            <p>I agree that the credit card may be used for charges not otherwise paid, including but not limited to:</p>
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%">
+                    <p>
+                      <input type="checkbox"> Rent<br>
+                      <input type="checkbox"> Departure Fee<br>
+                      <input type="checkbox"> Sec Dep / SDW
+                    </p>
+                  </td>
+                  <td width="50%">
+                    <p>
+                      <input type="checkbox"> Pet Fee (if applicable)<br>
+                      <input type="checkbox"> Other Phone/Cable Charges (if applicable)<br>
+                      <input type="checkbox"> Housekeeping (if applicable)
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <p>
+                      <input type="checkbox"> Other: <span class="grayline">___________________________________________________________________</span>
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p>The credit card may also be used for miscellaneous charges incurred during my stay, outstanding lockout charges, missing items and damages beyond normal wear and tear.</p>
+            <p>I hereby represent that I have the authority to execute this credit card authorization and agree that this Authorization will be effective the date signed below. I understand and consent to the use of my credit card without my signature on the charge slip, that a photocopy or fax of this agreement will serve as an original, and this Credit Card Authorization cannot be revoked and will not terminate until 60 days after the leased premises are vacated or termination of the Lease whichever occurs later.</p>
+          </div>
+
+          <br><br>
+          <div class="borderless">
+            <table cellspacing="0" cellpadding="0" width="100%" align="center">
+              <tbody>
+                <tr valign="top">
+                  <td style="padding-right: 10px" width="60%" align="center">
+                    <hr class="grayline" noshade>
+                    <span style="font-style: italic">Cardholder's Signature</span>
+                  </td>
+                  <td style="padding-left: 10px" width="40%" align="center">
+                    <hr class="grayline" noshade>
+                    <span style="font-style: italic">Date</span>
+                    <br><br>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </td>
       </tr>
     </tbody>
   </table>
 
-  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
-    <tbody>
-      <tr valign="top">
-        <td align="center">
-          <span style="font-weight: bold">{{organization-office}}</span><br>
-          {{organizationAddress}}<br>
-          <span>P:</span> {{organizationPhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officePhone}} &nbsp;&nbsp;&nbsp;
-          <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <p>
+    <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td align="center">
+            <span style="font-weight: bold">{{organization-office}}</span><br>
+            {{organizationAddress}}<br>
+            <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
 </div>
 </body>
 </html>
