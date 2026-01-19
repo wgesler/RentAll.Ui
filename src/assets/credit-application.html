@@ -36,6 +36,11 @@
       #header h1, #footer {
         color: #fff !important;
       }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
     }
   </style>
 
@@ -159,6 +164,7 @@
     }
 
     .grayline2 {
+      border-top: none;
       border-bottom: 1px solid #ccc;
       width: 100%;
       padding-top: 10px;
@@ -328,7 +334,8 @@
       <tr>
         <td colspan="2">
           <p align="center">
-            PLEASE COMPLETE AND RETURN TO {{organization-office}} - FAX: {{fax}}.
+            <br>
+            PLEASE COMPLETE AND RETURN TO:&nbsp;{{organization-office-caps}}&nbsp;&nbsp;&nbsp;FAX:&nbsp;{{officeFax}}.
           </p>
         </td>
       </tr>

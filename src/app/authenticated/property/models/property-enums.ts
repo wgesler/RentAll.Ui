@@ -71,4 +71,3 @@ export enum BedSizeType
     DayBed = 5,
     SofaBed = 6
 }
-

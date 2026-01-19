@@ -36,6 +36,11 @@
       #header h1, #footer {
         color: #fff !important;
       }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
     }
   </style>
 
@@ -144,7 +149,7 @@
     }
 
     /* Reduce spacing after Today's Date section */
-    table#container tbody tr:nth-child(3) td .border {
+    table#container tbody tr:nth-child(3) td > .border:first-child {
       margin-top: 0;
     }
 
@@ -272,25 +277,24 @@
               <span style="font-weight: bold">Rent due through end of notice $:</span> <span class="grayline">________________________</span>
             </p>
           </div>
-          <br><br>
-          <br>
-          <table cellspacing="0" cellpadding="0" width="100%" align="center">
-            <tbody>
-              <tr valign="top">
-                <td style="padding-right: 10px" width="60%" align="center">
-                  <hr class="grayline" noshade>
-                  <i class="smgraytext">Signature</i>
-                </td>
-                <td style="padding-left: 10px" width="40%" align="center">
-                  <hr class="grayline" noshade>
-                  <i class="smgraytext">Date</i>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <br><br>
-
           <div class="border">
+            <br><br>
+            <br>
+            <table cellspacing="0" cellpadding="0" width="100%" align="center">
+              <tbody>
+                <tr valign="top">
+                  <td style="padding-right: 10px" width="60%" align="center">
+                    <hr class="grayline" noshade>
+                    <i class="smgraytext">{{responsiblePartyNoun}} Signature</i>
+                  </td>
+                  <td style="padding-left: 10px" width="40%" align="center">
+                    <hr class="grayline" noshade>
+                    <i class="smgraytext">Date</i>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <br>
             <p>
               <span style="font-weight: bold">Acknowledged by {{organization-office}}:</span>
             </p>

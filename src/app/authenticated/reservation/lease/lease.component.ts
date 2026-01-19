@@ -557,6 +557,14 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return this.organization.name;
   }
 
+  getOrganizationNameUpper(): string {
+    if (!this.organization) return '';
+    const name = this.selectedOffice 
+      ? this.organization.name + ' ' + this.selectedOffice.name
+      : this.organization.name;
+    return name.toUpperCase();
+  }
+
   getBillingTypeText(): string {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
@@ -598,6 +606,13 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return (this.contact.entityTypeId === EntityType.Company && this.company) 
       ?  this.company.name 
       : `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
+  }
+
+  getResponsibleNoun(): string {
+    if(!this.contact ) return '';
+    return (this.contact.entityTypeId === EntityType.Company && this.company) 
+      ?  'Company'
+      : 'Tenant';
   }
 
   getSecurityDepositText(): string {
@@ -815,6 +830,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     if (this.contact) {
       result = result.replace(/\{\{clientCode\}\}/g, this.contact.contactCode || '');
       result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
+      result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
 
       // Contact information (could be company or individual)
       result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
@@ -922,6 +938,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     // Replace organization placeholders
     if (this.organization) {
       result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
+      result = result.replace(/\{\{organization-office-caps\}\}/g, this.getOrganizationNameUpper());
       result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');

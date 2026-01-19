@@ -36,6 +36,11 @@
       #header h1, #footer {
         color: #fff !important;
       }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
     }
   </style>
 
@@ -275,78 +280,124 @@
       <h2>Rental Payments</h2>
       <p>{{rentalPayment}}</p>
 
-      <h2>Security Deposit/Credit Card Authorizations</h2>
-      <p>{{securityDeposit}}</p>
+      <div class="keep-together">
+        <h2>Security Deposit/Credit Card Authorizations</h2>
+        <p>{{securityDeposit}}</p>
+      </div>
 
      {{#if depositTypeSDW}}
-        <h2>Security Deposit Waiver</h2>
-        <p>{{securityDepositWaiver}}</p>
+        <div class="keep-together">
+          <h2>Security Deposit Waiver</h2>
+          <p>{{securityDepositWaiver}}</p>
+        </div>
      {{/if}}
 
-      <h2>Cancellation Policy</h2>
-      <p>{{cancellationPolicy}}</p>
+      <div class="keep-together">
+        <h2>Cancellation Policy</h2>
+        <p>{{cancellationPolicy}}</p>
+      </div>
 
-      <h2>Key Pick-up and drop-off</h2>
-      <p>{{keyPickUpDropOff}}</p>
+      <div class="keep-together">
+        <h2>Key Pick-up and drop-off</h2>
+        <p>{{keyPickUpDropOff}}</p>
+      </div>
 
       {{#if billingTypeMonthly}}
-        <h2>Partial Month Calculation</h2>
-        <p>{{partialMonth}}</p>
+        <div class="keep-together">
+          <h2>Partial Month Calculation</h2>
+          <p>{{partialMonth}}</p>
+        </div>
      {{/if}}
 
-      <h2>Departure Notification/Extensions</h2>
-      <p>{{departureNotification}}</p>
+      <div class="keep-together">
+        <h2>Departure Notification/Extensions</h2>
+        <p>{{departureNotification}}</p>
+      </div>
 
-      <h2>Holdover</h2>
-      <p>{{holdover}}</p>
+      <div class="keep-together">
+        <h2>Holdover</h2>
+        <p>{{holdover}}</p>
+      </div>
 
-      <h2>Departure Service Fee</h2>
-      <p>{{departureServiceFee}}</p>
+      <div class="keep-together">
+        <h2>Departure Service Fee</h2>
+        <p>{{departureServiceFee}}</p>
+      </div>
 
-      <h2>Checkout Procedure</h2>
-      <p>{{checkoutProcedure}}</p>
+      <div class="keep-together">
+        <h2>Checkout Procedure</h2>
+        <p>{{checkoutProcedure}}</p>
+      </div>
 
-      <h2>Parking</h2>
-      <p>{{parking}}</p>
+      <div class="keep-together">
+        <h2>Parking</h2>
+        <p>{{parking}}</p>
+      </div>
 
-      <h2>Rules & Regulations</h2>
-      <p>{{rulesAndRegulations}}</p>
+      <div class="keep-together">
+        <h2>Rules & Regulations</h2>
+        <p>{{rulesAndRegulations}}</p>
+      </div>
 
-      <h2>Occupying Tenants</h2>
-      <p>{{occupyingTenants}}</p>
+      <div class="keep-together">
+        <h2>Occupying Tenants</h2>
+        <p>{{occupyingTenants}}</p>
+      </div>
 
-      <h2>Utility Allowance</h2>
-      <p>{{utilityAllowance}}</p>
+      <div class="keep-together">
+        <h2>Utility Allowance</h2>
+        <p>{{utilityAllowance}}</p>
+      </div>
 
-      <h2>Maid Service</h2>
-      <p>{{maidService}}</p>
+      <div class="keep-together">
+        <h2>Maid Service</h2>
+        <p>{{maidService}}</p>
+      </div>
 
-      <h2>Pets</h2>
-      <p>{{pets}}</p>
+      <div class="keep-together">
+        <h2>Pets</h2>
+        <p>{{pets}}</p>
+      </div>
 
-      <h2>Smoking in unit</h2>
-      <p>{{smoking}}</p>
+      <div class="keep-together">
+        <h2>Smoking in unit</h2>
+        <p>{{smoking}}</p>
+      </div>
 
-      <h2>Emergencies</h2>
-      <p>{{emergencies}}</p>
+      <div class="keep-together">
+        <h2>Emergencies</h2>
+        <p>{{emergencies}}</p>
+      </div>
 
-      <h2>Homeowner''s Association</h2>
-      <p>{{homeownersAssociation}}</p>
+      <div class="keep-together">
+        <h2>Homeowner''s Association</h2>
+        <p>{{homeownersAssociation}}</p>
+      </div>
 
-      <h2>Indemnification</h2>
-      <p>{{indemnification}}</p>
+      <div class="keep-together">
+        <h2>Indemnification</h2>
+        <p>{{indemnification}}</p>
+      </div>
 
-      <h2>Default</h2>
-      <p>{{defaultClause}}</p>
+      <div class="keep-together">
+        <h2>Default</h2>
+        <p>{{defaultClause}}</p>
+      </div>
 
-      <h2>Attorneys''/Collection Fees</h2>
-      <p>{{attorneyCollectionFees}}</p>
+      <div class="keep-together">
+        <h2>Attorneys''/Collection Fees</h2>
+        <p>{{attorneyCollectionFees}}</p>
+      </div>
 
-      <h2>Reserved Rights</h2>
-      <p>{{reservedRights}}</p>
+      <div class="keep-together">
+        <h2>Reserved Rights</h2>
+        <p>{{reservedRights}}</p>
+      </div>
 
-      <h2>Use</h2>
-      <p>{{propertyUse}}</p>
+      <div class="keep-together">
+        <h2>Use</h2>
+        <p>{{propertyUse}}</p>
+      </div>
 
       <h2>Miscellaneous</h2>
       {{miscellaneous}}<br><br>
@@ -356,7 +407,7 @@
           <tr valign="top">
             <td style="padding-right: 10px" width="60%" align="center">
               <hr class="grayline" noshade>
-              <i class="smgraytext">Tenant Signature</i>
+              <i class="smgraytext">{{responsiblePartyNoun}} Signature</i>
               <p><br><br></p>
               <hr class="grayline" noshade>
               <i class="smgraytext">{{organization-office}}</i>

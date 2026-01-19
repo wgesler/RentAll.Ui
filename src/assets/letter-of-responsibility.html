@@ -36,6 +36,11 @@
       #header h1, #footer {
         color: #fff !important;
       }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
     }
   </style>
 
@@ -285,7 +290,7 @@
               <tr valign="top">
                 <td width="50%" style="padding-right: 10px" align="center">
                   <strong>{{responsibleParty}}</strong><br>
-                  <i class="smgraytext">(Company)</i>
+                  <i class="smgraytext">({{responsiblePartyNoun}})</i>
                   <p><br><br>
                     <hr noshade class="grayline">
                     <i class="smgraytext">Signature</i>
