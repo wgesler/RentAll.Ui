@@ -1363,6 +1363,36 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         break-inside: avoid !important;
         display: block !important;
       }
+      
+      /* Allow container tables to break across pages */
+      #container,
+      table#container {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+      
+      /* Allow container table rows to break if needed */
+      #container tr,
+      table#container tr {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+      
+      /* Keep equal height boxes in print - use min-height instead of height trick */
+      #container tbody tr:first-child td {
+        height: 1px !important;
+      }
+      
+      #container tbody tr:first-child td .border {
+        height: 100% !important;
+      }
+      
+      /* Prevent header from breaking but allow content to flow */
+      #header,
+      table#header {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
     `;
     
     return wrapInMediaQuery ? `@media print {${styles}}` : styles;
