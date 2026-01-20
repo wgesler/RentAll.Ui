@@ -139,7 +139,7 @@
       margin: 0;
     }
 
-    /* Make the first row's boxes equal height */
+    /* Make the first rows boxes equal height */
     table#container tbody tr:first-child td {
       height: 1px;
     }
@@ -164,7 +164,21 @@
     }
 
     .grayline2 {
-      border-top: none;
+      border-top: 1px solid #ccc;
+      border-bottom: none;
+      width: 100%;
+      padding-top: 10px;
+    }
+
+    .grayline2withtext {
+      border-top: 1px solid #ccc;
+      color: #999;
+      font-size: 7pt;
+      margin-top: 15px;
+      padding-bottom: 5px;
+    }
+
+    .grayline3 {
       border-bottom: 1px solid #ccc;
       width: 100%;
       padding-top: 10px;
@@ -187,17 +201,17 @@
     #footer td {
       padding-bottom: 0 !important;
       margin-bottom: 0 !important;
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
 
     #footer p {
       margin: 0 !important;
       padding: 0 !important;
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
 
     #footer br {
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
   </style>
 </head>
@@ -253,12 +267,12 @@
               <tbody>
                 <tr valign="top">
                   <td width="50%" style="padding-right: 5px;">
-                    <p class="grayline2">Last Name:</p>
-                    <p class="grayline2">Middle Initial:</p>
+                    <p class="grayline3">Last Name:</p>
+                    <p class="grayline3">Middle Initial:</p>
                   </td>
                   <td width="50%" style="padding-left: 5px;">
-                    <p class="grayline2">First Name:</p>
-                    <p class="grayline2">Maiden/Previous:</p>
+                    <p class="grayline3">First Name:</p>
+                    <p class="grayline3">Maiden/Previous:</p>
                   </td>
                 </tr>
               </tbody>
@@ -275,17 +289,17 @@
               <tbody>
                 <tr valign="top">
                   <td width="65%" style="padding-right: 5px;">
-                    <p class="grayline2">Current Address:</p>
-                    <p class="grayline2">Previous Address:</p>
+                    <p class="grayline3">Current Address:</p>
+                    <p class="grayline3">Previous Address:</p>
                   </td>
                   <td width="35%" style="padding-left: 5px;">
-                    <p class="grayline2">How Long:</p>
-                    <p class="grayline2">How Long:</p>
+                    <p class="grayline3">How Long:</p>
+                    <p class="grayline3">How Long:</p>
                   </td>
                 </tr>
                 <tr>
                   <td colspan="2">
-                    <p class="grayline2">Other state(s) in which you have lived:</p>
+                    <p class="grayline3">Other state(s) in which you have lived:</p>
                   </td>
                 </tr>
               </tbody>
@@ -302,20 +316,20 @@
               <tbody>
                 <tr valign="top">
                   <td width="50%" style="padding-right: 5px;">
-                    <p class="grayline2">Phone Number <i>(home)</i>:</p>
-                    <p class="grayline2">Cell Phone:</p>
-                    <p class="grayline2">Social Security #:</p>
-                    <p class="grayline2">Driver's License #:</p>
-                    <p class="grayline2">Current Employer:</p>
-                    <p class="grayline2">Supervisor's Name:</p>
+                    <p class="grayline3">Phone Number <i>(home)</i>:</p>
+                    <p class="grayline3">Cell Phone:</p>
+                    <p class="grayline3">Social Security #:</p>
+                    <p class="grayline3">Driver's License #:</p>
+                    <p class="grayline3">Current Employer:</p>
+                    <p class="grayline3">Supervisor's Name:</p>
                   </td>
                   <td width="50%" style="padding-left: 5px;">
-                    <p class="grayline2">Phone number <i>(work)</i>:</p>
-                    <p class="grayline2">Fax Number:</p>
-                    <p class="grayline2">Date of Birth:</p>
-                    <p class="grayline2">State of Issue:</p>
-                    <p class="grayline2">Salary:</p>
-                    <p class="grayline2">Phone:</p>
+                    <p class="grayline3">Phone number <i>(work)</i>:</p>
+                    <p class="grayline3">Fax Number:</p>
+                    <p class="grayline3">Date of Birth:</p>
+                    <p class="grayline3">State of Issue:</p>
+                    <p class="grayline3">Salary:</p>
+                    <p class="grayline3">Phone:</p>
                   </td>
                 </tr>
               </tbody>
@@ -332,12 +346,12 @@
               <tbody>
                 <tr valign="top">
                   <td width="65%" style="padding-right: 5px;">
-                    <p class="grayline2">Current Landlord's Name:</p>
-                    <p class="grayline2">Previous Landlord's Name:</p>
+                    <p class="grayline3">Current Landlord's Name:</p>
+                    <p class="grayline3">Previous Landlord's Name:</p>
                   </td>
                   <td width="35%" style="padding-left: 5px;">
-                    <p class="grayline2">Phone:</p>
-                    <p class="grayline2">Phone:</p>
+                    <p class="grayline3">Phone:</p>
+                    <p class="grayline3">Phone:</p>
                   </td>
                 </tr>
               </tbody>
@@ -350,9 +364,9 @@
       <tr>
         <td colspan="2" style="padding-top: 10px;">
           <div class="border keep-together">
-            <p class="grayline2">Have you ever been convicted of a crime?:</p>
-            <p class="grayline2">If yes, give date(s) of arrest & state police department:</p>
-            <p class="grayline2">Nature of the crime:</p>
+            <p class="grayline3">Have you ever been convicted of a crime?:</p>
+            <p class="grayline3">If yes, give date(s) of arrest & state police department:</p>
+            <p class="grayline3">Nature of the crime:</p>
             <br>
           </div>
         </td>

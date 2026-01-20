@@ -75,7 +75,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   includeBusinessCreditApplication: boolean = false;
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
-  debuggingHtml: boolean = false;
+  debuggingHtml: boolean = true;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));

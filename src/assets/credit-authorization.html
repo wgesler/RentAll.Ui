@@ -129,32 +129,23 @@
 
     .border {
       border: 1px solid #ddd;
-      padding: 10px !important;
-      margin-top: 10px !important;
-      margin-right: 5px !important;
-      margin-left: 5px !important;
-    }
-
-    table#container td {
-      padding: 5px;
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
     }
 
     .border p {
       margin: 0;
     }
 
-    /* Make the first row's boxes equal height */
+    /* Make the first rows boxes equal height */
     table#container tbody tr:first-child td {
       height: 1px;
     }
     
     table#container tbody tr:first-child td .border {
       height: 100%;
-    }
-
-    /* Add padding to table cells to prevent margin collapse */
-    table#container td {
-      padding: 5px;
     }
 
     .borderless {
@@ -174,6 +165,13 @@
 
     .grayline2 {
       border-top: 1px solid #ccc;
+      border-bottom: none;
+      width: 100%;
+      padding-top: 10px;
+    }
+
+    .grayline2withtext {
+      border-top: 1px solid #ccc;
       color: #999;
       font-size: 7pt;
       margin-top: 15px;
@@ -183,11 +181,30 @@
     .grayline3 {
       border-bottom: 1px solid #ccc;
       width: 100%;
+      padding-top: 10px;
+    }
+
+    .grayline3table {
+      border-bottom: 1px solid #ccc;
       padding-top: 15px !important;
       padding-right: 20px;
       padding-bottom: 0;
     }
-    
+
+    td.grayline3table {
+      width: auto !important;
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1 !important;
+      padding-right: 20px !important;
+    }
+
+    table td.grayline3table {
+      padding-top: 15px !important;
+      width: auto !important;
+      padding-right: 20px !important;
+    }
+
     td.grayline3 {
       width: auto !important;
       padding-bottom: 0 !important;
@@ -199,7 +216,7 @@
       padding-top: 15px !important;
       width: auto !important;
     }
-    
+
     table td.grayline3 .grayline3 {
       width: auto !important;
     }
@@ -240,17 +257,17 @@
     #footer td {
       padding-bottom: 0 !important;
       margin-bottom: 0 !important;
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
 
     #footer p {
       margin: 0 !important;
       padding: 0 !important;
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
 
     #footer br {
-      line-height: 1.2 !important;
+      line-height: 1.5 !important;
     }
   </style>
 </head>
@@ -304,11 +321,11 @@
                   <tr valign="top">
                     <td>I,</td>
                     <td align="center">
-                      <div class="grayline2">(Name exactly as it appears on Card)</div>
+                      <div class="grayline2withtext">(Name exactly as it appears on Card)</div>
                     </td>
                     <td>of</td>
                     <td align="center">
-                      <div class="grayline2">(Company if corporate credit card)</div>
+                      <div class="grayline2withtext">(Company if corporate credit card)</div>
                     </td>
                     <td>hereby grant</td>
                   </tr>
@@ -319,24 +336,24 @@
             <table cellspacing="0" cellpadding="0" width="100%">
               <tbody>
                 <tr style="margin-top: 25px;">
-                  <td width="50%" class="grayline3">
-                    <span class="smgraytext2">Credit Card Number:</span>
+                  <td width="50%" class="grayline3table">
+                    <span class="smgraytext">Credit Card Number:</span>
                   </td>
-                  <td width="50%" class="grayline3" style="padding-left: 100px !important; padding-right: 0 !important;">
-                    <span class="smgraytext2">Expiration Date:</span>
-                  </td>
-                </tr>
-                <tr style="margin-top: 25px;">
-                  <td width="50%" class="grayline3">
-                    <span class="smgraytext2">Security Code:</span>
-                  </td>
-                  <td width="50%" class="grayline3" style="padding-left: 100px !important; padding-right: 0 !important;">
-                    <span class="smgraytext2">Zip Code:</span>
+                  <td width="50%" class="grayline3table" style="padding-left: 100px !important; padding-right: 20px !important;">
+                    <span class="smgraytext">Expiration Date:</span>
                   </td>
                 </tr>
                 <tr style="margin-top: 25px;">
-                  <td colspan="2" class="grayline3">
-                    <span class="smgraytext2">Billing Address:</span>
+                  <td width="50%" class="grayline3table">
+                    <span class="smgraytext">Security Code:</span>
+                  </td>
+                  <td width="50%" class="grayline3table" style="padding-left: 100px !important; padding-right: 20px !important;">
+                    <span class="smgraytext">Zip Code:</span>
+                  </td>
+                </tr>
+                <tr style="margin-top: 25px;">
+                  <td colspan="2" class="grayline3table">
+                    <span class="smgraytext">Billing Address:</span>
                   </td>
                 </tr>
               </tbody>
