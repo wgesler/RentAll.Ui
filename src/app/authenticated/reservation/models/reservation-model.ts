@@ -22,6 +22,7 @@ export interface ReservationRequest {
   deposit: number;
   depositTypeId?: number;
   departureFee: number;
+  taxes: number;
   hasPets: boolean;
   petFee: number;
   numberOfPets: number;
@@ -29,7 +30,7 @@ export interface ReservationRequest {
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
-  taxes: number;
+  maidStartDate: string;
   extraFee: number;
   extraFeeName: string;
   extraFee2?: number;
@@ -62,6 +63,7 @@ export interface ReservationResponse {
   deposit: number;
   depositTypeId?: number;
   departureFee: number;
+  taxes: number;
   hasPets: boolean;
   petFee: number;
   numberOfPets: number;
@@ -69,7 +71,7 @@ export interface ReservationResponse {
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
-  taxes: number;
+  maidStartDate: string;
   extraFee: number;
   extraFeeName: string;
   extraFee2?: number;

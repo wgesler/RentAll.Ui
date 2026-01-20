@@ -291,7 +291,7 @@
                 <mat-expansion-panel-header>
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
-                <!-- Line 6: Billing Type, Billing Rate, Deposit, DepositType, Departure Fee (all 5 on one line) -->
+                <!-- Line 6: Billing Type, Billing Rate, Deposit, DepositType, Departure Fee, Taxes -->
                 <div class="flex gap-x-1.5 mb-1">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Type</mat-label>
@@ -314,17 +314,6 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Deposit</mat-label>
-                <input matInput type="text" formControlName="deposit" placeholder="0.00" (blur)="formatDecimal('deposit')" (input)="onDecimalInput($event, 'deposit')" (focus)="selectAllOnFocus($event)">
-                @if (form.get('deposit')?.hasError('required') && form.get('deposit')?.touched) {
-                  <mat-error>Deposit is required</mat-error>
-                }
-                @if (form.get('deposit')?.hasError('mustBeGreaterThanZero') && form.get('deposit')?.touched) {
-                  <mat-error>Deposit must be greater than 0</mat-error>
-                }
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>DepositType</mat-label>
                 <mat-select formControlName="depositType" required>
                   @for (depositType of availableDepositTypes; track depositType.value) {
@@ -337,11 +326,27 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Deposit</mat-label>
+                <input matInput type="text" formControlName="deposit" placeholder="0.00" (blur)="formatDecimal('deposit')" (input)="onDecimalInput($event, 'deposit')" (focus)="selectAllOnFocus($event)">
+                @if (form.get('deposit')?.hasError('required') && form.get('deposit')?.touched) {
+                  <mat-error>Deposit is required</mat-error>
+                }
+                @if (form.get('deposit')?.hasError('mustBeGreaterThanZero') && form.get('deposit')?.touched) {
+                  <mat-error>Deposit must be greater than 0</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Departure Fee</mat-label>
                 <input matInput type="text" formControlName="departureFee" placeholder="0.00" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
                 @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
                   <mat-error>Departure Fee is required</mat-error>
                 }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Taxes</mat-label>
+                <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
             </div>
 
@@ -388,7 +393,7 @@
               </mat-form-field>
             </div>
 
-            <!-- Line 8: All Maid Service fields and Taxes (MaidService, Maid Fee, Frequency, Taxes) -->
+            <!-- Line 8: All Maid Service fields and Maid Start Date (MaidService, Maid Fee, Frequency, Maid Start Date) -->
             <div class="flex gap-x-1.5 mb-1">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>MaidService</mat-label>
@@ -428,8 +433,10 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Taxes</mat-label>
-                <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
+                <mat-label>Maid Start Date</mat-label>
+                <input matInput [matDatepicker]="maidStartDatePicker" formControlName="maidStartDate" [min]="form.get('arrivalDate')?.value">
+                <mat-datepicker-toggle matIconSuffix [for]="maidStartDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #maidStartDatePicker></mat-datepicker>
               </mat-form-field>
             </div>
 

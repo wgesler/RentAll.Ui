@@ -89,7 +89,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
  
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts', 'reservation']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -131,15 +131,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.reservationId = paramMap.get('id') || null;
       this.isAddMode = !this.reservationId || this.reservationId === 'new';
       
-      // Remove 'reservation' from itemsToLoad$ - we'll load it separately after other data is ready
-      this.removeLoadItem('reservation');
-      
       if (this.isAddMode) {
         this.billingPanelOpen = false;
+        this.updatePetFields();
+        this.updateMaidServiceFields();
+        this.updateExtraFeeFields();
       }
     });
     
-    // Check query params for tab selection
+    // Keep track of the tab so we now where the back button should take us
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
         this.selectedTabIndex = 3; // Documents tab
@@ -150,22 +150,18 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.setupFormHandlers();
       
-      // Load reservation after all supporting data is ready
-      if (this.reservationId && !this.isAddMode) {
+       if (!this.isAddMode) {
         this.getReservation();
       }
     });
   }
 
   getReservation(): void {
-    if (!this.reservationId || this.reservationId === 'new') {
-      this.removeLoadItem('reservation');
-      this.isServiceError = true;
-      this.toastr.error('Invalid reservation ID', CommonMessage.Error);
+    if (this.isAddMode) {
       return;
     }
 
-    this.reservationService.getReservationByGuid(this.reservationId).pipe( take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
+    this.reservationService.getReservationByGuid(this.reservationId).pipe( take(1)).subscribe({
       next: (response: ReservationResponse) => {
         this.reservation = response;
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
@@ -240,6 +236,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       maidService: formValue.maidService ?? false,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
       frequencyId: formValue.frequencyId ?? Frequency.NA,
+      maidStartDate: formValue.maidStartDate ? (formValue.maidStartDate as Date).toISOString() : new Date().toISOString(),
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
       numberOfPets: formValue.numberOfPets ? Number(formValue.numberOfPets) : undefined,
       petDescription: formValue.petDescription || undefined,
@@ -268,14 +265,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         
-        // If in add mode, reload the reservation to get the reservation code and switch to edit mode
+        // If in add mode, navigate back to reservation list
         if (this.isAddMode && response) {
-          this.reservation = response;
-          this.reservationId = response.reservationId;
-          this.isAddMode = false;
-          // Update the URL to reflect edit mode
-          this.router.navigate(['/reservation', this.reservationId], { replaceUrl: true });
-          this.populateForm();
+          this.router.navigateByUrl(RouterUrl.ReservationList);
         } else if (!this.isAddMode && response) {
           // Update the reservation data with the response
           this.reservation = response;
@@ -323,6 +315,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       numberOfPets: new FormControl(0),
       petDescription: new FormControl(''),
       maidService: new FormControl(false, [Validators.required]),
+      maidStartDate: new FormControl<Date | null>(null),
       phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       depositType: new FormControl(DepositType.Deposit, [Validators.required]),
@@ -388,6 +381,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       numberOfPets: this.reservation.numberOfPets ?? 0,
       petDescription: this.reservation.petDescription || '',
       maidService: this.reservation.maidService ?? false,
+      maidStartDate: this.reservation.maidStartDate ? new Date(this.reservation.maidStartDate) : null,
       maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
       frequencyId: this.reservation.frequencyId ?? Frequency.NA,
       extraFee: (this.reservation.extraFee ?? 0).toFixed(2),
@@ -405,11 +399,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     // Update pet and maid service fields after patching
     this.updatePetFields();
     this.updateMaidServiceFields();
-   
-    // Update pet and maid service fields after patching
-    this.updatePetFields();
-    this.updateMaidServiceFields();
-
+    this.updateExtraFeeFields();
+    this.updateMaidStartDate();
   }
     
   setupFormHandlers(): void {
@@ -426,6 +417,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.setupBillingTypeHandler();
     this.setupPetFeeHandler();
     this.setupMaidServiceHandler();
+    this.setupMaidStartDateHandler();
+    this.setupDepartureDateStartAtHandler();
+    this.setupExtraFeeHandler();
     
     this.handlersSetup = true;
   }
@@ -436,8 +430,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
       this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
-      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
-      this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;     
+      if(this.reservation?.contactId)
+        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
 
       const propertyAddress = this.selectedProperty?.shortAddress || '';
       const propertyCode = this.selectedProperty?.propertyCode || '';
@@ -505,9 +500,64 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
+  updateMaidStartDate(): void {
+    const arrivalDate = this.form.get('arrivalDate')?.value;
+    const maidStartDateControl = this.form.get('maidStartDate');
+    
+    // Always update maidStartDate to arrivalDate + 7 days when arrivalDate changes
+    // (field will be disabled/grayed out if maidService is false)
+    if (arrivalDate && maidStartDateControl) {
+      const arrival = new Date(arrivalDate);
+      const arrivalPlus7Days = new Date(arrival);
+      arrivalPlus7Days.setDate(arrivalPlus7Days.getDate() + 7);
+      const currentMaidStartDate = maidStartDateControl.value ? new Date(maidStartDateControl.value) : null;
+      
+      // If maidStartDate is null or before arrivalDate, set it to arrivalDate + 7 days
+      if (!currentMaidStartDate || currentMaidStartDate < arrival) {
+        maidStartDateControl.setValue(arrivalPlus7Days, { emitEvent: false });
+      }
+    }
+  }
+
   setupMaidServiceHandler(): void {
     this.form.get('maidService')?.valueChanges.subscribe(maidService => {
       this.updateMaidServiceFields();
+      
+      // When maidService becomes enabled, initialize maidStartDate if arrivalDate exists
+      if (maidService) {
+        this.updateMaidStartDate();
+      }
+    });
+  }
+
+  setupMaidStartDateHandler(): void {
+    this.form.get('arrivalDate')?.valueChanges.subscribe(() => {
+      this.updateMaidStartDate();
+    });
+  }
+
+  setupDepartureDateStartAtHandler(): void {
+    this.form.get('arrivalDate')?.valueChanges.subscribe(arrivalDate => {
+      const departureDate = this.form.get('departureDate')?.value;
+      
+      // If arrival date is set and departure date is unset, start calendar at arrival date
+      if (arrivalDate && !departureDate) {
+        this.departureDateStartAt = new Date(arrivalDate);
+      } else if (!arrivalDate) {
+        this.departureDateStartAt = null;
+      }
+    });
+  }
+
+  setupExtraFeeHandler(): void {
+    // Update fields when extraFee changes
+    this.form.get('extraFee')?.valueChanges.subscribe(() => {
+      this.updateExtraFeeFields();
+    });
+    
+    // Update fields when extraFee2 changes
+    this.form.get('extraFee2')?.valueChanges.subscribe(() => {
+      this.updateExtraFeeFields();
     });
   }
 
@@ -643,6 +693,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.updatePetFields();
       this.updateMaidServiceFields();
       this.updateExtraFeeFields();
+      
+      // Set departureDateStartAt if arrival date is set and departure date is unset
+      const arrivalDate = this.form.get('arrivalDate')?.value;
+      const departureDate = this.form.get('departureDate')?.value;
+      if (arrivalDate && !departureDate) {
+        this.departureDateStartAt = new Date(arrivalDate);
+      }
     }
   }
 
@@ -732,10 +789,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   updatePetFields(): void {
-    if (!this.selectedProperty) {
-      return;
-    }
-
     const hasPets = this.form.get('pets')?.value ?? false;
     const petFeeControl = this.form.get('petFee');
     const numberOfPetsControl = this.form.get('numberOfPets');
@@ -752,6 +805,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.disableFieldWithValidation('petDescription');  
     } 
     else {
+      // Only need selectedProperty when enabling fields
+      if (!this.selectedProperty) {
+        return;
+      }
+      
       const petFee = this.selectedProperty.petFee != null 
         ? this.selectedProperty.petFee.toFixed(2) 
         : '0.00';
@@ -766,10 +824,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
   
   updateMaidServiceFields(): void {
-    if (!this.selectedProperty) {
-      return;
-    }
-
     const hasMaidService = this.form.get('maidService')?.value ?? false;
     const maidServiceFeeControl = this.form.get('maidServiceFee');
     const frequencyControl = this.form.get('frequencyId');
@@ -781,13 +835,22 @@ export class ReservationComponent implements OnInit, OnDestroy {
       frequencyControl.setValue(Frequency.NA, { emitEvent: false });
       this.disableFieldWithValidation('frequencyId');
 
+      this.disableFieldWithValidation('maidStartDate');
+
     } 
     else {
+      // Only need selectedProperty when enabling fields
+      if (!this.selectedProperty) {
+        return;
+      }
+      
       maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
       this.enableFieldWithValidation('maidServiceFee', [Validators.required]);
 
       frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
       this.enableFieldWithValidation('frequencyId', [Validators.required]);
+
+      this.enableFieldWithValidation('maidStartDate', [Validators.required]);
     }
   }
  
@@ -795,14 +858,20 @@ export class ReservationComponent implements OnInit, OnDestroy {
     let extraFee = parseFloat(this.form.get('extraFee')?.value || '0');
     let extraFee2 = parseFloat(this.form.get('extraFee2')?.value || '0');
      
-    if (extraFee > 0 || !isNaN(extraFee)) {
+    if (extraFee > 0) {
+      // ExtraFee has a value > 0: enable extraFeeName and extraFee2
       this.enableFieldWithValidation('extraFeeName', [Validators.required]);
-      this.enableFieldWithValidation('extraFee2');     
-      if (extraFee2 > 0 && !isNaN(extraFee2)) 
+      this.enableFieldWithValidation('extraFee2');
+      
+      // Only enable extraFee2Name if extraFee2 also has a value > 0
+      if (extraFee2 > 0) {
         this.enableFieldWithValidation('extraFee2Name', [Validators.required]);
-      else
+      } else {
         this.disableFieldWithValidation('extraFee2Name');
+      }
     } else {
+      // ExtraFee is 0: disable all related fields
+      this.form.get('extraFee')!.setValue('0.00', { emitEvent: false });
       this.form.get('extraFee2')!.setValue('0.00', { emitEvent: false });
       this.disableFieldWithValidation('extraFeeName');
       this.disableFieldWithValidation('extraFee2');

@@ -421,6 +421,12 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   loadReservation(): void {
+    // Don't load reservation if reservationId is empty or 'new'
+    if (!this.reservationId || this.reservationId === 'new') {
+      this.removeLoadItem('reservation');
+      return;
+    }
+    
     this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
