@@ -78,8 +78,11 @@
           <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Credit Card Authorization
           </mat-checkbox>
-          <mat-checkbox formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+          <mat-checkbox *ngIf="isCompanyRental" formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Business Credit Application
+          </mat-checkbox>
+          <mat-checkbox *ngIf="!isCompanyRental" formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+            Rental Credit Application
           </mat-checkbox>
         </div>
       </div>

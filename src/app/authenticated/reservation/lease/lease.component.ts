@@ -73,6 +73,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   includeNoticeToVacate: boolean = true;
   includeCreditCardAuthorization: boolean = false;
   includeBusinessCreditApplication: boolean = false;
+  includeRentalCreditApplication: boolean = false;
+  isCompanyRental: boolean = true;
 
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
@@ -309,7 +311,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       includeLetterOfResponsibility: new FormControl(this.includeLetterOfResponsibility),
       includeNoticeToVacate: new FormControl(this.includeNoticeToVacate),
       includeCreditCardAuthorization: new FormControl(this.includeCreditCardAuthorization),
-      includeBusinessCreditApplication: new FormControl(this.includeBusinessCreditApplication)
+      includeBusinessCreditApplication: new FormControl(this.includeBusinessCreditApplication),
+      includeRentalCreditApplication: new FormControl(this.includeRentalCreditApplication)
     });
   }
 
@@ -332,6 +335,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.includeNoticeToVacate = this.form.get('includeNoticeToVacate')?.value ?? true;
     this.includeCreditCardAuthorization = this.form.get('includeCreditCardAuthorization')?.value ?? false;
     this.includeBusinessCreditApplication = this.form.get('includeBusinessCreditApplication')?.value ?? false;
+    this.includeRentalCreditApplication = this.form.get('includeRentalCreditApplication')?.value ?? false;
 
     this.generatePreviewIframe();
   }
@@ -442,9 +446,13 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
     if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
-        this.loadCompany(this.contact.entityId);
+      this.loadCompany(this.contact.entityId);
+      this.isCompanyRental = true;
+      this.form.patchValue({ includeRentalCreditApplication: false });
     } else {
-        this.company = null;
+      this.company = null;
+      this.isCompanyRental = false;
+      this.form.patchValue({ includeBusinessCreditApplication: false });
     }
   }
  
@@ -979,7 +987,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
       noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
       creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),
-      creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application.html', { responseType: 'text' }) : of('')
+      creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application.html', { responseType: 'text' }) : of(''),
+      rentalCreditApplication: this.includeRentalCreditApplication ? this.http.get('assets/rental-credit-application.html', { responseType: 'text' }) : of('')
     }).pipe(take(1)).subscribe({
       next: (htmlFiles) => {
         // Get selected checkboxes
@@ -999,6 +1008,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         }
         if (this.includeBusinessCreditApplication && htmlFiles.creditApplication) {
           selectedDocuments.push(htmlFiles.creditApplication);
+        }
+        if (this.includeRentalCreditApplication && htmlFiles.rentalCreditApplication) {
+          selectedDocuments.push(htmlFiles.rentalCreditApplication);
         }
 
         // If no documents selected, show empty

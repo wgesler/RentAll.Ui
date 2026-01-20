@@ -1,0 +1,400 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+  <title>Rental Credit Application</title>
+
+  <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style type="text/css">
+    P.breakhere {
+      page-break-before: always;
+    }
+
+    @media print {
+      @page {
+        margin: 0.75in;
+        size: letter;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+      }
+
+      #header, #footer {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+        background-color: #222 !important;
+        color: #fff !important;
+      }
+
+      #header h1, #footer {
+        color: #fff !important;
+      }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+  </style>
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: arial, sans-serif;
+      max-width: 8.5in;
+      width: 8.5in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    p {
+      font-size: 10pt;
+      line-height: 150%;
+    }
+
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+
+    #container {
+      max-width: 100% !important;
+      width: 100% !important;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
+    }
+
+    #header {
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
+    }
+
+    #header img {
+      width: 100% !important;
+      max-width: 100% !important;
+      display: block;
+      height: auto;
+    }
+
+    #terms h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0;
+    }
+
+    h1 {
+      font-size: 18pt;
+      font-weight: 600;
+      text-align: center;
+      color: #fff;
+      margin: 0;
+      padding: 10px 5px 20px 5px;
+      background-color: #222;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
+    .border {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .border p {
+      margin: 0;
+    }
+
+    /* Make the first row's boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
+      margin: 0;
+    }
+
+    .grayline {
+      color: #ccc;
+    }
+
+    .grayline2 {
+      border-top: none;
+      border-bottom: 1px solid #ccc;
+      width: 100%;
+      padding-top: 10px;
+    }
+
+    .smgraytext {
+      font-size: 9pt;
+      color: #777;
+    }
+
+    #footer {
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
+      font-size: 10pt;
+      color: #fff;
+      padding: 10px 5px 10px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    #footer br {
+      line-height: 1.2 !important;
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+  <!-- ===================== RENTAL CREDIT APPLICATION ===================== -->
+  <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr>
+        <td colspan="1">
+          <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="center">
+        </td>
+      </tr>
+      <tr valign="top">
+        <td>
+          <h1>Rental Credit Application</h1>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <!-- Reservation / Arrival -->
+      <tr valign="top">
+        <td width="50%" style="padding-right: 5px;">
+          <div class="border">
+            <p>
+              <span style="font-size: 9pt;">
+                <strong>Reservation #:</strong> {{reservationCode}}
+              </span>
+            </p>
+          </div>
+        </td>
+
+        <td width="50%" style="padding-left: 5px;">
+          <div class="border">
+            <p>
+              <span style="font-size: 9pt;">
+                <strong>Arrival Date:</strong> {{arrivalDate}}
+              </span>
+            </p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Name Fields -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%" style="padding-right: 5px;">
+                    <p class="grayline2">Last Name:</p>
+                    <p class="grayline2">Middle Initial:</p>
+                  </td>
+                  <td width="50%" style="padding-left: 5px;">
+                    <p class="grayline2">First Name:</p>
+                    <p class="grayline2">Maiden/Previous:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Address Fields -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="65%" style="padding-right: 5px;">
+                    <p class="grayline2">Current Address:</p>
+                    <p class="grayline2">Previous Address:</p>
+                  </td>
+                  <td width="35%" style="padding-left: 5px;">
+                    <p class="grayline2">How Long:</p>
+                    <p class="grayline2">How Long:</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <p class="grayline2">Other state(s) in which you have lived:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Contact Information -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="50%" style="padding-right: 5px;">
+                    <p class="grayline2">Phone Number <i>(home)</i>:</p>
+                    <p class="grayline2">Cell Phone:</p>
+                    <p class="grayline2">Social Security #:</p>
+                    <p class="grayline2">Driver's License #:</p>
+                    <p class="grayline2">Current Employer:</p>
+                    <p class="grayline2">Supervisor's Name:</p>
+                  </td>
+                  <td width="50%" style="padding-left: 5px;">
+                    <p class="grayline2">Phone number <i>(work)</i>:</p>
+                    <p class="grayline2">Fax Number:</p>
+                    <p class="grayline2">Date of Birth:</p>
+                    <p class="grayline2">State of Issue:</p>
+                    <p class="grayline2">Salary:</p>
+                    <p class="grayline2">Phone:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Landlord Information -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border">
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr valign="top">
+                  <td width="65%" style="padding-right: 5px;">
+                    <p class="grayline2">Current Landlord's Name:</p>
+                    <p class="grayline2">Previous Landlord's Name:</p>
+                  </td>
+                  <td width="35%" style="padding-left: 5px;">
+                    <p class="grayline2">Phone:</p>
+                    <p class="grayline2">Phone:</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Additional Information -->
+      <tr>
+        <td colspan="2" style="padding-top: 10px;">
+          <div class="border keep-together">
+            <p class="grayline2">Have you ever been convicted of a crime?:</p>
+            <p class="grayline2">If yes, give date(s) of arrest & state police department:</p>
+            <p class="grayline2">Nature of the crime:</p>
+            <br>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Certification -->
+  <div class="border keep-together" style="padding-top: 10px;">
+    <p>AvenueWest will approve or decline the credit application within 72 hours.</p>
+    <p><input type="checkbox"> I certify that the information given on this application is true and correct.</p>
+    <p><input type="checkbox"> I hereby authorize, without reservation, any and all corporations, former employers, credit agencies, educational Institutions, law enforcement agencies, city, state and county courts, military services and persons, to release information they may have about me to AvenueWest Denver and/or Backgrounds USA. This releases the aforesaid parties, from any liability and responsibility, for collecting the above information. I further acknowledge that a telephonic facsimile shall be as valid as the original.</p>
+    <br><br>
+    <table cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td width="60%" style="padding-right: 10px" align="center">
+            <hr class="grayline" noshade>
+            <i class="smgraytext">Applicant's Signature</i>
+          </td>
+          <td width="40%" style="padding-left: 10px" align="center">
+            <hr class="grayline" noshade>
+            <i class="smgraytext">Date</i>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+      <tbody>
+        <tr valign="top">
+          <td align="center">
+            <span style="font-weight: bold">{{organization-office}}</span><br>
+            {{organizationAddress}}<br>
+            <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+            <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
+</body>
+</html>
