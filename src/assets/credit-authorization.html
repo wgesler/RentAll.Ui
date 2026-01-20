@@ -183,10 +183,47 @@
     .grayline3 {
       border-bottom: 1px solid #ccc;
       width: 100%;
-      padding-top: 10px;
+      padding-top: 15px !important;
+      padding-right: 20px;
+      padding-bottom: 0;
+    }
+    
+    td.grayline3 {
+      width: auto !important;
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1 !important;
+    }
+
+    table td.grayline3 {
+      padding-top: 15px !important;
+      width: auto !important;
+    }
+    
+    table td.grayline3 .grayline3 {
+      width: auto !important;
+    }
+
+    td.grayline2 {
+      width: auto;
     }
 
     .smgraytext {
+      font-size: 9pt;
+      color: #777;
+    }
+
+    .smgraytext2 {
+      font-size: 7pt !important;
+      color: #777 !important;
+      font-weight: bold !important;
+      line-height: 1.8 !important;
+      margin-bottom: -2px !important;
+      padding-bottom: 0 !important;
+      display: inline-block;
+    }
+
+    .smgrey2 {
       font-size: 9pt;
       color: #777;
     }
@@ -279,8 +316,31 @@
               </table>
               {{organization-office}} authorization to charge my: <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
             </p>
-            <br>
-            <div class="grayline2" style="text-align: center;">(Billing Address & Zip Code Of Credit Card)</div>
+            <table cellspacing="0" cellpadding="0" width="100%">
+              <tbody>
+                <tr style="margin-top: 25px;">
+                  <td width="50%" class="grayline3">
+                    <span class="smgraytext2">Credit Card Number:</span>
+                  </td>
+                  <td width="50%" class="grayline3" style="padding-left: 100px !important; padding-right: 0 !important;">
+                    <span class="smgraytext2">Expiration Date:</span>
+                  </td>
+                </tr>
+                <tr style="margin-top: 25px;">
+                  <td width="50%" class="grayline3">
+                    <span class="smgraytext2">Security Code:</span>
+                  </td>
+                  <td width="50%" class="grayline3" style="padding-left: 100px !important; padding-right: 0 !important;">
+                    <span class="smgraytext2">Zip Code:</span>
+                  </td>
+                </tr>
+                <tr style="margin-top: 25px;">
+                  <td colspan="2" class="grayline3">
+                    <span class="smgraytext2">Billing Address:</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>          
           </div>
 
           <div class="border">
@@ -303,9 +363,9 @@
                     </p>
                   </td>
                 </tr>
-                <tr>
-                  <td colspan="2">
-                    <p>
+                <tr style="margin-top: 0; padding-top: 0;">
+                  <td colspan="2" style="margin-top: 0; padding-top: 0;">
+                    <p style="margin-top: 0; padding-top: 0;">
                       <input type="checkbox"> Other: <span class="grayline">___________________________________________________________________</span>
                     </p>
                   </td>
@@ -313,11 +373,10 @@
               </tbody>
             </table>
             <p>The credit card may also be used for miscellaneous charges incurred during my stay, outstanding lockout charges, missing items and damages beyond normal wear and tear.</p>
-            <p>I hereby represent that I have the authority to execute this credit card authorization and agree that this Authorization will be effective the date signed below. I understand and consent to the use of my credit card without my signature on the charge slip, that a photocopy or fax of this agreement will serve as an original, and this Credit Card Authorization cannot be revoked and will not terminate until 60 days after the leased premises are vacated or termination of the Lease whichever occurs later.</p>
           </div>
-
-          <br><br>
           <div class="borderless">
+            <p>I hereby represent that I have the authority to execute this credit card authorization and agree that this Authorization will be effective the date signed below. I understand and consent to the use of my credit card without my signature on the charge slip, that a photocopy or fax of this agreement will serve as an original, and this Credit Card Authorization cannot be revoked and will not terminate until 60 days after the leased premises are vacated or termination of the Lease whichever occurs later.</p>
+            <br><br>
             <table cellspacing="0" cellpadding="0" width="100%" align="center">
               <tbody>
                 <tr valign="top">
@@ -328,7 +387,6 @@
                   <td style="padding-left: 10px" width="40%" align="center">
                     <hr class="grayline" noshade>
                     <i class="smgraytext">Date</i>
-                    <br>
                   </td>
                 </tr>
               </tbody>
