@@ -159,6 +159,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       next: () => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        // Reload contacts globally to ensure all components have the latest data
+        this.contactService.loadAllContacts();
         this.router.navigateByUrl(RouterUrl.ContactList);
       },
       error: (err: HttpErrorResponse) => {

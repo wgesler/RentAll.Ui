@@ -373,7 +373,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         if (this.selectedReservation?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
         }
       });
       this.removeLoadItem('offices');
@@ -425,7 +425,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         this.form.patchValue({ selectedReservationId: reservation.reservationId });
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
         }
         this.loadContact();
         this.generatePreviewIframe();
@@ -938,6 +938,12 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
           officeLogoDataUrl = `data:${contentType};base64,${fileDetails.file}`;
         }
       }
+      
+      // Fallback to organization logo if office logo is not available
+      if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.organization.fileDetails.dataUrl;
+      }
+      
       if (officeLogoDataUrl) {
         result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
@@ -1301,11 +1307,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       // Extract everything from after <body> to the end (or before </html> if it exists)
       let content = bodyContent.substring(bodyStartIndex);
       
-      // Remove closing </body> tag if it exists (but keep content after it for concatenated documents)
-      content = content.replace(/<\/body>/i, '');
+      // Remove all closing </body> tags (for concatenated documents)
+      content = content.replace(/<\/body>/gi, '');
       
-      // Remove closing </html> tag if it exists
-      content = content.replace(/<\/html>/i, '');
+      // Remove all closing </html> tags if they exist
+      content = content.replace(/<\/html>/gi, '');
       
       return content.trim();
     }

@@ -219,6 +219,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.officeService.createOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: OfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          // Reload offices globally to ensure all components have the latest data
+          this.officeService.loadAllOffices();
           if (this.embeddedMode) {
             this.backEvent.emit();
           } else if (this.returnToSettings) {
@@ -247,6 +249,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.officeService.updateOffice(officeIdNum, officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: OfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          // Reload offices globally to ensure all components have the latest data including fileDetails
+          this.officeService.loadAllOffices();
           if (this.embeddedMode) {
             this.backEvent.emit();
           } else if (this.returnToSettings) {
