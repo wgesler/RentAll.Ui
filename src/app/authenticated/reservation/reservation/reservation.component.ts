@@ -709,13 +709,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
     const billingControl = this.form.get('billingRate')!;
     const billingTypeId = this.form.get('billingTypeId')!.value;
 
-    let billingRate = '0.00';
+    let billingRate: string;
     if (billingTypeId === BillingType.Monthly) {
-      const monthlyRate = this.selectedProperty.monthlyRate;
-      billingRate = monthlyRate != null ? monthlyRate.toFixed(2) : '0.00';
+      billingRate = this.selectedProperty.monthlyRate.toFixed(2);
     } else {
-      const dailyRate = this.selectedProperty.dailyRate;
-      billingRate = dailyRate != null ? dailyRate.toFixed(2) : '0.00';
+      billingRate = this.selectedProperty.dailyRate.toFixed(2);
     }
 
     billingControl.setValue(billingRate, { emitEvent: false });

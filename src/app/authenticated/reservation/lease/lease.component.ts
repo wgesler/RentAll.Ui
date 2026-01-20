@@ -550,7 +550,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   getPetText(): string {
     if (!this.selectedReservation) return '';
     return this.selectedReservation.hasPets 
-      ? '$' + (this.selectedReservation.petFee || 0).toFixed(2) + '.     ' + this.selectedReservation.numberOfPets.toString() + ' pet(s).    ' + 'Type(s):' + this.selectedReservation.petDescription
+      ? '$' + (this.selectedReservation.petFee || 0).toFixed(2) + '     ' + this.selectedReservation.numberOfPets.toString() + ' pet(s)    ' + 'Type(s):' + this.selectedReservation.petDescription
       : 'None';
   }
 
@@ -575,6 +575,10 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     return name.toUpperCase();
   }
 
+  getOrganizationWebsite(): string {
+     return this.selectedOffice?.website ?? this.organization?.website ?? '';
+  }
+
   getBillingTypeText(): string {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
@@ -591,6 +595,18 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
       return 'month';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Daily) {
+      return 'day';
+    } else if (this.selectedReservation.billingTypeId === BillingType.Nightly) {
+      return 'night';
+    }
+    return '';
+  }
+
+   getProrateDayText(): string {
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.billingTypeId === BillingType.Monthly) {
+      return 'day';
     } else if (this.selectedReservation.billingTypeId === BillingType.Daily) {
       return 'day';
     } else if (this.selectedReservation.billingTypeId === BillingType.Nightly) {
@@ -639,10 +655,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.selectedReservation) return '';
     if (this.selectedReservation.depositTypeId === DepositType.CLR) 
       return '$0.00';
-    else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
-      return '$' + (this.selectedReservation.deposit/30).toFixed(2) + ' per month';
     else 
-      return '$' + (this.selectedReservation.deposit/30).toFixed(2) + ' ';
+      return '$' + (this.selectedReservation.deposit/30).toFixed(2) + ' per ' + this.getProrateDayText();
   }
 
   getLetterOfResponsibilityText(): string {
@@ -663,6 +677,16 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       return '$' + this.selectedReservation.billingRate.toFixed(2) + ' per night.';
     else (this.selectedReservation.billingTypeId === BillingType.Monthly) 
       return 'Monthly Rate divided by 30 days.';
+  }
+  
+  getDepositLabel(): string{
+    if (!this.selectedReservation) return '';
+    if (this.selectedReservation.depositTypeId === DepositType.CLR) 
+      return 'Deposit';
+    else if (this.selectedReservation.depositTypeId === DepositType.SDW) 
+      return 'Security Deposit Waiver';
+    else 
+      return 'Deposit';
   }
 
   getDepositRequirementText(): string {
@@ -772,29 +796,59 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     let result = html;
 
     // Handle conditional section: Security Deposit Waiver (only show if depositType is SDW)
-    // Pattern: {{#if depositTypeSDW}}...content...{{/if}}
+    // Pattern: {{#if depositTypeSDW}}...content...{{#else}}...else content...{{/if}}
     // The content can contain placeholders that will be replaced in later layers
     const depositTypeSDWPattern = /\{\{#if depositTypeSDW\}\}([\s\S]*?)\{\{\/if\}\}/g;
     
-    if (this.selectedReservation?.depositTypeId === DepositType.SDW) {
-      // Replace the conditional wrapper with just the content (keep the content)
-      result = result.replace(depositTypeSDWPattern, '$1');
-    } else {
-      // Remove the entire conditional section
-      result = result.replace(depositTypeSDWPattern, '');
-    }
+    result = result.replace(depositTypeSDWPattern, (match, content) => {
+      // Check if there's an else clause
+      const elsePattern = /\{\{#else\}\}/;
+      if (elsePattern.test(content)) {
+        const parts = content.split(/\{\{#else\}\}/);
+        const ifContent = parts[0] || '';
+        const elseContent = parts[1] || '';
+        
+        if (this.selectedReservation?.depositTypeId === DepositType.SDW) {
+          return ifContent;
+        } else {
+          return elseContent;
+        }
+      } else {
+        // No else clause - use original logic
+        if (this.selectedReservation?.depositTypeId === DepositType.SDW) {
+          return content;
+        } else {
+          return '';
+        }
+      }
+    });
 
     // Handle conditional section: Partial Month Calculation (only show if billingType is Monthly)
-    // Pattern: {{#if billingTypeMonthly}}...content...{{/if}}
+    // Pattern: {{#if billingTypeMonthly}}...content...{{#else}}...else content...{{/if}}
     const billingTypeMonthlyPattern = /\{\{#if billingTypeMonthly\}\}([\s\S]*?)\{\{\/if\}\}/g;
     
-    if (this.selectedReservation?.billingTypeId === BillingType.Monthly) {
-      // Replace the conditional wrapper with just the content (keep the content)
-      result = result.replace(billingTypeMonthlyPattern, '$1');
-    } else {
-      // Remove the entire conditional section
-      result = result.replace(billingTypeMonthlyPattern, '');
-    }
+    result = result.replace(billingTypeMonthlyPattern, (match, content) => {
+      // Check if there's an else clause
+      const elsePattern = /\{\{#else\}\}/;
+      if (elsePattern.test(content)) {
+        const parts = content.split(/\{\{#else\}\}/);
+        const ifContent = parts[0] || '';
+        const elseContent = parts[1] || '';
+        
+        if (this.selectedReservation?.billingTypeId === BillingType.Monthly) {
+          return ifContent;
+        } else {
+          return elseContent;
+        }
+      } else {
+        // No else clause - use original logic
+        if (this.selectedReservation?.billingTypeId === BillingType.Monthly) {
+          return content;
+        } else {
+          return '';
+        }
+      }
+    });
 
     return result;
   }
@@ -881,6 +935,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{securityProrateText\}\}/g, this.getSecurityProrateText());
       result = result.replace(/\{\{letterOfResponsibilityText\}\}/g, this.getLetterOfResponsibilityText());
       result = result.replace(/\{\{partialMonthText\}\}/g, this.getPartialMonthText());
+      result = result.replace(/\{\{depositLabel\}\}/g, this.getDepositLabel());      
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
       result = result.replace(/\{\{reservationDate\}\}/g, this.formatterService.formatDateStringLong(new Date().toISOString()) || '');
@@ -913,9 +968,6 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{officeDescription\}\}/g, this.selectedOffice.name || '');
       result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A');
       result = result.replace(/\{\{officeFax\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.fax) || 'N/A');
-    }
-
-    if (this.selectedOffice) {
       result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getDefaultUtilityFeeText());
       result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getDefaultMaidServiceFeeText());
       result = result.replace(/\{\{defaultKeyFee\}\}/g, '$' + this.selectedOffice.defaultKeyFee.toFixed(2));
@@ -926,6 +978,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOffice.maintenanceEmail || '');
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
       result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
+      result = result.replace(/\{\{daysAfterDeparture\}\}/g, this.selectedOffice.daysAfterDeparture.toString() || '0');
    
       // Get office logo - construct dataUrl if needed
       let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
@@ -957,7 +1010,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{organization-office-caps\}\}/g, this.getOrganizationNameUpper());
       result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
       result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
-      result = result.replace(/\{\{organizationWebsite\}\}/g, this.organization.website || '');
+      result = result.replace(/\{\{organizationWebsite\}\}/g, this.getOrganizationWebsite());
       result = result.replace(/\{\{organizationHref\}\}/g, this.getWebsiteWithProtocol());
 
       const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;

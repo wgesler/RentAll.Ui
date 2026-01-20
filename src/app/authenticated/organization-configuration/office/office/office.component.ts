@@ -197,6 +197,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maintenanceEmail: formValue.maintenanceEmail || undefined,
       afterHoursPhone: formValue.afterHoursPhone ? this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone) : undefined,
       afterHoursInstructions: formValue.afterHoursInstructions || undefined,
+      daysAfterDeparture: formValue.daysAfterDeparture || 0,
       defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : 0,
       defaultSdw: formValue.defaultSdw ? parseFloat(formValue.defaultSdw.toString()) : 0,
       defaultKeyFee: formValue.defaultKeyFee ? parseFloat(formValue.defaultKeyFee.toString()) : 0,
@@ -311,6 +312,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       afterHoursInstructions: new FormControl<string>(''),
       defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
       defaultSdw: new FormControl<string>('0.00', [Validators.required]),
+      daysAfterDeparture: new FormControl<string>('0', [Validators.required]),
       defaultKeyFee: new FormControl<string>('0.00', [Validators.required]),
       undisclosedPetFee: new FormControl<string>('0.00', [Validators.required]),
       minimumSmokingFee: new FormControl<string>('0.00', [Validators.required]),
@@ -353,6 +355,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         afterHoursInstructions: this.office.afterHoursInstructions || '',
         defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
         defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
+        daysAfterDeparture: this.office.daysAfterDeparture !== null && this.office.daysAfterDeparture !== undefined ? this.office.daysAfterDeparture.toString() : '0',
         defaultKeyFee: this.office.defaultKeyFee !== null && this.office.defaultKeyFee !== undefined ? this.office.defaultKeyFee.toFixed(2) : '0.00',
         undisclosedPetFee: this.office.undisclosedPetFee !== null && this.office.undisclosedPetFee !== undefined ? this.office.undisclosedPetFee.toFixed(2) : '0.00',
         minimumSmokingFee: this.office.minimumSmokingFee !== null && this.office.minimumSmokingFee !== undefined ? this.office.minimumSmokingFee.toFixed(2) : '0.00',
@@ -449,6 +452,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   onDecimalInput(event: Event, fieldName: string): void {
     this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+
+  onIntegerInput(event: Event, fieldName: string): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9]/g, '');
+    input.value = value;
+    this.form.get(fieldName)?.setValue(value, { emitEvent: false });
   }
   //#endregion
 

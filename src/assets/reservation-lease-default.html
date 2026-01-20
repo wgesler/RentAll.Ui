@@ -244,7 +244,7 @@
             <p>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
               <span style="font-weight: bold">Name(s):</span> {{responsibleParty}}<br>
-              <span style="font-weight: bold">Address:</span> {{contactAddress1}} {{contactAddress2}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
+              <span style="font-weight: bold">Address:</span> {{contactAddress1}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
               <span style="font-weight: bold">Phone:</span> {{contactPhone}}<br>
               <span style="font-weight: bold">Email:</span> {{contactEmail}}<br>
               <span style="font-weight: bold">Occupant: {{tenantName}}</span><br>
@@ -262,7 +262,7 @@
               <span style="font-weight: bold">Check-in Time:</span> {{checkInTime}}<br>
               <span style="font-weight: bold">Check-out Time:</span> {{checkOutTime}}<br>
               <span style="font-weight: bold">Extensions Possible:</span> {{extensionsPossible}}<br>
-              <span style="font-weight: bold">Deposit:</span> {{depositText}} <span style="font-style: italic">(Required to reserve unit)</span><br>
+              <span style="font-weight: bold">{{depositLabel}}:</span> {{depositText}} <span style="font-style: italic">(Required to reserve unit)</span><br>
               <span style="font-weight: bold">{{billingType}} Rate:</span> ${{billingRate}} <span style="font-style: italic">(1st month''s rent payable in advance)</span><br>
               <span style="font-weight: bold">Departure Fee:</span> ${{departureFee}} <span style="font-style: italic">(Payable upon move-in)</span><br>
               <span style="font-weight: bold">Pets:</span> {{tenantPets}}
@@ -301,17 +301,17 @@
       <h2>Rental Payments</h2>
       <p>{{rentalPayment}}</p>
 
-      <div class="keep-together">
-        <h2>Security Deposit/Credit Card Authorizations</h2>
-        <p>{{securityDeposit}}</p>
-      </div>
-
-     {{#if depositTypeSDW}}
+      {{#if depositTypeSDW}}
         <div class="keep-together">
           <h2>Security Deposit Waiver</h2>
           <p>{{securityDepositWaiver}}</p>
         </div>
-     {{/if}}
+      {{#else}}
+        <div class="keep-together">
+          <h2>Security Deposit/Credit Card Authorizations</h2>
+          <p>{{securityDeposit}}</p>
+        </div>
+      {{/if}}
 
       <div class="keep-together">
         <h2>Cancellation Policy</h2>
@@ -391,7 +391,7 @@
       </div>
 
       <div class="keep-together">
-        <h2>Homeowner''s Association</h2>
+        <h2>Homeowner's Association</h2>
         <p>{{homeownersAssociation}}</p>
       </div>
 
@@ -406,7 +406,7 @@
       </div>
 
       <div class="keep-together">
-        <h2>Attorneys''/Collection Fees</h2>
+        <h2>Attorneys'/Collection Fees</h2>
         <p>{{attorneyCollectionFees}}</p>
       </div>
 

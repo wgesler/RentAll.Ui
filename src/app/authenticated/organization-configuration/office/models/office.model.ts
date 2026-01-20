@@ -21,6 +21,7 @@ export interface OfficeRequest {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  daysAfterDeparture: number;
   defaultDeposit: number;
   defaultSdw: number;
   defaultKeyFee: number;
@@ -60,6 +61,7 @@ export interface OfficeResponse {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  daysAfterDeparture: number;
   defaultDeposit: number;
   defaultSdw: number;
   defaultKeyFee: number;

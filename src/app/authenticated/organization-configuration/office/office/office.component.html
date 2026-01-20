@@ -11,7 +11,7 @@
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">store</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Office' : 'Edit ' + (office?.name || '') + ' Office' }}
+            {{ isAddMode ? 'Add Office' : 'Edit Office' }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -33,7 +33,7 @@
           <span class="flex flex-column items-center gap-2">
             <mat-icon class="flex-shrink-0">store</mat-icon>
             <span class="flex-shrink-0 text-lg font-medium">
-              {{ isAddMode ? 'Add Office' : 'Edit ' + (office?.name || '') + ' Office' }}
+              {{ isAddMode ? 'Add Office' : 'Edit Office' }}
             </span>
           </span>
           <div class="flex gap-2">
@@ -58,17 +58,7 @@
               </mat-checkbox>
             </div>
             
-            <mat-accordion>
-              <!-- Office Details Panel -->
-              <mat-expansion-panel expanded="true">
-                <mat-expansion-panel-header>
-                  <mat-panel-title>
-                    <mat-icon class="mr-2">store</mat-icon>
-                    Office Details
-                  </mat-panel-title>
-                </mat-expansion-panel-header>
-                
-                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <div class="col-span-4 flex gap-x-1.5">
                 <mat-form-field appearance="outline" class="flex-[0.5]">
                   <mat-label>Office Code</mat-label>
@@ -163,60 +153,11 @@
 
             </div>
 
+            <!-- Configuration Section -->
             <mat-divider class="my-5"/>
+            <h3 class="pt-3">Configuration</h3>
 
-            <h3 class="pt-3">Office Logo</h3>
-            <div class="flex justify-start image-input items-center mb-4">
-              @if (fileDetails && fileDetails.file) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
-                <div class="flex flex-col gap-2 ml-4">
-                  @if (fileName) {
-                    <span class="text-sm font-semibold">{{ fileName }}</span>
-                  }
-                  <div class="flex flex-col gap-2">
-                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                      Choose Image
-                    </button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
-                      Delete Image
-                    </button>
-                  </div>
-                </div>
-              } @else if (logoPath && !fileDetails) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
-                <div class="flex flex-col gap-2 ml-4">
-                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
-                    Choose Image
-                  </button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
-                    Delete Image
-                  </button>
-                </div>
-              } @else {
-                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                  Choose Image
-                </button>
-              }
-              <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
-            </div>
-            @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
-              <div class="image-file-error mb-4">
-                Only a jpg, gif, or png image type with a file size less than 2MB are valid.
-              </div>
-            }
-            <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
-              </mat-expansion-panel>
-
-              <!-- Configuration Panel -->
-              <mat-expansion-panel>
-                <mat-expansion-panel-header>
-                  <mat-panel-title>
-                    <mat-icon class="mr-2">settings</mat-icon>
-                    Configuration
-                  </mat-panel-title>
-                </mat-expansion-panel-header>
-
-                <!-- First Row: Default Rental Deposit, Security Deposit Waver, Default Key Fee -->
+            <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
                 <div class="flex gap-4 mb-4">
                   <!-- Default Rental Deposit -->
                   <mat-form-field appearance="outline" class="flex-1">
@@ -230,15 +171,26 @@
                     }
                   </mat-form-field>
 
-                  <!-- Security Deposit Waver -->
+                  <!-- Security Deposit Waiver -->
                   <mat-form-field appearance="outline" class="flex-1">
-                    <mat-label>Security Deposit Waver</mat-label>
+                    <mat-label>Security Deposit Waiver</mat-label>
                     <input matInput type="text" formControlName="defaultSdw" placeholder="0.00" required
                       (blur)="formatDecimal('defaultSdw')"
                       (input)="onDecimalInput($event, 'defaultSdw')"
                       (focus)="selectAllOnFocus($event)">
                     @if (form.get('defaultSdw')?.hasError('required') && form.get('defaultSdw')?.touched) {
-                      <mat-error>Security Deposit Waver is required</mat-error>
+                      <mat-error>Security Deposit Waiver is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <!-- Days After Departure -->
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Days After Departure</mat-label>
+                    <input matInput type="text" formControlName="daysAfterDeparture" placeholder="0" required
+                      (input)="onIntegerInput($event, 'daysAfterDeparture')"
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('daysAfterDeparture')?.hasError('required') && form.get('daysAfterDeparture')?.touched) {
+                      <mat-error>Days After Departure is required</mat-error>
                     }
                   </mat-form-field>
 
@@ -445,8 +397,49 @@
                     </mat-form-field>
                   </div>
                 </div>
-              </mat-expansion-panel>
-            </mat-accordion>
+
+            <!-- Office Logo Section -->
+            <mat-divider class="my-5"/>
+            <h3 class="pt-3">Office Logo</h3>
+            <div class="flex justify-start image-input items-center mb-4">
+              @if (fileDetails && fileDetails.file) {
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
+                <div class="flex flex-col gap-2 ml-4">
+                  @if (fileName) {
+                    <span class="text-sm font-semibold">{{ fileName }}</span>
+                  }
+                  <div class="flex flex-col gap-2">
+                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                      Choose Image
+                    </button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                      Delete Image
+                    </button>
+                  </div>
+                </div>
+              } @else if (logoPath && !fileDetails) {
+                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
+                <div class="flex flex-col gap-2 ml-4">
+                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                    Choose Image
+                  </button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                    Delete Image
+                  </button>
+                </div>
+              } @else {
+                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                  Choose Image
+                </button>
+              }
+              <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
+            </div>
+            @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+              <div class="image-file-error mb-4">
+                Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+              </div>
+            }
+            <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center mt-4">
