@@ -75,8 +75,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   includeBusinessCreditApplication: boolean = false;
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
+  debuggingHtml: boolean = false;
 
-  
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -238,11 +238,13 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       propertyId: this.propertyId,
       organizationId: this.authService.getUser()?.organizationId || '',
       welcomeLetter: this.propertyHtml?.welcomeLetter || '',
+      inspectionChecklist: this.propertyHtml?.inspectionChecklist || '',
       lease: formValue.lease || '',
       letterOfResponsibility: formValue.lease || '',
       noticeToVacate: formValue.lease || '',
       creditAuthorization: formValue.lease || '',
-      creditApplication: formValue.lease || ''
+      creditApplicationBusiness: formValue.lease || '',
+      creditApplicationIndividual: formValue.lease || ''
     };
 
     // Save the HTML using upsert
@@ -987,15 +989,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // TEMPORARY: Load HTML from assets for faster testing
-    forkJoin({
-      lease: this.includeLease ? this.http.get('assets/reservation-lease-default.html', { responseType: 'text' }) : of(''),
-      letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
-      noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
-      creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),
-      creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application.html', { responseType: 'text' }) : of(''),
-      rentalCreditApplication: this.includeRentalCreditApplication ? this.http.get('assets/rental-credit-application.html', { responseType: 'text' }) : of('')
-    }).pipe(take(1)).subscribe({
+    // Load HTML files and process them
+    this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
         // Get selected checkboxes
         const selectedDocuments: string[] = [];
@@ -1104,6 +1099,30 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         this.previewIframeHtml = '';
       }
     });
+  }
+
+  loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {
+    if (this.debuggingHtml) {
+      // Load HTML from assets for faster testing
+      return forkJoin({
+        lease: this.includeLease ? this.http.get('assets/reservation-lease-default.html', { responseType: 'text' }) : of(''),
+        letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
+        noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
+        creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),
+        creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application-business.html', { responseType: 'text' }) : of(''),
+        rentalCreditApplication: this.includeRentalCreditApplication ? this.http.get('assets/credit-application-individual.html', { responseType: 'text' }) : of('')
+      });
+    } else {
+      // Read HTML from propertyHtml parameters
+      return of({
+        lease: this.includeLease ? (this.propertyHtml?.lease || '') : '',
+        letterOfResponsibility: this.includeLetterOfResponsibility ? (this.propertyHtml?.letterOfResponsibility || '') : '',
+        noticeToVacate: this.includeNoticeToVacate ? (this.propertyHtml?.noticeToVacate || '') : '',
+        creditAuthorization: this.includeCreditCardAuthorization ? (this.propertyHtml?.creditAuthorization || '') : '',
+        creditApplication: this.includeBusinessCreditApplication ? (this.propertyHtml?.creditApplicationBusiness || '') : '',
+        rentalCreditApplication: this.includeRentalCreditApplication ? (this.propertyHtml?.creditApplicationIndividual || '') : '',
+      });
+    }
   }
 
   processAndSetHtml(html: string): void {

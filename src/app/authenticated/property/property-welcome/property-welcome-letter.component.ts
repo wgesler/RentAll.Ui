@@ -16,7 +16,8 @@ import { PropertyLetterResponse } from '../models/property-letter.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
 import { TrashDays } from '../models/property-enums';
-import { BehaviorSubject, Observable, map, finalize, take, switchMap, from, filter } from 'rxjs';
+import { BehaviorSubject, Observable, map, finalize, take, switchMap, from, filter, forkJoin, of } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -64,6 +65,10 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   iframeKey: number = 0;
   isDownloading: boolean = false;
   welcomeLetterReloadSubscription?: Subscription;
+  includeWelcomeLetter: boolean = true;
+  includeInspectionChecklist: boolean = false;
+  debuggingHtml: boolean = true;
+   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -81,11 +86,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
-    private mappingService: MappingService,
     private documentExportService: DocumentExportService,
     private documentService: DocumentService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
-    private documentReloadService: DocumentReloadService
+    private documentReloadService: DocumentReloadService,
+    private http: HttpClient
   ) {
     this.form = this.buildForm();
   }
@@ -132,9 +137,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       next: (response: PropertyHtmlResponse) => {
         if (response) {
           this.propertyHtml = response;
-          this.form.patchValue({
-            welcomeLetter: response.welcomeLetter || ''
-          });
+          this.form.patchValue({  welcomeLetter: response.welcomeLetter || '' });
           this.generatePreviewIframe();
         }
       },
@@ -160,11 +163,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       propertyId: this.propertyId,
       organizationId: this.authService.getUser()?.organizationId || '',
       welcomeLetter: formValue.welcomeLetter || '',
+      inspectionChecklist: formValue.inspectionChecklist || '',
       lease: this.propertyHtml?.lease || '',
       letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
       noticeToVacate: this.propertyHtml?.noticeToVacate || '',
       creditAuthorization: this.propertyHtml?.creditAuthorization || '',
-      creditApplication: this.propertyHtml?.creditApplication || '',
+      creditApplicationBusiness: this.propertyHtml?.creditApplicationBusiness || '',      
+      creditApplicationIndividual: this.propertyHtml?.creditApplicationIndividual || '',
     };
 
     // Save the HTML using upsert
@@ -231,7 +236,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl(null)
+      selectedReservationId: new FormControl(null),
+      includeWelcomeLetter: new FormControl(this.includeWelcomeLetter),
+      includeInspectionChecklist: new FormControl(this.includeInspectionChecklist)
     });
   }
   //#endregion
@@ -245,7 +252,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
        });
     });
   }
-
 
   loadProperty(): void {
     if (!this.propertyId) {
@@ -298,10 +304,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        // Set selected office based on property's officeId if property is already loaded
-        if (this.property?.officeId) {
+         if (this.property?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
-          // Generate preview if reservation is already selected
           if (this.selectedOffice && this.selectedReservation) {
             this.generatePreviewIframe();
           }
@@ -310,7 +314,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       this.removeLoadItem('offices');
     });
   }
-
 
   loadReservations(): void {
     if (!this.propertyId) {
@@ -441,27 +444,53 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
     }
 
-    // Handle logo first - remove img tag if no logo exists, before other replacements
-    const logoDataUrl = this.organization?.fileDetails?.dataUrl;
-    if (!logoDataUrl) {
-      // Remove img tags that contain the logoBase64 placeholder (before replacement)
-      result = result.replace(/<img[^>]*\{\{logoBase64\}\}[^>]*\s*\/?>/gi, '');
-    }
-
     // Replace organization placeholders
     if (this.selectedOffice) {
       const maintenanceEmail = this.selectedOffice.maintenanceEmail || '';
       const afterHoursPhone = this.selectedOffice.afterHoursPhone || '';
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
-      // Replace logo placeholder with dataUrl if it exists
-      if (logoDataUrl) {
-        result = result.replace(/\{\{logoBase64\}\}/g, logoDataUrl);
+      
+      // Get office logo - construct dataUrl if needed
+      let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
+      if (!officeLogoDataUrl && this.selectedOffice?.fileDetails?.file) {
+        const fileDetails = this.selectedOffice.fileDetails;
+        const contentType = fileDetails.contentType || 'image/png';
+        // Check if file already includes data URL prefix
+        if (fileDetails.file.startsWith('data:')) {
+          officeLogoDataUrl = fileDetails.file;
+        } else {
+          // Construct dataUrl from base64 string
+          officeLogoDataUrl = `data:${contentType};base64,${fileDetails.file}`;
+        }
+      }
+      
+      // Fallback to organization logo if office logo is not available
+      if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.organization.fileDetails.dataUrl;
+      }
+      
+      if (officeLogoDataUrl) {
+        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
     } else if (this.propertyLetter) {
       // Fallback to property letter if organization not loaded
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyLetter.emergencyContact || '');
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyLetter.emergencyContactNumber) || '');
+    }
+
+    // Replace organization logo placeholder
+    if (this.organization) {
+      const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
+      if (orgLogoDataUrl) {
+        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
+      }
+    }
+    
+    // Remove img tags that contain logo placeholders if no logo is available
+    if (!this.selectedOffice?.fileDetails?.dataUrl && !this.selectedOffice?.fileDetails?.file && !this.organization?.fileDetails?.dataUrl) {
+      result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
+      result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
 
     // Replace any remaining placeholders with empty string
@@ -548,28 +577,120 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   //#region Preview, Download, Print, Email Functions
   generatePreviewIframe(): void {
-    // Only generate preview if both office and reservation are selected and welcome letter exists
-    if (!this.selectedOffice || !this.selectedReservation || !this.propertyHtml?.welcomeLetter) {
+    // Only generate preview if both office and reservation are selected
+    if (!this.selectedOffice || !this.selectedReservation) {
       this.previewIframeHtml = '';
       return;
     }
 
-    const welcomeLetterHtml = this.propertyHtml.welcomeLetter || '';
-    if (!welcomeLetterHtml.trim()) {
-      this.previewIframeHtml = '';
-      return;
-    }
+    // Load HTML files and process them
+    this.loadHtmlFiles().pipe(take(1)).subscribe({
+      next: (htmlFiles) => {
+        // Get selected documents
+        const selectedDocuments: string[] = [];
 
-    // Replace placeholders with actual data - same as preview dialog
-    let processedHtml = this.replacePlaceholders(welcomeLetterHtml);
+        if (this.includeWelcomeLetter && htmlFiles.welcomeLetter) {
+          selectedDocuments.push(htmlFiles.welcomeLetter);
+        }
+        if (this.includeInspectionChecklist && htmlFiles.inspectionChecklist) {
+          selectedDocuments.push(htmlFiles.inspectionChecklist);
+        }
 
+        // If no documents selected, show empty
+        if (selectedDocuments.length === 0) {
+          this.previewIframeHtml = '';
+          return;
+        }
+
+        try {
+          // If only one document selected, use it as-is
+          if (selectedDocuments.length === 1) {
+            let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+            this.processAndSetHtml(processedHtml);
+            return;
+          }
+
+          // Multiple documents: process first as base, strip and concatenate the rest
+          // Process first document as base (full HTML)
+          let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
+          
+          // Extract and merge styles from all documents before stripping
+          const allExtractedStyles: string[] = [];
+          const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+          
+          // Extract styles from first document
+          let match;
+          styleRegex.lastIndex = 0;
+          while ((match = styleRegex.exec(combinedHtml)) !== null) {
+            if (match[1]) {
+              let styleContent = match[1].trim();
+              // Override gray text colors to black
+              styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+              styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+              allExtractedStyles.push(styleContent);
+            }
+          }
+          
+          // Process and strip remaining documents, extracting their styles first
+          for (let i = 1; i < selectedDocuments.length; i++) {
+            if (selectedDocuments[i]) {
+              const processed = this.replacePlaceholders(selectedDocuments[i]);
+              
+              // Extract styles from this document before stripping
+              styleRegex.lastIndex = 0;
+              while ((match = styleRegex.exec(processed)) !== null) {
+                if (match[1]) {
+                  let styleContent = match[1].trim();
+                  // Override gray text colors to black
+                  styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
+                  styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
+                  allExtractedStyles.push(styleContent);
+                }
+              }
+              
+              const stripped = this.stripAndReplace(processed);
+              combinedHtml += stripped;
+            }
+          }
+          
+          // Remove existing style tags from combinedHtml (they'll be re-injected)
+          combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+          
+          // Combine all extracted styles and inject them into the combined HTML
+          if (allExtractedStyles.length > 0) {
+            const combinedStyles = allExtractedStyles.join('\n\n');
+            // Insert styles into the head section if it exists, otherwise create one
+            if (combinedHtml.includes('<head>')) {
+              combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
+            } else {
+              // If no head exists, add one before the body or at the start
+              if (combinedHtml.includes('<body>')) {
+                combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
+              } else {
+                combinedHtml = `<head><style>${combinedStyles}</style></head>${combinedHtml}`;
+              }
+            }
+          }
+
+          this.processAndSetHtml(combinedHtml);
+        } catch (error) {
+          this.previewIframeHtml = '';
+        }
+      },
+      error: () => {
+        this.previewIframeHtml = '';
+      }
+    });
+  }
+
+  processAndSetHtml(html: string): void {
     // Extract all <style> tags from the HTML
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     const extractedStyles: string[] = [];
     let match;
     
     styleRegex.lastIndex = 0;
-    while ((match = styleRegex.exec(processedHtml)) !== null) {
+    while ((match = styleRegex.exec(html)) !== null) {
       if (match[1]) {
         extractedStyles.push(match[1].trim());
       }
@@ -579,7 +700,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.previewIframeStyles = extractedStyles.join('\n\n');
 
     // Remove <style> tags from HTML (we'll inject them dynamically)
-    processedHtml = processedHtml.replace(styleRegex, '');
+    let processedHtml = html.replace(styleRegex, '');
 
     // Remove <title> tag if it exists
     processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
@@ -599,6 +720,62 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.previewIframeHtml = processedHtml;
     
     this.iframeKey++; // Force iframe refresh
+  }
+
+  stripAndReplace(html: string): string {
+    if (!html) return '';
+    
+    let result = html;
+    
+    // Remove DOCTYPE declaration (case insensitive, with any attributes)
+    result = result.replace(/<!DOCTYPE\s+[^>]*>/gi, '');
+    
+    // Remove <html> opening tag (with any attributes)
+    result = result.replace(/<html[^>]*>/gi, '');
+    
+    // Remove </html> closing tag
+    result = result.replace(/<\/html>/gi, '');
+    
+    // Remove <head> section including all content inside (non-greedy match)
+    result = result.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    
+    // Remove opening <body> tag (with any attributes)
+    result = result.replace(/<body[^>]*>/gi, '');
+    
+    // Remove closing </body> tag
+    result = result.replace(/<\/body>/gi, '');
+    
+    // Trim whitespace and add page break at the beginning
+    result = result.trim();
+    
+    // Add page break if there's content
+    if (result) {
+      result = '<p class="breakhere"></p>\n' + result;
+    }
+    
+    return result;
+  }
+
+  loadHtmlFiles(): Observable<{ welcomeLetter: string; inspectionChecklist: string }> {
+    if (this.debuggingHtml) {
+      // Load HTML from assets for faster testing
+      return forkJoin({
+        welcomeLetter: this.includeWelcomeLetter ? this.http.get('assets/welcome-letter.html', { responseType: 'text' }) : of(''),
+        inspectionChecklist: this.includeInspectionChecklist ? this.http.get('assets/inspection-checklist.html', { responseType: 'text' }) : of('')
+      });
+    } else {
+      // Read HTML from propertyHtml parameters
+      return of({
+        welcomeLetter: this.includeWelcomeLetter ? (this.propertyHtml?.welcomeLetter || '') : '',
+        inspectionChecklist: this.includeInspectionChecklist ? (this.propertyHtml?.inspectionChecklist || '') : ''
+      });
+    }
+  }
+
+  onIncludeCheckboxChange(): void {
+    this.includeWelcomeLetter = this.form.get('includeWelcomeLetter')?.value ?? true;
+    this.includeInspectionChecklist = this.form.get('includeInspectionChecklist')?.value ?? false;
+    this.generatePreviewIframe();
   }
 
   injectStylesIntoIframe(): void {
@@ -758,11 +935,25 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   extractBodyContent(): string {
     let bodyContent = this.previewIframeHtml;
-    const bodyMatch = bodyContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch && bodyMatch[1]) {
-      return bodyMatch[1].trim();
+    
+    // Find the opening <body> tag
+    const bodyStartMatch = bodyContent.match(/<body[^>]*>/i);
+    if (bodyStartMatch) {
+      const bodyStartIndex = bodyStartMatch.index + bodyStartMatch[0].length;
+      // Extract everything from after <body> to the end (or before </html> if it exists)
+      let content = bodyContent.substring(bodyStartIndex);
+      
+      // Remove all closing </body> tags (for concatenated documents)
+      content = content.replace(/<\/body>/gi, '');
+      
+      // Remove all closing </html> tags if they exist
+      content = content.replace(/<\/html>/gi, '');
+      
+      return content.trim();
     }
-    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    
+    // Fallback: remove HTML structure tags
+    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '').replace(/<body[^>]*>|<\/body>/gi, '');
   }
 
   getPrintStyles(wrapInMediaQuery: boolean): string {
@@ -822,6 +1013,17 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       p, li {
         orphans: 2;
         widows: 2;
+      }
+      
+      /* Ensure page breaks work for all sections */
+      P.breakhere,
+      p.breakhere {
+        page-break-before: always !important;
+        break-before: page !important;
+        display: block !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
     `;
     

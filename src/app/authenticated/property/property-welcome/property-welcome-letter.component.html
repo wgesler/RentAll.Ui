@@ -62,6 +62,17 @@
             </mat-select>
           </mat-form-field>
         </div>
+        
+        <!-- Include Checkboxes -->
+        <div class="include-controls">
+          <span class="include-label">Include:</span>
+          <mat-checkbox formControlName="includeWelcomeLetter" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+            Welcome Letter
+          </mat-checkbox>
+          <mat-checkbox formControlName="includeInspectionChecklist" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+            Inspection Checklist
+          </mat-checkbox>
+        </div>
       </div>
 
       <!-- Welcome Letter Editor or Preview -->
