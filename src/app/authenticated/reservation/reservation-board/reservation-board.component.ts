@@ -454,7 +454,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       
 
-      const fullName = `${reservation.tenantName || ''}`.trim().toUpperCase();
+      const fullName = `${reservation.contactName || ''}`.trim().toUpperCase();
  
       let monthDays = this.getDaysInMonth(reservation, date);
       let monthChars = this.getCharactersForMonth(monthDays, fullName, date);
@@ -465,6 +465,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     
     return 'R';
   }
+  //#endregion
 
   //#region Navigation Methods
   getPropertyRoute(propertyId: string): string {
