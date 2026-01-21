@@ -6,13 +6,13 @@ export interface VendorRequest {
   officeId: number;
   vendorCode?: string;
   name: string;
-  address1: string;
+  address1?: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  phone?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/vendor-logo.png')
   notes?: string;
@@ -27,13 +27,13 @@ export interface VendorResponse {
   officeName: string;
   vendorCode: string;
   name: string;
-  address1: string;
+  address1?: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  phone?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/vendor-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
@@ -51,9 +51,9 @@ export interface VendorListDisplay {
   officeId: number;
   officeName: string;
   name: string;
-  city: string;
-  state: string;
-  phone: string;
+  city?: string;
+  state?: string;
+  phone?: string;
   website?: string;
   isActive: boolean;
 }

@@ -141,12 +141,6 @@ export class VendorComponent implements OnInit, OnDestroy {
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath
     };
 
-    // Defensive guard: required fields must remain non-empty
-    if (!vendorRequest.address1 || !vendorRequest.city || !vendorRequest.state || !vendorRequest.zip || !vendorRequest.phone) {
-      this.isSubmitting = false;
-      this.form.markAllAsTouched();
-      return;
-    }
 
     if (!this.isAddMode) {
       vendorRequest.vendorId = this.vendorId;
@@ -242,13 +236,13 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       vendorCode: new FormControl(''), // Not required - only shown in Edit Mode
       name: new FormControl('', [Validators.required]),
-      address1: new FormControl('', [Validators.required]),
+      address1: new FormControl(''),
       address2: new FormControl(''),
       suite: new FormControl(''),
-      city: new FormControl('', [Validators.required]),
-      state: new FormControl('', [Validators.required]),
-      zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      city: new FormControl(''),
+      state: new FormControl(''),
+      zip: new FormControl(''),
+      phone: new FormControl('', [Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
       officeId: new FormControl<number | null>(null),
