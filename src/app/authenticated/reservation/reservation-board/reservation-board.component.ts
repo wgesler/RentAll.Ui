@@ -389,6 +389,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return daysInMonth;
   }
 
+  // Should return a full month's worth of characters
   getCharactersForMonth(daysInMonth: number, fullName: string, date: Date): string {
     const currentDate = new Date();
     const year = currentDate.getFullYear();
@@ -397,26 +398,18 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     // If there's a partial month, show the last characters of the name
     if(fullName.length > daysInMonth) {
-      const partial =  fullName.slice(-daysInMonth);
-      let spaces = ' '.repeat(totalDaysInMonth - daysInMonth - 1);
-      return spaces + partial;;
+      const partial =  fullName.slice(- (daysInMonth + 1)) + ' ';
+      let spaces = ' '.repeat(totalDaysInMonth - partial.length);
+      return spaces + partial;
     }
 
-    // Get the number of blank spaces
-    let blanks = daysInMonth - fullName.length;
-    if(blanks === 0)
-      return fullName;
-    else if (blanks === 1)
-      return fullName + ' ';
-
-    const spaces = ' '.repeat(blanks / 2);
-    let char = spaces + fullName + spaces;
-    return char;
-  }
-
-  getCharacterStartDay(reservation: ReservationListResponse, date: Date): number {
-    // TODO: Implement this function
-    return 0;
+    // We have a full month, but blanks on either side
+    let availableForblanks = daysInMonth - fullName.length;
+    let blanks = Math.floor(availableForblanks / 2);
+    let remainder = availableForblanks % 2;
+    let total = ' '.repeat(blanks) + fullName + ' '.repeat(blanks) + ' '.repeat(remainder);
+    let preceedingBlanks = totalDaysInMonth - total.length;
+    return ' '.repeat(preceedingBlanks) + total;
   }
 
   getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
@@ -458,7 +451,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       
 
       const fullName = `${reservation.tenantName || ''}`.trim().toUpperCase();
-
+ 
       let monthDays = this.getDaysInMonth(reservation, date);
       let monthChars = this.getCharactersForMonth(monthDays, fullName, date);
       

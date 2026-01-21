@@ -88,6 +88,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
+  updatingExtraFeeFields: boolean = false;
  
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -855,10 +856,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
  
   updateExtraFeeFields(): void {
-    let extraFee = parseFloat(this.form.get('extraFee')?.value || '0');
-    let extraFee2 = parseFloat(this.form.get('extraFee2')?.value || '0');
-     
-    if (extraFee > 0) {
+    if (this.updatingExtraFeeFields) {
+      return; // Prevent infinite recursion
+    }
+    
+    this.updatingExtraFeeFields = true;
+    
+    try {
+      let extraFee = parseFloat(this.form.get('extraFee')?.value || '0');
+      let extraFee2 = parseFloat(this.form.get('extraFee2')?.value || '0');
+       
+      if (extraFee > 0) {
       // ExtraFee has a value > 0: enable extraFeeName and extraFee2
       this.enableFieldWithValidation('extraFeeName', [Validators.required]);
       this.enableFieldWithValidation('extraFee2');
@@ -873,10 +881,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
       // ExtraFee is 0: disable all related fields
       this.form.get('extraFee')!.setValue('0.00', { emitEvent: false });
       this.form.get('extraFee2')!.setValue('0.00', { emitEvent: false });
+      
       this.disableFieldWithValidation('extraFeeName');
       this.disableFieldWithValidation('extraFee2');
       this.disableFieldWithValidation('extraFee2Name');
-   }
+      }
+    } finally {
+      this.updatingExtraFeeFields = false;
+    }
   }
   //#endregion
 
