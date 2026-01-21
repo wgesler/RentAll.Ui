@@ -342,6 +342,83 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
+  getDaysInMonth(reservation: ReservationListResponse, date: Date): number {
+    const selectedDate = new Date(date);
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth() + 1;
+    const totalDaysInMonth = new Date(year, month, 0).getDate(); // Total days in the month
+    
+    let daysInMonth = totalDaysInMonth;
+    
+    // Get arrival and departure dates
+    const arrival = new Date(reservation.arrivalDate);
+    arrival.setHours(0, 0, 0, 0);
+    const departure = new Date(reservation.departureDate);
+    departure.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    // Check if arrival date is in this month and after the first
+    const arrivalYear = arrival.getFullYear();
+    const arrivalMonth = arrival.getMonth() + 1;
+    const arrivalDay = arrival.getDate();
+    
+    if (arrivalYear === year && arrivalMonth === month && arrivalDay > 1) {
+      // Subtract days before arrival (don't include arrival day itself)
+      daysInMonth = daysInMonth - arrivalDay;
+    }
+    
+    // Check if departure date is within this month
+    const departureYear = departure.getFullYear();
+    const departureMonth = departure.getMonth() + 1;
+    const departureDay = departure.getDate();
+    
+    if (departureYear === year && departureMonth === month) {
+      // Subtract days after departure (don't include departure day itself)
+      const daysAfterDeparture = totalDaysInMonth - departureDay;
+      daysInMonth = daysInMonth - daysAfterDeparture;
+    }
+
+    const currentMonth = new Date().getMonth() + 1;
+    const currentDay = new Date().getDate();
+
+    if (currentMonth === month) {
+       daysInMonth = daysInMonth - currentDay;
+   }
+
+    return daysInMonth;
+  }
+
+  getCharactersForMonth(daysInMonth: number, fullName: string, date: Date): string {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const totalDaysInMonth = new Date(year, month, 0).getDate(); // Total days in the month
+
+    // If there's a partial month, show the last characters of the name
+    if(fullName.length > daysInMonth) {
+      const partial =  fullName.slice(-daysInMonth);
+      let spaces = ' '.repeat(totalDaysInMonth - daysInMonth - 1);
+      return spaces + partial;;
+    }
+
+    // Get the number of blank spaces
+    let blanks = daysInMonth - fullName.length;
+    if(blanks === 0)
+      return fullName;
+    else if (blanks === 1)
+      return fullName + ' ';
+
+    const spaces = ' '.repeat(blanks / 2);
+    let char = spaces + fullName + spaces;
+    return char;
+  }
+
+  getCharacterStartDay(reservation: ReservationListResponse, date: Date): number {
+    // TODO: Implement this function
+    return 0;
+  }
+
   getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
     if (!reservation) {
       return '';
@@ -373,38 +450,20 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return 'M';
     }
     
-    // For PreBooking, Confirmed/CheckedIn, GaveNotice, FirstRightRefusal
-    // Show letters of the tenant/contact name cycling through consecutive boxes
-    // Colors come from API via getReservationColor()
     if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
         reservation.reservationStatusId === ReservationStatus.Confirmed ||
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       
-      const contact = this.contactMap.get(reservation.contactId);
-      if (contact) {
-        // Get full name (firstName + lastName), keep spaces, convert to uppercase
-        const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim().toUpperCase();
-        
-        if (fullName.length > 0) {
-          // Calculate which day of the reservation this is
-          // Day 0 = arrival (shows 'A'), so day 1 = first day after arrival shows first character
-          const arrival = new Date(reservation.arrivalDate);
-          arrival.setHours(0, 0, 0, 0);
-          const daysFromArrival = Math.floor((compareDate.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24));
-          
-          // Skip arrival day (shows 'A'), so subtract 1 to get the character index
-          const charIndex = daysFromArrival - 1;
-          
-          // Only show characters if within the name length, otherwise leave blank
-          if (charIndex >= 0 && charIndex < fullName.length) {
-            return fullName.charAt(charIndex);
-          }
-          // If beyond the name length, return empty string to leave blank
-          return '';
-        }
-      }
+
+      const fullName = `${reservation.tenantName || ''}`.trim().toUpperCase();
+
+      let monthDays = this.getDaysInMonth(reservation, date);
+      let monthChars = this.getCharactersForMonth(monthDays, fullName, date);
+      
+      const day = date.getDate();
+      return monthChars[day - 1];
     }
     
     return 'R';
