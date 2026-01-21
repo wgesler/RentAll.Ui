@@ -389,27 +389,31 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return daysInMonth;
   }
 
-  // Should return a full month's worth of characters
   getCharactersForMonth(daysInMonth: number, fullName: string, date: Date): string {
     const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    const totalDaysInMonth = new Date(year, month, 0).getDate(); // Total days in the month
+    const currentDay = currentDate.getDate();
+    const currentMonth =  currentDate.getMonth() + 1;
+    const requestedDate = new Date(date);
+    const year = requestedDate.getFullYear();
+    const month = requestedDate.getMonth() + 1;
+    const totalDaysInMonth = new Date(year, month, 0).getDate(); 
 
     // If there's a partial month, show the last characters of the name
-    if(fullName.length > daysInMonth) {
+    if(fullName.length > daysInMonth || (currentMonth === month && currentDay > 1)) {
       const partial =  fullName.slice(- (daysInMonth + 1)) + ' ';
       let spaces = ' '.repeat(totalDaysInMonth - partial.length);
       return spaces + partial;
     }
 
-    // We have a full month, but blanks on either side
+    // Should return a full month's worth of characters
     let availableForblanks = daysInMonth - fullName.length;
     let blanks = Math.floor(availableForblanks / 2);
     let remainder = availableForblanks % 2;
     let total = ' '.repeat(blanks) + fullName + ' '.repeat(blanks) + ' '.repeat(remainder);
-    let preceedingBlanks = totalDaysInMonth - total.length;
-    return ' '.repeat(preceedingBlanks) + total;
+    if(total.length !== totalDaysInMonth)
+     throw new Error(`assertion failed. total: ${total.length} month: ${totalDaysInMonth}`)
+
+    return total;
   }
 
   getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
