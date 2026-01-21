@@ -111,12 +111,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.loadContacts();
     this.loadOffices();
     this.loadReservation();
-    
-    // Only load property and lease info if propertyId is available
-    if (this.propertyId) {
-      this.loadProperty();
-      this.loadLeaseInformation();
-    }
+    this.loadProperty();
+    this.loadLeaseInformation();
     
     // Load the lease after we have all necessary data
     this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
@@ -138,6 +134,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getLease(): void {
+    // This loads on add reservation, do nothing
     if (!this.propertyId) {
       this.removeLoadItem('lease');
       return;
@@ -421,7 +418,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   loadReservation(): void {
-    // Don't load reservation if reservationId is empty or 'new'
+    // This page loads on the add-reservation, in this case return
     if (!this.reservationId || this.reservationId === 'new') {
       this.removeLoadItem('reservation');
       return;

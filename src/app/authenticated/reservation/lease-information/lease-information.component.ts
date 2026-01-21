@@ -40,12 +40,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit(): void {
-    // Load lease information if propertyId and contactId are available
-    if (this.propertyId && this.contactId) {
-      this.getLeaseInformation();
-    } else {
-      this.removeLoadItem('leaseInformation');
-    }
+    this.getLeaseInformation();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -74,7 +69,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getLeaseInformation(): void {
+    // This loads on add-reservation, no need to do anything
     if (!this.propertyId || !this.contactId) {
+      this.removeLoadItem('leaseInformation');
       return;
     }
 

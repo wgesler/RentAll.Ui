@@ -97,6 +97,12 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   //#region Welcome Letter
   ngOnInit(): void {
+    if (!this.propertyId) {
+      const currentSet = this.itemsToLoad$.value;
+      currentSet.forEach(item => this.removeLoadItem(item));
+      return;
+    }
+
     this.loadOrganization();
     this.loadContacts();
     this.loadOffices();
@@ -105,6 +111,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.loadPropertyLetterInformation();
     this.loadProperty();
     this.getWelcomeLetter();
+    
     
     // Subscribe to welcome letter reload events
     this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
@@ -304,7 +311,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-         if (this.property?.officeId) {
+        if (this.property?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
           if (this.selectedOffice && this.selectedReservation) {
             this.generatePreviewIframe();
@@ -598,9 +605,9 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
         // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
-          this.previewIframeHtml = '';
-          return;
-        }
+      this.previewIframeHtml = '';
+      return;
+    }
 
         try {
           // If only one document selected, use it as-is

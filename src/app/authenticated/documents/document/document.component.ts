@@ -92,10 +92,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   loadDocument(): void {
-    this.documentService.getDocumentByGuid(this.documentId).pipe(
-      take(1),
-      finalize(() => { this.removeLoadItem('document'); })
-    ).subscribe({
+    this.documentService.getDocumentByGuid(this.documentId).pipe(take(1), finalize(() => { this.removeLoadItem('document'); })).subscribe({
       next: (document) => {
         this.document = document;
         this.buildForm();

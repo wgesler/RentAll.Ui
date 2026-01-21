@@ -34,7 +34,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentsDisplay: DocumentListDisplay[] = [];
 
   // Column sets for different modes
-  private sidebarColumns: ColumnSet = {
+  sidebarColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
@@ -42,7 +42,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
   };
 
-  private tabColumns: ColumnSet = {
+  tabColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '18ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '18ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '18ch', sortType: 'natural' },
@@ -52,8 +52,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   // Getter that returns the appropriate columns based on mode
   get documentsDisplayedColumns(): ColumnSet {
-    // If in filtered mode (has propertyId and documentTypeId), use tab columns
-    // Otherwise, use sidebar columns (unfiltered mode)
     return (this.propertyId && this.documentTypeId !== undefined) 
       ? this.tabColumns 
       : this.sidebarColumns;
@@ -66,23 +64,45 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public documentService: DocumentService,
     public toastr: ToastrService,
     public router: Router,
-    private mappingService: MappingService
-  ) {
+    private mappingService: MappingService) {
   }
 
   //#region Document-List
   ngOnInit(): void {
+     if(this.isInAddReservationMode())
+      return;
+    
     this.getDocuments();
+  }
+  
+  isInAddReservationMode(): boolean {
+    const hasPropertyId = this.propertyId && this.propertyId !== '';
+    const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
+    const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
+    const isInAddReservationMode = !isFiltered && !isUnfiltered;
+    
+    if (isInAddReservationMode) {
+      this.removeLoadItem('documents');
+      return true;
+    }
+    return false;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    // Check if we're in add-reservation mode first
+    if (this.isInAddReservationMode()) {
+      return;
+    }
+    
     // Determine if we're in filtered mode (both propertyId and documentTypeId provided)
-    const wasFiltered = changes['propertyId']?.previousValue && changes['documentTypeId']?.previousValue !== undefined;
-    const isFiltered = this.propertyId && this.documentTypeId !== undefined;
+    const currentHasPropertyId = this.propertyId && this.propertyId !== '';
+    const previousHasPropertyId = changes['propertyId']?.previousValue && changes['propertyId'].previousValue !== '';
+    const wasFiltered = previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
+    const isFiltered = currentHasPropertyId && this.documentTypeId !== undefined;
     
     // Determine if we're in unfiltered mode (neither provided)
-    const wasUnfiltered = !changes['propertyId']?.previousValue && changes['documentTypeId']?.previousValue === undefined;
-    const isUnfiltered = !this.propertyId && this.documentTypeId === undefined;
+    const wasUnfiltered = !previousHasPropertyId && changes['documentTypeId']?.previousValue === undefined;
+    const isUnfiltered = !currentHasPropertyId && this.documentTypeId === undefined;
     
     // Reload if switching between filtered/unfiltered modes or if inputs changed within same mode
     const propertyIdChanged = changes['propertyId'] && 
@@ -122,8 +142,18 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.documentsDisplay = [];
     
     // STRICT MODE CHECK: Only use filtered API when BOTH propertyId AND documentTypeId are provided
-    // This ensures tabs show only filtered documents
-    if (this.propertyId && this.documentTypeId !== undefined) {
+    const hasPropertyId = this.propertyId && this.propertyId !== '';
+    const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
+    const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
+    const isInAddReservationMode = !isFiltered && !isUnfiltered;
+    
+    // If we're in add-reservation mode, stop spinner and return immediately
+    if (isInAddReservationMode) {
+      this.removeLoadItem('documents');
+      return;
+    }
+    
+    if (isFiltered) {
       // FILTERED MODE: Get documents for specific property and type (used in tabs)
       this.documentService.getByPropertyType(this.propertyId, this.documentTypeId).pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
           next: (documents) => {
@@ -139,9 +169,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             }
           }
         });
-    } else if (!this.propertyId && this.documentTypeId === undefined) {
+    } else if (isUnfiltered) {
       // UNFILTERED MODE: Get ALL documents (used in sidebar navigation)
-      // This includes all types and all properties
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
         next: (documents) => {
           this.allDocuments = this.mappingService.mapDocuments(documents);
@@ -150,7 +179,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         error: (err: HttpErrorResponse) => {
           this.isServiceError = true;
           if (err.status === 404) {
-            // Handle not found error if business logic requires
           }
         }
       });

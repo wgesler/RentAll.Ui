@@ -62,10 +62,10 @@
             </mat-select>
           </mat-form-field>
         </div>
-        
-        <!-- Include Checkboxes Section -->
-        <div class="include-controls">
-          <span class="include-label">Include:</span>
+
+      <!-- Include Checkboxes Section -->
+      <div class="include-controls">
+        <span class="include-label">Include:</span>
           <mat-checkbox formControlName="includeLease" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Lease
           </mat-checkbox>
@@ -76,11 +76,11 @@
             Notice to Vacate
           </mat-checkbox>
           <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Credit Card Authorization
-          </mat-checkbox>
+          Credit Card Authorization
+        </mat-checkbox>
           <mat-checkbox *ngIf="isCompanyRental" formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Business Credit Application
-          </mat-checkbox>
+          Business Credit Application
+        </mat-checkbox>
           <mat-checkbox *ngIf="!isCompanyRental" formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
             Rental Credit Application
           </mat-checkbox>
