@@ -375,8 +375,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     
     if (departureYear === year && departureMonth === month) {
       // Subtract days after departure (don't include departure day itself)
-      const daysAfterDeparture = totalDaysInMonth - departureDay;
-      daysInMonth = daysInMonth - daysAfterDeparture;
+      const daysToRefundDeposit = totalDaysInMonth - departureDay;
+      daysInMonth = daysInMonth - daysToRefundDeposit;
     }
 
     const currentMonth = new Date().getMonth() + 1;

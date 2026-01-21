@@ -183,14 +183,14 @@
                     }
                   </mat-form-field>
 
-                  <!-- Days After Departure -->
+                  <!-- Days to Refund Deposit -->
                   <mat-form-field appearance="outline" class="flex-1">
-                    <mat-label>Days After Departure</mat-label>
-                    <input matInput type="text" formControlName="daysAfterDeparture" placeholder="0" required
-                      (input)="onIntegerInput($event, 'daysAfterDeparture')"
+                    <mat-label>Days to Refund Deposit</mat-label>
+                    <input matInput type="text" formControlName="daysToRefundDeposit" placeholder="0" required
+                      (input)="onIntegerInput($event, 'daysToRefundDeposit')"
                       (focus)="selectAllOnFocus($event)">
-                    @if (form.get('daysAfterDeparture')?.hasError('required') && form.get('daysAfterDeparture')?.touched) {
-                      <mat-error>Days After Departure is required</mat-error>
+                    @if (form.get('daysToRefundDeposit')?.hasError('required') && form.get('daysToRefundDeposit')?.touched) {
+                      <mat-error>Days to Refund Deposit is required</mat-error>
                     }
                   </mat-form-field>
 

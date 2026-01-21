@@ -981,7 +981,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOffice.maintenanceEmail || '');
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
       result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
-      result = result.replace(/\{\{daysAfterDeparture\}\}/g, this.selectedOffice.daysAfterDeparture.toString() || '0');
+      result = result.replace(/\{\{daysToRefundDeposit\}\}/g, this.selectedOffice.daysToRefundDeposit.toString() || '0');
    
       // Get office logo - construct dataUrl if needed
       let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
