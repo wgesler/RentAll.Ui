@@ -19,6 +19,8 @@ import { BoardProperty } from '../authenticated/reservation/models/reservation-b
 import { PropertyStatus } from '../authenticated/property/models/property-enums';
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType } from '../authenticated/documents/models/document.enum';
+import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/accounting.model';
+import { TransactionType } from '../authenticated/accounting/models/accounting-enum';
 
 @Injectable({
     providedIn: 'root'
@@ -447,5 +449,24 @@ export class MappingService {
 
     // Office documents and other binary formats - not viewable in browser
     return false;
+  }
+
+  getTransactionTypeLabel(transactionType: number): string {
+    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
+    return types[transactionType] || 'Unknown';
+  }
+
+  mapLedgerLines(ledgerLines: LedgerLineResponse[]): LedgerLineListDisplay[] {
+    return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
+      // Map transactionTypeId (number) to TransactionType enum and convert to string label
+      const transactionTypeEnum = line.transactionTypeId as TransactionType;
+      return {
+        Id: line.ledgerLineId,
+        chartOfAccountId: line.chartOfAccountId || 0,
+        transactionType: this.getTransactionTypeLabel(transactionTypeEnum),
+        description: line.description || '',
+        amount: line.amount
+      };
+    });
   }
 }

@@ -1,0 +1,71 @@
+@if (!(isLoading$ | async)) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+        <div class="flex items-baseline">
+          <mat-icon mat-list-icon class="mr-5">account_balance</mat-icon>
+          <h2 class="m-0">Invoices</h2>
+        </div>
+        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addInvoice()" class="scale-90 text-nowrap">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="invoicesDisplay"
+              [columns]="invoicesDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="true"
+              [hasActionsRowClick]="false"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="true"
+              [itemsPerPage]="100"
+              buttonToggleTextTop="Inactive"
+              (topToggleButtonEvent)="toggleInactive()"
+              (editEvent)="goToInvoice($event)"
+              (deleteEvent)="deleteInvoice($event)"/>
+          </div>
+          
+          <!-- Expanded Ledger Lines -->
+          @for (invoice of allInvoices; track invoice.invoiceId) {
+            @if (isExpanded(invoice.invoiceId)) {
+              <div class="ledger-lines-wrapper">
+                @if (invoice.LedgerLineResponse && invoice.LedgerLineResponse.length > 0) {
+                  <table class="ledger-lines-table">
+                    <thead>
+                      <tr>
+                        <th>Account</th>
+                        <th>Transaction Type</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (line of invoice.LedgerLineResponse; track line.ledgerLineId) {
+                        <tr>
+                          <td>{{ line.chartOfAccountId }}</td>
+                          <td>{{ getTransactionTypeLabel(line.transactionTypeId) }}</td>
+                          <td>{{ line.amount | number:'1.2-2' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                } @else {
+                  <p class="no-lines">No ledger lines found for this invoice.</p>
+                }
+              </div>
+            }
+          }
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading invoices...</p>
+  </div>
+}

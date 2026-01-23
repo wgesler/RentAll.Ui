@@ -52,6 +52,13 @@ export class SidebarComponent implements OnInit {
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },
     {
+      icon: 'account_balance',
+      displayName: 'Accounting',
+      url: RouterToken.AccountingList,
+      requiredRoles: [UserGroups.Accounting, UserGroups.Admin], // Accounting and Admin only
+      excludedRoles: [] // No exclusions
+    },
+    {
       icon: 'description',
       displayName: 'Documents',
       url: RouterToken.DocumentList,

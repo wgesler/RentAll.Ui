@@ -1,0 +1,197 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+        <p>Loading invoice...</p>
+      </div>
+} @else if (!isServiceError) {
+
+  
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Invoice' : 'Edit Invoice' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            {{ isAddMode ? 'Create' : 'Save' }}
+          </button>
+        </div>
+      </div>
+        
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="info-form mb-8 pt-5">
+            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+              <mat-checkbox formControlName="isActive" color="primary">
+                Is Active
+              </mat-checkbox>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <!-- Invoice (Read-only) - First field -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Invoice</mat-label>
+                <input matInput formControlName="invoiceTotal" readonly>
+              </mat-form-field>
+
+              <!-- Office -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Office</mat-label>
+                <mat-select formControlName="officeId" required>
+                  <mat-option [value]="null">Select Office</mat-option>
+                  @for (office of availableOffices; track office.value) {
+                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                  <mat-error>Office is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Reservation -->
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Reservation</mat-label>
+                <mat-select formControlName="reservationId">
+                  <mat-option [value]="null">Select Reservation</mat-option>
+                  @for (reservation of availableReservations; track reservation.value) {
+                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Invoice Date -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Invoice Date</mat-label>
+                <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
+                <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #invoiceDatePicker></mat-datepicker>
+                @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
+                  <mat-error>Invoice Date is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Due Date -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Due Date</mat-label>
+                <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" [min]="form.get('invoiceDate')?.value">
+                <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #dueDatePicker></mat-datepicker>
+              </mat-form-field>
+
+              <!-- Total Amount -->
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Total Amount</mat-label>
+                <input matInput type="text" formControlName="totalAmount" required
+                  (input)="onAmountInput($event, 'totalAmount')"
+                  (focus)="onAmountFocus($event, 'totalAmount')"
+                  (blur)="onAmountBlur($event, 'totalAmount')">
+                @if (form.get('totalAmount')?.hasError('required') && form.get('totalAmount')?.touched) {
+                  <mat-error>Total Amount is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Paid Amount - Only show in edit mode -->
+              @if (!isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>Paid Amount</mat-label>
+                  <input matInput type="text" formControlName="paidAmount" required
+                    (input)="onAmountInput($event, 'paidAmount')"
+                    (focus)="selectAllOnFocus($event)">
+                  @if (form.get('paidAmount')?.hasError('required') && form.get('paidAmount')?.touched) {
+                    <mat-error>Paid Amount is required</mat-error>
+                  }
+                </mat-form-field>
+              }
+
+              <!-- Line Items Section -->
+              @if (ledgerLines && ledgerLines.length > 0) {
+                <div class="col-span-4 mb-4">
+                  <div class="overflow-x-auto">
+                    <table class="line-items-table">
+                      <thead>
+                        <tr class="border-b">
+                          <th class="text-left p-2">No</th>
+                          <th class="text-left p-2">Chart of Account ID</th>
+                          <th class="text-left p-2">Transaction</th>
+                          <th class="text-left p-2">Description</th>
+                          <th class="text-left p-2">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (line of ledgerLines; track line.Id; let i = $index) {
+                          <tr class="border-b">
+                            <td class="p-2">{{ i + 1 }}</td>
+                            <td class="p-2">
+                              @if (line.chartOfAccountId == null || line.chartOfAccountId === undefined || line.chartOfAccountId === 0) {
+                                <input type="number" class="w-full p-1 border rounded" 
+                                  [value]="''"
+                                  (input)="updateLedgerLineField(i, 'chartOfAccountId', parseNumber($any($event.target).value))">
+                              } @else {
+                                {{ line.chartOfAccountId }}
+                              }
+                            </td>
+                            <td class="p-2">
+                              @if (line.transactionType == null || line.transactionType === undefined || line.transactionType === '') {
+                                <input type="text" class="w-full p-1 border rounded" 
+                                  [value]="''"
+                                  (input)="updateLedgerLineField(i, 'transactionType', $any($event.target).value || '')">
+                              } @else {
+                                {{ line.transactionType }}
+                              }
+                            </td>
+                            <td class="p-2">
+                              @if (line.description == null || line.description === undefined || line.description === '') {
+                                <input type="text" class="w-full p-1 border rounded" 
+                                  [value]="''"
+                                  (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
+                              } @else {
+                                {{ line.description }}
+                              }
+                            </td>
+                            <td class="p-2">
+                              @if (line.amount == null || line.amount === undefined) {
+                                <input type="text" class="w-full p-1 border rounded" 
+                                  [value]="''"
+                                  (input)="onLedgerAmountInput($event, i)"
+                                  (focus)="onLedgerAmountFocus($event, i)"
+                                  (blur)="onLedgerAmountBlur($event, i)">
+                              } @else {
+                                <span>{{ formatCurrency(line.amount) }}</span>
+                              }
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              }
+
+              <!-- Notes -->
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Notes</mat-label>
+                <textarea matInput formControlName="notes" rows="3"></textarea>
+              </mat-form-field>
+            </div>
+
+            @if (isSubmitting) {
+              <div class="flex justify-start gap-3 items-center">
+                <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+                <span>{{ isAddMode ? 'Creating...' : 'Saving...' }}</span>
+              </div>
+            }
+          </form>
+      </mat-card>
+    </section>
+  </div>
+}
