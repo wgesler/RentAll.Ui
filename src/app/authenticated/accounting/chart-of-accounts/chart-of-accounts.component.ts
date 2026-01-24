@@ -55,14 +55,25 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   //#region ChartOfAccount
   ngOnInit(): void {
     this.initializeAccountTypes();
+    // Read query params from snapshot first to ensure fromAccountingTab is available immediately
+    const snapshotParams = this.route.snapshot.queryParams;
+    const officeId = snapshotParams['officeId'];
+    if (officeId) {
+      this.selectedOfficeId = parseInt(officeId, 10);
+    }
+    // Check if navigated from Accounting tab - read from snapshot for immediate availability
+    this.fromAccountingTab = snapshotParams['fromAccountingTab'] === 'true';
+    
+    // Also subscribe to query params for changes
     this.route.queryParams.subscribe(params => {
-      const officeId = params['officeId'];
-      if (officeId) {
-        this.selectedOfficeId = parseInt(officeId, 10);
+      const updatedOfficeId = params['officeId'];
+      if (updatedOfficeId) {
+        this.selectedOfficeId = parseInt(updatedOfficeId, 10);
       }
-      // Check if navigated from Accounting tab
+      // Update fromAccountingTab flag if it changes
       this.fromAccountingTab = params['fromAccountingTab'] === 'true';
     });
+    
     this.loadOffices().then(() => {
       this.route.paramMap.subscribe((paramMap: ParamMap) => {
         if (paramMap.has('id')) {

@@ -63,7 +63,7 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -79,15 +79,39 @@ export class AccountingListComponent implements OnInit, OnDestroy {
 
   //#region Invoice-List
   ngOnInit(): void {
+    // Read query params from snapshot first to set tab and officeId immediately
+    const snapshotParams = this.route.snapshot.queryParams;
+    const tabParam = snapshotParams['tab'];
+    const officeIdParam = snapshotParams['officeId'];
+    
+    // Set tab index from snapshot
+    if (tabParam === 'chartOfAccounts') {
+      this.selectedTabIndex = 1;
+      // Initialize loading state for Chart Of Accounts tab (offices will be loaded)
+      this.itemsToLoad$.next(new Set(['offices']));
+    } else {
+      this.selectedTabIndex = 0;
+      // Initialize loading state for Invoices tab
+      this.itemsToLoad$.next(new Set(['offices', 'invoices']));
+    }
+    
+    // Set officeId from snapshot if available
+    if (officeIdParam) {
+      const parsedOfficeId = parseInt(officeIdParam, 10);
+      if (parsedOfficeId) {
+        this.selectedOfficeId = parsedOfficeId;
+        this.selectedInvoiceOfficeId = parsedOfficeId;
+      }
+    }
+    
     // Load offices first so dropdowns can be initialized
     this.loadOffices();
     
-    // Check query params for officeId and tab selection (subscribe continuously to handle navigation)
-    let initialLoad = true;
+    // Subscribe to query params for changes (for navigation)
     this.route.queryParams.subscribe(params => {
-      const officeIdParam = params['officeId'];
-      if (officeIdParam) {
-        const parsedOfficeId = parseInt(officeIdParam, 10);
+      const updatedOfficeIdParam = params['officeId'];
+      if (updatedOfficeIdParam) {
+        const parsedOfficeId = parseInt(updatedOfficeIdParam, 10);
         if (parsedOfficeId) {
           // Set both office selections to the query param value
           this.selectedOfficeId = parsedOfficeId;
@@ -96,51 +120,53 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       }
       
       // Check if we should switch to Chart Of Accounts tab
-      const tabParam = params['tab'];
-      if (tabParam === 'chartOfAccounts') {
+      const updatedTabParam = params['tab'];
+      if (updatedTabParam === 'chartOfAccounts') {
         if (this.selectedTabIndex !== 1) {
           this.selectedTabIndex = 1;
-          this.cdr.detectChanges(); // Force change detection to update tab
           // Load Chart Of Accounts data if office is selected
           if (this.selectedOfficeId) {
             this.getChartOfAccounts();
           }
         }
-      } else {
-        // Default to Invoices tab
+      } else if (updatedTabParam !== 'chartOfAccounts') {
+        // Default to Invoices tab if tab param is not chartOfAccounts
         if (this.selectedTabIndex !== 0) {
           this.selectedTabIndex = 0;
-          this.cdr.detectChanges(); // Force change detection to update tab
-        }
-        // Only load invoices on initial load or when switching back from Chart Of Accounts
-        if (initialLoad || this.selectedTabIndex === 0) {
           this.getInvoices();
         }
       }
-      initialLoad = false;
     });
   }
 
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
-    // Load data specific to the tab
+    // Only load data if not already loaded - don't call applyFilters() as it triggers change detection
+    // The data is already filtered and displayed, so switching tabs shouldn't require reprocessing
     if (this.selectedTabIndex === 0) {
-      // Invoices tab
-      this.getInvoices();
+      // Invoices tab - only load if data is empty
+      if (this.allInvoices.length === 0) {
+        this.getInvoices();
+      }
+      // Don't call applyFilters() - data is already filtered and displayed
     } else if (this.selectedTabIndex === 1) {
       // Chart Of Accounts tab
-      // Check query params for officeId
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId && parsedOfficeId !== this.selectedOfficeId) {
-            this.selectedOfficeId = parsedOfficeId;
-          }
-        }
-      });
+      // Sync officeId from Invoices tab if needed
+      if (!this.selectedOfficeId && this.selectedInvoiceOfficeId) {
+        this.selectedOfficeId = this.selectedInvoiceOfficeId;
+      }
+      // Only load if office is selected and we don't have data for it
       if (this.selectedOfficeId) {
-        this.getChartOfAccounts();
+        const hasDataForOffice = this.allChartOfAccounts.length > 0 && 
+          this.allChartOfAccounts.some(account => account.officeId === this.selectedOfficeId);
+        if (!hasDataForOffice) {
+          this.getChartOfAccounts();
+        }
+        // Don't call applyChartOfAccountsFilters() - data is already filtered and displayed
+      } else {
+        // No office selected - clear display
+        this.chartOfAccountsDisplay = [];
+        this.removeLoadItem('chartOfAccounts');
       }
     }
   }
@@ -262,35 +288,30 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (offices) => {
         this.offices = offices || [];
-        // Check query params for officeId to set initial selection
-        this.route.queryParams.pipe(take(1)).subscribe(params => {
-          const officeIdParam = params['officeId'];
-          if (officeIdParam) {
-            const parsedOfficeId = parseInt(officeIdParam, 10);
-            if (parsedOfficeId && this.offices.some(o => o.officeId === parsedOfficeId)) {
-              // Set both office selections to the query param value
-              this.selectedOfficeId = parsedOfficeId;
-              this.selectedInvoiceOfficeId = parsedOfficeId;
-              // Load data based on active tab
-              if (this.selectedTabIndex === 1) {
-                this.getChartOfAccounts();
-              } else if (this.selectedTabIndex === 0) {
-                this.getInvoices();
-              }
-            }
-          } else {
-            // No officeId in query params - use default behavior
-            // Auto-select first office for Chart Of Accounts tab if available
-            if (this.offices.length > 0 && !this.selectedOfficeId) {
-              this.selectedOfficeId = this.offices[0].officeId;
-              // Only load chart of accounts if we're on that tab
-              if (this.selectedTabIndex === 1) {
-                this.getChartOfAccounts();
-              }
-            }
-            // Note: Invoices tab office dropdown starts with null (All Offices) by design
+        // Check if officeId from query params is valid
+        if (this.selectedOfficeId && this.offices.some(o => o.officeId === this.selectedOfficeId)) {
+          // OfficeId is already set from snapshot, just load data based on active tab
+          if (this.selectedTabIndex === 1) {
+            this.getChartOfAccounts();
+          } else if (this.selectedTabIndex === 0) {
+            this.getInvoices();
           }
-        });
+        } else if (this.selectedOfficeId) {
+          // OfficeId was set but not found in offices list - clear it
+          this.selectedOfficeId = null;
+          this.selectedInvoiceOfficeId = null;
+        } else {
+          // No officeId in query params - use default behavior
+          // Auto-select first office for Chart Of Accounts tab if available
+          if (this.offices.length > 0 && this.selectedTabIndex === 1) {
+            this.selectedOfficeId = this.offices[0].officeId;
+            this.selectedInvoiceOfficeId = this.offices[0].officeId;
+            this.getChartOfAccounts();
+          } else if (this.selectedTabIndex === 0) {
+            // Load invoices for Invoices tab (office can be null for "All Offices")
+            this.getInvoices();
+          }
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
