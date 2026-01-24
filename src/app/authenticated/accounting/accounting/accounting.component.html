@@ -33,7 +33,7 @@
               <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
                 class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
                 <mat-icon>save</mat-icon>
-                {{ isAddMode ? 'Create' : 'Save' }}
+                Save
               </button>
             </div>
             
@@ -41,18 +41,26 @@
               <!-- Invoice (Read-only) - First field -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Invoice</mat-label>
-                <input matInput formControlName="invoiceTotal" readonly>
+                @if (isAddMode) {
+                  <input matInput formControlName="invoiceTotal" readonly>
+                } @else {
+                  <input matInput formControlName="invoiceName" readonly>
+                }
               </mat-form-field>
 
               <!-- Office -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Office</mat-label>
-                <mat-select formControlName="officeId" required>
-                  <mat-option [value]="null">Select Office</mat-option>
-                  @for (office of availableOffices; track office.value) {
-                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
+                @if (isAddMode) {
+                  <mat-select formControlName="officeId" required>
+                    <mat-option [value]="null">Select Office</mat-option>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                } @else {
+                  <input matInput formControlName="officeName" readonly>
+                }
                 @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
                   <mat-error>Office is required</mat-error>
                 }
@@ -61,12 +69,16 @@
               <!-- Reservation -->
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Reservation</mat-label>
-                <mat-select formControlName="reservationId">
-                  <mat-option [value]="null">Select Reservation</mat-option>
-                  @for (reservation of availableReservations; track reservation.value) {
-                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                  }
-                </mat-select>
+                @if (isAddMode) {
+                  <mat-select formControlName="reservationId">
+                    <mat-option [value]="null">Select Reservation</mat-option>
+                    @for (reservation of availableReservations; track reservation.value) {
+                      <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                    }
+                  </mat-select>
+                } @else {
+                  <input matInput formControlName="reservationCode" readonly>
+                }
               </mat-form-field>
 
               <!-- Invoice Date -->
@@ -114,17 +126,28 @@
               }
 
               <!-- Line Items Section -->
-              @if (ledgerLines && ledgerLines.length > 0) {
-                <div class="col-span-4 mb-4">
+              <div class="col-span-4 mb-4">
+                <!-- Title Bar with Add Button -->
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-lg font-medium">Ledger Items</span>
+                  <button mat-icon-button type="button" color="primary" (click)="addLedgerLine()" 
+                    matTooltip="Add new ledger item">
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
+                
+                <!-- Table -->
+                @if (ledgerLines && ledgerLines.length > 0) {
                   <div class="overflow-x-auto">
                     <table class="line-items-table">
                       <thead>
                         <tr class="border-b">
                           <th class="text-left p-2">No</th>
-                          <th class="text-left p-2">Chart of Account ID</th>
-                          <th class="text-left p-2">Transaction</th>
+                          <th class="text-left p-2" style="width: 180px;">Chart of Account</th>
+                          <th class="text-left p-2" style="width: 140px;">Transaction</th>
                           <th class="text-left p-2">Description</th>
                           <th class="text-left p-2">Amount</th>
+                          <th class="text-right p-2" style="width: 50px;"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -132,22 +155,24 @@
                           <tr class="border-b">
                             <td class="p-2">{{ i + 1 }}</td>
                             <td class="p-2">
-                              @if (line.chartOfAccountId == null || line.chartOfAccountId === undefined || line.chartOfAccountId === 0) {
-                                <input type="number" class="w-full p-1 border rounded" 
-                                  [value]="''"
-                                  (input)="updateLedgerLineField(i, 'chartOfAccountId', parseNumber($any($event.target).value))">
-                              } @else {
-                                {{ line.chartOfAccountId }}
-                              }
+                              <mat-select [value]="line.chartOfAccountId && line.chartOfAccountId !== 0 ? line.chartOfAccountId : null" 
+                                (selectionChange)="onChartOfAccountChange(i, $event.value)"
+                                class="w-full chart-of-account-select">
+                                <mat-option [value]="null">Select Chart of Account</mat-option>
+                                @for (account of availableChartOfAccounts; track account.value) {
+                                  <mat-option [value]="account.value">{{ account.label }}</mat-option>
+                                }
+                              </mat-select>
                             </td>
                             <td class="p-2">
-                              @if (line.transactionType == null || line.transactionType === undefined || line.transactionType === '') {
-                                <input type="text" class="w-full p-1 border rounded" 
-                                  [value]="''"
-                                  (input)="updateLedgerLineField(i, 'transactionType', $any($event.target).value || '')">
-                              } @else {
-                                {{ line.transactionType }}
-                              }
+                              <mat-select [value]="getTransactionTypeId(line)"
+                                (selectionChange)="onTransactionTypeChange(i, $event.value)"
+                                class="w-full transaction-type-select">
+                                <mat-option [value]="null">Select Transaction Type</mat-option>
+                                @for (type of transactionTypes; track type.value) {
+                                  <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                                }
+                              </mat-select>
                             </td>
                             <td class="p-2">
                               @if (line.description == null || line.description === undefined || line.description === '') {
@@ -169,13 +194,21 @@
                                 <span>{{ formatCurrency(line.amount) }}</span>
                               }
                             </td>
+                            <td class="p-2 text-right">
+                              <button mat-icon-button type="button" (click)="removeLedgerLine(i)" 
+                                class="delete-ledger-line-btn" 
+                                style="color: #ae1f66;"
+                                matTooltip="Remove this line item">
+                                <mat-icon style="color: #ae1f66;">close</mat-icon>
+                              </button>
+                            </td>
                           </tr>
                         }
                       </tbody>
                     </table>
                   </div>
-                </div>
-              }
+                }
+              </div>
 
               <!-- Notes -->
               <mat-form-field appearance="outline" class="col-span-4">
