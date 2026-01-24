@@ -15,7 +15,7 @@
               <div class="flex justify-between gap-8 items-center mt-4 px-4">
                 <mat-form-field appearance="outline" style="width: 300px;">
                   <mat-label>Office</mat-label>
-                  <mat-select [(ngModel)]="selectedInvoiceOfficeId" (selectionChange)="onInvoiceOfficeChange()">
+                  <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onInvoiceOfficeChange()">
                     <mat-option [value]="null">All Offices</mat-option>
                     @for (office of offices; track office.officeId) {
                       <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
@@ -34,6 +34,48 @@
               </div>
               <!-- Filter and data table below -->
               <div class="tableDiv">
+                <ng-template #ledgerLinesTemplate let-invoice>
+                  <div class="ledger-lines-wrapper">
+                    @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
+                      <table class="ledger-lines-table">
+                        <thead>
+                          <tr>
+                            @for (columnName of getLedgerLineColumnNames(); track columnName) {
+                              @if (ledgerLinesDisplayedColumns[columnName]) {
+                                <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                    [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                    [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                    [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
+                                  {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
+                                </th>
+                              }
+                            }
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (line of invoice.LedgerLines; track line.ledgerLineId) {
+                            <tr>
+                              @for (columnName of getLedgerLineColumnNames(); track columnName) {
+                                @if (ledgerLinesDisplayedColumns[columnName]) {
+                                  <td [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                      [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                      [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                                      [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'"
+                                      [class.no-wrap]="!ledgerLinesDisplayedColumns[columnName].wrap">
+                                    {{ getLedgerLineColumnValue(line, columnName, invoice) }}
+                                  </td>
+                                }
+                              }
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    } @else {
+                      <p class="no-lines">No ledger lines found for this invoice.</p>
+                    }
+                  </div>
+                </ng-template>
+
                 <app-data-table
                   [data]="invoicesDisplay"
                   [columns]="invoicesDisplayedColumns"
@@ -44,40 +86,12 @@
                   [hasActionsRowClick]="false"
                   [hasActionsEdit]="true"
                   [hasActionsDelete]="true"
+                  [hasDetailRow]="true"
+                  [detailRowTemplate]="ledgerLinesTemplate"
                   [itemsPerPage]="100"
                   (editEvent)="goToInvoice($event)"
                   (deleteEvent)="deleteInvoice($event)"/>
               </div>
-              
-              <!-- Expanded Ledger Lines -->
-              @for (invoice of allInvoices; track invoice.invoiceId) {
-                @if (isExpanded(invoice.invoiceId)) {
-                  <div class="ledger-lines-wrapper">
-                    @if (invoice.LedgerLineResponse && invoice.LedgerLineResponse.length > 0) {
-                      <table class="ledger-lines-table">
-                        <thead>
-                          <tr>
-                            <th>Account</th>
-                            <th>Transaction Type</th>
-                            <th>Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @for (line of invoice.LedgerLineResponse; track line.ledgerLineId) {
-                            <tr>
-                              <td>{{ line.chartOfAccountId }}</td>
-                              <td>{{ getTransactionTypeLabel(line.transactionTypeId) }}</td>
-                              <td>{{ line.amount | number:'1.2-2' }}</td>
-                            </tr>
-                          }
-                        </tbody>
-                      </table>
-                    } @else {
-                      <p class="no-lines">No ledger lines found for this invoice.</p>
-                    }
-                  </div>
-                }
-              }
             </div>
           </mat-tab>
           

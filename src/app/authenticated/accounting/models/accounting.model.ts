@@ -30,7 +30,7 @@ export interface InvoiceResponse {
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
-  LedgerLineResponse: LedgerLineResponse[];
+  LedgerLines: LedgerLineResponse[];
   isActive: boolean;
   createdOn: string;
   createdBy: string;
@@ -51,7 +51,7 @@ export interface InvoiceListDisplay {
   totalAmount: number;
   paidAmount: number;
   isActive: boolean;
-  LedgerLineResponse: LedgerLineResponse[];
+  LedgerLines: LedgerLineResponse[];
 }
 
 export interface InvoiceMonthlyDataResponse {

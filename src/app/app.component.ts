@@ -8,6 +8,7 @@ import { ContactService } from './authenticated/contact/services/contact.service
 import { OrganizationListService } from './authenticated/organization/services/organization-list.service';
 import { OrganizationService } from './authenticated/organization/services/organization.service';
 import { OfficeService } from './authenticated/organization-configuration/office/services/office.service';
+import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { Observable, filter, take, BehaviorSubject, map, finalize } from 'rxjs';
 import { MatIconModule } from '@angular/material/icon'; 
 import { MatButtonModule } from '@angular/material/button';
@@ -27,7 +28,7 @@ import { CommonMessage } from './enums/common-message.enum';
 export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices', 'chartOfAccounts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -37,6 +38,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private organizationListService: OrganizationListService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private toastr: ToastrService
   ) { }
 
@@ -55,6 +57,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
+        this.chartOfAccountsService.clearChartOfAccounts();
       }
     });
   }
@@ -98,9 +101,22 @@ export class AppComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.officeService.loadAllOffices();
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: () => {},
+      next: () => {
+        // After offices are loaded, load chart of accounts
+        this.loadChartOfAccounts();
+      },
       error: () => {
         this.removeLoadItem('offices');
+      }
+    });
+  }
+
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.loadAllChartOfAccounts();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('chartOfAccounts'); })).subscribe({
+      next: () => {},
+      error: () => {
+        this.removeLoadItem('chartOfAccounts');
       }
     });
   }

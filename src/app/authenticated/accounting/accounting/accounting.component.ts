@@ -47,6 +47,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   
   chartOfAccounts: ChartOfAccountsResponse[] = [];
   availableChartOfAccounts: { value: number, label: string }[] = [];
+  chartOfAccountsSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
   
@@ -74,6 +75,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadOffices();
     this.loadReservations();
+    this.loadChartOfAccounts();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.invoiceId = paramMap.get('id');
@@ -258,25 +260,28 @@ export class AccountingComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadChartOfAccounts(officeId: number): void {
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(take(1)).subscribe({
-      next: (accounts: ChartOfAccountsResponse[]) => {
-        this.chartOfAccounts = accounts || [];
-        this.availableChartOfAccounts = this.chartOfAccounts
-          .filter(account => account.isActive)
-          .map(account => ({
-            value: account.chartOfAccountId,
-            label: `${account.accountId} - ${account.description}`
-          }));
-      },
-      error: (err: HttpErrorResponse) => {
-        this.chartOfAccounts = [];
-        this.availableChartOfAccounts = [];
-        if (err.status !== 404) {
-          this.toastr.error('Could not load chart of accounts', CommonMessage.Error);
-        }
-      }
+  loadChartOfAccounts(): void {
+     this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
+         this.filterChartOfAccounts();
+      });
     });
+  }
+
+  filterChartOfAccounts(): void {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) {
+      this.chartOfAccounts = [];
+      this.availableChartOfAccounts = [];
+      return;
+    }
+    
+    // Get chart of accounts for the selected office from the observable data
+    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
+    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
+        value: account.chartOfAccountId,
+        label: `${account.accountId} - ${account.description}`
+      }));
   }
 
   loadMonthlyLedgerLines(reservationId: string, updateTotalAmount: boolean = true): void {
@@ -386,10 +391,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
       // Update available reservations after populating officeId
       this.updateAvailableReservations();
       
-      // Load chart of accounts for the office
-      if (this.invoice.officeId) {
-        this.loadChartOfAccounts(this.invoice.officeId);
-      }
+      // Filter chart of accounts for the office
+      this.filterChartOfAccounts();
       
       // Format totalAmount display
       setTimeout(() => {
@@ -421,23 +424,16 @@ export class AccountingComponent implements OnInit, OnDestroy {
       this.updateAvailableReservations();
     }
 
-    // Load chart of accounts for current office if one is selected
-    const currentOfficeId = this.form?.get('officeId')?.value;
-    if (currentOfficeId) {
-      this.loadChartOfAccounts(currentOfficeId);
-    }
+    // Filter chart of accounts for current office if one is selected
+    this.filterChartOfAccounts();
 
     // Subscribe to officeId changes
     this.officeIdSubscription = this.form.get('officeId')?.valueChanges.subscribe(officeId => {
       // Update available reservations based on selected office
       this.updateAvailableReservations();
       
-      // Load chart of accounts for the selected office
-      if (officeId) {
-        this.loadChartOfAccounts(officeId);
-      } else {
-        this.availableChartOfAccounts = [];
-      }
+      // Filter chart of accounts for the selected office
+      this.filterChartOfAccounts();
       
       // Clear selected reservation if it doesn't belong to the new office
       const currentReservationId = this.form.get('reservationId')?.value;
@@ -737,6 +733,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.officesSubscription?.unsubscribe();
     this.officeIdSubscription?.unsubscribe();
     this.reservationIdSubscription?.unsubscribe();
+    this.chartOfAccountsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

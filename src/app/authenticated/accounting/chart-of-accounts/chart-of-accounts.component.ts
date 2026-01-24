@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -42,6 +42,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOfficeId: number | null = null;
+  officesSubscription?: Subscription;
   
   accountTypes: { value: number, label: string }[] = [];
 
@@ -130,46 +131,6 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
               this.getChartOfAccount();
             }
           }
-        }
-      });
-    });
-  }
-
-  initializeAccountTypes(): void {
-    this.accountTypes = [
-      { value: AccountingType.Bank, label: 'Bank' },
-      { value: AccountingType.AccountsReceivable, label: 'Accounts Receivable' },
-      { value: AccountingType.OtherCurrentAsset, label: 'Other Current Asset' },
-      { value: AccountingType.FixedAsset, label: 'Fixed Asset' },
-      { value: AccountingType.AccountsPayable, label: 'Accounts Payable' },
-      { value: AccountingType.CreditCard, label: 'Credit Card' },
-      { value: AccountingType.OtherCurrentLiability, label: 'Other Current Liability' },
-      { value: AccountingType.LongTermLiability, label: 'Long Term Liability' },
-      { value: AccountingType.Equity, label: 'Equity' },
-      { value: AccountingType.Income, label: 'Income' },
-      { value: AccountingType.CostOfGoodsSold, label: 'Cost of Goods Sold' },
-      { value: AccountingType.Expense, label: 'Expense' }
-    ];
-  }
-
-  loadOffices(): Promise<void> {
-    return new Promise((resolve) => {
-      this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-        next: (offices) => {
-          this.offices = offices || [];
-          this.availableOffices = this.offices.map(office => ({
-            value: office.officeId,
-            name: office.name
-          }));
-          if (this.offices.length > 0 && !this.selectedOfficeId) {
-            this.selectedOfficeId = this.offices[0].officeId;
-          }
-          resolve();
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isServiceError = true;
-          this.removeLoadItem('offices');
-          resolve();
         }
       });
     });
@@ -308,6 +269,45 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Data Load Methods
+  initializeAccountTypes(): void {
+    this.accountTypes = [
+      { value: AccountingType.Bank, label: 'Bank' },
+      { value: AccountingType.AccountsReceivable, label: 'Accounts Receivable' },
+      { value: AccountingType.OtherCurrentAsset, label: 'Other Current Asset' },
+      { value: AccountingType.FixedAsset, label: 'Fixed Asset' },
+      { value: AccountingType.AccountsPayable, label: 'Accounts Payable' },
+      { value: AccountingType.CreditCard, label: 'Credit Card' },
+      { value: AccountingType.OtherCurrentLiability, label: 'Other Current Liability' },
+      { value: AccountingType.LongTermLiability, label: 'Long Term Liability' },
+      { value: AccountingType.Equity, label: 'Equity' },
+      { value: AccountingType.Income, label: 'Income' },
+      { value: AccountingType.CostOfGoodsSold, label: 'Cost of Goods Sold' },
+      { value: AccountingType.Expense, label: 'Expense' }
+    ];
+  }
+
+  loadOffices(): Promise<void> {
+    return new Promise((resolve) => {
+      // Wait for offices to be loaded initially, then subscribe to changes
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.removeLoadItem('offices');
+        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.offices.map(office => ({
+            value: office.officeId,
+            name: office.name
+          }));
+          if (this.offices.length > 0 && !this.selectedOfficeId) {
+            this.selectedOfficeId = this.offices[0].officeId;
+          }
+          resolve();
+        });
+      });
+    });
+  }
+   //#endregion
+
   //#region Utility Methods
   getOfficeName(): string {
     if (!this.selectedOfficeId) {
@@ -337,6 +337,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

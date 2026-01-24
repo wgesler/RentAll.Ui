@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
@@ -71,6 +71,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() pageSizeOptions: number[] = [10, 20, 50, 100];
   @Input() showCustomRowTooltip: boolean = false;
   @Input() templateTableId: number = 1;
+  @Input() hasDetailRow: boolean = false;
+  @Input() detailRowTemplate: TemplateRef<any>;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -103,7 +105,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   isToggle: boolean = false;
   selectAllToolTip: string = 'Select all visible checks';
 
-  constructor(private zone: NgZone, private formatter: FormatterService) { }
+  constructor(private zone: NgZone, private formatter: FormatterService, private cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     // Use a filterPredicate to make sure the table only filters on visible columns
@@ -330,6 +332,7 @@ export class DataTableComponent implements OnChanges, OnInit {
       });
       this.displayedColumns.push(name);
     }
+    // Note: 'detail' column is NOT added to displayedColumns - it's only used for the detail row definition
   }
 
   private setActions(): void {
@@ -360,6 +363,14 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.selection.clear();
     this.selectionSet.emit(this.selection);
     this.isAllSelected = false;
+    // Force table to update by reassigning dataSource
+    // This ensures Angular Material re-evaluates when predicates
+    const currentData = this.dataSource.data;
+    this.dataSource.data = [];
+    setTimeout(() => {
+      this.dataSource.data = currentData;
+      this.cdr.detectChanges();
+    }, 0);
   }
 
   setIsAllSelected(): boolean {
@@ -393,6 +404,37 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.selection.clear();
     this.selectAllToolTip = 'Select all visible checks';
     currentPageItems.forEach((i) => { this.emitSelectEvent(checkEvent, i) });
+  }
+
+  isDetailRowExpanded(row: PurposefulAny): boolean {
+    // Material table passes the row index as a number, not the row object
+    let actualRow: PurposefulAny;
+    if (typeof row === 'number') {
+      // Check if dataSource exists and has data before accessing
+      if (!this.dataSource || !this.dataSource.data || this.dataSource.data.length === 0) {
+        return false;
+      }
+      // Ensure index is within bounds
+      if (row < 0 || row >= this.dataSource.data.length) {
+        return false;
+      }
+      actualRow = this.dataSource.data[row];
+    } else {
+      actualRow = row;
+    }
+    
+    // Check if expanded is true - if no row found, return false
+    if (!actualRow) {
+      return false;
+    }
+    
+    return actualRow['expanded'] === true;
+  }
+
+  isMainRowVisible = (_row?: PurposefulAny): boolean => {
+    // Always return true - invoice/main rows should always be visible
+    // This ensures they render independently of detail rows
+    return true;
   }
 }
 

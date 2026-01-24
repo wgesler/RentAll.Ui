@@ -211,10 +211,26 @@
                 </td>
             </ng-container>
         }
+
+        <!-- Detail row column definition -->
+        @if (hasDetailRow && detailRowTemplate) {
+            <ng-container matColumnDef="detail">
+                <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+                    <ng-container *ngTemplateOutlet="detailRowTemplate; context: { $implicit: row }"></ng-container>
+                </td>
+            </ng-container>
+        }
+
         <tr mat-header-row *matHeaderRowDef="displayedColumns" ></tr>
+        <!-- Invoice/main rows - always render (no when condition) -->
         <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row) : null"
         [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited}" 
         [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>
+        
+        <!-- Detail row definition - renders when expanded is true -->
+        @if (hasDetailRow) {
+            <tr mat-row *matRowDef="let row; columns: ['detail']; when: isDetailRowExpanded" class="datatable-detail-row"></tr>
+        }
     </table>
 </div>
 

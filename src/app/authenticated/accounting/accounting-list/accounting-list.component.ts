@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { OnInit, Component, OnDestroy, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, forkJoin, of, Subscription, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -28,14 +28,25 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 })
 
 export class AccountingListComponent implements OnInit, OnDestroy {
+  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allInvoices: InvoiceResponse[] = [];
   invoicesDisplay: any[] = []; // Will contain invoices with expand property
+
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
   selectedTabIndex: number = 0;
-  selectedInvoiceOfficeId: number | null = null; // Office filter for Invoices tab
+  selectedOfficeId: number | null = null; // Office filter for both tabs
+  chartOfAccountsDisplay: any[] = [];
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
+  showInactiveChartOfAccounts: boolean = false; // Toggle for inactive chart of accounts
+
+  allChartOfAccounts: ChartOfAccountsResponse[] = [];
+  chartOfAccountsSubscription?: Subscription;
 
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
@@ -48,12 +59,12 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     paidAmount: { displayAs: 'Paid Amount', maxWidth: '20ch' }
   };
 
-  // Chart Of Accounts properties
-  allChartOfAccounts: ChartOfAccountsResponse[] = [];
-  chartOfAccountsDisplay: any[] = [];
-  offices: OfficeResponse[] = [];
-  selectedOfficeId: number | null = null; // Office filter for Chart Of Accounts tab
-  showInactiveChartOfAccounts: boolean = false; // Toggle for inactive chart of accounts
+  ledgerLinesDisplayedColumns: ColumnSet = {
+    account: { displayAs: 'Account', maxWidth: '20ch', wrap: false },
+    transactionType: { displayAs: 'Transaction Type', maxWidth: '15ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '20ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false }
+  };
 
   chartOfAccountsDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
@@ -65,6 +76,7 @@ export class AccountingListComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
 
   constructor(
     public accountingService: AccountingService,
@@ -101,9 +113,23 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       const parsedOfficeId = parseInt(officeIdParam, 10);
       if (parsedOfficeId) {
         this.selectedOfficeId = parsedOfficeId;
-        this.selectedInvoiceOfficeId = parsedOfficeId;
       }
     }
+    
+    // Subscribe to chart of accounts observable
+    this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe({
+      next: (chartOfAccounts) => {
+        this.allChartOfAccounts = chartOfAccounts || [];
+        // Apply filters if we're on the Chart Of Accounts tab
+        if (this.selectedTabIndex === 1) {
+          this.applyChartOfAccountsFilters();
+        }
+        // Apply invoice filters if we're on the Invoices tab (chart of accounts are used for descriptions)
+        if (this.selectedTabIndex === 0 && this.allInvoices.length > 0) {
+          this.applyFilters();
+        }
+      }
+    });
     
     // Load offices first so dropdowns can be initialized
     this.loadOffices();
@@ -114,9 +140,7 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       if (updatedOfficeIdParam) {
         const parsedOfficeId = parseInt(updatedOfficeIdParam, 10);
         if (parsedOfficeId) {
-          // Set both office selections to the query param value
           this.selectedOfficeId = parsedOfficeId;
-          this.selectedInvoiceOfficeId = parsedOfficeId;
         }
       }
       
@@ -152,10 +176,6 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       // Don't call applyFilters() - data is already filtered and displayed
     } else if (this.selectedTabIndex === 1) {
       // Chart Of Accounts tab
-      // Sync officeId from Invoices tab if needed
-      if (!this.selectedOfficeId && this.selectedInvoiceOfficeId) {
-        this.selectedOfficeId = this.selectedInvoiceOfficeId;
-      }
       // Only load if office is selected and we don't have data for it
       if (this.selectedOfficeId) {
         const hasDataForOffice = this.allChartOfAccounts.length > 0 && 
@@ -173,20 +193,33 @@ export class AccountingListComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceOfficeChange(): void {
-    // Sync Chart Of Accounts tab office selection with Invoices tab
-    this.selectedOfficeId = this.selectedInvoiceOfficeId;
     // If Chart Of Accounts tab is active and office is selected, reload data
     if (this.selectedTabIndex === 1 && this.selectedOfficeId) {
       this.getChartOfAccounts();
     }
-    this.applyFilters();
+    // Wait for chart of accounts to load before applying filters
+    this.loadChartOfAccountsForInvoices().subscribe({
+      next: () => {
+        this.applyFilters();
+      }
+    });
   }
 
   getInvoices(): void {
     this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-        this.applyFilters();
+        // Set all invoices to expanded
+        this.expandedInvoices.clear();
+        this.allInvoices.forEach(invoice => {
+          this.expandedInvoices.add(invoice.invoiceId);
+        });
+        // Load chart of accounts for all offices that have invoices, then apply filters
+        this.loadChartOfAccountsForInvoices().subscribe({
+          next: () => {
+            this.applyFilters();
+          }
+        });
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -207,6 +240,8 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     } else {
       this.expandedInvoices.add(invoiceId);
     }
+    // Trigger change detection to update the view
+    this.cdr.detectChanges();
   }
 
   isExpanded(invoiceId: string): boolean {
@@ -250,11 +285,14 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(invoice => invoice.isActive);
     }
     // Filter by office if selected
-    if (this.selectedInvoiceOfficeId !== null) {
-      filtered = filtered.filter(invoice => invoice.officeId === this.selectedInvoiceOfficeId);
+    if (this.selectedOfficeId !== null) {
+      filtered = filtered.filter(invoice => invoice.officeId === this.selectedOfficeId);
     }
     // Map invoices to include expand button data for DataTableComponent
-    this.invoicesDisplay = filtered.map(invoice => ({
+    this.invoicesDisplay = filtered.map(invoice => {
+      // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
+      const ledgerLines = invoice['ledgerLines'] ?? [];
+      return {
       ...invoice,
       invoiceNumber: invoice.invoiceName || '',
       totalAmount: '$' + this.formatter.currency(invoice.totalAmount),
@@ -262,13 +300,15 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
       dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
-      expanded: this.isExpanded(invoice.invoiceId),
+      expanded: this.isExpanded(invoice.invoiceId), // Should be true for all invoices by default
+      LedgerLines: ledgerLines, // Include ledger lines in the display data (using PascalCase for template)
       expandClick: (event: Event, item: any) => {
         event.stopPropagation();
         this.toggleInvoice(item.invoiceId);
         item.expanded = this.isExpanded(item.invoiceId);
       }
-    }));
+      };
+    });
   }
   //#endregion
 
@@ -287,47 +327,98 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     return types[transactionTypeId] || 'Unknown';
   }
 
+  getChartOfAccountDescription(chartOfAccountId: number | string | undefined, officeId: number): string {
+    if (!chartOfAccountId) return '-';
+    
+    // Find the chart of account for this office
+    // Try matching by chartOfAccountId first, then by accountId
+    let account = this.allChartOfAccounts.find(
+      coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId === chartOfAccountId) && coa.officeId === officeId
+    );
+    
+    // If not found and it's a string, try parsing as number
+    if (!account && typeof chartOfAccountId === 'string') {
+      const numericId = parseInt(chartOfAccountId, 10);
+      if (!isNaN(numericId)) {
+        account = this.allChartOfAccounts.find(
+          coa => (coa.chartOfAccountId === numericId || coa.accountId === numericId) && coa.officeId === officeId
+        );
+      }
+    }
+    
+    return account?.description || chartOfAccountId.toString();
+  }
+
+  getReservationCode(reservationId: string | null | undefined, invoiceReservationCode: string | null | undefined): string {
+    // Use the invoice's reservationCode if available, otherwise return the ID or '-'
+    return invoiceReservationCode || reservationId || '-';
+  }
+
+  getLedgerLineColumnNames(): string[] {
+    return Object.keys(this.ledgerLinesDisplayedColumns);
+  }
+
+  getLedgerLineColumnValue(line: any, columnName: string, invoice: any): any {
+    switch (columnName) {
+      case 'account':
+        return this.getChartOfAccountDescription(line.chartOfAccountId, invoice.officeId);
+      case 'transactionType':
+        return this.getTransactionTypeLabel(line.transactionTypeId ?? line.transactionType ?? 0);
+      case 'reservation':
+        return this.getReservationCode(line.reservationId, invoice.reservationCode);
+      case 'description':
+        return line.description || '-';
+      case 'amount':
+        return '$' + this.formatter.currency(line.amount);
+      default:
+        return line[columnName] || '-';
+    }
+  }
+
+  loadChartOfAccountsForInvoices(): Observable<void> {
+    // Chart of accounts are now loaded globally via the service observable
+    // This method is kept for compatibility but just returns immediately
+    // The chart of accounts will already be available via the subscription
+    return of(void 0);
+  }
+
   //#region Chart Of Accounts Methods
   loadOffices(): void {
-    this.addLoadItem('offices');
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-      next: (offices) => {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        // Check if officeId from query params is valid
-        if (this.selectedOfficeId && this.offices.some(o => o.officeId === this.selectedOfficeId)) {
-          // OfficeId is already set from snapshot, just load data based on active tab
-          if (this.selectedTabIndex === 1) {
-            this.getChartOfAccounts();
-          } else if (this.selectedTabIndex === 0) {
-            this.getInvoices();
-          }
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+    });
+  }
+
+  initializeDataAfterOfficesLoaded(): void {
+    // Check if officeId from query params is valid
+    if (this.selectedOfficeId && this.offices.some(o => o.officeId === this.selectedOfficeId)) {
+      // OfficeId is already set from snapshot, just load data based on active tab
+      if (this.selectedTabIndex === 1) {
+        this.getChartOfAccounts();
+      } else if (this.selectedTabIndex === 0) {
+        this.getInvoices();
+      }
         } else if (this.selectedOfficeId) {
           // OfficeId was set but not found in offices list - clear it
           this.selectedOfficeId = null;
-          this.selectedInvoiceOfficeId = null;
         } else {
           // No officeId in query params - use default behavior
           // Auto-select first office for Chart Of Accounts tab if available
           if (this.offices.length > 0 && this.selectedTabIndex === 1) {
             this.selectedOfficeId = this.offices[0].officeId;
-            this.selectedInvoiceOfficeId = this.offices[0].officeId;
             this.getChartOfAccounts();
           } else if (this.selectedTabIndex === 0) {
-            // Load invoices for Invoices tab (office can be null for "All Offices")
-            this.getInvoices();
-          }
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        this.removeLoadItem('offices');
+        // Load invoices for Invoices tab (office can be null for "All Offices")
+        this.getInvoices();
       }
-    });
+    }
   }
 
   onOfficeChange(): void {
-    // Sync Invoices tab office selection with Chart Of Accounts tab
-    this.selectedInvoiceOfficeId = this.selectedOfficeId;
     // Reload invoices if Invoices tab is active
     if (this.selectedTabIndex === 0) {
       this.applyFilters();
@@ -345,30 +436,24 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     if (!this.selectedOfficeId) {
       return;
     }
-    this.addLoadItem('chartOfAccounts');
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(this.selectedOfficeId).pipe(
-      take(1), 
-      finalize(() => { this.removeLoadItem('chartOfAccounts'); })
-    ).subscribe({
-      next: (chartOfAccounts) => {
-        this.allChartOfAccounts = chartOfAccounts || [];
-        this.applyChartOfAccountsFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
-    });
+    // Chart of accounts are already loaded via the service observable
+    // Just filter and display them for the selected office
+    this.applyChartOfAccountsFilters();
   }
 
   applyChartOfAccountsFilters(): void {
     let filtered = this.allChartOfAccounts;
+    
+    // Filter by office if selected
+    if (this.selectedOfficeId !== null) {
+      filtered = filtered.filter(account => account.officeId === this.selectedOfficeId);
+    }
+    
     // Filter by inactive if needed
     if (!this.showInactiveChartOfAccounts) {
       filtered = filtered.filter(account => account.isActive !== false);
     }
+    
     // Map chart of accounts using mapping service to convert accountType to display string
     const mapped = this.mappingService.mapChartOfAccounts(filtered, this.offices);
     this.chartOfAccountsDisplay = mapped;
@@ -398,7 +483,9 @@ export class AccountingListComponent implements OnInit, OnDestroy {
       this.chartOfAccountsService.deleteChartOfAccount(officeIdToUse, chartOfAccount.chartOfAccountId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Chart of Account deleted successfully', CommonMessage.Success);
-          this.getChartOfAccounts(); // Refresh the list
+          // Refresh chart of accounts for this office from the service
+          this.chartOfAccountsService.refreshChartOfAccountsForOffice(officeIdToUse);
+          this.getChartOfAccounts(); // Refresh the display
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -433,6 +520,8 @@ export class AccountingListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
+    this.chartOfAccountsSubscription?.unsubscribe();
+    this.officesSubscription?.unsubscribe();
   }
   //#endregion
 }

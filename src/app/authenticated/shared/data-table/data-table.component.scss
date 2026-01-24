@@ -326,3 +326,12 @@ td.mat-mdc-cell.align-center {
 .datatable-hidden {
     display: none;
 }
+
+.datatable-detail-row {
+    height: auto;
+}
+
+.datatable-detail-row td {
+    border-bottom-width: 1px;
+    padding: 16px;
+}

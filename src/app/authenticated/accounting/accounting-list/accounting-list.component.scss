@@ -4,10 +4,12 @@
   border-top: 1px solid #e0e0e0;
   margin-top: -1px; // Overlap with table border
   margin-bottom: 8px;
+  overflow-x: auto;
 }
 
 .ledger-lines-table {
   width: 100%;
+  min-width: 800px; // Ensure all columns are visible
   border-collapse: collapse;
   
   thead {

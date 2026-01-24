@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -39,6 +39,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   chartOfAccountsDisplay: any[] = [];
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
+  officesSubscription?: Subscription;
+  chartOfAccountsSubscription?: Subscription;
 
   chartOfAccountsDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
@@ -67,20 +69,23 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     this.chartOfAccountsDisplay = [];
     this.allChartOfAccounts = [];
     
+    // Load chart of accounts observable
+    this.loadChartOfAccounts();
+    
     // Always load offices first (needed for mapping officeId to officeName in display)
     this.loadOffices().then(() => {
       // If officeId is provided as input and not null, use it and load data
       if (this.officeId !== null && this.officeId !== undefined) {
         this.selectedOfficeId = this.officeId;
-        // Only load chart of accounts if officeId is provided and not null
-        this.getChartOfAccounts();
+        // Only filter chart of accounts if officeId is provided and not null
+        this.filterChartOfAccounts();
       } else if (!this.embeddedMode) {
         // Not in embedded mode - check query params for officeId
         this.route.queryParams.pipe(take(1)).subscribe(params => {
           const officeIdParam = params['officeId'];
           if (officeIdParam) {
             this.selectedOfficeId = parseInt(officeIdParam, 10);
-            this.getChartOfAccounts();
+            this.filterChartOfAccounts();
           }
           // If no officeId in query params, list stays empty (no spinner)
         });
@@ -95,17 +100,16 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
       
-      // Only make API call if officeId changed from null/undefined to a value, or changed to a different value
+      // Only update if officeId changed from null/undefined to a value, or changed to a different value
       if (newOfficeId !== previousOfficeId) {
         this.selectedOfficeId = newOfficeId;
         if (newOfficeId !== null && newOfficeId !== undefined) {
-          // Office was selected - load chart of accounts
-          this.getChartOfAccounts();
+          // Office was selected - filter chart of accounts display
+          this.filterChartOfAccounts();
         } else {
-          // Office was cleared - clear the display and ensure not loading
+          // Office was cleared - clear the display
           this.chartOfAccountsDisplay = [];
           this.allChartOfAccounts = [];
-          this.removeLoadItem('chartOfAccounts');
         }
       }
     }
@@ -118,38 +122,30 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   onOfficeChange(): void {
-    if (this.selectedOfficeId) {
-      this.getChartOfAccounts();
-    } else {
-      this.chartOfAccountsDisplay = [];
-      this.removeLoadItem('chartOfAccounts');
-    }
+    this.filterChartOfAccounts();
   }
 
-  getChartOfAccounts(): void {
+  loadChartOfAccounts(): void {
+    // Wait for chart of accounts to be loaded initially, then subscribe to changes
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
+        // Update chart of accounts when observable emits
+        // Filter will be applied when officeId changes
+        this.filterChartOfAccounts();
+      });
+    });
+  }
+
+  filterChartOfAccounts(): void {
     if (!this.selectedOfficeId) {
-      // Clear display if no office selected
-      this.chartOfAccountsDisplay = [];
       this.allChartOfAccounts = [];
-      this.removeLoadItem('chartOfAccounts');
+      this.chartOfAccountsDisplay = [];
       return;
     }
-    this.addLoadItem('chartOfAccounts');
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(this.selectedOfficeId).pipe(
-      take(1), 
-      finalize(() => { this.removeLoadItem('chartOfAccounts'); })
-    ).subscribe({
-      next: (chartOfAccounts) => {
-        this.allChartOfAccounts = chartOfAccounts || [];
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
-    });
+    
+    // Get chart of accounts for the selected office from the observable data
+    this.allChartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOfficeId);
+    this.applyFilters();
   }
 
   addChartOfAccount(): void {
@@ -177,7 +173,9 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       this.chartOfAccountsService.deleteChartOfAccount(officeIdToUse, chartOfAccount.chartOfAccountId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Chart of Account deleted successfully', CommonMessage.Success);
-          this.getChartOfAccounts(); // Refresh the list
+          // Refresh chart of accounts for this office from the service
+          this.chartOfAccountsService.refreshChartOfAccountsForOffice(officeIdToUse);
+          this.filterChartOfAccounts(); // Refresh the display
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -209,22 +207,19 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   //#region Data Load Methods
   loadOffices(): Promise<void> {
     return new Promise((resolve) => {
-      this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
-        next: (offices) => {
+      // Wait for offices to be loaded initially, then subscribe to changes
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.removeLoadItem('offices');
+        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
           this.offices = offices || [];
           // Auto-select first office if available and no officeId from query params
           // Only do this if NOT in embedded mode (parent controls office selection in embedded mode)
           if (!this.embeddedMode && this.offices.length > 0 && !this.selectedOfficeId) {
             this.selectedOfficeId = this.offices[0].officeId;
-            this.getChartOfAccounts();
+            this.filterChartOfAccounts();
           }
           resolve();
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isServiceError = true;
-          this.removeLoadItem('offices');
-          resolve();
-        }
+        });
       });
     });
   }
@@ -273,6 +268,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.chartOfAccountsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion
