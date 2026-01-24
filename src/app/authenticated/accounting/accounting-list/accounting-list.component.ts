@@ -10,7 +10,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
-import { TransactionType } from '../models/accounting-enum';
+import { FormatterService } from '../../../services/formatter-service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -38,14 +38,14 @@ export class AccountingListComponent implements OnInit, OnDestroy {
   selectedInvoiceOfficeId: number | null = null; // Office filter for Invoices tab
 
   invoicesDisplayedColumns: ColumnSet = {
-    expand: { displayAs: '', maxWidth: '50px', sort: false },
-    invoiceNumber: { displayAs: 'Invoice #', maxWidth: '15ch', sortType: 'natural' },
+    expand: { displayAs: ' ', maxWidth: '50px', sort: false },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
-    totalAmount: { displayAs: 'Total Amount', maxWidth: '15ch' },
-    paidAmount: { displayAs: 'Paid Amount', maxWidth: '15ch' }
+    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '20ch' },
+    totalAmount: { displayAs: 'Total Amount', maxWidth: '20ch' },
+    paidAmount: { displayAs: 'Paid Amount', maxWidth: '20ch' }
   };
 
   // Chart Of Accounts properties
@@ -74,7 +74,8 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService,
     private chartOfAccountsService: ChartOfAccountsService,
     private officeService: OfficeService,
-    private cdr: ChangeDetectorRef) {
+    private cdr: ChangeDetectorRef,
+    private formatter: FormatterService) {
   }
 
   //#region Invoice-List
@@ -255,7 +256,11 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => ({
       ...invoice,
-      invoiceNumber: invoice.invoiceId.substring(0, 8),
+      invoiceNumber: invoice.invoiceName || '',
+      totalAmount: '$' + this.formatter.currency(invoice.totalAmount),
+      paidAmount: '$' + this.formatter.currency(invoice.paidAmount),
+      invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
+      dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.isExpanded(invoice.invoiceId),
       expandClick: (event: Event, item: any) => {
