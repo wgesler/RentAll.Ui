@@ -57,107 +57,159 @@
                 Is Active
               </mat-checkbox>
             </div>
+
+            <mat-accordion multi="true">
+              <!-- Details Accordion -->
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Details</mat-panel-title>
+                </mat-expansion-panel-header>
                 
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-[0.5]">
-                  <mat-label>Office Code</mat-label>
-                  <input matInput formControlName="officeCode" required (input)="onCodeInput($event)">
-                  @if (form.get('officeCode')?.hasError('required') && form.get('officeCode')?.touched) {
-                    <mat-error>Office Code is required</mat-error>
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-[0.5]">
+                      <mat-label>Office Code</mat-label>
+                      <input matInput formControlName="officeCode" required (input)="onCodeInput($event)">
+                      @if (form.get('officeCode')?.hasError('required') && form.get('officeCode')?.touched) {
+                        <mat-error>Office Code is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Name</mat-label>
+                      <input matInput formControlName="name" required>
+                      @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                        <mat-error>Name is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Address 1</mat-label>
+                      <input matInput formControlName="address1" required>
+                      @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                        <mat-error>Address 1 is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Address 2</mat-label>
+                      <input matInput formControlName="address2">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Suite</mat-label>
+                      <input matInput formControlName="suite">
+                    </mat-form-field>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>City</mat-label>
+                    <input matInput formControlName="city" required>
+                    @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                      <mat-error>City is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>State</mat-label>
+                    <mat-select formControlName="state" required>
+                      <mat-option value="">Select State</mat-option>
+                      @for (state of states; track state) {
+                        <mat-option [value]="state">{{ state }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                      <mat-error>State is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Zip</mat-label>
+                    <input matInput formControlName="zip" required>
+                    @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                      <mat-error>Zip is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Phone</mat-label>
+                      <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
+                      @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
+                        <mat-error>Phone is required</mat-error>
+                      }
+                      @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
+                        <mat-error>Invalid phone format</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Fax</mat-label>
+                      <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
+                      @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
+                        <mat-error>Invalid phone format</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Website</mat-label>
+                      <input matInput formControlName="website" type="url">
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <!-- Office Logo Section -->
+                <mat-divider class="my-5"/>
+                <h3 class="pt-3">Office Logo</h3>
+                <div class="flex justify-start image-input items-center mb-4">
+                  @if (fileDetails && fileDetails.file) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      @if (fileName) {
+                        <span class="text-sm font-semibold">{{ fileName }}</span>
+                      }
+                      <div class="flex flex-col gap-2">
+                        <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                          Choose Image
+                        </button>
+                        <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                          Delete Image
+                        </button>
+                      </div>
+                    </div>
+                  } @else if (logoPath && !fileDetails) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                        Choose Image
+                      </button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                        Delete Image
+                      </button>
+                    </div>
+                  } @else {
+                    <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                      Choose Image
+                    </button>
                   }
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Name</mat-label>
-                  <input matInput formControlName="name" required>
-                  @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
-                    <mat-error>Name is required</mat-error>
-                  }
-                </mat-form-field>
-              </div>
-
-              <div class="col-span-4 flex gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Address 1</mat-label>
-                  <input matInput formControlName="address1" required>
-                  @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
-                    <mat-error>Address 1 is required</mat-error>
-                  }
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Address 2</mat-label>
-                  <input matInput formControlName="address2">
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Suite</mat-label>
-                  <input matInput formControlName="suite">
-                </mat-form-field>
-              </div>
-
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>City</mat-label>
-                <input matInput formControlName="city" required>
-                @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
-                  <mat-error>City is required</mat-error>
+                  <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
+                </div>
+                @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+                  <div class="image-file-error mb-4">
+                    Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+                  </div>
                 }
-              </mat-form-field>
+                <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+              </mat-expansion-panel>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>State</mat-label>
-                <mat-select formControlName="state" required>
-                  <mat-option value="">Select State</mat-option>
-                  @for (state of states; track state) {
-                    <mat-option [value]="state">{{ state }}</mat-option>
-                  }
-                </mat-select>
-                @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
-                  <mat-error>State is required</mat-error>
-                }
-              </mat-form-field>
+              <!-- Billing Accordion -->
+              <mat-expansion-panel class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Billing and Fees</mat-panel-title>
+                </mat-expansion-panel-header>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Zip</mat-label>
-                <input matInput formControlName="zip" required>
-                @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
-                  <mat-error>Zip is required</mat-error>
-                }
-              </mat-form-field>
-
-              <div class="col-span-4 flex gap-x-1.5">
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Phone</mat-label>
-                  <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
-                  @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                    <mat-error>Phone is required</mat-error>
-                  }
-                  @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
-                    <mat-error>Invalid phone format</mat-error>
-                  }
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Fax</mat-label>
-                  <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
-                  @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
-                    <mat-error>Invalid phone format</mat-error>
-                  }
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Website</mat-label>
-                  <input matInput formControlName="website" type="url">
-                </mat-form-field>
-              </div>
-
-            </div>
-
-            <!-- Configuration Section -->
-            <mat-divider class="my-5"/>
-            <h3 class="pt-3">Configuration</h3>
-
-            <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
+                <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
                 <div class="flex gap-4 mb-4">
                   <!-- Default Rental Deposit -->
                   <mat-form-field appearance="outline" class="flex-1">
@@ -397,49 +449,18 @@
                     </mat-form-field>
                   </div>
                 </div>
+              </mat-expansion-panel>
 
-            <!-- Office Logo Section -->
-            <mat-divider class="my-5"/>
-            <h3 class="pt-3">Office Logo</h3>
-            <div class="flex justify-start image-input items-center mb-4">
-              @if (fileDetails && fileDetails.file) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
-                <div class="flex flex-col gap-2 ml-4">
-                  @if (fileName) {
-                    <span class="text-sm font-semibold">{{ fileName }}</span>
-                  }
-                  <div class="flex flex-col gap-2">
-                    <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                      Choose Image
-                    </button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
-                      Delete Image
-                    </button>
-                  </div>
-                </div>
-              } @else if (logoPath && !fileDetails) {
-                <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
-                <div class="flex flex-col gap-2 ml-4">
-                  <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
-                    Choose Image
-                  </button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
-                    Delete Image
-                  </button>
-                </div>
-              } @else {
-                <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
-                  Choose Image
-                </button>
-              }
-              <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
-            </div>
-            @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
-              <div class="image-file-error mb-4">
-                Only a jpg, gif, or png image type with a file size less than 2MB are valid.
-              </div>
-            }
-            <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+              <!-- ChartOfAccounts Accordion -->
+              <mat-expansion-panel class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Chart of Accounts</mat-panel-title>
+                </mat-expansion-panel-header>
+                @if (!isAddMode && office?.officeId) {
+                  <app-chart-of-accounts-list [officeId]="office.officeId" [embeddedMode]="true"></app-chart-of-accounts-list>
+                }
+              </mat-expansion-panel>
+            </mat-accordion>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center mt-4">

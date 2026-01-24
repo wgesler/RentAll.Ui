@@ -1,0 +1,102 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading chart of account...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">account_tree</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Chart of Account' : 'Edit Chart of Account' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+        
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveChartOfAccount()" class="info-form mb-8 pt-5">
+          <div class="mb-4 flex justify-end items-center gap-3">
+            <mat-checkbox formControlName="isActive" color="primary">
+              Is Active
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveChartOfAccount()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            <!-- First Row: Office, Account No, Account Type -->
+            <div class="col-span-4 flex gap-x-1.5">
+              <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
+              @if (isAddMode) {
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Office</mat-label>
+                  <mat-select [(ngModel)]="selectedOfficeId" [ngModelOptions]="{standalone: true}" required>
+                    <mat-option [value]="null">Select Office</mat-option>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Office</mat-label>
+                  <input matInput [value]="getOfficeName()" readonly>
+                </mat-form-field>
+              }
+
+              <!-- Account No -->
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Account No</mat-label>
+                <input matInput formControlName="accountId" type="text" pattern="[0-9]*" (keypress)="onAccountNoKeyPress($event)" required>
+                @if (form.get('accountId')?.hasError('required') && form.get('accountId')?.touched) {
+                  <mat-error>Account No is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Account Type -->
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Account Type</mat-label>
+                <mat-select formControlName="accountType" required>
+                  <mat-option [value]="">Select Account Type</mat-option>
+                  @for (accountType of accountTypes; track accountType.value) {
+                    <mat-option [value]="accountType.value.toString()">{{ accountType.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('accountType')?.hasError('required') && form.get('accountType')?.touched) {
+                  <mat-error>Account Type is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <!-- Description -->
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Description</mat-label>
+              <input matInput formControlName="description" required>
+              @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
+                <mat-error>Description is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          @if (isSubmitting) {
+            <div class="flex justify-center gap-3 items-center mt-4">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block"/>
+              <span>{{ isAddMode ? 'Adding...' : 'Saving...' }}</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

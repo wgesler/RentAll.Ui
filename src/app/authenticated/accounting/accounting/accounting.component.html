@@ -21,20 +21,20 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-            <mat-icon>save</mat-icon>
-            {{ isAddMode ? 'Create' : 'Save' }}
-          </button>
         </div>
       </div>
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-end items-center gap-3">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                <mat-icon>save</mat-icon>
+                {{ isAddMode ? 'Create' : 'Save' }}
+              </button>
             </div>
             
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
@@ -185,8 +185,8 @@
             </div>
 
             @if (isSubmitting) {
-              <div class="flex justify-start gap-3 items-center">
-                <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <div class="flex justify-center gap-3 items-center mt-4">
+                <mat-spinner [diameter]="20" color="accent" class="inline-block"/>
                 <span>{{ isAddMode ? 'Creating...' : 'Saving...' }}</span>
               </div>
             }

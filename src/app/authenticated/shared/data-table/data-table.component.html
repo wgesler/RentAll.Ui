@@ -1,4 +1,4 @@
-<div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap" *ngIf="hasFilter || hasToggleTop || hasButtonTop">
+<div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4" *ngIf="hasFilter || hasToggleTop || hasButtonTop">
     @if (hasFilter) {
         <mat-form-field id="datatable-search-field-{{templateTableId}}"
         class="mobile-view-full datatable-search-field">
@@ -20,7 +20,7 @@
             </mat-slide-toggle>
         }
         @if (hasButtonTop) {
-            <button mat-raised-button id="datatable-add-btn-{{templateTableId}}" color="accent" (click)="emitAddEvent()"
+            <button mat-raised-button id="datatable-add-btn-{{templateTableId}}" [color]="buttonColorTop" (click)="emitAddEvent()"
             class="mobile-view-full datatable-add-btn whitespace-nowrap items-center flex gap-1" [disabled]="buttonDisabledTop || !hasActionsTopEnabled">
                 @if (buttonIconTop === 'spinner') { <mat-spinner diameter="15"/> }
                 @else {<mat-icon class="text-base">{{buttonIconTop}}</mat-icon>}

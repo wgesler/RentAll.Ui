@@ -55,3 +55,33 @@
 .myfilebrowser button {
   margin-bottom: 5px;
 }
+
+// Accordion panel styling
+::ng-deep mat-expansion-panel {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 4px !important;
+  
+  .mat-expansion-panel-header {
+    padding: 12px 16px !important;
+    height: auto !important;
+    background-color: #cbd5e1 !important; // slate-300 (darker than slate-200)
+    
+    &:hover {
+      background-color: #94a3b8 !important; // slate-400 (even darker on hover)
+    }
+    
+    .mat-expansion-panel-header-title {
+      font-weight: 500;
+      font-size: 14px;
+      color: rgba(0, 0, 0, 0.87);
+    }
+    
+    .mat-expansion-indicator {
+      &::after {
+        color: #000000 !important;
+        border-color: #000000 !important;
+      }
+    }
+  }
+}

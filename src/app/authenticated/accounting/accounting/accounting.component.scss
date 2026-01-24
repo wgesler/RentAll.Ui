@@ -4,6 +4,12 @@
   align-items: center;
   justify-content: center;
   padding: 3rem;
+  min-height: 400px;
+  
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
 }
 
 .line-items-table {

@@ -16,11 +16,12 @@ import { NavigationContextService } from '../../../../services/navigation-contex
 import { CommonService } from '../../../../services/common.service';
 import { fileValidator } from '../../../../validators/file-validator';
 import { FileDetails } from '../../../../shared/models/fileDetails';
+import { ChartOfAccountsListComponent } from '../../../accounting/chart-of-accounts-list/chart-of-accounts-list.component';
 
 @Component({
   selector: 'app-office',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, ChartOfAccountsListComponent],
   templateUrl: './office.component.html',
   styleUrl: './office.component.scss'
 })

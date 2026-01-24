@@ -20,7 +20,8 @@ import { PropertyStatus } from '../authenticated/property/models/property-enums'
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType } from '../authenticated/documents/models/document.enum';
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/accounting.model';
-import { TransactionType } from '../authenticated/accounting/models/accounting-enum';
+import { TransactionType, AccountingType } from '../authenticated/accounting/models/accounting-enum';
+import { ChartOfAccountsResponse, ChartOfAccountsListDisplay } from '../authenticated/accounting/models/chart-of-accounts.model';
 
 @Injectable({
     providedIn: 'root'
@@ -454,6 +455,43 @@ export class MappingService {
   getTransactionTypeLabel(transactionType: number): string {
     const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
     return types[transactionType] || 'Unknown';
+  }
+
+  getAccountTypeLabel(accountType: number): string {
+    const types = [
+      'Bank',
+      'Accounts Receivable',
+      'Other Current Asset',
+      'Fixed Asset',
+      'Accounts Payable',
+      'Credit Card',
+      'Other Current Liability',
+      'Long Term Liability',
+      'Equity',
+      'Income',
+      'Cost of Goods Sold',
+      'Expense'
+    ];
+    return types[accountType] || 'Unknown';
+  }
+
+  mapChartOfAccounts(chartOfAccounts: ChartOfAccountsResponse[], offices?: any[]): ChartOfAccountsListDisplay[] {
+    return chartOfAccounts.map<ChartOfAccountsListDisplay>((account: ChartOfAccountsResponse) => {
+      // Map accountType (number) to AccountingType enum and convert to string label
+      const accountTypeEnum = account.accountType as AccountingType;
+      // Find office name by officeId
+      const office = offices?.find(o => o.officeId === account.officeId);
+      const officeName = office?.name || '';
+      return {
+        chartOfAccountId: account.chartOfAccountId,
+        officeId: account.officeId,
+        officeName: officeName,
+        accountId: account.accountId,
+        description: account.description || '',
+        accountType: this.getAccountTypeLabel(accountTypeEnum),
+        isActive: account.isActive ?? true // Default to true if undefined
+      };
+    });
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[]): LedgerLineListDisplay[] {

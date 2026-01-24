@@ -12,6 +12,8 @@ import { DocumentComponent } from './authenticated/documents/document/document.c
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
 import { AccountingListComponent } from './authenticated/accounting/accounting-list/accounting-list.component';
+import { ChartOfAccountsComponent } from './authenticated/accounting/chart-of-accounts/chart-of-accounts.component';
+import { ChartOfAccountsListComponent } from './authenticated/accounting/chart-of-accounts-list/chart-of-accounts-list.component';
 import { ContactComponent } from './authenticated/contact/contact/contact.component';
 import { ContactListComponent } from './authenticated/contact/contact-list/contact-list.component';
 import { UserComponent } from './authenticated/user/user/user.component';
@@ -56,6 +58,8 @@ export enum RouterToken {
   DocumentView = RouterToken.DocumentList + '/:id/view',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
+  ChartOfAccountsList = 'chart-of-accounts',
+  ChartOfAccounts = RouterToken.ChartOfAccountsList + '/:id',
   ReservationList = 'reservations',
   Reservation = RouterToken.ReservationList + '/:id',
   ReservationBoard = 'boards',
@@ -95,6 +99,8 @@ export enum RouterUrl {
   DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
+  ChartOfAccountsList    = `${RouterToken.Auth}/${RouterToken.ChartOfAccountsList}`,
+  ChartOfAccounts        = `${RouterToken.Auth}/${RouterToken.ChartOfAccounts}`,
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
   Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
   ReservationBoard      = `${RouterToken.Auth}/${RouterToken.ReservationBoard}`,
@@ -141,6 +147,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: AccountingComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ChartOfAccountsList, component: ChartOfAccountsListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ChartOfAccounts, component: ChartOfAccountsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },

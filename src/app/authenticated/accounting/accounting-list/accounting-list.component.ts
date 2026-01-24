@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { InvoiceResponse, InvoiceListDisplay, LedgerLineResponse } from '../models/accounting.model';
 import { AccountingService } from '../services/accounting.service';
@@ -14,6 +14,10 @@ import { TransactionType } from '../models/accounting-enum';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-accounting-list',
@@ -30,6 +34,8 @@ export class AccountingListComponent implements OnInit, OnDestroy {
   allInvoices: InvoiceResponse[] = [];
   invoicesDisplay: any[] = []; // Will contain invoices with expand property
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
+  selectedTabIndex: number = 0;
+  selectedInvoiceOfficeId: number | null = null; // Office filter for Invoices tab
 
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: '', maxWidth: '50px', sort: false },
@@ -42,6 +48,21 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     paidAmount: { displayAs: 'Paid Amount', maxWidth: '15ch' }
   };
 
+  // Chart Of Accounts properties
+  allChartOfAccounts: ChartOfAccountsResponse[] = [];
+  chartOfAccountsDisplay: any[] = [];
+  offices: OfficeResponse[] = [];
+  selectedOfficeId: number | null = null; // Office filter for Chart Of Accounts tab
+  showInactiveChartOfAccounts: boolean = false; // Toggle for inactive chart of accounts
+
+  chartOfAccountsDisplayedColumns: ColumnSet = {
+    officeName: { displayAs: 'Office', maxWidth: '20ch' },
+    accountId: { displayAs: 'Account No', maxWidth: '20ch', sortType: 'natural' },
+    description: { displayAs: 'Description', maxWidth: '33ch' },
+    accountType: { displayAs: 'Account Type', maxWidth: '25ch' },
+    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+  };
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -49,16 +70,93 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     public accountingService: AccountingService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public route: ActivatedRoute,
+    public mappingService: MappingService,
+    private chartOfAccountsService: ChartOfAccountsService,
+    private officeService: OfficeService,
+    private cdr: ChangeDetectorRef) {
   }
 
   //#region Invoice-List
   ngOnInit(): void {
-    this.getInvoices();
+    // Load offices first so dropdowns can be initialized
+    this.loadOffices();
+    
+    // Check query params for officeId and tab selection (subscribe continuously to handle navigation)
+    let initialLoad = true;
+    this.route.queryParams.subscribe(params => {
+      const officeIdParam = params['officeId'];
+      if (officeIdParam) {
+        const parsedOfficeId = parseInt(officeIdParam, 10);
+        if (parsedOfficeId) {
+          // Set both office selections to the query param value
+          this.selectedOfficeId = parsedOfficeId;
+          this.selectedInvoiceOfficeId = parsedOfficeId;
+        }
+      }
+      
+      // Check if we should switch to Chart Of Accounts tab
+      const tabParam = params['tab'];
+      if (tabParam === 'chartOfAccounts') {
+        if (this.selectedTabIndex !== 1) {
+          this.selectedTabIndex = 1;
+          this.cdr.detectChanges(); // Force change detection to update tab
+          // Load Chart Of Accounts data if office is selected
+          if (this.selectedOfficeId) {
+            this.getChartOfAccounts();
+          }
+        }
+      } else {
+        // Default to Invoices tab
+        if (this.selectedTabIndex !== 0) {
+          this.selectedTabIndex = 0;
+          this.cdr.detectChanges(); // Force change detection to update tab
+        }
+        // Only load invoices on initial load or when switching back from Chart Of Accounts
+        if (initialLoad || this.selectedTabIndex === 0) {
+          this.getInvoices();
+        }
+      }
+      initialLoad = false;
+    });
+  }
+
+  onTabChange(event: any): void {
+    this.selectedTabIndex = event.index;
+    // Load data specific to the tab
+    if (this.selectedTabIndex === 0) {
+      // Invoices tab
+      this.getInvoices();
+    } else if (this.selectedTabIndex === 1) {
+      // Chart Of Accounts tab
+      // Check query params for officeId
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId && parsedOfficeId !== this.selectedOfficeId) {
+            this.selectedOfficeId = parsedOfficeId;
+          }
+        }
+      });
+      if (this.selectedOfficeId) {
+        this.getChartOfAccounts();
+      }
+    }
+  }
+
+  onInvoiceOfficeChange(): void {
+    // Sync Chart Of Accounts tab office selection with Invoices tab
+    this.selectedOfficeId = this.selectedInvoiceOfficeId;
+    // If Chart Of Accounts tab is active and office is selected, reload data
+    if (this.selectedTabIndex === 1 && this.selectedOfficeId) {
+      this.getChartOfAccounts();
+    }
+    this.applyFilters();
   }
 
   getInvoices(): void {
-    this.accountingService.getInvoices().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
+    this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
         this.applyFilters();
@@ -124,6 +222,10 @@ export class AccountingListComponent implements OnInit, OnDestroy {
     if (!this.showInactive) {
       filtered = filtered.filter(invoice => invoice.isActive);
     }
+    // Filter by office if selected
+    if (this.selectedInvoiceOfficeId !== null) {
+      filtered = filtered.filter(invoice => invoice.officeId === this.selectedInvoiceOfficeId);
+    }
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => ({
       ...invoice,
@@ -152,6 +254,155 @@ export class AccountingListComponent implements OnInit, OnDestroy {
   getTransactionTypeLabel(transactionTypeId: number): string {
     const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
     return types[transactionTypeId] || 'Unknown';
+  }
+
+  //#region Chart Of Accounts Methods
+  loadOffices(): void {
+    this.addLoadItem('offices');
+    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+      next: (offices) => {
+        this.offices = offices || [];
+        // Check query params for officeId to set initial selection
+        this.route.queryParams.pipe(take(1)).subscribe(params => {
+          const officeIdParam = params['officeId'];
+          if (officeIdParam) {
+            const parsedOfficeId = parseInt(officeIdParam, 10);
+            if (parsedOfficeId && this.offices.some(o => o.officeId === parsedOfficeId)) {
+              // Set both office selections to the query param value
+              this.selectedOfficeId = parsedOfficeId;
+              this.selectedInvoiceOfficeId = parsedOfficeId;
+              // Load data based on active tab
+              if (this.selectedTabIndex === 1) {
+                this.getChartOfAccounts();
+              } else if (this.selectedTabIndex === 0) {
+                this.getInvoices();
+              }
+            }
+          } else {
+            // No officeId in query params - use default behavior
+            // Auto-select first office for Chart Of Accounts tab if available
+            if (this.offices.length > 0 && !this.selectedOfficeId) {
+              this.selectedOfficeId = this.offices[0].officeId;
+              // Only load chart of accounts if we're on that tab
+              if (this.selectedTabIndex === 1) {
+                this.getChartOfAccounts();
+              }
+            }
+            // Note: Invoices tab office dropdown starts with null (All Offices) by design
+          }
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        this.removeLoadItem('offices');
+      }
+    });
+  }
+
+  onOfficeChange(): void {
+    // Sync Invoices tab office selection with Chart Of Accounts tab
+    this.selectedInvoiceOfficeId = this.selectedOfficeId;
+    // Reload invoices if Invoices tab is active
+    if (this.selectedTabIndex === 0) {
+      this.applyFilters();
+    }
+    // Load Chart Of Accounts data if office is selected
+    if (this.selectedOfficeId) {
+      this.getChartOfAccounts();
+    } else {
+      this.chartOfAccountsDisplay = [];
+      this.removeLoadItem('chartOfAccounts');
+    }
+  }
+
+  getChartOfAccounts(): void {
+    if (!this.selectedOfficeId) {
+      return;
+    }
+    this.addLoadItem('chartOfAccounts');
+    this.chartOfAccountsService.getChartOfAccountsByOfficeId(this.selectedOfficeId).pipe(
+      take(1), 
+      finalize(() => { this.removeLoadItem('chartOfAccounts'); })
+    ).subscribe({
+      next: (chartOfAccounts) => {
+        this.allChartOfAccounts = chartOfAccounts || [];
+        this.applyChartOfAccountsFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
+        }
+      }
+    });
+  }
+
+  applyChartOfAccountsFilters(): void {
+    let filtered = this.allChartOfAccounts;
+    // Filter by inactive if needed
+    if (!this.showInactiveChartOfAccounts) {
+      filtered = filtered.filter(account => account.isActive !== false);
+    }
+    // Map chart of accounts using mapping service to convert accountType to display string
+    const mapped = this.mappingService.mapChartOfAccounts(filtered, this.offices);
+    this.chartOfAccountsDisplay = mapped;
+  }
+
+  toggleInactiveChartOfAccounts(): void {
+    this.showInactiveChartOfAccounts = !this.showInactiveChartOfAccounts;
+    this.applyChartOfAccountsFilters();
+  }
+
+  addChartOfAccount(): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, ['new']);
+    const queryParams: string[] = [];
+    if (this.selectedOfficeId) {
+      queryParams.push('officeId=' + this.selectedOfficeId);
+    }
+    queryParams.push('fromAccountingTab=true');
+    this.router.navigateByUrl(url + '?' + queryParams.join('&'));
+  }
+
+  deleteChartOfAccount(chartOfAccount: ChartOfAccountsResponse): void {
+    const officeIdToUse = chartOfAccount.officeId || this.selectedOfficeId;
+    if (!officeIdToUse) {
+      return;
+    }
+    if (confirm(`Are you sure you want to delete this chart of account?`)) {
+      this.chartOfAccountsService.deleteChartOfAccount(officeIdToUse, chartOfAccount.chartOfAccountId).pipe(take(1)).subscribe({
+        next: () => {
+          this.toastr.success('Chart of Account deleted successfully', CommonMessage.Success);
+          this.getChartOfAccounts(); // Refresh the list
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status === 404) {
+            // Handle not found error if business logic requires
+          }
+        }
+      });
+    }
+  }
+
+  goToChartOfAccount(event: ChartOfAccountsResponse): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, [event.chartOfAccountId.toString()]);
+    const queryParams: string[] = [];
+    const officeIdToUse = event.officeId || this.selectedOfficeId;
+    if (officeIdToUse) {
+      queryParams.push('officeId=' + officeIdToUse);
+    }
+    queryParams.push('fromAccountingTab=true');
+    this.router.navigateByUrl(url + '?' + queryParams.join('&'));
+  }
+  //#endregion
+
+  //#region Utility Methods
+  addLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.add(key);
+      this.itemsToLoad$.next(newSet);
+    }
   }
 
   ngOnDestroy(): void {

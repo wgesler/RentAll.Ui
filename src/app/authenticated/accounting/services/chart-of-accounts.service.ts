@@ -10,7 +10,7 @@ import { ChartOfAccountsRequest, ChartOfAccountsResponse } from '../models/chart
 
 export class ChartOfAccountsService {
   
-  private readonly controller = this.configService.config().apiUrl + 'chartofaccounts/';
+  private readonly controller = this.configService.config().apiUrl + 'chartofaccount/';
 
   constructor(
       private http: HttpClient,
@@ -23,13 +23,13 @@ export class ChartOfAccountsService {
   }
 
   // GET: Get chart of account by office ID and chart of account ID
-  getChartOfAccountByOfficeIdAndChartOfAccountId(officeId: number, chartOfAccountId: number): Observable<ChartOfAccountsResponse> {
+  getChartOfAccountById(chartOfAccountId: number, officeId: number): Observable<ChartOfAccountsResponse> {
     return this.http.get<ChartOfAccountsResponse>(this.controller + 'office/' + officeId + '/chartOfAccountId/' + chartOfAccountId);
   }
 
   // GET: Get chart of account by office ID and account number
-  getChartOfAccountByOfficeIdAndAccountNumber(officeId: number, accountNumber: number): Observable<ChartOfAccountsResponse> {
-    return this.http.get<ChartOfAccountsResponse>(this.controller + 'office/' + officeId + '/accountNumber/' + accountNumber);
+  getChartOfAccountByAccountId(accountId: number, officeId: number): Observable<ChartOfAccountsResponse> {
+    return this.http.get<ChartOfAccountsResponse>(this.controller + 'office/' + officeId + '/accountNumber/' + accountId);
   }
 
   // POST: Create a new chart of account
@@ -44,6 +44,6 @@ export class ChartOfAccountsService {
 
   // DELETE: Delete chart of account by office ID and chart of account ID
   deleteChartOfAccount(officeId: number, chartOfAccountId: number): Observable<void> {
-    return this.http.delete<void>(this.controller + 'office/' + officeId + '/account/' + chartOfAccountId);
+    return this.http.delete<void>(this.controller + 'office/' + officeId + '/chartOfAccountId/' + chartOfAccountId);
   }
 }

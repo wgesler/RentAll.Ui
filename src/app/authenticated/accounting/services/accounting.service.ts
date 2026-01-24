@@ -17,34 +17,40 @@ export class AccountingService {
       private configService: ConfigService) {
   }
 
-  // GET: Get all invoices
-  getInvoices(): Observable<InvoiceResponse[]> {
-    return this.http.get<InvoiceResponse[]>(this.controller);
+  // GET: Get all invoice by office
+  getInvoicesByOffice(): Observable<InvoiceResponse[]> {
+    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice/office');
   }
 
   // GET: Get invoice by ID
   getInvoiceByGuid(invoiceId: string): Observable<InvoiceResponse> {
-    return this.http.get<InvoiceResponse>(this.controller + invoiceId);
+    return this.http.get<InvoiceResponse>(this.controller + 'invoice/' + invoiceId);
+  }
+
+    // GET: Get invoice by property ID
+  getInvoicesByProperty(propertyId: string): Observable<InvoiceResponse> {
+    return this.http.get<InvoiceResponse>(this.controller + 'invoice/proprty/' + propertyId);
+  }
+
+    // GET: Get invoice by ID
+  getInvoicesByReservation(reservationId: string): Observable<InvoiceResponse> {
+    return this.http.get<InvoiceResponse>(this.controller + 'invoice/reservation' + reservationId);
   }
 
   // POST: Create a new invoice
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
-    return this.http.post<InvoiceResponse>(this.controller, invoice);
+    return this.http.post<InvoiceResponse>(this.controller + 'invoice', invoice);
   }
 
   // PUT: Update entire invoice
   updateInvoice(invoiceId: string, invoice: InvoiceRequest): Observable<InvoiceResponse> {
-    return this.http.put<InvoiceResponse>(this.controller + invoiceId, invoice);
+    return this.http.put<InvoiceResponse>(this.controller + 'invoice/' + invoiceId, invoice);
   }
 
-  // PATCH: Partially update invoice
-  updateInvoicePartial(invoiceId: string, invoice: Partial<InvoiceRequest>): Observable<InvoiceResponse> {
-    return this.http.patch<InvoiceResponse>(this.controller + invoiceId, invoice);
-  }
 
   // DELETE: Delete invoice
   deleteInvoice(invoiceId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + invoiceId);
+    return this.http.delete<void>(this.controller  + 'invoice/' +  invoiceId);
   }
 
   // GET: Get monthly ledger lines for a reservation

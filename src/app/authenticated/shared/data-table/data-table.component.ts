@@ -61,6 +61,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() buttonDisabledTop: boolean = false;
   @Input() buttonIconTop: string = 'add';
   @Input() buttonTextTop: string = 'Add';
+  @Input() buttonColorTop: string = 'accent';
   @Input() buttonToggleTextTop: string = 'Advanced Mode';
 
   @Input() columnTextSelect: string = 'Select';
@@ -261,7 +262,10 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.buttonEvent.emit(rowItem);
   }
 
-  setColumnNameCasing(columnName: string): string {
+  setColumnNameCasing(columnName: string | undefined | null): string {
+    if (!columnName) {
+      return '';
+    }
     const newColumnName = columnName[0].toUpperCase() + columnName.substring(1);
     return newColumnName.replace(/([a-z])([A-Z])/g, '$1 $2');
   }
@@ -322,7 +326,7 @@ export class DataTableComponent implements OnChanges, OnInit {
         ...column,
         // override any user-input values
         name: name,
-        displayAs: column?.displayAs || this.setColumnNameCasing(column?.name) || '',
+        displayAs: column?.displayAs || this.setColumnNameCasing(name) || '',
       });
       this.displayedColumns.push(name);
     }

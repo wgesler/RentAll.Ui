@@ -4,62 +4,125 @@
       <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
         <div class="flex items-baseline">
           <mat-icon mat-list-icon class="mr-5">account_balance</mat-icon>
-          <h2 class="m-0">Invoices</h2>
+          <h2 class="m-0">Accounting</h2>
         </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addInvoice()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
       </div>
       <mat-card>
-        <div class="mat">
-          <div class="tableDiv">
-            <app-data-table
-              [data]="invoicesDisplay"
-              [columns]="invoicesDisplayedColumns"
-              [hasColumnIndex]="false"
-              [hasFilter]="true"
-              [hasToggleTop]="true"
-              [hasActionsRowClick]="false"
-              [hasActionsEdit]="true"
-              [hasActionsDelete]="true"
-              [itemsPerPage]="100"
-              buttonToggleTextTop="Inactive"
-              (topToggleButtonEvent)="toggleInactive()"
-              (editEvent)="goToInvoice($event)"
-              (deleteEvent)="deleteInvoice($event)"/>
-          </div>
-          
-          <!-- Expanded Ledger Lines -->
-          @for (invoice of allInvoices; track invoice.invoiceId) {
-            @if (isExpanded(invoice.invoiceId)) {
-              <div class="ledger-lines-wrapper">
-                @if (invoice.LedgerLineResponse && invoice.LedgerLineResponse.length > 0) {
-                  <table class="ledger-lines-table">
-                    <thead>
-                      <tr>
-                        <th>Account</th>
-                        <th>Transaction Type</th>
-                        <th>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (line of invoice.LedgerLineResponse; track line.ledgerLineId) {
-                        <tr>
-                          <td>{{ line.chartOfAccountId }}</td>
-                          <td>{{ getTransactionTypeLabel(line.transactionTypeId) }}</td>
-                          <td>{{ line.amount | number:'1.2-2' }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                } @else {
-                  <p class="no-lines">No ledger lines found for this invoice.</p>
-                }
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-list-tabs" (selectedTabChange)="onTabChange($event)">
+          <mat-tab label="Invoices">
+            <div class="mat">
+              <!-- Office dropdown and buttons row -->
+              <div class="flex justify-between gap-8 items-center mt-4 px-4">
+                <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-label>Office</mat-label>
+                  <mat-select [(ngModel)]="selectedInvoiceOfficeId" (selectionChange)="onInvoiceOfficeChange()">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <div class="flex justify-end items-center gap-5">
+                  <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                    Inactive
+                  </mat-slide-toggle>
+                  <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+                    <mat-icon class="text-base">add</mat-icon>
+                    <span>Add</span>
+                  </button>
+                </div>
               </div>
-            }
-          }
-        </div>
+              <!-- Filter and data table below -->
+              <div class="tableDiv">
+                <app-data-table
+                  [data]="invoicesDisplay"
+                  [columns]="invoicesDisplayedColumns"
+                  [hasColumnIndex]="false"
+                  [hasFilter]="true"
+                  [hasToggleTop]="false"
+                  [hasButtonTop]="false"
+                  [hasActionsRowClick]="false"
+                  [hasActionsEdit]="true"
+                  [hasActionsDelete]="true"
+                  [itemsPerPage]="100"
+                  (editEvent)="goToInvoice($event)"
+                  (deleteEvent)="deleteInvoice($event)"/>
+              </div>
+              
+              <!-- Expanded Ledger Lines -->
+              @for (invoice of allInvoices; track invoice.invoiceId) {
+                @if (isExpanded(invoice.invoiceId)) {
+                  <div class="ledger-lines-wrapper">
+                    @if (invoice.LedgerLineResponse && invoice.LedgerLineResponse.length > 0) {
+                      <table class="ledger-lines-table">
+                        <thead>
+                          <tr>
+                            <th>Account</th>
+                            <th>Transaction Type</th>
+                            <th>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (line of invoice.LedgerLineResponse; track line.ledgerLineId) {
+                            <tr>
+                              <td>{{ line.chartOfAccountId }}</td>
+                              <td>{{ getTransactionTypeLabel(line.transactionTypeId) }}</td>
+                              <td>{{ line.amount | number:'1.2-2' }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    } @else {
+                      <p class="no-lines">No ledger lines found for this invoice.</p>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </mat-tab>
+          
+          <mat-tab label="Chart Of Accounts">
+            <div class="mat">
+              <!-- Office dropdown and buttons row -->
+              <div class="flex justify-between gap-8 items-center mt-4 px-4">
+                <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-label>Office</mat-label>
+                  <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+                    <mat-option [value]="null">Select Office</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <div class="flex justify-end items-center gap-5">
+                  <mat-slide-toggle id="toggle-chart-of-accounts" [checked]="showInactiveChartOfAccounts" color="primary" (change)="toggleInactiveChartOfAccounts()" class="whitespace-nowrap">
+                    Inactive
+                  </mat-slide-toggle>
+                  <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="addChartOfAccount()" class="whitespace-nowrap items-center flex gap-1">
+                    <mat-icon class="text-base">add</mat-icon>
+                    <span>Add</span>
+                  </button>
+                </div>
+              </div>
+              <!-- Filter and data table below -->
+              <div class="tableDiv">
+                <app-data-table
+                  [data]="chartOfAccountsDisplay"
+                  [columns]="chartOfAccountsDisplayedColumns"
+                  [hasColumnIndex]="false"
+                  [hasFilter]="true"
+                  [hasToggleTop]="false"
+                  [hasButtonTop]="false"
+                  [hasActionsRowClick]="false"
+                  [hasActionsEdit]="true"
+                  [hasActionsDelete]="true"
+                  [itemsPerPage]="100"
+                  (editEvent)="goToChartOfAccount($event)"
+                  (deleteEvent)="deleteChartOfAccount($event)"/>
+              </div>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
       </mat-card>
     </section>
   </div>
