@@ -204,7 +204,7 @@
               </mat-expansion-panel>
 
               <!-- Billing Accordion -->
-              <mat-expansion-panel class="mb-4">
+              <mat-expansion-panel [expanded]="true" class="mb-4">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
@@ -451,15 +451,6 @@
                 </div>
               </mat-expansion-panel>
 
-              <!-- ChartOfAccounts Accordion -->
-              <mat-expansion-panel class="mb-4">
-                <mat-expansion-panel-header>
-                  <mat-panel-title>Chart of Accounts</mat-panel-title>
-                </mat-expansion-panel-header>
-                @if (!isAddMode && office?.officeId) {
-                  <app-chart-of-accounts-list [officeId]="office.officeId" [embeddedMode]="true"></app-chart-of-accounts-list>
-                }
-              </mat-expansion-panel>
             </mat-accordion>
 
             @if (isSubmitting) {

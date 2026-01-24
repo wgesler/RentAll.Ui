@@ -60,17 +60,7 @@
               </div>
             </div>
           }
-          @if (embeddedMode && !hideHeader) {
-            <div class="mb-4 px-4 pt-4 flex justify-end items-center gap-5">
-              <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-                Inactive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-button" (click)="addChartOfAccount()" class="scale-90 text-nowrap">
-                <mat-icon>add</mat-icon>
-                Add
-              </button>
-            </div>
-          }
+          <!-- Controls are provided by parent when in embedded mode -->
           <div class="tableDiv">
             <app-data-table
               [data]="chartOfAccountsDisplay"

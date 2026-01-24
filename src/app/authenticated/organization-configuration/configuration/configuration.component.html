@@ -97,6 +97,55 @@
             </div>
           </mat-expansion-panel>
 
+          <!-- Chart of Accounts Section -->
+          <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts" 
+            (opened)="onPanelOpened('chartOfAccounts')" 
+            (closed)="onPanelClosed('chartOfAccounts')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Chart of Accounts</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingChartOfAccounts && chartOfAccountsId) {
+                <app-chart-of-accounts 
+                  [id]="chartOfAccountsId" 
+                  [officeId]="chartOfAccountsOfficeId"
+                  [embeddedMode]="true" 
+                  (backEvent)="onChartOfAccountsBack()">
+                </app-chart-of-accounts>
+              } @else {
+                <!-- Office dropdown and controls -->
+                <div class="flex justify-between gap-8 items-center mt-4 px-4">
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Office</mat-label>
+                    <mat-select [(ngModel)]="selectedChartOfAccountsOfficeId" (selectionChange)="onChartOfAccountsOfficeChange()">
+                      <mat-option [value]="null">Select Office</mat-option>
+                      @for (office of chartOfAccountsOffices; track office.officeId) {
+                        <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <div class="flex justify-end items-center gap-5">
+                    <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactiveChartOfAccounts" color="primary" (change)="toggleInactiveChartOfAccounts()" class="whitespace-nowrap">
+                      Inactive
+                    </mat-slide-toggle>
+                    <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="onChartOfAccountsAdd()" class="whitespace-nowrap items-center flex gap-1">
+                      <mat-icon class="text-base">add</mat-icon>
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+                <app-chart-of-accounts-list 
+                  [officeId]="selectedChartOfAccountsOfficeId"
+                  [embeddedMode]="true"
+                  [showInactiveInput]="showInactiveChartOfAccounts"
+                  (addChartOfAccountEvent)="onChartOfAccountsAdd()"
+                  (editChartOfAccountEvent)="onChartOfAccountsEdit($event)">
+                </app-chart-of-accounts-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
           <!-- Color Section -->
           <mat-expansion-panel [expanded]="expandedSections.color" 
             (opened)="onPanelOpened('color')" 

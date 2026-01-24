@@ -14,9 +14,14 @@ import { AreaListComponent } from '../area/area-list/area-list.component';
 import { AreaComponent } from '../area/area/area.component';
 import { BuildingListComponent } from '../building/building-list/building-list.component';
 import { BuildingComponent } from '../building/building/building.component';
+import { ChartOfAccountsListComponent } from '../../accounting/chart-of-accounts-list/chart-of-accounts-list.component';
+import { ChartOfAccountsComponent } from '../../accounting/chart-of-accounts/chart-of-accounts.component';
 import { ColorListComponent } from '../color/color-list/color-list.component';
 import { ColorComponent } from '../color/color/color.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { OfficeService } from '../office/services/office.service';
+import { OfficeResponse } from '../office/models/office.model';
+import { take, finalize } from 'rxjs';
 
 @Component({
   selector: 'app-configuration',
@@ -36,6 +41,8 @@ import { NavigationContextService } from '../../../services/navigation-context.s
     AreaComponent,
     BuildingListComponent,
     BuildingComponent,
+    ChartOfAccountsListComponent,
+    ChartOfAccountsComponent,
     ColorListComponent,
     ColorComponent
   ],
@@ -49,6 +56,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     regions: false,
     area: false,
     building: false,
+    chartOfAccounts: false,
     color: false
   };
   isEditingAgent: boolean = false;
@@ -61,19 +69,49 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   areaId: string | number | null = null;
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
+  isEditingChartOfAccounts: boolean = false;
+  chartOfAccountsId: string | number | null = null;
+  chartOfAccountsOfficeId: number | null = null;
+  chartOfAccountsOffices: OfficeResponse[] = [];
+  selectedChartOfAccountsOfficeId: number | null = null;
+  showInactiveChartOfAccounts: boolean = false;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private officeService: OfficeService
   ) {
   }
 
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
+    // Load offices for Chart of Accounts dropdown
+    this.loadChartOfAccountsOffices();
+  }
+
+  loadChartOfAccountsOffices(): void {
+    this.officeService.getOffices().pipe(take(1)).subscribe({
+      next: (offices) => {
+        this.chartOfAccountsOffices = offices || [];
+      },
+      error: (err) => {
+        console.error('Error loading offices for Chart of Accounts:', err);
+      }
+    });
+  }
+
+  onChartOfAccountsOfficeChange(): void {
+    // When office changes, update the officeId for chart of accounts
+    // The chart-of-accounts-list component will detect the change via ngOnChanges and make the API call
+    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+  }
+
+  toggleInactiveChartOfAccounts(): void {
+    this.showInactiveChartOfAccounts = !this.showInactiveChartOfAccounts;
   }
 
   // Event handlers for child components
@@ -141,6 +179,31 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onBuildingBack(): void {
     this.buildingId = null;
     this.isEditingBuilding = false;
+  }
+
+  onChartOfAccountsAdd(): void {
+    this.chartOfAccountsId = 'new';
+    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+    this.isEditingChartOfAccounts = true;
+    if (this.isEditingChartOfAccounts) {
+      this.expandedSections.chartOfAccounts = true;
+    }
+  }
+
+  onChartOfAccountsEdit(chartOfAccountId: number): void {
+    this.chartOfAccountsId = chartOfAccountId;
+    // Use the selected officeId, or it will be determined from the chart of account data when loading
+    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+    this.isEditingChartOfAccounts = true;
+    if (this.isEditingChartOfAccounts) {
+      this.expandedSections.chartOfAccounts = true;
+    }
+  }
+
+  onChartOfAccountsBack(): void {
+    this.chartOfAccountsId = null;
+    this.chartOfAccountsOfficeId = null;
+    this.isEditingChartOfAccounts = false;
   }
 
   onColorSelected(colorId: string | number | null): void {

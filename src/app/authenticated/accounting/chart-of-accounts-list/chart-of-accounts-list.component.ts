@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, Input } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -25,13 +25,16 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
+export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() embeddedMode: boolean = false; // If true, hide header and office selector
   @Input() hideHeader: boolean = false; // If true, hide the header/sub-heading
+  @Input() showInactiveInput: boolean = false; // Input to control inactive filter from parent (for embedded mode)
+  @Output() addChartOfAccountEvent = new EventEmitter<void>();
+  @Output() editChartOfAccountEvent = new EventEmitter<number>();
   
   isServiceError: boolean = false;
-  showInactive: boolean = false;
+  showInactive: boolean = false; // Internal property for non-embedded mode
   allChartOfAccounts: ChartOfAccountsResponse[] = [];
   chartOfAccountsDisplay: any[] = [];
   offices: OfficeResponse[] = [];
@@ -45,7 +48,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccounts', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -60,26 +63,57 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
 
   //#region ChartOfAccounts-List
   ngOnInit(): void {
-    // If officeId is provided as input, use it directly
-    if (this.officeId) {
-      this.selectedOfficeId = this.officeId;
-      this.removeLoadItem('offices'); // Don't need to load offices if officeId is provided
-      this.getChartOfAccounts();
-    } else {
-      // Check query params for officeId first
-      this.route.queryParams.pipe(take(1)).subscribe(params => {
-        const officeIdParam = params['officeId'];
-        if (officeIdParam) {
-          this.selectedOfficeId = parseInt(officeIdParam, 10);
-        }
-        // Load offices and show selector
-        this.loadOffices().then(() => {
-          // After offices are loaded, if we have a selectedOfficeId from query params, load data
-          if (this.selectedOfficeId) {
+    // Initialize with empty display - no data until office is selected
+    this.chartOfAccountsDisplay = [];
+    this.allChartOfAccounts = [];
+    
+    // Always load offices first (needed for mapping officeId to officeName in display)
+    this.loadOffices().then(() => {
+      // If officeId is provided as input and not null, use it and load data
+      if (this.officeId !== null && this.officeId !== undefined) {
+        this.selectedOfficeId = this.officeId;
+        // Only load chart of accounts if officeId is provided and not null
+        this.getChartOfAccounts();
+      } else if (!this.embeddedMode) {
+        // Not in embedded mode - check query params for officeId
+        this.route.queryParams.pipe(take(1)).subscribe(params => {
+          const officeIdParam = params['officeId'];
+          if (officeIdParam) {
+            this.selectedOfficeId = parseInt(officeIdParam, 10);
             this.getChartOfAccounts();
           }
+          // If no officeId in query params, list stays empty (no spinner)
         });
-      });
+      }
+      // If in embedded mode and no officeId provided, list stays empty (no spinner) - wait for user selection
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Watch for changes to officeId input
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      // Only make API call if officeId changed from null/undefined to a value, or changed to a different value
+      if (newOfficeId !== previousOfficeId) {
+        this.selectedOfficeId = newOfficeId;
+        if (newOfficeId !== null && newOfficeId !== undefined) {
+          // Office was selected - load chart of accounts
+          this.getChartOfAccounts();
+        } else {
+          // Office was cleared - clear the display and ensure not loading
+          this.chartOfAccountsDisplay = [];
+          this.allChartOfAccounts = [];
+          this.removeLoadItem('chartOfAccounts');
+        }
+      }
+    }
+    
+    // Watch for changes to showInactiveInput input
+    if (changes['showInactiveInput'] && !changes['showInactiveInput'].firstChange) {
+      // Reapply filters when showInactiveInput changes
+      this.applyFilters();
     }
   }
 
@@ -94,8 +128,13 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
 
   getChartOfAccounts(): void {
     if (!this.selectedOfficeId) {
+      // Clear display if no office selected
+      this.chartOfAccountsDisplay = [];
+      this.allChartOfAccounts = [];
+      this.removeLoadItem('chartOfAccounts');
       return;
     }
+    this.addLoadItem('chartOfAccounts');
     this.chartOfAccountsService.getChartOfAccountsByOfficeId(this.selectedOfficeId).pipe(
       take(1), 
       finalize(() => { this.removeLoadItem('chartOfAccounts'); })
@@ -114,12 +153,18 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
   }
 
   addChartOfAccount(): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, ['new']);
-    if (this.selectedOfficeId) {
-      this.router.navigateByUrl(url + '?officeId=' + this.selectedOfficeId);
-    } else {
-      this.router.navigateByUrl(url);
+    // If in embedded mode, emit event instead of navigating
+    if (this.embeddedMode) {
+      this.addChartOfAccountEvent.emit();
+      return;
     }
+    const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, ['new']);
+    const queryParams: string[] = [];
+    if (this.selectedOfficeId) {
+      queryParams.push('officeId=' + this.selectedOfficeId);
+    }
+    queryParams.push('fromOffice=true');
+    this.router.navigateByUrl(url + (queryParams.length > 0 ? '?' + queryParams.join('&') : ''));
   }
 
   deleteChartOfAccount(chartOfAccount: ChartOfAccountsResponse): void {
@@ -144,14 +189,20 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
   }
 
   goToChartOfAccount(event: ChartOfAccountsResponse): void {
+    // If in embedded mode, emit event instead of navigating
+    if (this.embeddedMode) {
+      this.editChartOfAccountEvent.emit(event.chartOfAccountId);
+      return;
+    }
     const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, [event.chartOfAccountId.toString()]);
+    const queryParams: string[] = [];
     // Use officeId from the response, fallback to selectedOfficeId
     const officeIdToUse = event.officeId || this.selectedOfficeId;
     if (officeIdToUse) {
-      this.router.navigateByUrl(url + '?officeId=' + officeIdToUse);
-    } else {
-      this.router.navigateByUrl(url);
+      queryParams.push('officeId=' + officeIdToUse);
     }
+    queryParams.push('fromOffice=true');
+    this.router.navigateByUrl(url + (queryParams.length > 0 ? '?' + queryParams.join('&') : ''));
   }
   //#endregion
 
@@ -162,7 +213,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
         next: (offices) => {
           this.offices = offices || [];
           // Auto-select first office if available and no officeId from query params
-          if (this.offices.length > 0 && !this.selectedOfficeId) {
+          // Only do this if NOT in embedded mode (parent controls office selection in embedded mode)
+          if (!this.embeddedMode && this.offices.length > 0 && !this.selectedOfficeId) {
             this.selectedOfficeId = this.offices[0].officeId;
             this.getChartOfAccounts();
           }
@@ -182,7 +234,9 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
   applyFilters(): void {
     let filtered = this.allChartOfAccounts;
     // Filter by inactive if needed
-    if (!this.showInactive) {
+    // In embedded mode, use the @Input() showInactiveInput value; otherwise use internal property
+    const shouldShowInactive = this.embeddedMode ? this.showInactiveInput : this.showInactive;
+    if (!shouldShowInactive) {
       filtered = filtered.filter(account => account.isActive !== false);
     }
     // Map chart of accounts using mapping service to convert accountType to display string
@@ -191,12 +245,24 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy {
   }
 
   toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
+    // Only toggle if not in embedded mode (parent controls it)
+    if (!this.embeddedMode) {
+      this.showInactive = !this.showInactive;
+      this.applyFilters();
+    }
   }
   //#endregion
 
   //#region Utility Methods
+  addLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.add(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {

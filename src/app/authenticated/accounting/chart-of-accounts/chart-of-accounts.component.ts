@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
@@ -24,11 +24,18 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 })
 
 export class ChartOfAccountsComponent implements OnInit, OnDestroy {
+  @Input() id: string | number | null = null; // Input to accept id from parent (for embedded mode)
+  @Input() officeId: number | null = null; // Input to accept officeId from parent (for embedded mode)
+  @Input() embeddedMode: boolean = false; // If true, component is embedded in parent
+  @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked (for embedded mode)
+  @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful (for embedded mode)
+  
   isServiceError: boolean = false;
   chartOfAccountId: number;
   chartOfAccount: ChartOfAccountsResponse;
   form: FormGroup;
   fromAccountingTab: boolean = false; // Track if navigated from Accounting tab
+  fromOffice: boolean = false; // Track if navigated from Office component (embedded)
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
@@ -55,7 +62,33 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   //#region ChartOfAccount
   ngOnInit(): void {
     this.initializeAccountTypes();
-    // Read query params from snapshot first to ensure fromAccountingTab is available immediately
+    
+    // If in embedded mode, use Input properties instead of route params
+    if (this.embeddedMode) {
+      if (this.officeId) {
+        this.selectedOfficeId = this.officeId;
+      }
+      this.fromOffice = true; // Set flag for embedded mode
+      
+      this.loadOffices().then(() => {
+        if (this.id) {
+          const idStr = this.id.toString();
+          this.isAddMode = idStr === 'new';
+          if (this.isAddMode) {
+            this.removeLoadItem('chartOfAccount');
+            this.buildForm();
+          } else {
+            this.chartOfAccountId = parseInt(idStr, 10);
+            if (this.selectedOfficeId) {
+              this.getChartOfAccount();
+            }
+          }
+        }
+      });
+      return;
+    }
+    
+    // Not in embedded mode - use route params (existing behavior)
     const snapshotParams = this.route.snapshot.queryParams;
     const officeId = snapshotParams['officeId'];
     if (officeId) {
@@ -63,6 +96,8 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     }
     // Check if navigated from Accounting tab - read from snapshot for immediate availability
     this.fromAccountingTab = snapshotParams['fromAccountingTab'] === 'true';
+    // Check if navigated from Office component (embedded) - read from snapshot for immediate availability
+    this.fromOffice = snapshotParams['fromOffice'] === 'true';
     
     // Also subscribe to query params for changes
     this.route.queryParams.subscribe(params => {
@@ -72,6 +107,8 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
       }
       // Update fromAccountingTab flag if it changes
       this.fromAccountingTab = params['fromAccountingTab'] === 'true';
+      // Update fromOffice flag if it changes
+      this.fromOffice = params['fromOffice'] === 'true';
     });
     
     this.loadOffices().then(() => {
@@ -201,7 +238,12 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         next: (response: ChartOfAccountsResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Chart of Account created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.back();
+          if (this.embeddedMode) {
+            this.savedEvent.emit();
+            this.back();
+          } else {
+            this.back();
+          }
         },
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
@@ -220,7 +262,12 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         next: (response: ChartOfAccountsResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Chart of Account updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.back();
+          if (this.embeddedMode) {
+            this.savedEvent.emit();
+            this.back();
+          } else {
+            this.back();
+          }
         },
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
@@ -294,8 +341,18 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    // If navigated from Accounting tab, go back to Accounting list with Chart Of Accounts tab selected
-    if (this.fromAccountingTab) {
+    // If in embedded mode, emit event instead of navigating
+    if (this.embeddedMode) {
+      this.backEvent.emit();
+      return;
+    }
+    
+    // If navigated from Office component (embedded), go back to Office component
+    if (this.fromOffice && this.selectedOfficeId) {
+      const url = RouterUrl.replaceTokens(RouterUrl.Office, [this.selectedOfficeId.toString()]);
+      this.router.navigateByUrl(url);
+    } else if (this.fromAccountingTab) {
+      // If navigated from Accounting tab, go back to Accounting list with Chart Of Accounts tab selected
       const url = RouterUrl.AccountingList;
       const queryParams: string[] = [];
       if (this.selectedOfficeId) {
