@@ -210,15 +210,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       LedgerLines: ledgerLines, // Include ledger lines in the display data (using PascalCase for template)
       expandClick: (event: Event, item: any) => {
         event.stopPropagation();
-        // Toggle expanded state
         if (this.expandedInvoices.has(item.invoiceId)) {
           this.expandedInvoices.delete(item.invoiceId);
-          item.expanded = false;
         } else {
           this.expandedInvoices.add(item.invoiceId);
-          item.expanded = true;
         }
-        this.cdr.detectChanges();
+        this.applyFilters();
       }
       };
     });
@@ -362,6 +359,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       default:
         return line[columnName] || '-';
     }
+  }
+
+  getDetailRowContextMethods() {
+    return {
+      getLedgerLineColumnValue: (line: any, columnName: string, invoice: any) => this.getLedgerLineColumnValue(line, columnName, invoice),
+      ledgerLinesDisplayedColumns: this.ledgerLinesDisplayedColumns,
+      ledgerLineColumnNames: Object.keys(this.ledgerLinesDisplayedColumns)
+    };
   }
   //#endregion
 

@@ -73,6 +73,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() templateTableId: number = 1;
   @Input() hasDetailRow: boolean = false;
   @Input() detailRowTemplate: TemplateRef<any>;
+  @Input() detailRowContext: any;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -332,7 +333,6 @@ export class DataTableComponent implements OnChanges, OnInit {
       });
       this.displayedColumns.push(name);
     }
-    // Note: 'detail' column is NOT added to displayedColumns - it's only used for the detail row definition
   }
 
   private setActions(): void {
@@ -363,14 +363,6 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.selection.clear();
     this.selectionSet.emit(this.selection);
     this.isAllSelected = false;
-    // Force table to update by reassigning dataSource
-    // This ensures Angular Material re-evaluates when predicates
-    const currentData = this.dataSource.data;
-    this.dataSource.data = [];
-    setTimeout(() => {
-      this.dataSource.data = currentData;
-      this.cdr.detectChanges();
-    }, 0);
   }
 
   setIsAllSelected(): boolean {
@@ -406,24 +398,27 @@ export class DataTableComponent implements OnChanges, OnInit {
     currentPageItems.forEach((i) => { this.emitSelectEvent(checkEvent, i) });
   }
 
-  isDetailRowExpanded(row: PurposefulAny): boolean {
-    // Material table passes the row index as a number, not the row object
+
+  isMainRowVisible = (_row?: PurposefulAny): boolean => {
+    return true;
+  }
+
+  isRowExpanded = (row: PurposefulAny): boolean => {
     let actualRow: PurposefulAny;
+    
     if (typeof row === 'number') {
-      // Check if dataSource exists and has data before accessing
       if (!this.dataSource || !this.dataSource.data || this.dataSource.data.length === 0) {
         return false;
       }
-      // Ensure index is within bounds
-      if (row < 0 || row >= this.dataSource.data.length) {
+      const dataArray = this.dataSource.filteredData || this.dataSource.data;
+      if (row < 0 || row >= dataArray.length) {
         return false;
       }
-      actualRow = this.dataSource.data[row];
+      actualRow = dataArray[row];
     } else {
       actualRow = row;
     }
     
-    // Check if expanded is true - if no row found, return false
     if (!actualRow) {
       return false;
     }
@@ -431,10 +426,14 @@ export class DataTableComponent implements OnChanges, OnInit {
     return actualRow['expanded'] === true;
   }
 
-  isMainRowVisible = (_row?: PurposefulAny): boolean => {
-    // Always return true - invoice/main rows should always be visible
-    // This ensures they render independently of detail rows
-    return true;
+  getDetailRowContext(row: PurposefulAny): any {
+    if (this.detailRowContext) {
+      return {
+        $implicit: row,
+        ...this.detailRowContext
+      };
+    }
+    return { $implicit: row };
   }
 }
 

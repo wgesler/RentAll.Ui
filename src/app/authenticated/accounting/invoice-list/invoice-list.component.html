@@ -134,6 +134,7 @@
           [hasActionsDelete]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
+          [detailRowContext]="getDetailRowContextMethods()"
           [itemsPerPage]="100"
           (editEvent)="goToInvoice($event)"
           (rowClickEvent)="goToInvoice($event)"
