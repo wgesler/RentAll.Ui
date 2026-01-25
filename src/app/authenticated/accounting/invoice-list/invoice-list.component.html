@@ -13,7 +13,7 @@
           <div class="flex justify-between gap-8 items-center mt-4 px-4">
             <mat-form-field appearance="outline" style="width: 300px;">
               <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onInvoiceOfficeChange()">
+              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
                 <mat-option [value]="null">All Offices</mat-option>
                 @for (office of offices; track office.officeId) {
                   <mat-option [value]="office">{{ office.name }}</mat-option>

@@ -69,11 +69,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private chartOfAccountsService: ChartOfAccountsService,
     public formatter: FormatterService
   ) {
-    this.initializeTransactionTypes();
   }
 
   //#region Invoice
   ngOnInit(): void {
+    this.initializeTransactionTypes();
     this.loadOffices();
     this.loadReservations();
     this.loadChartOfAccounts();

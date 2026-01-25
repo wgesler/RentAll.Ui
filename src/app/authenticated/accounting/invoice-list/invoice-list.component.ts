@@ -18,6 +18,7 @@ import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { TransactionType } from '../models/accounting-enum';
 
 @Component({
   selector: 'app-invoice-list',
@@ -37,14 +38,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
   invoicesDisplay: any[] = []; // Will contain invoices with expand property
 
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
-  selectedOffice: OfficeResponse | null = null;
-  allChartOfAccounts: ChartOfAccountsResponse[] = []; // For getChartOfAccountDescription
-  chartOfAccountsSubscription?: Subscription;
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-
+  selectedOffice: OfficeResponse | null = null;
+ 
+  chartOfAccounts: ChartOfAccountsResponse[] = [];
+  availableChartOfAccounts: { value: number, label: string }[] = [];
+  chartOfAccountsSubscription?: Subscription;
+  
+  transactionTypes: { value: number, label: string }[] = [];
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
@@ -81,49 +85,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
 
   //#region Invoice-List
   ngOnInit(): void {
-    // Read query params from snapshot first to set office immediately
-    const snapshotParams = this.route.snapshot.queryParams;
-    const officeIdParam = snapshotParams['officeId'];
+    this.setupTransactions();
+    this.loadOffices();
+    this.loadChartOfAccounts();
     
-    // Subscribe to chart of accounts observable (needed for getChartOfAccountDescription in ledger lines)
-    this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe({
-      next: (chartOfAccounts) => {
-        this.allChartOfAccounts = chartOfAccounts || [];
-        // Apply filters if invoices are already loaded
-        if (this.allInvoices.length > 0) {
-          this.applyFilters();
-        }
-      }
-    });
-    
-    // Load offices first so dropdowns can be initialized
-    this.loadOffices().then(() => {
-      // Set selectedOffice from query params after offices are loaded
+    // Handle query params for office selection changes
+    this.route.queryParams.subscribe(params => {
+      const officeIdParam = params['officeId'];
       if (officeIdParam) {
         const parsedOfficeId = parseInt(officeIdParam, 10);
-        if (parsedOfficeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-        }
-      }
-    });
-    
-    // Subscribe to query params for changes (for navigation)
-    this.route.queryParams.subscribe(params => {
-      const updatedOfficeIdParam = params['officeId'];
-      if (updatedOfficeIdParam) {
-        const parsedOfficeId = parseInt(updatedOfficeIdParam, 10);
-        if (parsedOfficeId) {
+        if (parsedOfficeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
           this.applyFilters();
         }
+      } else {
+        this.selectedOffice = null;
+        this.applyFilters();
       }
     });
-  }
-
-  onInvoiceOfficeChange(): void {
-    // selectedOffice is already set by ngModel binding
-    // Apply filters when office changes
-    this.applyFilters();
   }
 
   getInvoices(): void {
@@ -145,24 +124,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
         }
       }
     });
-  }
-
-  getInvoiceById(invoiceId: string): InvoiceResponse | undefined {
-    return this.allInvoices.find(inv => inv.invoiceId === invoiceId);
-  }
-
-  toggleInvoice(invoiceId: string): void {
-    if (this.expandedInvoices.has(invoiceId)) {
-      this.expandedInvoices.delete(invoiceId);
-    } else {
-      this.expandedInvoices.add(invoiceId);
-    }
-    // Trigger change detection to update the view
-    this.cdr.detectChanges();
-  }
-
-  isExpanded(invoiceId: string): boolean {
-    return this.expandedInvoices.has(invoiceId);
   }
 
   addInvoice(): void {
@@ -227,21 +188,94 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
       };
     });
   }
+
+  toggleInvoice(invoiceId: string): void {
+    if (this.expandedInvoices.has(invoiceId)) {
+      this.expandedInvoices.delete(invoiceId);
+    } else {
+      this.expandedInvoices.add(invoiceId);
+    }
+    // Trigger change detection to update the view
+    this.cdr.detectChanges();
+  }
+
+  isExpanded(invoiceId: string): boolean {
+    return this.expandedInvoices.has(invoiceId);
+  }
   //#endregion
 
-  //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
+  //#region Dropdowns
+  filterChartOfAccounts(): void {
+    if (!this.selectedOffice) {
+      this.chartOfAccounts = [];
+      this.availableChartOfAccounts = [];
+      return;
     }
+    
+    // Get chart of accounts for the selected office from the observable data
+    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
+    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
+        value: account.chartOfAccountId,
+        label: `${account.accountId} - ${account.description}`
+      }));
+  }
+
+  setupTransactions(): void {
+    this.transactionTypes = [
+      { value: TransactionType.Debit, label: 'Debit' },
+      { value: TransactionType.Credit, label: 'Credit' },
+      { value: TransactionType.Payment, label: 'Payment' },
+      { value: TransactionType.Refund, label: 'Refund' },
+      { value: TransactionType.Charge, label: 'Charge' },
+      { value: TransactionType.Deposit, label: 'Deposit' },
+      { value: TransactionType.Adjustment, label: 'Adjustment' }
+    ];
+  }
+  //#endregion
+
+  //#region Data Load Items
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.removeLoadItem('offices');
+        
+        // Set selectedOffice from query params after offices are loaded
+        const snapshotParams = this.route.snapshot.queryParams;
+        const officeIdParam = snapshotParams['officeId'];
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+          }
+        }
+        
+        // Load invoices after offices are loaded
+        this.getInvoices();
+      });
+    });
+  }
+
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
+        this.filterChartOfAccounts();
+      });
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  onOfficeChange(): void {
+    this.filterChartOfAccounts();
+    this.addLoadItem('invoices');
+    this.getInvoices();
   }
 
   getTransactionTypeLabel(transactionTypeId: number): string {
-    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
-    return types[transactionTypeId] || 'Unknown';
+    const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
+    return transactionType?.label || 'Unknown';
   }
 
   getChartOfAccountDescription(chartOfAccountId: number | string | undefined, officeId: number): string {
@@ -249,7 +283,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
     
     // Find the chart of account for this office
     // Try matching by chartOfAccountId first, then by accountId
-    let account = this.allChartOfAccounts.find(
+    let account = this.chartOfAccounts.find(
       coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId === chartOfAccountId) && coa.officeId === officeId
     );
     
@@ -257,7 +291,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
     if (!account && typeof chartOfAccountId === 'string') {
       const numericId = parseInt(chartOfAccountId, 10);
       if (!isNaN(numericId)) {
-        account = this.allChartOfAccounts.find(
+        account = this.chartOfAccounts.find(
           coa => (coa.chartOfAccountId === numericId || coa.accountId === numericId) && coa.officeId === officeId
         );
       }
@@ -291,22 +325,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
         return line[columnName] || '-';
     }
   }
-
-  loadOffices(): Promise<void> {
-    return new Promise((resolve) => {
-      // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.removeLoadItem('offices');
-          // Load invoices after offices are loaded
-          this.getInvoices();
-          resolve();
-        });
-      });
-    });
-  }
+  //#endregion
 
   //#region Utility Methods
   addLoadItem(key: string): void {
@@ -314,6 +333,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
     if (!currentSet.has(key)) {
       const newSet = new Set(currentSet);
       newSet.add(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
+  removeLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
   }
