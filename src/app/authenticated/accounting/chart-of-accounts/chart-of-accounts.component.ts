@@ -65,13 +65,11 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   //#region ChartOfAccount
   ngOnInit(): void {
     this.initializeAccountTypes();
+    this.buildForm(); // Build form once in ngOnInit
     this.loadOffices();
     
     // If in embedded mode, use Input properties instead of route params
     if (this.embeddedMode) {
-      this.fromOffice = true; // Set flag for embedded mode
-      
-      // Wait for offices to load before processing id
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
         if (this.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -80,9 +78,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         if (this.id) {
           const idStr = this.id.toString();
           this.isAddMode = idStr === 'new';
+          this.updateAccountIdValidators(); // Update validators based on mode
           if (this.isAddMode) {
             this.removeLoadItem('chartOfAccount');
-            this.buildForm();
           } else {
             this.chartOfAccountId = idStr;
             if (this.selectedOffice) {
@@ -103,9 +101,8 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     // Not in embedded mode - use route params (existing behavior)
     const snapshotParams = this.route.snapshot.queryParams;
     const officeId = snapshotParams['officeId'];
-    // Check if navigated from Accounting tab - read from snapshot for immediate availability
+
     this.fromAccountingTab = snapshotParams['fromAccountingTab'] === 'true';
-    // Check if navigated from Office component (embedded) - read from snapshot for immediate availability
     this.fromOffice = snapshotParams['fromOffice'] === 'true';
     
     // Also subscribe to query params for changes
@@ -115,9 +112,8 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         const parsedOfficeId = parseInt(updatedOfficeId, 10);
         this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
       }
-      // Update fromAccountingTab flag if it changes
+ 
       this.fromAccountingTab = params['fromAccountingTab'] === 'true';
-      // Update fromOffice flag if it changes
       this.fromOffice = params['fromOffice'] === 'true';
     });
     
@@ -134,7 +130,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
           this.isAddMode = idParam === 'new';
           if (this.isAddMode) {
             this.removeLoadItem('chartOfAccount');
-            this.buildForm();
+            // Form already built, no need to rebuild
           } else {
             this.chartOfAccountId = idParam || '';
             if (this.selectedOffice) {
@@ -154,17 +150,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     if (!this.selectedOffice || !this.chartOfAccountId) {
       return;
     }
-    this.chartOfAccountsService.getChartOfAccountById(this.chartOfAccountId, this.selectedOffice.officeId).pipe(
-      take(1), 
-      finalize(() => { this.removeLoadItem('chartOfAccount'); })
-    ).subscribe({
+    this.chartOfAccountsService.getChartOfAccountById(this.chartOfAccountId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.removeLoadItem('chartOfAccount'); })).subscribe({
       next: (response: ChartOfAccountsResponse) => {
         this.chartOfAccount = response;
-        // Use officeId from the response
-        if (response.officeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
-        }
-        this.buildForm();
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
@@ -267,16 +255,17 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   buildForm(): void {
     const user = this.authService.getUser();
 
-    // Account No is only required in add mode (not in edit mode since it's readonly)
-    const accountIdValidators = this.isAddMode ? [Validators.required] : [];
-
+    // Build form with accountId as optional initially (will be set to required in add mode after isAddMode is determined)
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
-      accountId: new FormControl('', accountIdValidators),
+      accountId: new FormControl('', []), // Validators will be set based on mode
       description: new FormControl('', [Validators.required]),
       accountType: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
+    
+    // Set accountId validators based on mode after form is built
+    this.updateAccountIdValidators();
   }
 
   populateForm(): void {
@@ -289,6 +278,22 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         isActive: this.chartOfAccount.isActive !== false
       });
     }
+  }
+
+  resetFormForNewEntry(): void {
+    // Reset form to allow another entry
+    this.form.reset();
+    const user = this.authService.getUser();
+    this.form.patchValue({
+      organizationId: user?.organizationId || '',
+      isActive: true
+    });
+    // Reset accountId field to empty
+    this.form.get('accountId')?.setValue('');
+    this.form.get('description')?.setValue('');
+    this.form.get('accountType')?.setValue('');
+    // Mark form as untouched
+    this.form.markAsUntouched();
   }
   //#endregion
 
@@ -319,19 +324,31 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
       });
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   onOfficeChange(): void {
     // This will be called when office selection changes in the dropdown
     // selectedOffice is updated via ngModel binding
   }
-   //#endregion
 
-  //#region Utility Methods
   getOfficeName(): string {
     if (!this.selectedOffice) {
       return '';
     }
     return this.selectedOffice.name || '';
+  }
+
+  updateAccountIdValidators(): void {
+    const accountIdControl = this.form.get('accountId');
+    if (accountIdControl) {
+      if (this.isAddMode) {
+        accountIdControl.setValidators([Validators.required]);
+      } else {
+        accountIdControl.clearValidators();
+      }
+      accountIdControl.updateValueAndValidity();
+    }
   }
 
   onAccountNoKeyPress(event: KeyboardEvent): boolean {
@@ -343,7 +360,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     }
     return true;
   }
+  //#endregion
 
+  //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -356,22 +375,6 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
-  }
-
-  resetFormForNewEntry(): void {
-    // Reset form to allow another entry
-    this.form.reset();
-    const user = this.authService.getUser();
-    this.form.patchValue({
-      organizationId: user?.organizationId || '',
-      isActive: true
-    });
-    // Reset accountId field to empty
-    this.form.get('accountId')?.setValue('');
-    this.form.get('description')?.setValue('');
-    this.form.get('accountType')?.setValue('');
-    // Mark form as untouched
-    this.form.markAsUntouched();
   }
 
   back(): void {

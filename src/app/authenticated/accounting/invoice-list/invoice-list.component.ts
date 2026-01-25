@@ -70,7 +70,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'invoices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -100,10 +100,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId && this.offices.length > 0) {
             this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.filterChartOfAccounts();
+              this.addLoadItem('invoices');
+              this.getInvoices();
+            }
             this.applyFilters();
           }
         } else {
           this.selectedOffice = null;
+          // Clear invoices when no office is selected
+          this.allInvoices = [];
+          this.invoicesDisplay = [];
           this.applyFilters();
         }
       });
@@ -281,8 +289,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
         
-        // Load invoices after offices are loaded
-        this.getInvoices();
+        // Only load invoices if an office is selected
+        if (this.selectedOffice) {
+          this.filterChartOfAccounts();
+          this.addLoadItem('invoices');
+          this.getInvoices();
+        } else {
+          // No office selected, clear invoices display
+          this.allInvoices = [];
+          this.invoicesDisplay = [];
+        }
       });
     });
   }
@@ -305,9 +321,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     
-    this.filterChartOfAccounts();
-    this.addLoadItem('invoices');
-    this.getInvoices();
+    // Only load invoices if an office is selected
+    if (this.selectedOffice) {
+      this.filterChartOfAccounts();
+      this.addLoadItem('invoices');
+      this.getInvoices();
+    } else {
+      // Clear invoices when no office is selected
+      this.allInvoices = [];
+      this.invoicesDisplay = [];
+      this.applyFilters();
+    }
   }
 
   getTransactionTypeLabel(transactionTypeId: number): string {
