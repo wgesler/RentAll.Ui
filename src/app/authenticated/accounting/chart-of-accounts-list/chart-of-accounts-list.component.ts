@@ -122,39 +122,6 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     }
   }
 
-  onOfficeChange(): void {
-    // Emit office change to parent if in embedded mode
-    if (this.embeddedMode) {
-      this.officeIdChange.emit(this.selectedOfficeId);
-    }
-    this.filterChartOfAccounts();
-  }
-
-  loadChartOfAccounts(): void {
-    // Subscribe directly to chart of accounts observable - it will emit when data is available
-    // Don't wait for global load state to avoid getting stuck if other tabs haven't loaded
-    this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
-      // Update chart of accounts when observable emits
-      // Filter will be applied when officeId changes
-      if (accounts && accounts.length >= 0) {
-        // Data is available (even if empty), apply filters
-        this.filterChartOfAccounts();
-      }
-    });
-  }
-
-  filterChartOfAccounts(): void {
-    if (!this.selectedOfficeId) {
-      this.allChartOfAccounts = [];
-      this.chartOfAccountsDisplay = [];
-      return;
-    }
-    
-    // Get chart of accounts for the selected office from the observable data
-    this.allChartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOfficeId);
-    this.applyFilters();
-  }
-
   addChartOfAccount(): void {
     // If in embedded mode, emit event instead of navigating
     if (this.embeddedMode) {
@@ -214,6 +181,28 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
   //#endregion
 
+  //#region Form Responses
+  onOfficeChange(): void {
+    // Emit office change to parent if in embedded mode
+    if (this.embeddedMode) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    this.filterChartOfAccounts();
+  }
+
+  filterChartOfAccounts(): void {
+    if (!this.selectedOfficeId) {
+      this.allChartOfAccounts = [];
+      this.chartOfAccountsDisplay = [];
+      return;
+    }
+    
+    // Get chart of accounts for the selected office from the observable data
+    this.allChartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOfficeId);
+    this.applyFilters();
+  }  
+  //#endregion
+
   //#region Data Load Methods
   loadOffices(): Promise<void> {
     return new Promise((resolve) => {
@@ -233,7 +222,20 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       });
     });
   }
-   //#endregion
+  
+  loadChartOfAccounts(): void {
+    // Subscribe directly to chart of accounts observable - it will emit when data is available
+    // Don't wait for global load state to avoid getting stuck if other tabs haven't loaded
+    this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
+      // Update chart of accounts when observable emits
+      // Filter will be applied when officeId changes
+      if (accounts && accounts.length >= 0) {
+        // Data is available (even if empty), apply filters
+        this.filterChartOfAccounts();
+      }
+    });
+  }
+  //#endregion
 
   //#region Filter Methods
   applyFilters(): void {

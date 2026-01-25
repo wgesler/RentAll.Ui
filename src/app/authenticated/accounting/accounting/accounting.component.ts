@@ -43,10 +43,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.loadOffices();
   }
 
-  ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-  }
 
+  //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
@@ -54,7 +52,9 @@ export class AccountingComponent implements OnInit, OnDestroy {
       });
     });
   }
+  //#endregion
 
+  //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
   }
@@ -100,4 +100,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
       this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOfficeId);
     }
   }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+  }
+  //#endregion
+
 }
