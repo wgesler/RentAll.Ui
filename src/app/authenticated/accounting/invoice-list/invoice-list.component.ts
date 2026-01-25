@@ -55,12 +55,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
-    officeName: { displayAs: 'Office', maxWidth: '20ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch' },
+    officeName: { displayAs: 'Office', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
     dueDate: { displayAs: 'Due Date', maxWidth: '20ch' },
-    totalAmount: { displayAs: 'Total Amount', maxWidth: '20ch' },
-    paidAmount: { displayAs: 'Paid Amount', maxWidth: '20ch' }
+    totalAmount: { displayAs: 'Total', maxWidth: '15ch' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch' }
   };
 
   ledgerLinesDisplayedColumns: ColumnSet = {
@@ -72,7 +72,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
 
   constructor(
     public accountingService: AccountingService,
@@ -143,11 +142,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-        // Set all invoices to expanded
-        this.expandedInvoices.clear();
-        this.allInvoices.forEach(invoice => {
-          this.expandedInvoices.add(invoice.invoiceId);
-        });
         // Apply filters (chart of accounts are already loaded via subscription)
         this.applyFilters();
       },
@@ -212,29 +206,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
       dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
-      expanded: this.isExpanded(invoice.invoiceId), // Should be true for all invoices by default
+      expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
       LedgerLines: ledgerLines, // Include ledger lines in the display data (using PascalCase for template)
       expandClick: (event: Event, item: any) => {
         event.stopPropagation();
-        this.toggleInvoice(item.invoiceId);
-        item.expanded = this.isExpanded(item.invoiceId);
+        // Toggle expanded state
+        if (this.expandedInvoices.has(item.invoiceId)) {
+          this.expandedInvoices.delete(item.invoiceId);
+          item.expanded = false;
+        } else {
+          this.expandedInvoices.add(item.invoiceId);
+          item.expanded = true;
+        }
+        this.cdr.detectChanges();
       }
       };
     });
-  }
-
-  toggleInvoice(invoiceId: string): void {
-    if (this.expandedInvoices.has(invoiceId)) {
-      this.expandedInvoices.delete(invoiceId);
-    } else {
-      this.expandedInvoices.add(invoiceId);
-    }
-    // Trigger change detection to update the view
-    this.cdr.detectChanges();
-  }
-
-  isExpanded(invoiceId: string): boolean {
-    return this.expandedInvoices.has(invoiceId);
   }
   //#endregion
 

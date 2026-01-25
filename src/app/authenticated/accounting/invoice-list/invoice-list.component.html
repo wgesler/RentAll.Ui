@@ -1,3 +1,46 @@
+<!-- Ledger lines template - shared between embedded and non-embedded modes -->
+<ng-template #ledgerLinesTemplate let-invoice>
+  <div class="ledger-lines-wrapper">
+    @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
+      <table class="ledger-lines-table">
+        <thead>
+          <tr>
+            @for (columnName of getLedgerLineColumnNames(); track columnName) {
+              @if (ledgerLinesDisplayedColumns[columnName]) {
+                <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
+                  {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
+                </th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of invoice.LedgerLines; track line.ledgerLineId) {
+            <tr>
+              @for (columnName of getLedgerLineColumnNames(); track columnName) {
+                @if (ledgerLinesDisplayedColumns[columnName]) {
+                  <td [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'"
+                      [class.no-wrap]="!ledgerLinesDisplayedColumns[columnName].wrap">
+                    {{ getLedgerLineColumnValue(line, columnName, invoice) }}
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="no-lines">No ledger lines found for this invoice.</p>
+    }
+  </div>
+</ng-template>
+
 @if (!(isLoading$ | async)) {
   @if (!embeddedMode) {
     <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
@@ -33,48 +76,6 @@
             </div>
             <!-- Filter and data table below -->
             <div class="tableDiv">
-              <ng-template #ledgerLinesTemplate let-invoice>
-                <div class="ledger-lines-wrapper">
-                  @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
-                    <table class="ledger-lines-table">
-                      <thead>
-                        <tr>
-                          @for (columnName of getLedgerLineColumnNames(); track columnName) {
-                            @if (ledgerLinesDisplayedColumns[columnName]) {
-                              <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                  [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                  [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                  [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
-                                {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
-                              </th>
-                            }
-                          }
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (line of invoice.LedgerLines; track line.ledgerLineId) {
-                          <tr>
-                            @for (columnName of getLedgerLineColumnNames(); track columnName) {
-                              @if (ledgerLinesDisplayedColumns[columnName]) {
-                                <td [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                    [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                    [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                                    [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'"
-                                    [class.no-wrap]="!ledgerLinesDisplayedColumns[columnName].wrap">
-                                  {{ getLedgerLineColumnValue(line, columnName, invoice) }}
-                                </td>
-                              }
-                            }
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  } @else {
-                    <p class="no-lines">No ledger lines found for this invoice.</p>
-                  }
-                </div>
-              </ng-template>
-
               <app-data-table
                 [data]="invoicesDisplay"
                 [columns]="invoicesDisplayedColumns"
@@ -121,48 +122,6 @@
       </div>
       <!-- Filter and data table below -->
       <div class="tableDiv">
-        <ng-template #ledgerLinesTemplate let-invoice>
-          <div class="ledger-lines-wrapper">
-            @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
-              <table class="ledger-lines-table">
-                <thead>
-                  <tr>
-                    @for (columnName of getLedgerLineColumnNames(); track columnName) {
-                      @if (ledgerLinesDisplayedColumns[columnName]) {
-                        <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                            [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                            [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                            [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
-                          {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
-                        </th>
-                      }
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (line of invoice.LedgerLines; track line.ledgerLineId) {
-                    <tr>
-                      @for (columnName of getLedgerLineColumnNames(); track columnName) {
-                        @if (ledgerLinesDisplayedColumns[columnName]) {
-                          <td [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                              [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                              [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                              [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'"
-                              [class.no-wrap]="!ledgerLinesDisplayedColumns[columnName].wrap">
-                            {{ getLedgerLineColumnValue(line, columnName, invoice) }}
-                          </td>
-                        }
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <p class="no-lines">No ledger lines found for this invoice.</p>
-            }
-          </div>
-        </ng-template>
-
         <app-data-table
           [data]="invoicesDisplay"
           [columns]="invoicesDisplayedColumns"
