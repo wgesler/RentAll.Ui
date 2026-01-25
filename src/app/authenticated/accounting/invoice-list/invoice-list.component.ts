@@ -92,38 +92,44 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadChartOfAccounts();
     
-    // Handle query params for office selection changes (only if not in embedded mode)
-    if (!this.embeddedMode) {
+    // Handle query params for office selection changes (works in both embedded and non-embedded modes)
+    // Wait for offices to load before processing query params
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.subscribe(params => {
         const officeIdParam = params['officeId'];
         if (officeIdParam) {
           const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId && this.offices.length > 0) {
+          if (parsedOfficeId) {
+            // Find office from already loaded offices
             this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
             if (this.selectedOffice) {
+              // Emit office change to parent if in embedded mode
+              if (this.embeddedMode) {
+                this.officeIdChange.emit(this.selectedOffice.officeId);
+              }
               this.filterChartOfAccounts();
               this.addLoadItem('invoices');
-              this.getInvoices();
+              this.getInvoices(); // Refresh invoices when returning
             }
             this.applyFilters();
           }
         } else {
-          this.selectedOffice = null;
-          // Clear invoices when no office is selected
-          this.allInvoices = [];
-          this.invoicesDisplay = [];
-          this.applyFilters();
+          if (!this.embeddedMode || this.officeId === null || this.officeId === undefined) {
+            this.selectedOffice = null;
+            this.allInvoices = [];
+            this.invoicesDisplay = [];
+            this.applyFilters();
+          }
         }
       });
-    }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     // Watch for changes to officeId input from parent
     if (changes['officeId'] && this.embeddedMode) {
       const newOfficeId = changes['officeId'].currentValue;
-      // Wait for offices to be loaded before setting selectedOffice
-      if (this.offices.length > 0) {
+       if (this.offices.length > 0) {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
         if (this.selectedOffice) {
           this.filterChartOfAccounts();
@@ -143,14 +149,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-        // Apply filters (chart of accounts are already loaded via subscription)
-        this.applyFilters();
+         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
+         }
       }
     });
   }
@@ -176,7 +180,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToInvoice(event: InvoiceResponse): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]));
+    const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
+    if (this.selectedOffice) {
+      this.router.navigateByUrl(url + `?officeId=${this.selectedOffice.officeId}`);
+    } else {
+      this.router.navigateByUrl(url);
+    }
   }
   //#endregion
 
@@ -326,9 +335,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getChartOfAccountDescription(chartOfAccountId: number | string | undefined, officeId: number): string {
     if (!chartOfAccountId) return '-';
-    
-    // Find the chart of account for this office
-    // Try matching by chartOfAccountId first, then by accountId (if chartOfAccountId is a number string)
     let account = this.chartOfAccounts.find(
       coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId.toString() === chartOfAccountId) && coa.officeId === officeId
     );
@@ -336,8 +342,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return account?.description || chartOfAccountId.toString();
   }
 
-  getReservationCode(reservationId: string | null | undefined, invoiceReservationCode: string | null | undefined): string {
-    // Use the invoice's reservationCode if available, otherwise return the ID or '-'
+  getReservationCode(reservationId: string | null | undefined, invoiceReservationCode: string | null | undefined): string {    // Use the invoice's reservationCode if available, otherwise return the ID or '-'
     return invoiceReservationCode || reservationId || '-';
   }
 

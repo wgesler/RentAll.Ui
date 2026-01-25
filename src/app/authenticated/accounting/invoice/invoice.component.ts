@@ -686,7 +686,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.AccountingList);
+    const officeId = this.route.snapshot.queryParams['officeId'];
+    if (officeId) {
+      this.router.navigateByUrl(RouterUrl.AccountingList + `?officeId=${officeId}`);
+    } else {
+      this.router.navigateByUrl(RouterUrl.AccountingList);
+    }
   }
   //#endregion
 }
