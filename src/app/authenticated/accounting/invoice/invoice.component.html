@@ -112,18 +112,6 @@
                 }
               </mat-form-field>
 
-              <!-- Paid Amount - Only show in edit mode -->
-              @if (!isAddMode) {
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>Paid Amount</mat-label>
-                  <input matInput type="text" formControlName="paidAmount" required
-                    (input)="onAmountInput($event, 'paidAmount')"
-                    (focus)="selectAllOnFocus($event)">
-                  @if (form.get('paidAmount')?.hasError('required') && form.get('paidAmount')?.touched) {
-                    <mat-error>Paid Amount is required</mat-error>
-                  }
-                </mat-form-field>
-              }
 
               <!-- Line Items Section -->
               <div class="col-span-4 mb-4">

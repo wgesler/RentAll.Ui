@@ -18,6 +18,8 @@ import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { ReservationService } from '../../reservation/services/reservation.service';
+import { ReservationListResponse } from '../../reservation/models/reservation-model';
 import { TransactionType } from '../models/accounting-enum';
 
 @Component({
@@ -46,6 +48,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+
+  reservations: ReservationListResponse[] = [];
+  availableReservations: { value: ReservationListResponse, label: string }[] = [];
+  reservationsSubscription?: Subscription;
+  selectedReservation: ReservationListResponse | null = null;
  
   chartOfAccounts: ChartOfAccountsResponse[] = [];
   availableChartOfAccounts: { value: string, label: string }[] = [];
@@ -71,7 +78,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -82,6 +89,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private chartOfAccountsService: ChartOfAccountsService,
     private officeService: OfficeService,
+    private reservationService: ReservationService,
     private cdr: ChangeDetectorRef,
     private formatter: FormatterService) {
   }
@@ -90,6 +98,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.setupTransactions();
     this.loadOffices();
+    this.loadReservations();
     this.loadChartOfAccounts();
     
     // Handle query params for office selection changes (works in both embedded and non-embedded modes)
@@ -187,6 +196,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.router.navigateByUrl(url);
     }
   }
+
+  onPayable(event: InvoiceResponse): void {
+    // TODO: Implement payable action
+    console.log('Payable clicked for invoice:', event);
+  }
   //#endregion
 
   //#region Filter methods
@@ -204,6 +218,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedOffice) {
       filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
     }
+
+    // Filter by reservation if selected
+    if (this.selectedReservation) {
+      filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation.reservationId);
+    }
+
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => {
       // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
@@ -297,6 +317,43 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  loadReservations(): void {
+    this.addLoadItem('reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.reservations = [];
+        this.availableReservations = [];
+        if (err.status !== 400 && err.status !== 401) {
+          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
+      this.selectedReservation = null;
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
+    }));
+    
+    // Clear selected reservation if it doesn't belong to the selected office
+    if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
+      this.selectedReservation = null;
+      this.applyFilters();
+    }
+  }
+
   loadChartOfAccounts(): void {
     this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
@@ -315,6 +372,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     
+    // Filter reservations by selected office
+    this.filterReservations();
+    
     // Only load invoices if an office is selected
     if (this.selectedOffice) {
       this.filterChartOfAccounts();
@@ -324,8 +384,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       // Clear invoices when no office is selected
       this.allInvoices = [];
       this.invoicesDisplay = [];
+      this.selectedReservation = null;
       this.applyFilters();
     }
+  }
+
+  onReservationChange(): void {
+    this.applyFilters();
   }
 
   getTransactionTypeLabel(transactionTypeId: number): string {
@@ -401,6 +466,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.itemsToLoad$.complete();
     this.chartOfAccountsSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
+    this.reservationsSubscription?.unsubscribe();
   }
   //#endregion
 }

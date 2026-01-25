@@ -55,15 +55,26 @@
           <div class="mat">
             <!-- Office dropdown and buttons row -->
             <div class="flex justify-between gap-8 items-center mt-4 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Office</mat-label>
-                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              <div class="flex gap-4 items-center">
+                <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-label>Office</mat-label>
+                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-label>Reservation</mat-label>
+                  <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+                    <mat-option [value]="null">All Reservations</mat-option>
+                    @for (reservation of availableReservations; track reservation.value.reservationId) {
+                      <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
               <div class="flex justify-end items-center gap-5">
                 <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
                   Inactive
@@ -86,13 +97,15 @@
                 [hasActionsRowClick]="true"
                 [hasActionsEdit]="true"
                 [hasActionsDelete]="true"
+                [hasActionsPayable]="true"
                 [hasDetailRow]="true"
                 [detailRowTemplate]="ledgerLinesTemplate"
                 [includeDetailRowHeader]="false"
                 [itemsPerPage]="100"
                 (editEvent)="goToInvoice($event)"
                 (rowClickEvent)="goToInvoice($event)"
-                (deleteEvent)="deleteInvoice($event)"/>
+                (deleteEvent)="deleteInvoice($event)"
+                (payableEvent)="onPayable($event)"/>
             </div>
           </div>
         </mat-card>
@@ -102,15 +115,26 @@
     <div class="mat">
       <!-- Office dropdown and buttons row -->
       <div class="flex justify-between gap-8 items-center mt-4 px-4">
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>Office</mat-label>
-          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office">{{ office.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <div class="flex gap-4 items-center">
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Office</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Reservation</mat-label>
+            <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+              <mat-option [value]="null">All Reservations</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
         <div class="flex justify-end items-center gap-5">
           <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
             Inactive
@@ -133,13 +157,15 @@
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
+          [hasActionsPayable]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
           [includeDetailRowHeader]="false"
           [itemsPerPage]="100"
           (editEvent)="goToInvoice($event)"
           (rowClickEvent)="goToInvoice($event)"
-          (deleteEvent)="deleteInvoice($event)"/>
+          (deleteEvent)="deleteInvoice($event)"
+          (payableEvent)="onPayable($event)"/>
       </div>
     </div>
   }

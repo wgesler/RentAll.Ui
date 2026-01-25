@@ -179,7 +179,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
       dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : null,
       totalAmount: parseFloat(formValue.totalAmount) || 0,
-      paidAmount: this.isAddMode ? 0 : (parseFloat(formValue.paidAmount) || 0), // Default to 0 in add mode
+      paidAmount: 0, // Always default to 0
       notes: formValue.notes || null,
       isActive: formValue.isActive !== undefined ? formValue.isActive : true,
       LedgerLines: ledgerLines
@@ -338,8 +338,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for consistency
     
-    // In add mode, paidAmount is not required and defaults to 0
-    const paidAmountValidators = this.isAddMode ? [] : [Validators.required];
     
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
@@ -352,7 +350,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceTotal: new FormControl({ value: '', disabled: true }), // Read-only string field
       invoiceName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
       totalAmount: new FormControl('0.00', [Validators.required]),
-      paidAmount: new FormControl('0.00', paidAmountValidators),
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
@@ -385,7 +382,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         invoiceTotal: this.invoice.invoiceName || '', // Use invoiceName for invoiceTotal field
         invoiceName: this.invoice.invoiceName || '',
         totalAmount: this.invoice.totalAmount.toFixed(2),
-        paidAmount: this.invoice.paidAmount.toFixed(2),
         notes: this.invoice.notes || '',
         isActive: this.invoice.isActive
       }, { emitEvent: false });
