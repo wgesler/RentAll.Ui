@@ -14,6 +14,7 @@ import { AuthService } from '../../../services/auth.service';
 import { AccountingType } from '../models/accounting-enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   selector: 'app-chart-of-accounts',
@@ -31,7 +32,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful (for embedded mode)
   
   isServiceError: boolean = false;
-  chartOfAccountId: number;
+  chartOfAccountId: string;
   chartOfAccount: ChartOfAccountsResponse;
   form: FormGroup;
   fromAccountingTab: boolean = false; // Track if navigated from Accounting tab
@@ -41,7 +42,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  selectedOfficeId: number | null = null;
+  selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
   
   accountTypes: { value: number, label: string }[] = [];
@@ -56,22 +57,26 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private mappingService: MappingService
   ) {
   }
 
   //#region ChartOfAccount
   ngOnInit(): void {
     this.initializeAccountTypes();
+    this.loadOffices();
     
     // If in embedded mode, use Input properties instead of route params
     if (this.embeddedMode) {
-      if (this.officeId) {
-        this.selectedOfficeId = this.officeId;
-      }
       this.fromOffice = true; // Set flag for embedded mode
       
-      this.loadOffices().then(() => {
+      // Wait for offices to load before processing id
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        if (this.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        }
+        
         if (this.id) {
           const idStr = this.id.toString();
           this.isAddMode = idStr === 'new';
@@ -79,9 +84,15 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
             this.removeLoadItem('chartOfAccount');
             this.buildForm();
           } else {
-            this.chartOfAccountId = parseInt(idStr, 10);
-            if (this.selectedOfficeId) {
+            this.chartOfAccountId = idStr;
+            if (this.selectedOffice) {
               this.getChartOfAccount();
+            } else if (this.offices.length > 0) {
+              // If no officeId provided, try with first office as fallback
+              this.selectedOffice = this.offices[0];
+              this.getChartOfAccount();
+            } else {
+              this.removeLoadItem('chartOfAccount');
             }
           }
         }
@@ -92,9 +103,6 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     // Not in embedded mode - use route params (existing behavior)
     const snapshotParams = this.route.snapshot.queryParams;
     const officeId = snapshotParams['officeId'];
-    if (officeId) {
-      this.selectedOfficeId = parseInt(officeId, 10);
-    }
     // Check if navigated from Accounting tab - read from snapshot for immediate availability
     this.fromAccountingTab = snapshotParams['fromAccountingTab'] === 'true';
     // Check if navigated from Office component (embedded) - read from snapshot for immediate availability
@@ -103,8 +111,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     // Also subscribe to query params for changes
     this.route.queryParams.subscribe(params => {
       const updatedOfficeId = params['officeId'];
-      if (updatedOfficeId) {
-        this.selectedOfficeId = parseInt(updatedOfficeId, 10);
+      if (updatedOfficeId && this.offices.length > 0) {
+        const parsedOfficeId = parseInt(updatedOfficeId, 10);
+        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
       }
       // Update fromAccountingTab flag if it changes
       this.fromAccountingTab = params['fromAccountingTab'] === 'true';
@@ -112,7 +121,13 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
       this.fromOffice = params['fromOffice'] === 'true';
     });
     
-    this.loadOffices().then(() => {
+    // Wait for offices to load before processing route params
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (officeId && this.offices.length > 0) {
+        const parsedOfficeId = parseInt(officeId, 10);
+        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+      }
+      
       this.route.paramMap.subscribe((paramMap: ParamMap) => {
         if (paramMap.has('id')) {
           const idParam = paramMap.get('id');
@@ -121,13 +136,12 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
             this.removeLoadItem('chartOfAccount');
             this.buildForm();
           } else {
-            this.chartOfAccountId = parseInt(idParam || '0', 10);
-            // Need officeId from query params
-            if (this.selectedOfficeId) {
+            this.chartOfAccountId = idParam || '';
+            if (this.selectedOffice) {
               this.getChartOfAccount();
             } else if (this.offices.length > 0) {
               // If no officeId in query params, use first office
-              this.selectedOfficeId = this.offices[0].officeId;
+              this.selectedOffice = this.offices[0];
               this.getChartOfAccount();
             }
           }
@@ -137,10 +151,10 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   }
 
   getChartOfAccount(): void {
-    if (!this.selectedOfficeId || !this.chartOfAccountId) {
+    if (!this.selectedOffice || !this.chartOfAccountId) {
       return;
     }
-    this.chartOfAccountsService.getChartOfAccountById(this.chartOfAccountId, this.selectedOfficeId).pipe(
+    this.chartOfAccountsService.getChartOfAccountById(this.chartOfAccountId, this.selectedOffice.officeId).pipe(
       take(1), 
       finalize(() => { this.removeLoadItem('chartOfAccount'); })
     ).subscribe({
@@ -148,7 +162,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         this.chartOfAccount = response;
         // Use officeId from the response
         if (response.officeId) {
-          this.selectedOfficeId = response.officeId;
+          this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
         }
         this.buildForm();
         this.populateForm();
@@ -169,7 +183,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     }
 
     // Ensure we have a valid officeId
-    if (!this.selectedOfficeId || this.selectedOfficeId === 0) {
+    if (!this.selectedOffice || !this.selectedOffice.officeId) {
       this.toastr.error('Office is required', CommonMessage.Error);
       return;
     }
@@ -179,7 +193,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
 
     // Ensure officeId is a number (already checked for null/0 above)
-    const officeIdNumber: number = Number(this.selectedOfficeId);
+    const officeIdNumber: number = this.selectedOffice.officeId;
 
     const chartOfAccountRequest: ChartOfAccountsRequest = {
       chartOfAccountId: this.isAddMode ? undefined : this.chartOfAccountId,
@@ -199,11 +213,17 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         next: (response: ChartOfAccountsResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Chart of Account created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          
+          // Refresh chart of accounts for the office
+          if (this.selectedOffice) {
+            this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+          }
+          
+          // Clear form for another entry (don't navigate back)
+          this.resetFormForNewEntry();
+          
           if (this.embeddedMode) {
             this.savedEvent.emit();
-            this.back();
-          } else {
-            this.back();
           }
         },
         error: (err: HttpErrorResponse) => {
@@ -247,9 +267,12 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   buildForm(): void {
     const user = this.authService.getUser();
 
+    // Account No is only required in add mode (not in edit mode since it's readonly)
+    const accountIdValidators = this.isAddMode ? [Validators.required] : [];
+
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
-      accountId: new FormControl('', [Validators.required]),
+      accountId: new FormControl('', accountIdValidators),
       description: new FormControl('', [Validators.required]),
       accountType: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
@@ -287,34 +310,28 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     ];
   }
 
-  loadOffices(): Promise<void> {
-    return new Promise((resolve) => {
-      // Wait for offices to be loaded initially, then subscribe to changes
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.removeLoadItem('offices');
-        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.offices.map(office => ({
-            value: office.officeId,
-            name: office.name
-          }));
-          if (this.offices.length > 0 && !this.selectedOfficeId) {
-            this.selectedOfficeId = this.offices[0].officeId;
-          }
-          resolve();
-        });
       });
     });
+  }
+
+  onOfficeChange(): void {
+    // This will be called when office selection changes in the dropdown
+    // selectedOffice is updated via ngModel binding
   }
    //#endregion
 
   //#region Utility Methods
   getOfficeName(): string {
-    if (!this.selectedOfficeId) {
+    if (!this.selectedOffice) {
       return '';
     }
-    const office = this.availableOffices.find(o => o.value === this.selectedOfficeId);
-    return office?.name || '';
+    return this.selectedOffice.name || '';
   }
 
   onAccountNoKeyPress(event: KeyboardEvent): boolean {
@@ -341,7 +358,28 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
+  resetFormForNewEntry(): void {
+    // Reset form to allow another entry
+    this.form.reset();
+    const user = this.authService.getUser();
+    this.form.patchValue({
+      organizationId: user?.organizationId || '',
+      isActive: true
+    });
+    // Reset accountId field to empty
+    this.form.get('accountId')?.setValue('');
+    this.form.get('description')?.setValue('');
+    this.form.get('accountType')?.setValue('');
+    // Mark form as untouched
+    this.form.markAsUntouched();
+  }
+
   back(): void {
+    // Refresh chart of accounts when navigating back
+    if (this.selectedOffice) {
+      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+    }
+    
     // If in embedded mode, emit event instead of navigating
     if (this.embeddedMode) {
       this.backEvent.emit();
@@ -349,22 +387,22 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     }
     
     // If navigated from Office component (embedded), go back to Office component
-    if (this.fromOffice && this.selectedOfficeId) {
-      const url = RouterUrl.replaceTokens(RouterUrl.Office, [this.selectedOfficeId.toString()]);
+    if (this.fromOffice && this.selectedOffice) {
+      const url = RouterUrl.replaceTokens(RouterUrl.Office, [this.selectedOffice.officeId.toString()]);
       this.router.navigateByUrl(url);
     } else if (this.fromAccountingTab) {
       // If navigated from Accounting tab, go back to Accounting list with Chart Of Accounts tab selected
       const url = RouterUrl.AccountingList;
       const queryParams: string[] = [];
-      if (this.selectedOfficeId) {
-        queryParams.push('officeId=' + this.selectedOfficeId);
+      if (this.selectedOffice) {
+        queryParams.push('officeId=' + this.selectedOffice.officeId);
       }
       queryParams.push('tab=chartOfAccounts');
       this.router.navigateByUrl(url + (queryParams.length > 0 ? '?' + queryParams.join('&') : ''));
     } else {
       // Navigate back to Chart Of Accounts list with officeId query parameter if available
-      if (this.selectedOfficeId) {
-        this.router.navigateByUrl(RouterUrl.ChartOfAccountsList + '?officeId=' + this.selectedOfficeId);
+      if (this.selectedOffice) {
+        this.router.navigateByUrl(RouterUrl.ChartOfAccountsList + '?officeId=' + this.selectedOffice.officeId);
       } else {
         this.router.navigateByUrl(RouterUrl.ChartOfAccountsList);
       }

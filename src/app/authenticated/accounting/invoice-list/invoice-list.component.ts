@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
+import { OnInit, Component, OnDestroy, ChangeDetectorRef, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -28,8 +28,11 @@ import { TransactionType } from '../models/accounting-enum';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DatePipe]
 })
 
-export class InvoiceListComponent implements OnInit, OnDestroy {
+export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
+  @Input() embeddedMode: boolean = false; // If true, hide header
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -45,7 +48,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
  
   chartOfAccounts: ChartOfAccountsResponse[] = [];
-  availableChartOfAccounts: { value: number, label: string }[] = [];
+  availableChartOfAccounts: { value: string, label: string }[] = [];
   chartOfAccountsSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
@@ -89,20 +92,43 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
     this.loadOffices();
     this.loadChartOfAccounts();
     
-    // Handle query params for office selection changes
-    this.route.queryParams.subscribe(params => {
-      const officeIdParam = params['officeId'];
-      if (officeIdParam) {
-        const parsedOfficeId = parseInt(officeIdParam, 10);
-        if (parsedOfficeId && this.offices.length > 0) {
-          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+    // Handle query params for office selection changes (only if not in embedded mode)
+    if (!this.embeddedMode) {
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId && this.offices.length > 0) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            this.applyFilters();
+          }
+        } else {
+          this.selectedOffice = null;
+          this.applyFilters();
+        }
+      });
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Watch for changes to officeId input from parent
+    if (changes['officeId'] && this.embeddedMode) {
+      const newOfficeId = changes['officeId'].currentValue;
+      // Wait for offices to be loaded before setting selectedOffice
+      if (this.offices.length > 0) {
+        this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+        if (this.selectedOffice) {
+          this.filterChartOfAccounts();
+          this.addLoadItem('invoices');
+          this.getInvoices();
+        } else {
           this.applyFilters();
         }
       } else {
-        this.selectedOffice = null;
-        this.applyFilters();
+        // Offices not loaded yet, wait for them to load in loadOffices()
+        // The loadOffices() method will handle setting selectedOffice from officeId input
       }
-    });
+    }
   }
 
   getInvoices(): void {
@@ -241,13 +267,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.removeLoadItem('offices');
         
-        // Set selectedOffice from query params after offices are loaded
-        const snapshotParams = this.route.snapshot.queryParams;
-        const officeIdParam = snapshotParams['officeId'];
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+        // Set selectedOffice from input (embedded mode) or query params (standalone mode)
+        if (this.embeddedMode && this.officeId !== null && this.officeId !== undefined) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        } else if (!this.embeddedMode) {
+          const snapshotParams = this.route.snapshot.queryParams;
+          const officeIdParam = snapshotParams['officeId'];
+          if (officeIdParam) {
+            const parsedOfficeId = parseInt(officeIdParam, 10);
+            if (parsedOfficeId) {
+              this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            }
           }
         }
         
@@ -268,6 +298,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
 
   //#region Form Response Methods
   onOfficeChange(): void {
+    // Emit office change to parent if in embedded mode
+    if (this.embeddedMode && this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else if (this.embeddedMode && !this.selectedOffice) {
+      this.officeIdChange.emit(null);
+    }
+    
     this.filterChartOfAccounts();
     this.addLoadItem('invoices');
     this.getInvoices();
@@ -282,20 +319,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy {
     if (!chartOfAccountId) return '-';
     
     // Find the chart of account for this office
-    // Try matching by chartOfAccountId first, then by accountId
+    // Try matching by chartOfAccountId first, then by accountId (if chartOfAccountId is a number string)
     let account = this.chartOfAccounts.find(
-      coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId === chartOfAccountId) && coa.officeId === officeId
+      coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId.toString() === chartOfAccountId) && coa.officeId === officeId
     );
-    
-    // If not found and it's a string, try parsing as number
-    if (!account && typeof chartOfAccountId === 'string') {
-      const numericId = parseInt(chartOfAccountId, 10);
-      if (!isNaN(numericId)) {
-        account = this.chartOfAccounts.find(
-          coa => (coa.chartOfAccountId === numericId || coa.accountId === numericId) && coa.officeId === officeId
-        );
-      }
-    }
     
     return account?.description || chartOfAccountId.toString();
   }

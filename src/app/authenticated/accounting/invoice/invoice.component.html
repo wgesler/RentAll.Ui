@@ -155,7 +155,7 @@
                           <tr class="border-b">
                             <td class="p-2">{{ i + 1 }}</td>
                             <td class="p-2">
-                              <mat-select [value]="line.chartOfAccountId && line.chartOfAccountId !== 0 ? line.chartOfAccountId : null" 
+                              <mat-select [value]="line.chartOfAccountId && line.chartOfAccountId !== null && line.chartOfAccountId !== '' ? line.chartOfAccountId : null" 
                                 (selectionChange)="onChartOfAccountChange(i, $event.value)"
                                 class="w-full chart-of-account-select">
                                 <mat-option [value]="null">Select Chart of Account</mat-option>

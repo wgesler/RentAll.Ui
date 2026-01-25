@@ -190,10 +190,15 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }
   }
 
-  onChartOfAccountsEdit(chartOfAccountId: number): void {
-    this.chartOfAccountsId = chartOfAccountId;
-    // Use the selected officeId, or it will be determined from the chart of account data when loading
-    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+  onChartOfAccountsEdit(event: string | { chartOfAccountId: string, officeId: number | null }): void {
+    // Handle both old format (string) and new format (object)
+    if (typeof event === 'string') {
+      this.chartOfAccountsId = event;
+      this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+    } else {
+      this.chartOfAccountsId = event.chartOfAccountId;
+      this.chartOfAccountsOfficeId = event.officeId || this.selectedChartOfAccountsOfficeId;
+    }
     this.isEditingChartOfAccounts = true;
     if (this.isEditingChartOfAccounts) {
       this.expandedSections.chartOfAccounts = true;

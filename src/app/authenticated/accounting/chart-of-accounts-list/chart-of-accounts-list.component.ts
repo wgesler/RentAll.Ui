@@ -29,9 +29,10 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() embeddedMode: boolean = false; // If true, hide header and office selector
   @Input() hideHeader: boolean = false; // If true, hide the header/sub-heading
-  @Input() showInactiveInput: boolean = false; // Input to control inactive filter from parent (for embedded mode)
+  @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent (for embedded mode). If provided, parent manages controls.
   @Output() addChartOfAccountEvent = new EventEmitter<void>();
-  @Output() editChartOfAccountEvent = new EventEmitter<number>();
+  @Output() editChartOfAccountEvent = new EventEmitter<{ chartOfAccountId: string, officeId: number | null }>();
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   
   isServiceError: boolean = false;
   showInactive: boolean = false; // Internal property for non-embedded mode
@@ -122,17 +123,23 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   onOfficeChange(): void {
+    // Emit office change to parent if in embedded mode
+    if (this.embeddedMode) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
     this.filterChartOfAccounts();
   }
 
   loadChartOfAccounts(): void {
-    // Wait for chart of accounts to be loaded initially, then subscribe to changes
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
-        // Update chart of accounts when observable emits
-        // Filter will be applied when officeId changes
+    // Subscribe directly to chart of accounts observable - it will emit when data is available
+    // Don't wait for global load state to avoid getting stuck if other tabs haven't loaded
+    this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
+      // Update chart of accounts when observable emits
+      // Filter will be applied when officeId changes
+      if (accounts && accounts.length >= 0) {
+        // Data is available (even if empty), apply filters
         this.filterChartOfAccounts();
-      });
+      }
     });
   }
 
@@ -189,7 +196,10 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   goToChartOfAccount(event: ChartOfAccountsResponse): void {
     // If in embedded mode, emit event instead of navigating
     if (this.embeddedMode) {
-      this.editChartOfAccountEvent.emit(event.chartOfAccountId);
+      this.editChartOfAccountEvent.emit({ 
+        chartOfAccountId: event.chartOfAccountId, 
+        officeId: event.officeId || this.selectedOfficeId 
+      });
       return;
     }
     const url = RouterUrl.replaceTokens(RouterUrl.ChartOfAccounts, [event.chartOfAccountId.toString()]);
@@ -229,8 +239,10 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   applyFilters(): void {
     let filtered = this.allChartOfAccounts;
     // Filter by inactive if needed
-    // In embedded mode, use the @Input() showInactiveInput value; otherwise use internal property
-    const shouldShowInactive = this.embeddedMode ? this.showInactiveInput : this.showInactive;
+    // In embedded mode, use the @Input() showInactiveInput value if provided; otherwise use internal property
+    const shouldShowInactive = this.embeddedMode && this.showInactiveInput !== undefined 
+      ? this.showInactiveInput 
+      : this.showInactive;
     if (!shouldShowInactive) {
       filtered = filtered.filter(account => account.isActive !== false);
     }

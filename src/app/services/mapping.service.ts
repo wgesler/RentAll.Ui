@@ -500,7 +500,7 @@ export class MappingService {
       const transactionTypeEnum = line.transactionTypeId as TransactionType;
       return {
         Id: line.ledgerLineId,
-        chartOfAccountId: line.chartOfAccountId || 0,
+        chartOfAccountId: line.chartOfAccountId || null,
         transactionType: this.getTransactionTypeLabel(transactionTypeEnum),
         description: line.description || '',
         amount: line.amount

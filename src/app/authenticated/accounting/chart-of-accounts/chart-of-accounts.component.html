@@ -41,28 +41,35 @@
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Office</mat-label>
-                  <mat-select [(ngModel)]="selectedOfficeId" [ngModelOptions]="{standalone: true}" required>
+                  <mat-select [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required>
                     <mat-option [value]="null">Select Office</mat-option>
-                    @for (office of availableOffices; track office.value) {
-                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
               } @else {
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Office</mat-label>
-                  <input matInput [value]="getOfficeName()" readonly>
+                  <input matInput [value]="getOfficeName()" readonly class="readonly-field">
                 </mat-form-field>
               }
 
               <!-- Account No -->
-              <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Account No</mat-label>
-                <input matInput formControlName="accountId" type="text" pattern="[0-9]*" (keypress)="onAccountNoKeyPress($event)" required>
-                @if (form.get('accountId')?.hasError('required') && form.get('accountId')?.touched) {
-                  <mat-error>Account No is required</mat-error>
-                }
-              </mat-form-field>
+              @if (isAddMode) {
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Account No</mat-label>
+                  <input matInput formControlName="accountId" type="text" pattern="[0-9]*" (keypress)="onAccountNoKeyPress($event)" required>
+                  @if (form.get('accountId')?.hasError('required') && form.get('accountId')?.touched) {
+                    <mat-error>Account No is required</mat-error>
+                  }
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Account No</mat-label>
+                  <input matInput formControlName="accountId" readonly class="readonly-field">
+                </mat-form-field>
+              }
 
               <!-- Account Type -->
               <mat-form-field appearance="outline" class="flex-1">

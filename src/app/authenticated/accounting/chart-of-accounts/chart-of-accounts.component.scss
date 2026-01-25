@@ -10,3 +10,13 @@
     color: #666;
   }
 }
+
+.readonly-field {
+  background-color: #f5f5f5 !important;
+  color: #666 !important;
+  cursor: not-allowed;
+  
+  &::placeholder {
+    color: #999;
+  }
+}

@@ -1,0 +1,62 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <span class="flex flex-column items-center gap-3 py-4">
+        <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+      </span>
+    </div>
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab label="Invoices">
+          <app-invoice-list 
+            [embeddedMode]="true"
+            [officeId]="selectedOfficeId"
+            (officeIdChange)="onInvoiceOfficeChange($event)">
+          </app-invoice-list>
+        </mat-tab>
+        <mat-tab label="Chart Of Accounts">
+          @if (isEditingChartOfAccounts && chartOfAccountsId) {
+            <app-chart-of-accounts 
+              [id]="chartOfAccountsId" 
+              [officeId]="chartOfAccountsOfficeId"
+              [embeddedMode]="true" 
+              (backEvent)="onChartOfAccountsBack()"
+              (savedEvent)="onChartOfAccountsSaved()">
+            </app-chart-of-accounts>
+          } @else {
+            <!-- Office dropdown and controls -->
+            <div class="flex justify-between gap-8 items-center mt-4 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Office</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onChartOfAccountsOfficeChange(selectedOfficeId)">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of chartOfAccountsOffices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <div class="flex justify-end items-center gap-5">
+                <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactiveChartOfAccounts" color="primary" (change)="toggleInactiveChartOfAccounts()" class="whitespace-nowrap">
+                  Inactive
+                </mat-slide-toggle>
+                <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="onChartOfAccountsAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+                  <mat-icon class="text-base">add</mat-icon>
+                  <span>Add</span>
+                </button>
+              </div>
+            </div>
+            <app-chart-of-accounts-list 
+              [embeddedMode]="true"
+              [officeId]="selectedOfficeId"
+              [showInactiveInput]="showInactiveChartOfAccounts"
+              (officeIdChange)="onChartOfAccountsOfficeChange($event)"
+              (addChartOfAccountEvent)="onChartOfAccountsAdd()"
+              (editChartOfAccountEvent)="onChartOfAccountsEdit($event)">
+            </app-chart-of-accounts-list>
+          }
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

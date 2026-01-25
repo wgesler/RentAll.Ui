@@ -28,7 +28,7 @@ export class ChartOfAccountsService {
   }
 
   // GET: Get chart of account by office ID and chart of account ID
-  getChartOfAccountById(chartOfAccountId: number, officeId: number): Observable<ChartOfAccountsResponse> {
+  getChartOfAccountById(chartOfAccountId: string, officeId: number): Observable<ChartOfAccountsResponse> {
     return this.http.get<ChartOfAccountsResponse>(this.controller + 'office/' + officeId + '/chartOfAccountId/' + chartOfAccountId);
   }
 
@@ -48,7 +48,7 @@ export class ChartOfAccountsService {
   }
 
   // DELETE: Delete chart of account by office ID and chart of account ID
-  deleteChartOfAccount(officeId: number, chartOfAccountId: number): Observable<void> {
+  deleteChartOfAccount(officeId: number, chartOfAccountId: string): Observable<void> {
     return this.http.delete<void>(this.controller + 'office/' + officeId + '/chartOfAccountId/' + chartOfAccountId);
   }
 

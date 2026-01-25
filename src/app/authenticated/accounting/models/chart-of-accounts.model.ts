@@ -1,7 +1,7 @@
 import { AccountingType } from './accounting-enum';
 
 export interface ChartOfAccountsRequest {
-  chartOfAccountId?: number;
+  chartOfAccountId?: string;
   organizationId: string;
   officeId: number;
   accountId: number;
@@ -11,7 +11,7 @@ export interface ChartOfAccountsRequest {
 }
 
 export interface ChartOfAccountsResponse {
-  chartOfAccountId: number;
+  chartOfAccountId: string;
   organizationId: string;
   officeId: number;
   accountId: number;
@@ -21,7 +21,7 @@ export interface ChartOfAccountsResponse {
 }
 
 export interface ChartOfAccountsListDisplay {
-  chartOfAccountId: number;
+  chartOfAccountId: string;
   officeId: number;
   officeName: string;
   accountId: number;

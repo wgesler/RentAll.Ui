@@ -47,7 +47,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   reservationIdSubscription?: Subscription;
   
   chartOfAccounts: ChartOfAccountsResponse[] = [];
-  availableChartOfAccounts: { value: number, label: string }[] = [];
+  availableChartOfAccounts: { value: string, label: string }[] = [];
   chartOfAccountsSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
@@ -123,7 +123,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
       const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const hasChartOfAccountId = line.chartOfAccountId && line.chartOfAccountId !== 0;
+      const hasChartOfAccountId = line.chartOfAccountId && line.chartOfAccountId !== null && line.chartOfAccountId !== '';
       const hasDescription = line.description && line.description.trim() !== '';
       const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
       
@@ -521,9 +521,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
   }
 
-  onChartOfAccountChange(index: number, chartOfAccountId: number | null): void {
+  onChartOfAccountChange(index: number, chartOfAccountId: string | null): void {
     if (chartOfAccountId === null || chartOfAccountId === undefined) {
-      this.updateLedgerLineField(index, 'chartOfAccountId', 0);
+      this.updateLedgerLineField(index, 'chartOfAccountId', null);
     } else {
       this.updateLedgerLineField(index, 'chartOfAccountId', chartOfAccountId);
     }
@@ -589,7 +589,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Create a blank ledger item with all fields null/undefined/0/empty so they appear as editable inputs
     const newLine: LedgerLineListDisplay = {
       Id: 0, // Temporary ID, will be assigned when saved
-      chartOfAccountId: 0, // 0 makes dropdown show "Select Chart of Account"
+      chartOfAccountId: null as string | null, // null makes dropdown show "Select Chart of Account"
       transactionType: '', // Empty string for display
       description: '', // Empty string makes it editable per HTML template check
       amount: undefined as any // undefined makes it editable per HTML template check
