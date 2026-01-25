@@ -191,7 +191,7 @@
                                   (focus)="onLedgerAmountFocus($event, i)"
                                   (blur)="onLedgerAmountBlur($event, i)">
                               } @else {
-                                <span>{{ formatCurrency(line.amount) }}</span>
+                                <span>${{ formatter.currency(line.amount) }}</span>
                               }
                             </td>
                             <td class="p-2 text-right">

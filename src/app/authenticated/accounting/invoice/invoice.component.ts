@@ -19,16 +19,17 @@ import { MappingService } from '../../../services/mapping.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
 import { TransactionType } from '../models/accounting-enum';
+import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
-  selector: 'app-accounting',
+  selector: 'app-invoice',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './accounting.component.html',
-  styleUrl: './accounting.component.scss'
+  templateUrl: './invoice.component.html',
+  styleUrl: './invoice.component.scss'
 })
 
-export class AccountingComponent implements OnInit, OnDestroy {
+export class InvoiceComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
@@ -39,10 +40,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  
+  selectedOffice: OfficeResponse | null = null;
+
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: string, label: string }[] = [];
-  officeIdSubscription?: Subscription;
   reservationIdSubscription?: Subscription;
   
   chartOfAccounts: ChartOfAccountsResponse[] = [];
@@ -50,7 +51,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   chartOfAccountsSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
-  
   ledgerLines: LedgerLineListDisplay[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'offices', 'reservations']));
@@ -66,7 +66,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private reservationService: ReservationService,
     private authService: AuthService,
     private mappingService: MappingService,
-    private chartOfAccountsService: ChartOfAccountsService
+    private chartOfAccountsService: ChartOfAccountsService,
+    public formatter: FormatterService
   ) {
     this.initializeTransactionTypes();
   }
@@ -90,17 +91,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     });
   }
 
-  initializeTransactionTypes(): void {
-    this.transactionTypes = [
-      { value: TransactionType.Debit, label: 'Debit' },
-      { value: TransactionType.Credit, label: 'Credit' },
-      { value: TransactionType.Payment, label: 'Payment' },
-      { value: TransactionType.Refund, label: 'Refund' },
-      { value: TransactionType.Charge, label: 'Charge' },
-      { value: TransactionType.Deposit, label: 'Deposit' },
-      { value: TransactionType.Adjustment, label: 'Adjustment' }
-    ];
-  }
 
   getInvoice(): void {
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.removeLoadItem('invoice'); })).subscribe({
@@ -112,7 +102,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
-          // Handle not found error if business logic requires
         }
       }
     });
@@ -227,6 +216,35 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Dropdowns
+  initializeTransactionTypes(): void {
+    this.transactionTypes = [
+      { value: TransactionType.Debit, label: 'Debit' },
+      { value: TransactionType.Credit, label: 'Credit' },
+      { value: TransactionType.Payment, label: 'Payment' },
+      { value: TransactionType.Refund, label: 'Refund' },
+      { value: TransactionType.Charge, label: 'Charge' },
+      { value: TransactionType.Deposit, label: 'Deposit' },
+      { value: TransactionType.Adjustment, label: 'Adjustment' }
+    ];
+  }
+
+  filterChartOfAccounts(): void {
+    if (!this.selectedOffice) {
+      this.chartOfAccounts = [];
+      this.availableChartOfAccounts = [];
+      return;
+    }
+    
+    // Get chart of accounts for the selected office from the observable data
+    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
+    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
+        value: account.chartOfAccountId,
+        label: `${account.accountId} - ${account.description}`
+      }));
+  }
+  //#endregion
+
   //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
@@ -268,22 +286,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     });
   }
 
-  filterChartOfAccounts(): void {
-    const officeId = this.form?.get('officeId')?.value;
-    if (!officeId) {
-      this.chartOfAccounts = [];
-      this.availableChartOfAccounts = [];
-      return;
-    }
-    
-    // Get chart of accounts for the selected office from the observable data
-    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
-    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
-        value: account.chartOfAccountId,
-        label: `${account.accountId} - ${account.description}`
-      }));
-  }
-
   loadMonthlyLedgerLines(reservationId: string, updateTotalAmount: boolean = true): void {
     this.accountingService.getMonthlyLedgerLines(reservationId).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
@@ -310,7 +312,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
           setTimeout(() => {
             const input = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
             if (input && document.activeElement !== input) {
-              input.value = this.formatCurrency(calculatedTotal);
+              input.value = '$' + this.formatter.currency(calculatedTotal);
             }
           }, 100);
         }
@@ -328,7 +330,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
       }
     });
   }
-  //#endregion
+ //#endregion
 
   //#region Form methods
   buildForm(): void {
@@ -360,14 +362,14 @@ export class AccountingComponent implements OnInit, OnDestroy {
     // Subscribe to reservationId changes to load monthly ledger lines
     this.setupReservationIdHandler();
     
-    // Format initial totalAmount display
-    setTimeout(() => {
-      const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-      if (totalInput && document.activeElement !== totalInput) {
-        const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
-        totalInput.value = this.formatCurrency(totalValue);
-      }
-    }, 100);
+      // Format initial totalAmount display
+      setTimeout(() => {
+        const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
+        if (totalInput && document.activeElement !== totalInput) {
+          const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
+          totalInput.value = '$' + this.formatter.currency(totalValue);
+        }
+      }, 100);
   }
 
   populateForm(): void {
@@ -388,6 +390,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
         isActive: this.invoice.isActive
       }, { emitEvent: false });
       
+      // Set selectedOffice from the populated officeId
+      const officeId = this.form.get('officeId')?.value;
+      this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
+      
       // Update available reservations after populating officeId
       this.updateAvailableReservations();
       
@@ -399,7 +405,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
         const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
         if (totalInput && document.activeElement !== totalInput) {
           const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
-          totalInput.value = this.formatCurrency(totalValue);
+          totalInput.value = '$' + this.formatter.currency(totalValue);
         }
       }, 100);
       
@@ -416,19 +422,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   //#region Form Responders
   setupOfficeIdHandler(): void {
-    // Unsubscribe from previous subscription if it exists
-    this.officeIdSubscription?.unsubscribe();
-
-    // Update available reservations based on current officeId (if form exists and reservations are loaded)
-    if (this.reservations.length > 0) {
-      this.updateAvailableReservations();
-    }
-
-    // Filter chart of accounts for current office if one is selected
-    this.filterChartOfAccounts();
-
-    // Subscribe to officeId changes
-    this.officeIdSubscription = this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+    // Subscribe to officeId changes - just set selectedOffice and trigger updates
+    this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+      // Set selectedOffice from the officeId
+      this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
+      
       // Update available reservations based on selected office
       this.updateAvailableReservations();
       
@@ -437,12 +435,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
       
       // Clear selected reservation if it doesn't belong to the new office
       const currentReservationId = this.form.get('reservationId')?.value;
-      if (currentReservationId && officeId) {
+      if (currentReservationId && this.selectedOffice) {
         const currentReservation = this.reservations.find(r => r.reservationId === currentReservationId);
-        if (currentReservation && currentReservation.officeId !== officeId) {
+        if (currentReservation && currentReservation.officeId !== this.selectedOffice.officeId) {
           this.form.get('reservationId')?.setValue(null, { emitEvent: false });
         }
-      } else if (!officeId) {
+      } else if (!this.selectedOffice) {
         // If office is cleared, also clear reservation
         this.form.get('reservationId')?.setValue(null, { emitEvent: false });
       }
@@ -450,9 +448,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   setupReservationIdHandler(): void {
-    // Unsubscribe from previous subscription if it exists
-    this.reservationIdSubscription?.unsubscribe();
-
     // Subscribe to reservationId changes
     this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
       if (reservationId) {
@@ -467,10 +462,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   updateAvailableReservations(): void {
-    const selectedOfficeId = this.form?.get('officeId')?.value;
-    
-    if (selectedOfficeId) {
-      const filteredReservations = this.reservations.filter(r => r.officeId === selectedOfficeId);
+    if (this.selectedOffice) {
+      const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
       this.availableReservations = filteredReservations.map(r => ({
         value: r.reservationId,
         label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
@@ -490,11 +483,9 @@ export class AccountingComponent implements OnInit, OnDestroy {
       
       // If transactionType was updated from dropdown, convert the label back to the enum value for storage
       if (field === 'transactionType' && typeof value === 'string') {
-        // Find the transaction type by label
         const transactionType = this.transactionTypes.find(t => t.label === value);
         if (transactionType) {
-          // Store the label for display, but we'll need the ID when saving
-          (this.ledgerLines[index] as any).transactionTypeId = transactionType.value;
+           (this.ledgerLines[index] as any).transactionTypeId = transactionType.value;
         }
       }
       
@@ -508,7 +499,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
           setTimeout(() => {
             const input = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
             if (input && document.activeElement !== input) {
-              input.value = this.formatCurrency(calculatedTotal);
+              input.value = '$' + this.formatter.currency(calculatedTotal);
             }
           }, 0);
         }
@@ -517,16 +508,15 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onTransactionTypeChange(index: number, transactionTypeId: number | null): void {
-    if (transactionTypeId === null || transactionTypeId === undefined) {
-      // Clear the transaction type
+    if (transactionTypeId === null || transactionTypeId === undefined) {     // Clear the transaction type
       this.updateLedgerLineField(index, 'transactionType', '');
       (this.ledgerLines[index] as any).transactionTypeId = undefined;
       return;
     }
+
     const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
     if (transactionType) {
-      this.updateLedgerLineField(index, 'transactionType', transactionType.label);
-      // Store the ID for when we save
+      this.updateLedgerLineField(index, 'transactionType', transactionType.label);      // Store the ID for when we save
       (this.ledgerLines[index] as any).transactionTypeId = transactionTypeId;
     }
   }
@@ -558,21 +548,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Ledger Lines
   onLedgerAmountInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
-    // Remove currency formatting ($ and commas) before processing
-    let value = input.value.replace(/[$,]/g, '');
-    
-    // Ensure only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    // Limit to 2 decimal places
-    if (parts.length === 2 && parts[1].length > 2) {
-      value = parts[0] + '.' + parts[1].substring(0, 2);
-    }
-    
-    // Update ledger line amount
+    // Use FormatterService to handle decimal input formatting
+    const value = input.value.replace(/[$,]/g, '');
     const numValue = parseFloat(value) || null;
     this.updateLedgerLineField(index, 'amount', numValue);
   }
@@ -601,7 +578,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
           if (totalInput && document.activeElement !== totalInput) {
-            totalInput.value = this.formatCurrency(calculatedTotal);
+            totalInput.value = '$' + this.formatter.currency(calculatedTotal);
           }
         }, 0);
       }
@@ -634,7 +611,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
           if (totalInput && document.activeElement !== totalInput) {
-            totalInput.value = this.formatCurrency(calculatedTotal);
+            totalInput.value = '$' + this.formatter.currency(calculatedTotal);
           }
         }, 0);
       }
@@ -644,24 +621,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   //#region Formatting Methods
   onAmountInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    // Remove currency formatting ($ and commas) before processing
-    let value = input.value.replace(/[$,]/g, '');
-    
-    // Ensure only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    // Limit to 2 decimal places
-    if (parts.length === 2 && parts[1].length > 2) {
-      value = parts[0] + '.' + parts[1].substring(0, 2);
-    }
-    
-    // Store raw numeric value in form control
-    const numericValue = value === '' ? '0.00' : value;
-    this.form.get(fieldName)?.setValue(numericValue, { emitEvent: false });
+    const control = this.form.get(fieldName);
+    this.formatter.formatDecimalInput(event, control);
   }
 
   onAmountFocus(event: Event, fieldName: string): void {
@@ -682,7 +643,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
       // Format with currency on blur
       const value = parseFloat(input.value.replace(/[$,]/g, '')) || 0;
       control.setValue(value.toFixed(2), { emitEvent: false });
-      input.value = this.formatCurrency(value);
+      input.value = '$' + this.formatter.currency(value);
     }
   }
 
@@ -699,18 +660,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     const cleanedValue = value.replace(/[$,]/g, '');
     const parsed = parseFloat(cleanedValue);
     return isNaN(parsed) ? null : parsed;
-  }
-
-  formatCurrency(value: number | null | undefined): string {
-    if (value == null || value === undefined) {
-      return '';
-    }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
   }
 
   getTransactionTypeLabel(transactionType: number): string {
@@ -731,7 +680,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
-    this.officeIdSubscription?.unsubscribe();
     this.reservationIdSubscription?.unsubscribe();
     this.chartOfAccountsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

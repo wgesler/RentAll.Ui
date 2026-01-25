@@ -10,8 +10,8 @@ import { PropertyListComponent } from './authenticated/property/property-list/pr
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
-import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
-import { AccountingListComponent } from './authenticated/accounting/accounting-list/accounting-list.component';
+import { InvoiceComponent } from './authenticated/accounting/invoice/invoice.component';
+import { InvoiceListComponent } from './authenticated/accounting/invoice-list/invoice-list.component';
 import { ChartOfAccountsComponent } from './authenticated/accounting/chart-of-accounts/chart-of-accounts.component';
 import { ChartOfAccountsListComponent } from './authenticated/accounting/chart-of-accounts-list/chart-of-accounts-list.component';
 import { ContactComponent } from './authenticated/contact/contact/contact.component';
@@ -145,8 +145,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AccountingList, component: AccountingListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Accounting, component: AccountingComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingList, component: InvoiceListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ChartOfAccountsList, component: ChartOfAccountsListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ChartOfAccounts, component: ChartOfAccountsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
