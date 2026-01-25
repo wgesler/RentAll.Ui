@@ -64,6 +64,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   ledgerLinesDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: '#', maxWidth: '5ch', wrap: false, alignment: 'right' },
     account: { displayAs: 'Account', maxWidth: '20ch', wrap: false },
     transactionType: { displayAs: 'Transaction Type', maxWidth: '15ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '20ch', wrap: true },
@@ -344,8 +345,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return Object.keys(this.ledgerLinesDisplayedColumns);
   }
 
-  getLedgerLineColumnValue(line: any, columnName: string, invoice: any): any {
+  getLedgerLineColumnValue(line: any, columnName: string, invoice: any, lineIndex?: number): any {
     switch (columnName) {
+      case 'lineNo':
+        return lineIndex !== undefined ? lineIndex + 1 : '-';
       case 'account':
         return this.getChartOfAccountDescription(line.chartOfAccountId, invoice.officeId);
       case 'transactionType':

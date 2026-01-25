@@ -329,9 +329,59 @@ td.mat-mdc-cell.align-center {
 
 .datatable-detail-row {
     height: auto;
+    
+    td {
+        border: none;
+        padding: 0;
+    }
 }
 
-.datatable-detail-row td {
-    border-bottom-width: 1px;
-    padding: 16px;
+:host ::ng-deep .detail-lines-wrapper {
+    padding: 0;
+    margin: 0 250px 0 40px;
+    overflow-x: auto;
+}
+
+:host ::ng-deep .detail-lines-wrapper table {
+    width: 100%;
+    min-width: 800px;
+    border-collapse: collapse;
+    background-color: #fafafa;
+    
+    thead {
+        background-color: #e0e0e0;
+        
+        th {
+            padding: 8px 16px;
+            text-align: left;
+            font-weight: 500;
+            border-bottom: 1px solid #ccc;
+        }
+    }
+    
+    tbody {
+        tr {
+            border-bottom: 1px solid #e0e0e0;
+            
+            &:hover {
+                background-color: #f5f5f5;
+            }
+            
+            td {
+                padding: 8px 16px;
+            }
+        }
+    }
+}
+
+:host ::ng-deep .datatable-detail-row.hide-detail-header thead,
+:host ::ng-deep td.hide-detail-header thead,
+:host ::ng-deep .hide-detail-header thead {
+    display: none !important;
+}
+
+:host ::ng-deep .datatable-detail-row.hide-detail-header table thead,
+:host ::ng-deep td.hide-detail-header table thead,
+:host ::ng-deep .hide-detail-header table thead {
+    display: none !important;
 }

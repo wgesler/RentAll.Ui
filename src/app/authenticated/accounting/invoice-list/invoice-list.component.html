@@ -1,8 +1,8 @@
 <!-- Ledger lines template - shared between embedded and non-embedded modes -->
 <ng-template #ledgerLinesTemplate let-invoice>
-  <div class="ledger-lines-wrapper">
+  <div class="detail-lines-wrapper">
     @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
-      <table class="ledger-lines-table">
+      <table>
         <thead>
           <tr>
             @for (columnName of getLedgerLineColumnNames(); track columnName) {
@@ -18,7 +18,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (line of invoice.LedgerLines; track line.ledgerLineId) {
+          @for (line of invoice.LedgerLines; track line.ledgerLineId; let i = $index) {
             <tr>
               @for (columnName of getLedgerLineColumnNames(); track columnName) {
                 @if (ledgerLinesDisplayedColumns[columnName]) {
@@ -27,7 +27,7 @@
                       [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
                       [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'"
                       [class.no-wrap]="!ledgerLinesDisplayedColumns[columnName].wrap">
-                    {{ getLedgerLineColumnValue(line, columnName, invoice) }}
+                    {{ getLedgerLineColumnValue(line, columnName, invoice, i) }}
                   </td>
                 }
               }
@@ -88,6 +88,7 @@
                 [hasActionsDelete]="true"
                 [hasDetailRow]="true"
                 [detailRowTemplate]="ledgerLinesTemplate"
+                [includeDetailRowHeader]="false"
                 [itemsPerPage]="100"
                 (editEvent)="goToInvoice($event)"
                 (rowClickEvent)="goToInvoice($event)"
@@ -134,7 +135,7 @@
           [hasActionsDelete]="true"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
-          [detailRowContext]="getDetailRowContextMethods()"
+          [includeDetailRowHeader]="false"
           [itemsPerPage]="100"
           (editEvent)="goToInvoice($event)"
           (rowClickEvent)="goToInvoice($event)"

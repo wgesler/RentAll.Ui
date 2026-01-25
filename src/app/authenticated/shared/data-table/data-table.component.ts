@@ -74,6 +74,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasDetailRow: boolean = false;
   @Input() detailRowTemplate: TemplateRef<any>;
   @Input() detailRowContext: any;
+  @Input() includeDetailRowHeader: boolean = true;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -427,13 +428,12 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   getDetailRowContext(row: PurposefulAny): any {
-    if (this.detailRowContext) {
-      return {
-        $implicit: row,
-        ...this.detailRowContext
-      };
-    }
-    return { $implicit: row };
+    const baseContext = this.detailRowContext || {};
+    return {
+      $implicit: row,
+      ...baseContext,
+      includeDetailRowHeader: this.includeDetailRowHeader
+    };
   }
 }
 

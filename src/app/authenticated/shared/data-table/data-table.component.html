@@ -214,7 +214,7 @@
 
         @if (hasDetailRow && detailRowTemplate) {
             <ng-container matColumnDef="detail">
-                <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+                <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" [class.hide-detail-header]="!includeDetailRowHeader">
                     <ng-container *ngTemplateOutlet="detailRowTemplate; context: getDetailRowContext(row)"></ng-container>
                 </td>
             </ng-container>
@@ -226,7 +226,9 @@
         [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>
         
         @if (hasDetailRow && detailRowTemplate) {
-            <tr mat-row *matRowDef="let row; columns: ['detail']; when: isRowExpanded" class="datatable-detail-row"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['detail']; when: isRowExpanded" 
+                class="datatable-detail-row" 
+                [class.hide-detail-header]="!includeDetailRowHeader"></tr>
         }
     </table>
 </div>
