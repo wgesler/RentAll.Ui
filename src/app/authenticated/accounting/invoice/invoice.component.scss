@@ -55,9 +55,8 @@
     }
   }
 
-  // Chart of Account and Transaction Type dropdowns with left-aligned arrow
-  .cost-code-select,
-  .transaction-type-select {
+  // Cost Center dropdown with left-aligned arrow
+  .cost-code-select {
     width: 100%;
     
     ::ng-deep {
@@ -67,7 +66,7 @@
         align-items: center;
         justify-content: space-between;
         padding-left: 0;
-        padding-right: 0;
+        padding-right: 1.5rem; // Padding after the dropdown arrow
         
         .mat-mdc-select-value {
           flex: 1;

@@ -125,8 +125,8 @@
                       <thead>
                         <tr class="border-b">
                           <th class="text-left p-2">No</th>
-                          <th class="text-left p-2" style="width: 180px;">Chart of Account</th>
-                          <th class="text-left p-2" style="width: 140px;">Transaction</th>
+                          <th class="text-left p-2" style="width: 220px;">Cost Center</th>
+                          <th class="text-left p-2" style="width: 180px;">Type</th>
                           <th class="text-left p-2">Description</th>
                           <th class="text-left p-2">Amount</th>
                           <th class="text-right p-2" style="width: 50px;"></th>
@@ -136,7 +136,7 @@
                         @for (line of ledgerLines; track line.Id; let i = $index) {
                           <tr class="border-b">
                             <td class="p-2">{{ i + 1 }}</td>
-                            <td class="p-2">
+                            <td class="p-2 cost-center-cell">
                               <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 
                                 (selectionChange)="onCostCodeChange(i, $event.value)"
                                 class="w-full cost-code-select">
@@ -146,35 +146,20 @@
                                 }
                               </mat-select>
                             </td>
-                            <td class="p-2">
-                              <mat-select [value]="getTransactionTypeId(line)"
-                                (selectionChange)="onTransactionTypeChange(i, $event.value)"
-                                class="w-full transaction-type-select">
-                                <mat-option [value]="null">Select Transaction Type</mat-option>
-                                @for (type of transactionTypes; track type.value) {
-                                  <mat-option [value]="type.value">{{ type.label }}</mat-option>
-                                }
-                              </mat-select>
+                            <td class="p-2 type-cell">
+                              {{ line.transactionType || '' }}
                             </td>
                             <td class="p-2">
-                              @if (line.description == null || line.description === undefined || line.description === '') {
-                                <input type="text" class="w-full p-1 border rounded" 
-                                  [value]="''"
-                                  (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
-                              } @else {
-                                {{ line.description }}
-                              }
+                              <input type="text" class="w-full p-1 border rounded" 
+                                [value]="line.description || ''"
+                                (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                             </td>
                             <td class="p-2">
-                              @if (line.amount == null || line.amount === undefined) {
-                                <input type="text" class="w-full p-1 border rounded" 
-                                  [value]="''"
-                                  (input)="onLedgerAmountInput($event, i)"
-                                  (focus)="onLedgerAmountFocus($event, i)"
-                                  (blur)="onLedgerAmountBlur($event, i)">
-                              } @else {
-                                <span>${{ formatter.currency(line.amount) }}</span>
-                              }
+                              <input type="text" class="w-full p-1 border rounded" 
+                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                                (input)="onLedgerAmountInput($event, i)"
+                                (focus)="onLedgerAmountFocus($event, i)"
+                                (blur)="onLedgerAmountBlur($event, i)">
                             </td>
                             <td class="p-2 text-right">
                               <button mat-icon-button type="button" (click)="removeLedgerLine(i)" 

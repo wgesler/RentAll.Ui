@@ -14,7 +14,7 @@ export interface InvoiceRequest {
   paidAmount: number;
   notes?: string | null;
   isActive: boolean;
-  LedgerLines?: LedgerLineRequest[];
+  ledgerLines?: LedgerLineRequest[];
 }
 
 export interface InvoiceResponse {
@@ -30,7 +30,7 @@ export interface InvoiceResponse {
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
-  LedgerLines: LedgerLineResponse[];
+  ledgerLines: LedgerLineResponse[];
   isActive: boolean;
   createdOn: string;
   createdBy: string;
@@ -51,13 +51,13 @@ export interface InvoiceListDisplay {
   totalAmount: number;
   paidAmount: number;
   isActive: boolean;
-  LedgerLines: LedgerLineResponse[];
+  ledgerLines: LedgerLineResponse[];
 }
 
 export interface InvoiceMonthlyDataResponse {
   invoice: string;
   ReservationId: string;
-  LedgerLines: LedgerLineResponse[];
+  ledgerLines: LedgerLineResponse[];
 }
 
 // LedgerLine models
@@ -83,8 +83,10 @@ export interface LedgerLineResponse {
 
 export interface LedgerLineListDisplay {
   Id: number;
-  costCodeId: string | null;
+  costCodeId: string | null; // ID reference for dropdowns and saving
+  costCode: string | null; // Display value retrieved from CostCodes
   transactionType: string;
   description: string;
   amount: number;
+  isNew?: boolean; // Track if this is a newly added line (should remain editable)
 }

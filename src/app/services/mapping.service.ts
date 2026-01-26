@@ -493,17 +493,74 @@ export class MappingService {
     });
   }
 
-  mapLedgerLines(ledgerLines: LedgerLineResponse[]): LedgerLineListDisplay[] {
+  mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], officeId?: number): LedgerLineListDisplay[] {
+    console.log('mapLedgerLines called', { 
+      ledgerLinesCount: ledgerLines?.length, 
+      costCodesCount: costCodes?.length, 
+      officeId 
+    });
+    
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
-      // Map transactionTypeId (number) to TransactionType enum and convert to string label
-      const transactionTypeEnum = line.transactionTypeId as TransactionType;
-      return {
+      console.log('Processing ledger line:', { 
+        ledgerLineId: line.ledgerLineId, 
+        costCodeId: line.costCodeId, 
+        transactionTypeId: line.transactionTypeId 
+      });
+      
+      const costCodeId = line.costCodeId || null;
+      let matchingCostCode: CostCodesResponse | undefined = undefined;
+      let costCode: string | null = null;
+      let transactionTypeId: number | undefined = undefined;
+      
+      if (costCodeId && costCodes && costCodes.length > 0) {
+        console.log('Looking up costCodeId:', costCodeId, 'in costCodes array');
+        matchingCostCode = officeId 
+          ? costCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId)
+          : costCodes.find(c => c.costCodeId === costCodeId);
+        
+        console.log('Matching CostCode found:', matchingCostCode);
+        
+        if (matchingCostCode) {
+          costCode = matchingCostCode.costCode || null;
+          transactionTypeId = matchingCostCode.transactionTypeId;
+          console.log('From CostCode object:', { 
+            costCode, 
+            transactionTypeId 
+          });
+        } else {
+          console.log('No matching CostCode found for costCodeId:', costCodeId);
+        }
+      } else {
+        console.log('Cannot lookup - missing costCodeId or costCodes', { 
+          costCodeId, 
+          hasCostCodes: !!costCodes, 
+          costCodesLength: costCodes?.length 
+        });
+      }
+      
+      // Translate transactionTypeId from CostCode to transactionType label for display
+      const transactionTypeLabel = transactionTypeId !== undefined && transactionTypeId !== null 
+        ? this.getTransactionTypeLabel(transactionTypeId)
+        : '';
+      
+      console.log('Transaction type label:', transactionTypeLabel, 'from transactionTypeId:', transactionTypeId);
+      
+      const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
         Id: line.ledgerLineId,
-        costCodeId: line.costCodeId || null,
-        transactionType: this.getTransactionTypeLabel(transactionTypeEnum),
+        costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
+        costCode: costCode, // Display value retrieved from CostCodes
+        transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
         description: line.description || '',
-        amount: line.amount
+        amount: line.amount,
+        isNew: false // Existing lines are not new
       };
+      
+      // Preserve transactionTypeId from CostCode for reference
+      mapped.transactionTypeId = transactionTypeId;
+      
+      console.log('Mapped ledger line result:', mapped);
+      
+      return mapped;
     });
   }
 }

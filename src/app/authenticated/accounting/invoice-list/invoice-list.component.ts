@@ -245,7 +245,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => {
       // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
-      const ledgerLines = invoice['ledgerLines'] ?? [];
+      const rawLedgerLines = invoice['ledgerLines'] ?? [];
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, invoice.officeId);
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceName || '',
@@ -255,7 +256,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
-      LedgerLines: ledgerLines, // Include ledger lines in the display data (using PascalCase for template)
+      LedgerLines: mappedLedgerLines, 
       expandClick: (event: Event, item: any) => {
         event.stopPropagation();
         if (this.expandedInvoices.has(item.invoiceId)) {
@@ -438,9 +439,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       case 'lineNo':
         return lineIndex !== undefined ? lineIndex + 1 : '-';
       case 'account':
-        return this.getCostCodeDescription(line.costCodeId, invoice.officeId);
+        return line.costCode || this.getCostCodeDescription(line.costCodeId, invoice.officeId);
       case 'transactionType':
-        return this.getTransactionTypeLabel(line.transactionTypeId ?? line.transactionType ?? 0);
+        return line.transactionType || this.getTransactionTypeLabel(line.transactionTypeId ?? 0);
       case 'reservation':
         return this.getReservationCode(line.reservationId, invoice.reservationCode);
       case 'description':

@@ -104,6 +104,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
                     if (this.selectedOffice && this.form) {
                       this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
                       this.updateAvailableReservations();
+                      this.filterCostCodes();
                       if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
                         this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
                         // Load ledger lines for the selected reservation
@@ -128,7 +129,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: (response: InvoiceResponse) => {
         this.invoice = response;
         this.buildForm();
-        this.populateForm();
+        // Load ledger lines from invoice (this will wait for cost codes internally)
+        this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
+        // populateForm is called after loadLedgerLines completes (inside the subscription)
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -164,7 +167,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     });
 
     if (incompleteLines.length > 0) {
-      this.toastr.error(`Ledger lines ${incompleteLines.join(', ')} are incomplete. All fields (Chart of Account, Transaction Type, Description, and Amount) are required.`, CommonMessage.Error);
+      this.toastr.error(`Ledger lines ${incompleteLines.join(', ')} are incomplete. All fields (Cost Code, Transaction Type, Description, and Amount) are required.`, CommonMessage.Error);
       return;
     }
 
@@ -212,7 +215,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       paidAmount: 0, // Always default to 0
       notes: formValue.notes || null,
       isActive: formValue.isActive !== undefined ? formValue.isActive : true,
-      LedgerLines: ledgerLines
+      ledgerLines: ledgerLines
     };
 
     // Determine if this is add or edit mode based on invoiceId
@@ -275,8 +278,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Get cost codes for the selected office from the observable data
-    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+    // Get all cost codes from service (already loaded on login, no need to wait)
+    const allCostCodes = this.costCodesService.getAllCostCodesValue();
+    // Filter cost codes for the selected office
+    this.costCodes = allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
     this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
         label: `${c.costCode} - ${c.description}`
@@ -318,11 +323,55 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   loadCostCodes(): void {
-     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
-         this.filterCostCodes();
-      });
+    // Subscribe to cost codes (already loaded on login, just subscribe to updates)
+    this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
+      this.filterCostCodes();
     });
+  }
+
+  loadLedgerLines(updateTotalAmount: boolean = true): void {
+    console.log('loadLedgerLines called', { invoice: this.invoice, hasLedgerLines: this.invoice?.ledgerLines?.length, hasledgerLines: this.invoice?.ledgerLines?.length });
+    // Check for both LedgerLines (PascalCase) and ledgerLines (camelCase) - API may return either
+    const rawLedgerLines = this.invoice?.ledgerLines || this.invoice?.ledgerLines || [];
+    if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
+      console.log('No invoice or ledger lines, setting empty array');
+      this.ledgerLines = [];
+      if (updateTotalAmount) {
+        this.form.get('totalAmount')?.setValue('0.00', { emitEvent: false });
+      }
+      // If called from getInvoice (updateTotalAmount is false), call populateForm
+      if (!updateTotalAmount && this.form) {
+        this.populateForm();
+      }
+      return;
+    }
+    
+    // Store ledger lines - map to display model
+    console.log('Raw ledger lines from invoice:', rawLedgerLines);
+    // Get all cost codes (already loaded on login, no need to wait)
+    const allCostCodes = this.costCodesService.getAllCostCodesValue();
+    console.log('All cost codes available:', allCostCodes.length);
+    // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
+    const officeId = this.invoice.officeId || this.selectedOffice?.officeId || this.form.get('officeId')?.value;
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId);
+    console.log('Mapped ledger lines:', this.ledgerLines);
+    // transactionTypeId is already preserved in the mapped object by the mapping service
+    // Ensure all existing ledger lines have isNew: false so they display correctly
+    this.ledgerLines.forEach(line => {
+      if (line.isNew === undefined) {
+        (line as any).isNew = false;
+      }
+    });
+    
+    // Calculate total amount from ledger lines and update the form
+    if (updateTotalAmount) {
+      this.updateTotalAmount();
+    }
+    
+    // If called from getInvoice (updateTotalAmount is false), call populateForm after ledger lines are loaded
+    if (!updateTotalAmount && this.form) {
+      this.populateForm();
+    }
   }
 
   loadMonthlyLedgerLines(reservationId: string, updateTotalAmount: boolean = true): void {
@@ -333,19 +382,21 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.form.get('invoiceTotal')?.setValue(invoiceString, { emitEvent: false });
         
         // Store ledger lines - map to display model
-        const rawLedgerLines = response.LedgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
-        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines);
-        // Preserve transactionTypeId for each line item (needed for dropdowns and saving)
-        rawLedgerLines.forEach((rawLine: LedgerLineResponse, index: number) => {
-          if (this.ledgerLines[index]) {
-            (this.ledgerLines[index] as any).transactionTypeId = rawLine.transactionTypeId;
+        const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
+        // Wait for cost codes to be loaded before mapping ledger lines
+        this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+          // Get all cost codes (not filtered by office yet) for mapping
+          const allCostCodes = this.costCodesService.getAllCostCodesValue();
+          // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
+          const officeId = this.selectedOffice?.officeId || this.form.get('officeId')?.value;
+          this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId);
+          // transactionTypeId is already preserved in the mapped object by the mapping service
+        
+          // Calculate total amount from ledger lines and update the form
+          if (updateTotalAmount) {
+            this.updateTotalAmount();
           }
         });
-        
-        // Calculate total amount from ledger lines and update the form
-        if (updateTotalAmount) {
-          this.updateTotalAmount();
-        }
       },
       error: (err: HttpErrorResponse) => {
         // On error, reset to empty string for invoice (since it's a string)
@@ -435,11 +486,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         }
       }, 100);
       
-      // Load monthly ledger lines if reservation exists (without updating totalAmount in edit mode)
-      if (this.invoice.reservationId) {
-        this.loadMonthlyLedgerLines(this.invoice.reservationId, false); // Don't overwrite totalAmount in edit mode
-      } else {
-        // Set invoiceTotal to empty string if no reservation (since it's a string field)
+      // In edit mode, ledger lines are already loaded from getInvoice() - don't call loadMonthlyLedgerLines
+      // Only set invoiceTotal if no reservation (since it's a string field)
+      if (!this.invoice.reservationId) {
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
       }
     }
@@ -554,8 +603,24 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   onCostCodeChange(index: number, costCodeId: string | null): void {
     if (costCodeId === null || costCodeId === undefined) {
       this.updateLedgerLineField(index, 'costCodeId', null);
+      this.updateLedgerLineField(index, 'costCode', null);
+      // Clear transactionTypeId when cost code is cleared
+      (this.ledgerLines[index] as any).transactionTypeId = undefined;
+      this.updateLedgerLineField(index, 'transactionType', '');
     } else {
       this.updateLedgerLineField(index, 'costCodeId', costCodeId);
+      // Find the cost code and update costCode display value and transactionTypeId
+      const matchingCostCode = this.costCodes.find(c => c.costCodeId === costCodeId);
+      if (matchingCostCode) {
+        this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
+        // Update transactionTypeId from CostCode
+        (this.ledgerLines[index] as any).transactionTypeId = matchingCostCode.transactionTypeId;
+        // Update transactionType display value
+        const transactionType = this.transactionTypes.find(t => t.value === matchingCostCode.transactionTypeId);
+        if (transactionType) {
+          this.updateLedgerLineField(index, 'transactionType', transactionType.label);
+        }
+      }
     }
   }
 
@@ -578,18 +643,31 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   //#region Ledger Lines
   onLedgerAmountInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
-    // Use FormatterService to handle decimal input formatting
-    const value = input.value.replace(/[$,]/g, '');
-    const numValue = parseFloat(value) || null;
-    this.updateLedgerLineField(index, 'amount', numValue);
+    // Strip non-numeric characters except decimal point (same as Daily Rate formatDecimalInput)
+    const value = input.value.replace(/[^0-9.]/g, '');
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      input.value = parts[0] + '.' + parts.slice(1).join('');
+    } else {
+      input.value = value;
+    }
+    
+    // DON'T update line.amount during typing - just sanitize the input value
+    // This matches the property component behavior where form control stores raw string
+    // The input manages its own value during typing, we'll parse and update the model on blur only
   }
 
   onLedgerAmountFocus(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
     const line = this.ledgerLines[index];
-    if (line && line.amount != null) {
-      input.value = line.amount.toFixed(2);
-      input.select();
+    // Set initial value on focus - show raw number without formatting (same as Daily Rate)
+    if (line && line.amount != null && line.amount !== undefined) {
+      input.value = line.amount.toString();
+      input.select(); // Select all text (same as selectAllOnFocus)
+    } else {
+      input.value = '';
     }
   }
 
@@ -597,8 +675,32 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const line = this.ledgerLines[index];
     if (line) {
-      const value = parseFloat(input.value.replace(/[$,]/g, '')) || null;
-      line.amount = value;
+      // Parse and format exactly like formatDecimalControl
+      const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+      let numValue: number;
+      let formattedValue: string;
+      
+      if (rawValue !== '' && rawValue !== null) {
+        const parsed = parseFloat(rawValue);
+        if (!isNaN(parsed)) {
+          // Format to 2 decimal places (same as formatDecimalControl)
+          formattedValue = parsed.toFixed(2);
+          numValue = parseFloat(formattedValue);
+        } else {
+          formattedValue = '0.00';
+          numValue = 0;
+        }
+      } else {
+        formattedValue = '0.00';
+        numValue = 0;
+      }
+      
+      // Update the input display value
+      input.value = formattedValue;
+      
+      // Update the model
+      line.amount = numValue;
+      
       // Recalculate total
       this.updateTotalAmount();
     }
@@ -609,9 +711,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const newLine: LedgerLineListDisplay = {
       Id: 0, // Temporary ID, will be assigned when saved
       costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
+      costCode: null, // Will be populated when costCodeId is selected
       transactionType: '', // Empty string for display
       description: '', // Empty string makes it editable per HTML template check
-      amount: undefined as any // undefined makes it editable per HTML template check
+      amount: undefined as any, // undefined makes it editable per HTML template check
+      isNew: true // Mark as new so it remains editable
     };
     // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
     (newLine as any).transactionTypeId = undefined;
@@ -710,15 +814,26 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
-    const officeId = queryParams['officeId'];
+    let officeId = queryParams['officeId'];
     const reservationId = queryParams['reservationId'];
     const params: string[] = [];
+    
+    // If officeId not in query params but invoice has officeId, use that to preserve the filter
+    if (!officeId && this.invoice && this.invoice.officeId) {
+      officeId = this.invoice.officeId.toString();
+    }
+    
+    // Always preserve officeId if it exists
     if (officeId) {
       params.push(`officeId=${officeId}`);
     }
+    
+    // Preserve reservationId if it exists
     if (reservationId) {
       params.push(`reservationId=${reservationId}`);
     }
+    
+    // Navigate back with query params (always include officeId if available)
     if (params.length > 0) {
       this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
     } else {
