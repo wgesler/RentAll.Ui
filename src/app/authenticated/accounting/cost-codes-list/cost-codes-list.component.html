@@ -5,7 +5,7 @@
         <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
           <div class="flex items-baseline">
             <mat-icon mat-list-icon class="mr-5">account_tree</mat-icon>
-            <h2 class="m-0">Chart of Accounts</h2>
+            <h2 class="m-0">Cost Codes</h2>
           </div>
         </div>
         <mat-card>
@@ -14,18 +14,18 @@
             <div class="flex justify-between gap-8 items-center mt-4 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Office</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
                   <mat-option [value]="null">All Offices</mat-option>
                   @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    <mat-option [value]="office">{{ office.name }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
               <div class="flex justify-end items-center gap-5">
-                <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
                   Inactive
                 </mat-slide-toggle>
-                <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="addChartOfAccount()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+                <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" [disabled]="!selectedOffice" class="whitespace-nowrap items-center flex gap-1">
                   <mat-icon class="text-base">add</mat-icon>
                   <span>Add</span>
                 </button>
@@ -34,8 +34,8 @@
             <!-- Filter and data table below -->
             <div class="tableDiv">
               <app-data-table
-                [data]="chartOfAccountsDisplay"
-                [columns]="chartOfAccountsDisplayedColumns"
+                [data]="costCodesDisplay"
+                [columns]="costCodesDisplayedColumns"
                 [hasColumnIndex]="false"
                 [hasFilter]="true"
                 [hasToggleTop]="false"
@@ -43,9 +43,9 @@
                 [hasActionsEdit]="true"
                 [hasActionsDelete]="true"
                 [itemsPerPage]="100"
-                (editEvent)="goToChartOfAccount($event)"
-                (rowClickEvent)="goToChartOfAccount($event)"
-                (deleteEvent)="deleteChartOfAccount($event)"/>
+                (editEvent)="goToCostCode($event)"
+                (rowClickEvent)="goToCostCode($event)"
+                (deleteEvent)="deleteCostCode($event)"/>
             </div>
           </div>
         </mat-card>
@@ -58,18 +58,18 @@
         <div class="flex justify-between gap-8 items-center mt-4 px-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>Office</mat-label>
-            <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
               <mat-option [value]="null">All Offices</mat-option>
               @for (office of offices; track office.officeId) {
-                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                <mat-option [value]="office">{{ office.name }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
           <div class="flex justify-end items-center gap-5">
-            <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+            <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
               Inactive
             </mat-slide-toggle>
-            <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="addChartOfAccount()" class="whitespace-nowrap items-center flex gap-1">
+            <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
               <mat-icon class="text-base">add</mat-icon>
               <span>Add</span>
             </button>
@@ -79,8 +79,8 @@
       <!-- Filter and data table below -->
       <div class="tableDiv">
         <app-data-table
-          [data]="chartOfAccountsDisplay"
-          [columns]="chartOfAccountsDisplayedColumns"
+          [data]="costCodesDisplay"
+          [columns]="costCodesDisplayedColumns"
           [hasColumnIndex]="false"
           [hasFilter]="true"
           [hasToggleTop]="false"
@@ -88,15 +88,15 @@
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
           [itemsPerPage]="100"
-          (editEvent)="goToChartOfAccount($event)"
-          (rowClickEvent)="goToChartOfAccount($event)"
-          (deleteEvent)="deleteChartOfAccount($event)"/>
+          (editEvent)="goToCostCode($event)"
+          (rowClickEvent)="goToCostCode($event)"
+          (deleteEvent)="deleteCostCode($event)"/>
       </div>
     </div>
   }
 } @else {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading chart of accounts...</p>
+    <p>Loading cost codes...</p>
   </div>
 }

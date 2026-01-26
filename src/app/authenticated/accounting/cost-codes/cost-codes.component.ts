@@ -3,28 +3,28 @@ import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angu
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
-import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { CostCodesService } from '../services/cost-codes.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { ChartOfAccountsResponse, ChartOfAccountsRequest } from '../models/chart-of-accounts.model';
+import { CostCodesResponse, CostCodesRequest } from '../models/cost-codes.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
-import { AccountingType } from '../models/accounting-enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
+import { TransactionType } from '../models/accounting-enum';
 
 @Component({
-  selector: 'app-chart-of-accounts',
+  selector: 'app-cost-codes',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './chart-of-accounts.component.html',
-  styleUrl: './chart-of-accounts.component.scss'
+  templateUrl: './cost-codes.component.html',
+  styleUrl: './cost-codes.component.scss'
 })
 
-export class ChartOfAccountsComponent implements OnInit, OnDestroy {
+export class CostCodesComponent implements OnInit, OnDestroy {
   @Input() id: string | number | null = null; // Input to accept id from parent (for embedded mode)
   @Input() officeId: number | null = null; // Input to accept officeId from parent (for embedded mode)
   @Input() embeddedMode: boolean = false; // If true, component is embedded in parent
@@ -32,26 +32,25 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful (for embedded mode)
   
   isServiceError: boolean = false;
-  chartOfAccountId: string;
-  chartOfAccount: ChartOfAccountsResponse;
+  costCodeId: string;
+  costCode: CostCodesResponse;
   form: FormGroup;
   fromAccountingTab: boolean = false; // Track if navigated from Accounting tab
   fromOffice: boolean = false; // Track if navigated from Office component (embedded)
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  
+  transactionTypes: { value: number, label: string }[] = [];
+ 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
-  
-  accountTypes: { value: number, label: string }[] = [];
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccount', 'offices']));
+   
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
-    public chartOfAccountsService: ChartOfAccountsService,
+    public costCodesService: CostCodesService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
@@ -62,9 +61,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   ) {
   }
 
-  //#region ChartOfAccount
+  //#region CostCode
   ngOnInit(): void {
-    this.initializeAccountTypes();
+    this.initializeTransactionTypes();
     this.buildForm(); // Build form once in ngOnInit
     this.loadOffices();
     
@@ -78,19 +77,19 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         if (this.id) {
           const idStr = this.id.toString();
           this.isAddMode = idStr === 'new';
-          this.updateAccountIdValidators(); // Update validators based on mode
+          this.updateCostCodeValidators(); // Update validators based on mode
           if (this.isAddMode) {
-            this.removeLoadItem('chartOfAccount');
+            this.removeLoadItem('costCode');
           } else {
-            this.chartOfAccountId = idStr;
+            this.costCodeId = idStr;
             if (this.selectedOffice) {
-              this.getChartOfAccount();
+              this.getCostCode();
             } else if (this.offices.length > 0) {
               // If no officeId provided, try with first office as fallback
               this.selectedOffice = this.offices[0];
-              this.getChartOfAccount();
+              this.getCostCode();
             } else {
-              this.removeLoadItem('chartOfAccount');
+              this.removeLoadItem('costCode');
             }
           }
         }
@@ -129,16 +128,16 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
           const idParam = paramMap.get('id');
           this.isAddMode = idParam === 'new';
           if (this.isAddMode) {
-            this.removeLoadItem('chartOfAccount');
+            this.removeLoadItem('costCode');
             // Form already built, no need to rebuild
           } else {
-            this.chartOfAccountId = idParam || '';
+            this.costCodeId = idParam || '';
             if (this.selectedOffice) {
-              this.getChartOfAccount();
+              this.getCostCode();
             } else if (this.offices.length > 0) {
               // If no officeId in query params, use first office
               this.selectedOffice = this.offices[0];
-              this.getChartOfAccount();
+              this.getCostCode();
             }
           }
         }
@@ -146,13 +145,13 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     });
   }
 
-  getChartOfAccount(): void {
-    if (!this.selectedOffice || !this.chartOfAccountId) {
+  getCostCode(): void {
+    if (!this.selectedOffice || !this.costCodeId) {
       return;
     }
-    this.chartOfAccountsService.getChartOfAccountById(this.chartOfAccountId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.removeLoadItem('chartOfAccount'); })).subscribe({
-      next: (response: ChartOfAccountsResponse) => {
-        this.chartOfAccount = response;
+    this.costCodesService.getCostCodeById(this.costCodeId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.removeLoadItem('costCode'); })).subscribe({
+      next: (response: CostCodesResponse) => {
+        this.costCode = response;
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
@@ -164,7 +163,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     });
   }
 
-  saveChartOfAccount(): void {
+  saveCostCode(): void {
     if (!this.form.valid) {
       this.form.markAllAsTouched();
       return;
@@ -183,28 +182,28 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     // Ensure officeId is a number (already checked for null/0 above)
     const officeIdNumber: number = this.selectedOffice.officeId;
 
-    const chartOfAccountRequest: ChartOfAccountsRequest = {
-      chartOfAccountId: this.isAddMode ? undefined : this.chartOfAccountId,
+    const costCodeRequest: CostCodesRequest = {
+      costCodeId: this.isAddMode ? undefined : this.costCodeId,
       organizationId: user?.organizationId || '',
       officeId: officeIdNumber,
-      accountId: parseInt(formValue.accountId, 10),
+      costCode: formValue.costCode || '',
+      transactionTypeId: parseInt(formValue.transactionTypeId, 10),
       description: formValue.description || '',
-      accountType: parseInt(formValue.accountType, 10),
       isActive: formValue.isActive !== false
     };
 
     if (this.isAddMode) {
-      this.chartOfAccountsService.createChartOfAccount(chartOfAccountRequest).pipe(
+      this.costCodesService.createCostCode(costCodeRequest).pipe(
         take(1), 
         finalize(() => this.isSubmitting = false)
       ).subscribe({
-        next: (response: ChartOfAccountsResponse | null) => {
+        next: (response: CostCodesResponse | null) => {
           // Handle successful response (even if body is empty/null)
-          this.toastr.success('Chart of Account created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.toastr.success('Cost Code created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           
-          // Refresh chart of accounts for the office
+          // Refresh cost codes for the office
           if (this.selectedOffice) {
-            this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+            this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
           }
           
           // Clear form for another entry (don't navigate back)
@@ -217,20 +216,20 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
           if (err.status && (err.status >= 500 || (err.status >= 400 && err.status < 500 && err.status !== 400))) {
-            this.toastr.error('Create chart of account request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            this.toastr.error('Create cost code request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
           // For 400 errors, the API should return validation errors in the response body
           // which can be handled separately if needed
         }
       });
     } else {
-      this.chartOfAccountsService.updateChartOfAccount(chartOfAccountRequest).pipe(
+      this.costCodesService.updateCostCode(costCodeRequest).pipe(
         take(1), 
         finalize(() => this.isSubmitting = false)
       ).subscribe({
-        next: (response: ChartOfAccountsResponse | null) => {
+        next: (response: CostCodesResponse | null) => {
           // Handle successful response (even if body is empty/null)
-          this.toastr.success('Chart of Account updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.toastr.success('Cost Code updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (this.embeddedMode) {
             this.savedEvent.emit();
             this.back();
@@ -241,7 +240,7 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
           if (err.status && (err.status >= 500 || (err.status >= 400 && err.status < 500 && err.status !== 400))) {
-            this.toastr.error('Update chart of account request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+            this.toastr.error('Update cost code request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
           }
           // For 400 errors, the API should return validation errors in the response body
           // which can be handled separately if needed
@@ -255,27 +254,27 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   buildForm(): void {
     const user = this.authService.getUser();
 
-    // Build form with accountId as optional initially (will be set to required in add mode after isAddMode is determined)
+    // Build form with costCode as optional initially (will be set to required in add mode after isAddMode is determined)
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
-      accountId: new FormControl('', []), // Validators will be set based on mode
+      costCode: new FormControl('', []), // Validators will be set based on mode
+      transactionTypeId: new FormControl('', [Validators.required]),
       description: new FormControl('', [Validators.required]),
-      accountType: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
     
-    // Set accountId validators based on mode after form is built
-    this.updateAccountIdValidators();
+    // Set costCode validators based on mode after form is built
+    this.updateCostCodeValidators();
   }
 
   populateForm(): void {
-    if (this.chartOfAccount && this.form) {
+    if (this.costCode && this.form) {
       this.form.patchValue({
-        organizationId: this.chartOfAccount.organizationId,
-        accountId: this.chartOfAccount.accountId.toString(),
-        description: this.chartOfAccount.description || '',
-        accountType: this.chartOfAccount.accountType.toString(),
-        isActive: this.chartOfAccount.isActive !== false
+        organizationId: this.costCode.organizationId,
+        costCode: this.costCode.costCode || '',
+        transactionTypeId: this.costCode.transactionTypeId?.toString() || '',
+        description: this.costCode.description || '',
+        isActive: this.costCode.isActive !== false
       });
     }
   }
@@ -288,30 +287,25 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
       organizationId: user?.organizationId || '',
       isActive: true
     });
-    // Reset accountId field to empty
-    this.form.get('accountId')?.setValue('');
+    // Reset costCode field to empty
+    this.form.get('costCode')?.setValue('');
+    this.form.get('transactionTypeId')?.setValue('');
     this.form.get('description')?.setValue('');
-    this.form.get('accountType')?.setValue('');
     // Mark form as untouched
     this.form.markAsUntouched();
   }
   //#endregion
 
   //#region Data Load Methods
-  initializeAccountTypes(): void {
-    this.accountTypes = [
-      { value: AccountingType.Bank, label: 'Bank' },
-      { value: AccountingType.AccountsReceivable, label: 'Accounts Receivable' },
-      { value: AccountingType.OtherCurrentAsset, label: 'Other Current Asset' },
-      { value: AccountingType.FixedAsset, label: 'Fixed Asset' },
-      { value: AccountingType.AccountsPayable, label: 'Accounts Payable' },
-      { value: AccountingType.CreditCard, label: 'Credit Card' },
-      { value: AccountingType.OtherCurrentLiability, label: 'Other Current Liability' },
-      { value: AccountingType.LongTermLiability, label: 'Long Term Liability' },
-      { value: AccountingType.Equity, label: 'Equity' },
-      { value: AccountingType.Income, label: 'Income' },
-      { value: AccountingType.CostOfGoodsSold, label: 'Cost of Goods Sold' },
-      { value: AccountingType.Expense, label: 'Expense' }
+  initializeTransactionTypes(): void {
+    this.transactionTypes = [
+      { value: TransactionType.Debit, label: 'Debit' },
+      { value: TransactionType.Credit, label: 'Credit' },
+      { value: TransactionType.Payment, label: 'Payment' },
+      { value: TransactionType.Refund, label: 'Refund' },
+      { value: TransactionType.Charge, label: 'Charge' },
+      { value: TransactionType.Deposit, label: 'Deposit' },
+      { value: TransactionType.Adjustment, label: 'Adjustment' }
     ];
   }
 
@@ -339,26 +333,16 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
     return this.selectedOffice.name || '';
   }
 
-  updateAccountIdValidators(): void {
-    const accountIdControl = this.form.get('accountId');
-    if (accountIdControl) {
+  updateCostCodeValidators(): void {
+    const costCodeControl = this.form.get('costCode');
+    if (costCodeControl) {
       if (this.isAddMode) {
-        accountIdControl.setValidators([Validators.required]);
+        costCodeControl.setValidators([Validators.required]);
       } else {
-        accountIdControl.clearValidators();
+        costCodeControl.clearValidators();
       }
-      accountIdControl.updateValueAndValidity();
+      costCodeControl.updateValueAndValidity();
     }
-  }
-
-  onAccountNoKeyPress(event: KeyboardEvent): boolean {
-    const charCode = event.which ? event.which : event.keyCode;
-    // Allow only numbers (0-9)
-    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
-      event.preventDefault();
-      return false;
-    }
-    return true;
   }
   //#endregion
 
@@ -378,9 +362,9 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    // Refresh chart of accounts when navigating back
+    // Refresh cost codes when navigating back
     if (this.selectedOffice) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
     }
     
     // If in embedded mode, emit event instead of navigating
@@ -394,20 +378,20 @@ export class ChartOfAccountsComponent implements OnInit, OnDestroy {
       const url = RouterUrl.replaceTokens(RouterUrl.Office, [this.selectedOffice.officeId.toString()]);
       this.router.navigateByUrl(url);
     } else if (this.fromAccountingTab) {
-      // If navigated from Accounting tab, go back to Accounting list with Chart Of Accounts tab selected
+      // If navigated from Accounting tab, go back to Accounting list with Cost Codes tab selected
       const url = RouterUrl.AccountingList;
       const queryParams: string[] = [];
       if (this.selectedOffice) {
         queryParams.push('officeId=' + this.selectedOffice.officeId);
       }
-      queryParams.push('tab=chartOfAccounts');
+      queryParams.push('tab=costCodes');
       this.router.navigateByUrl(url + (queryParams.length > 0 ? '?' + queryParams.join('&') : ''));
     } else {
-      // Navigate back to Chart Of Accounts list with officeId query parameter if available
+      // Navigate back to Cost Codes list with officeId query parameter if available
       if (this.selectedOffice) {
-        this.router.navigateByUrl(RouterUrl.ChartOfAccountsList + '?officeId=' + this.selectedOffice.officeId);
+        this.router.navigateByUrl(RouterUrl.CostCodesList + '?officeId=' + this.selectedOffice.officeId);
       } else {
-        this.router.navigateByUrl(RouterUrl.ChartOfAccountsList);
+        this.router.navigateByUrl(RouterUrl.CostCodesList);
       }
     }
   }

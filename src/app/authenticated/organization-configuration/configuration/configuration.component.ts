@@ -14,8 +14,8 @@ import { AreaListComponent } from '../area/area-list/area-list.component';
 import { AreaComponent } from '../area/area/area.component';
 import { BuildingListComponent } from '../building/building-list/building-list.component';
 import { BuildingComponent } from '../building/building/building.component';
-import { ChartOfAccountsListComponent } from '../../accounting/chart-of-accounts-list/chart-of-accounts-list.component';
-import { ChartOfAccountsComponent } from '../../accounting/chart-of-accounts/chart-of-accounts.component';
+import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
+import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.component';
 import { ColorListComponent } from '../color/color-list/color-list.component';
 import { ColorComponent } from '../color/color/color.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
@@ -41,8 +41,8 @@ import { take, finalize } from 'rxjs';
     AreaComponent,
     BuildingListComponent,
     BuildingComponent,
-    ChartOfAccountsListComponent,
-    ChartOfAccountsComponent,
+    CostCodesListComponent,
+    CostCodesComponent,
     ColorListComponent,
     ColorComponent
   ],
@@ -56,7 +56,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     regions: false,
     area: false,
     building: false,
-    chartOfAccounts: false,
+    costCodes: false,
     color: false
   };
   isEditingAgent: boolean = false;
@@ -69,12 +69,12 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   areaId: string | number | null = null;
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
-  isEditingChartOfAccounts: boolean = false;
-  chartOfAccountsId: string | number | null = null;
-  chartOfAccountsOfficeId: number | null = null;
-  chartOfAccountsOffices: OfficeResponse[] = [];
-  selectedChartOfAccountsOfficeId: number | null = null;
-  showInactiveChartOfAccounts: boolean = false;
+  isEditingCostCodes: boolean = false;
+  costCodesId: string | number | null = null;
+  costCodesOfficeId: number | null = null;
+  costCodesOffices: OfficeResponse[] = [];
+  selectedCostCodesOfficeId: number | null = null;
+  showInactiveCostCodes: boolean = false;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
 
@@ -89,29 +89,29 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
-    // Load offices for Chart of Accounts dropdown
-    this.loadChartOfAccountsOffices();
+    // Load offices for Cost Codes dropdown
+    this.loadCostCodesOffices();
   }
 
-  loadChartOfAccountsOffices(): void {
+  loadCostCodesOffices(): void {
     this.officeService.getOffices().pipe(take(1)).subscribe({
       next: (offices) => {
-        this.chartOfAccountsOffices = offices || [];
+        this.costCodesOffices = offices || [];
       },
       error: (err) => {
-        console.error('Error loading offices for Chart of Accounts:', err);
+        console.error('Error loading offices for Cost Codes:', err);
       }
     });
   }
 
-  onChartOfAccountsOfficeChange(): void {
-    // When office changes, update the officeId for chart of accounts
-    // The chart-of-accounts-list component will detect the change via ngOnChanges and make the API call
-    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+  onCostCodesOfficeChange(): void {
+    // When office changes, update the officeId for cost codes
+    // The cost-codes-list component will detect the change via ngOnChanges and make the API call
+    this.costCodesOfficeId = this.selectedCostCodesOfficeId;
   }
 
-  toggleInactiveChartOfAccounts(): void {
-    this.showInactiveChartOfAccounts = !this.showInactiveChartOfAccounts;
+  toggleInactiveCostCodes(): void {
+    this.showInactiveCostCodes = !this.showInactiveCostCodes;
   }
 
   // Event handlers for child components
@@ -181,34 +181,34 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.isEditingBuilding = false;
   }
 
-  onChartOfAccountsAdd(): void {
-    this.chartOfAccountsId = 'new';
-    this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
-    this.isEditingChartOfAccounts = true;
-    if (this.isEditingChartOfAccounts) {
-      this.expandedSections.chartOfAccounts = true;
+  onCostCodesAdd(): void {
+    this.costCodesId = 'new';
+    this.costCodesOfficeId = this.selectedCostCodesOfficeId;
+    this.isEditingCostCodes = true;
+    if (this.isEditingCostCodes) {
+      this.expandedSections.costCodes = true;
     }
   }
 
-  onChartOfAccountsEdit(event: string | { chartOfAccountId: string, officeId: number | null }): void {
+  onCostCodesEdit(event: string | { costCodeId: string, officeId: number | null }): void {
     // Handle both old format (string) and new format (object)
     if (typeof event === 'string') {
-      this.chartOfAccountsId = event;
-      this.chartOfAccountsOfficeId = this.selectedChartOfAccountsOfficeId;
+      this.costCodesId = event;
+      this.costCodesOfficeId = this.selectedCostCodesOfficeId;
     } else {
-      this.chartOfAccountsId = event.chartOfAccountId;
-      this.chartOfAccountsOfficeId = event.officeId || this.selectedChartOfAccountsOfficeId;
+      this.costCodesId = event.costCodeId;
+      this.costCodesOfficeId = event.officeId || this.selectedCostCodesOfficeId;
     }
-    this.isEditingChartOfAccounts = true;
-    if (this.isEditingChartOfAccounts) {
-      this.expandedSections.chartOfAccounts = true;
+    this.isEditingCostCodes = true;
+    if (this.isEditingCostCodes) {
+      this.expandedSections.costCodes = true;
     }
   }
 
-  onChartOfAccountsBack(): void {
-    this.chartOfAccountsId = null;
-    this.chartOfAccountsOfficeId = null;
-    this.isEditingChartOfAccounts = false;
+  onCostCodesBack(): void {
+    this.costCodesId = null;
+    this.costCodesOfficeId = null;
+    this.isEditingCostCodes = false;
   }
 
   onColorSelected(colorId: string | number | null): void {

@@ -5,6 +5,7 @@ export enum TransactionType {
   Refund = 3,
   Charge = 4,
   Deposit = 5,
+  Sdw = 6,
   Adjustment = 6
 }
 

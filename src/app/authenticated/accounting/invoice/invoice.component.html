@@ -103,13 +103,7 @@
               <!-- Total Amount -->
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Total Amount</mat-label>
-                <input matInput type="text" formControlName="totalAmount" required
-                  (input)="onAmountInput($event, 'totalAmount')"
-                  (focus)="onAmountFocus($event, 'totalAmount')"
-                  (blur)="onAmountBlur($event, 'totalAmount')">
-                @if (form.get('totalAmount')?.hasError('required') && form.get('totalAmount')?.touched) {
-                  <mat-error>Total Amount is required</mat-error>
-                }
+                <input matInput type="text" formControlName="totalAmount" readonly class="readonly-field">
               </mat-form-field>
 
 
@@ -143,12 +137,12 @@
                           <tr class="border-b">
                             <td class="p-2">{{ i + 1 }}</td>
                             <td class="p-2">
-                              <mat-select [value]="line.chartOfAccountId && line.chartOfAccountId !== null && line.chartOfAccountId !== '' ? line.chartOfAccountId : null" 
-                                (selectionChange)="onChartOfAccountChange(i, $event.value)"
-                                class="w-full chart-of-account-select">
-                                <mat-option [value]="null">Select Chart of Account</mat-option>
-                                @for (account of availableChartOfAccounts; track account.value) {
-                                  <mat-option [value]="account.value">{{ account.label }}</mat-option>
+                              <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 
+                                (selectionChange)="onCostCodeChange(i, $event.value)"
+                                class="w-full cost-code-select">
+                                <mat-option [value]="null">Select Cost Code</mat-option>
+                                @for (costCode of availableCostCodes; track costCode.value) {
+                                  <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
                                 }
                               </mat-select>
                             </td>

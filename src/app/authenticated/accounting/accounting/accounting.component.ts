@@ -3,19 +3,19 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
-import { ChartOfAccountsListComponent } from '../chart-of-accounts-list/chart-of-accounts-list.component';
-import { ChartOfAccountsComponent } from '../chart-of-accounts/chart-of-accounts.component';
+import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
+import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { filter, take, Subscription } from 'rxjs';
-import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
   selector: 'app-accounting',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, InvoiceListComponent, ChartOfAccountsListComponent, ChartOfAccountsComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, InvoiceListComponent, CostCodesListComponent, CostCodesComponent],
   templateUrl: './accounting.component.html',
   styleUrls: ['./accounting.component.scss']
 })
@@ -23,20 +23,20 @@ export class AccountingComponent implements OnInit, OnDestroy {
   selectedTabIndex: number = 0; // Default to Invoices tab
   selectedOfficeId: number | null = null; // Shared office selection state
   
-  // Chart of Accounts controls
-  showInactiveChartOfAccounts: boolean = false;
-  chartOfAccountsOffices: OfficeResponse[] = [];
+  // Cost Codes controls
+  showInactiveCostCodes: boolean = false;
+  costCodesOffices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
   
-  // Chart of Accounts edit state
-  isEditingChartOfAccounts: boolean = false;
-  chartOfAccountsId: string | number | null = null;
-  chartOfAccountsOfficeId: number | null = null;
+  // Cost Codes edit state
+  isEditingCostCodes: boolean = false;
+  costCodesId: string | number | null = null;
+  costCodesOfficeId: number | null = null;
 
   constructor(
     private officeService: OfficeService,
     private router: Router,
-    private chartOfAccountsService: ChartOfAccountsService
+    private costCodesService: CostCodesService
   ) { }
 
   ngOnInit(): void {
@@ -48,7 +48,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.chartOfAccountsOffices = offices || [];
+        this.costCodesOffices = offices || [];
       });
     });
   }
@@ -63,41 +63,41 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.selectedOfficeId = officeId;
   }
 
-  onChartOfAccountsOfficeChange(officeId: number | null): void {
+  onCostCodesOfficeChange(officeId: number | null): void {
     this.selectedOfficeId = officeId;
   }
 
-  toggleInactiveChartOfAccounts(): void {
-    this.showInactiveChartOfAccounts = !this.showInactiveChartOfAccounts;
+  toggleInactiveCostCodes(): void {
+    this.showInactiveCostCodes = !this.showInactiveCostCodes;
   }
 
-  onChartOfAccountsAdd(): void {
-    this.chartOfAccountsId = 'new';
-    this.chartOfAccountsOfficeId = this.selectedOfficeId;
-    this.isEditingChartOfAccounts = true;
+  onCostCodesAdd(): void {
+    this.costCodesId = 'new';
+    this.costCodesOfficeId = this.selectedOfficeId;
+    this.isEditingCostCodes = true;
   }
 
-  onChartOfAccountsEdit(event: { chartOfAccountId: string, officeId: number | null }): void {
-    this.chartOfAccountsId = event.chartOfAccountId;
-    this.chartOfAccountsOfficeId = event.officeId || this.selectedOfficeId;
-    this.isEditingChartOfAccounts = true;
+  onCostCodesEdit(event: { costCodeId: string, officeId: number | null }): void {
+    this.costCodesId = event.costCodeId;
+    this.costCodesOfficeId = event.officeId || this.selectedOfficeId;
+    this.isEditingCostCodes = true;
   }
 
-  onChartOfAccountsBack(): void {
-    // Refresh chart of accounts list when navigating back
+  onCostCodesBack(): void {
+    // Refresh cost codes list when navigating back
     if (this.selectedOfficeId) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOfficeId);
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOfficeId);
     }
-    this.chartOfAccountsId = null;
-    this.chartOfAccountsOfficeId = null;
-    this.isEditingChartOfAccounts = false;
+    this.costCodesId = null;
+    this.costCodesOfficeId = null;
+    this.isEditingCostCodes = false;
   }
 
-  onChartOfAccountsSaved(): void {
-    // Refresh chart of accounts list after save (for embedded mode)
+  onCostCodesSaved(): void {
+    // Refresh cost codes list after save (for embedded mode)
     // The form will be cleared by the component itself, we just need to refresh the list
     if (this.selectedOfficeId) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOfficeId);
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOfficeId);
     }
   }
   //#endregion

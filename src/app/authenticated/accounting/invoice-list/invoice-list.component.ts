@@ -1,8 +1,8 @@
-import { OnInit, Component, OnDestroy, ChangeDetectorRef, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { InvoiceResponse, InvoiceListDisplay, LedgerLineResponse } from '../models/accounting.model';
+import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 import { AccountingService } from '../services/accounting.service';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
@@ -14,8 +14,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
-import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
+import { CostCodesService } from '../services/cost-codes.service';
+import { CostCodesResponse } from '../models/cost-codes.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
@@ -54,9 +54,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   reservationsSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
  
-  chartOfAccounts: ChartOfAccountsResponse[] = [];
-  availableChartOfAccounts: { value: string, label: string }[] = [];
-  chartOfAccountsSubscription?: Subscription;
+  costCodes: CostCodesResponse[] = [];
+  availableCostCodes: { value: string, label: string }[] = [];
+  costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
   invoicesDisplayedColumns: ColumnSet = {
@@ -87,10 +87,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public route: ActivatedRoute,
     public mappingService: MappingService,
-    private chartOfAccountsService: ChartOfAccountsService,
+    private costCodesService: CostCodesService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
-    private cdr: ChangeDetectorRef,
     private formatter: FormatterService) {
   }
 
@@ -99,7 +98,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.setupTransactions();
     this.loadOffices();
     this.loadReservations();
-    this.loadChartOfAccounts();
+    this.loadCostCodes();
     
     // Handle query params for office selection changes (works in both embedded and non-embedded modes)
     // Wait for offices to load before processing query params
@@ -116,7 +115,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               if (this.embeddedMode) {
                 this.officeIdChange.emit(this.selectedOffice.officeId);
               }
-              this.filterChartOfAccounts();
+              this.filterCostCodes();
               this.addLoadItem('invoices');
               this.getInvoices(); // Refresh invoices when returning
             }
@@ -141,7 +140,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
        if (this.offices.length > 0) {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
         if (this.selectedOffice) {
-          this.filterChartOfAccounts();
+          this.filterCostCodes();
           this.addLoadItem('invoices');
           this.getInvoices();
         } else {
@@ -169,7 +168,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addInvoice(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Accounting, ['new']));
+    const url = RouterUrl.replaceTokens(RouterUrl.Accounting, ['new']);
+    const params: string[] = [];
+    if (this.selectedOffice) {
+      params.push(`officeId=${this.selectedOffice.officeId}`);
+    }
+    if (this.selectedReservation) {
+      params.push(`reservationId=${this.selectedReservation.reservationId}`);
+    }
+    if (params.length > 0) {
+      this.router.navigateByUrl(url + `?${params.join('&')}`);
+    } else {
+      this.router.navigateByUrl(url);
+    }
   }
 
   deleteInvoice(invoice: InvoiceResponse): void {
@@ -190,8 +201,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   goToInvoice(event: InvoiceResponse): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
+    const params: string[] = [];
     if (this.selectedOffice) {
-      this.router.navigateByUrl(url + `?officeId=${this.selectedOffice.officeId}`);
+      params.push(`officeId=${this.selectedOffice.officeId}`);
+    }
+    if (this.selectedReservation) {
+      params.push(`reservationId=${this.selectedReservation.reservationId}`);
+    }
+    if (params.length > 0) {
+      this.router.navigateByUrl(url + `?${params.join('&')}`);
     } else {
       this.router.navigateByUrl(url);
     }
@@ -253,18 +271,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Dropdowns
-  filterChartOfAccounts(): void {
+  filterCostCodes(): void {
     if (!this.selectedOffice) {
-      this.chartOfAccounts = [];
-      this.availableChartOfAccounts = [];
+      this.costCodes = [];
+      this.availableCostCodes = [];
       return;
     }
     
-    // Get chart of accounts for the selected office from the observable data
-    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
-    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
-        value: account.chartOfAccountId,
-        label: `${account.accountId} - ${account.description}`
+    // Get cost codes for the selected office from the observable data
+    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+    this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode} - ${c.description}`
       }));
   }
 
@@ -305,7 +323,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         
         // Only load invoices if an office is selected
         if (this.selectedOffice) {
-          this.filterChartOfAccounts();
+          this.filterCostCodes();
           this.addLoadItem('invoices');
           this.getInvoices();
         } else {
@@ -354,10 +372,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  loadChartOfAccounts(): void {
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
-        this.filterChartOfAccounts();
+  loadCostCodes(): void {
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+        this.filterCostCodes();
       });
     });
   }
@@ -377,7 +395,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     // Only load invoices if an office is selected
     if (this.selectedOffice) {
-      this.filterChartOfAccounts();
+      this.filterCostCodes();
       this.addLoadItem('invoices');
       this.getInvoices();
     } else {
@@ -398,13 +416,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return transactionType?.label || 'Unknown';
   }
 
-  getChartOfAccountDescription(chartOfAccountId: number | string | undefined, officeId: number): string {
-    if (!chartOfAccountId) return '-';
-    let account = this.chartOfAccounts.find(
-      coa => (coa.chartOfAccountId === chartOfAccountId || coa.accountId.toString() === chartOfAccountId) && coa.officeId === officeId
+  getCostCodeDescription(costCodeId: number | string | undefined, officeId: number): string {
+    if (!costCodeId) return '-';
+    let costCode = this.costCodes.find(
+      c => (c.costCodeId === costCodeId || c.costCode?.toString() === costCodeId?.toString()) && c.officeId === officeId
     );
     
-    return account?.description || chartOfAccountId.toString();
+    return costCode?.description || costCodeId.toString();
   }
 
   getReservationCode(reservationId: string | null | undefined, invoiceReservationCode: string | null | undefined): string {    // Use the invoice's reservationCode if available, otherwise return the ID or '-'
@@ -420,7 +438,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       case 'lineNo':
         return lineIndex !== undefined ? lineIndex + 1 : '-';
       case 'account':
-        return this.getChartOfAccountDescription(line.chartOfAccountId, invoice.officeId);
+        return this.getCostCodeDescription(line.costCodeId, invoice.officeId);
       case 'transactionType':
         return this.getTransactionTypeLabel(line.transactionTypeId ?? line.transactionType ?? 0);
       case 'reservation':
@@ -464,7 +482,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
-    this.chartOfAccountsSubscription?.unsubscribe();
+    this.costCodesSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
   }

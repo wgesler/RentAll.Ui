@@ -15,45 +15,45 @@
             (officeIdChange)="onInvoiceOfficeChange($event)">
           </app-invoice-list>
         </mat-tab>
-        <mat-tab label="Chart Of Accounts">
-          @if (isEditingChartOfAccounts && chartOfAccountsId) {
-            <app-chart-of-accounts 
-              [id]="chartOfAccountsId" 
-              [officeId]="chartOfAccountsOfficeId"
+        <mat-tab label="Cost Codes">
+          @if (isEditingCostCodes && costCodesId) {
+            <app-cost-codes 
+              [id]="costCodesId" 
+              [officeId]="costCodesOfficeId"
               [embeddedMode]="true" 
-              (backEvent)="onChartOfAccountsBack()"
-              (savedEvent)="onChartOfAccountsSaved()">
-            </app-chart-of-accounts>
+              (backEvent)="onCostCodesBack()"
+              (savedEvent)="onCostCodesSaved()">
+            </app-cost-codes>
           } @else {
             <!-- Office dropdown and controls -->
             <div class="flex justify-between gap-8 items-center mt-4 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Office</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onChartOfAccountsOfficeChange(selectedOfficeId)">
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onCostCodesOfficeChange(selectedOfficeId)">
                   <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of chartOfAccountsOffices; track office.officeId) {
+                  @for (office of costCodesOffices; track office.officeId) {
                     <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
               <div class="flex justify-end items-center gap-5">
-                <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactiveChartOfAccounts" color="primary" (change)="toggleInactiveChartOfAccounts()" class="whitespace-nowrap">
+                <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
                   Inactive
                 </mat-slide-toggle>
-                <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="onChartOfAccountsAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+                <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
                   <mat-icon class="text-base">add</mat-icon>
                   <span>Add</span>
                 </button>
               </div>
             </div>
-            <app-chart-of-accounts-list 
+            <app-cost-codes-list 
               [embeddedMode]="true"
               [officeId]="selectedOfficeId"
-              [showInactiveInput]="showInactiveChartOfAccounts"
-              (officeIdChange)="onChartOfAccountsOfficeChange($event)"
-              (addChartOfAccountEvent)="onChartOfAccountsAdd()"
-              (editChartOfAccountEvent)="onChartOfAccountsEdit($event)">
-            </app-chart-of-accounts-list>
+              [showInactiveInput]="showInactiveCostCodes"
+              (officeIdChange)="onCostCodesOfficeChange($event)"
+              (addCostCodeEvent)="onCostCodesAdd()"
+              (editCostCodeEvent)="onCostCodesEdit($event)">
+            </app-cost-codes-list>
           }
         </mat-tab>
       </mat-tab-group>

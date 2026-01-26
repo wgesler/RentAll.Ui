@@ -2,13 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription, forkJoin } from 'rxjs';
 import { AccountingService } from '../services/accounting.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, LedgerLineResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/accounting.model';
+import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, LedgerLineResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
@@ -16,8 +16,8 @@ import { ReservationService } from '../../reservation/services/reservation.servi
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
-import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
-import { ChartOfAccountsResponse } from '../models/chart-of-accounts.model';
+import { CostCodesService } from '../services/cost-codes.service';
+import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 
@@ -46,9 +46,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   availableReservations: { value: string, label: string }[] = [];
   reservationIdSubscription?: Subscription;
   
-  chartOfAccounts: ChartOfAccountsResponse[] = [];
-  availableChartOfAccounts: { value: string, label: string }[] = [];
-  chartOfAccountsSubscription?: Subscription;
+  costCodes: CostCodesResponse[] = [];
+  availableCostCodes: { value: string, label: string }[] = [];
+  costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = [];
   ledgerLines: LedgerLineListDisplay[] = [];
@@ -66,7 +66,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private reservationService: ReservationService,
     private authService: AuthService,
     private mappingService: MappingService,
-    private chartOfAccountsService: ChartOfAccountsService,
+    private costCodesService: CostCodesService,
     public formatter: FormatterService
   ) {
   }
@@ -76,7 +76,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.initializeTransactionTypes();
     this.loadOffices();
     this.loadReservations();
-    this.loadChartOfAccounts();
+    this.loadCostCodes();
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.invoiceId = paramMap.get('id');
@@ -84,6 +84,37 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.removeLoadItem('invoice');
           this.buildForm();
+          // Wait for offices and reservations to load, then read query params
+          forkJoin({
+            officesLoaded: this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
+            reservationsLoaded: this.itemsToLoad$.pipe(
+              filter(items => !items.has('reservations')),
+              take(1)
+            )
+          }).subscribe(() => {
+            // Wait a tick to ensure offices and reservations arrays are populated
+            setTimeout(() => {
+              this.route.queryParams.subscribe(queryParams => {
+                const officeIdParam = queryParams['officeId'];
+                const reservationIdParam = queryParams['reservationId'];
+                if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
+                  const parsedOfficeId = parseInt(officeIdParam, 10);
+                  if (parsedOfficeId) {
+                    this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+                    if (this.selectedOffice && this.form) {
+                      this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
+                      this.updateAvailableReservations();
+                      if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
+                        this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+                        // Load ledger lines for the selected reservation
+                        this.loadMonthlyLedgerLines(reservationIdParam, true);
+                      }
+                    }
+                  }
+                }
+              });
+            }, 100);
+          });
         } else {
           this.getInvoice();
         }
@@ -123,11 +154,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
       const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const hasChartOfAccountId = line.chartOfAccountId && line.chartOfAccountId !== null && line.chartOfAccountId !== '';
+      const hasCostCodeId = line.costCodeId && line.costCodeId !== null && line.costCodeId !== '';
       const hasDescription = line.description && line.description.trim() !== '';
       const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
       
-      if (!hasTransactionTypeId || !hasChartOfAccountId || !hasDescription || !hasAmount) {
+      if (!hasTransactionTypeId || !hasCostCodeId || !hasDescription || !hasAmount) {
         incompleteLines.push(index + 1);
       }
     });
@@ -158,10 +189,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map(line => {
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.Id && line.Id !== 0 ? line.Id : undefined,
-          invoice: invoiceName || null,
-          chartOfAccountId: line.chartOfAccountId || undefined,
+          invoiceId: this.isAddMode ? undefined : this.invoiceId,
+          costCodeId: line.costCodeId || undefined,
           transactionTypeId: (line as any).transactionTypeId,
-          propertyId: null,
           reservationId: formValue.reservationId || null,
           amount: line.amount || 0,
           description: line.description || ''
@@ -200,10 +230,19 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: () => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        // Navigate back to accounting list with officeId query parameter to reload invoices for the same office
-        const officeId = formValue.officeId;
-        const navigationUrl = officeId 
-          ? `${RouterUrl.AccountingList}?officeId=${officeId}`
+        // Navigate back to accounting list with officeId and reservationId query parameters
+        const queryParams = this.route.snapshot.queryParams;
+        const officeId = queryParams['officeId'] || formValue.officeId;
+        const reservationId = queryParams['reservationId'];
+        const params: string[] = [];
+        if (officeId) {
+          params.push(`officeId=${officeId}`);
+        }
+        if (reservationId) {
+          params.push(`reservationId=${reservationId}`);
+        }
+        const navigationUrl = params.length > 0 
+          ? `${RouterUrl.AccountingList}?${params.join('&')}`
           : RouterUrl.AccountingList;
         this.router.navigateByUrl(navigationUrl);
       },
@@ -229,18 +268,18 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     ];
   }
 
-  filterChartOfAccounts(): void {
+  filterCostCodes(): void {
     if (!this.selectedOffice) {
-      this.chartOfAccounts = [];
-      this.availableChartOfAccounts = [];
+      this.costCodes = [];
+      this.availableCostCodes = [];
       return;
     }
     
-    // Get chart of accounts for the selected office from the observable data
-    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
-    this.availableChartOfAccounts = this.chartOfAccounts.filter(account => account.isActive).map(account => ({
-        value: account.chartOfAccountId,
-        label: `${account.accountId} - ${account.description}`
+    // Get cost codes for the selected office from the observable data
+    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+    this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode} - ${c.description}`
       }));
   }
   //#endregion
@@ -278,10 +317,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadChartOfAccounts(): void {
-     this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.chartOfAccountsSubscription = this.chartOfAccountsService.getAllChartOfAccounts().subscribe(accounts => {
-         this.filterChartOfAccounts();
+  loadCostCodes(): void {
+     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
+         this.filterCostCodes();
       });
     });
   }
@@ -304,17 +343,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         });
         
         // Calculate total amount from ledger lines and update the form
-        const calculatedTotal = this.calculateTotalAmount();
-        const totalControl = this.form.get('totalAmount');
-        if (totalControl) {
-          totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
-          // Format the display value after a brief delay to ensure DOM is updated
-          setTimeout(() => {
-            const input = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-            if (input && document.activeElement !== input) {
-              input.value = '$' + this.formatter.currency(calculatedTotal);
-            }
-          }, 100);
+        if (updateTotalAmount) {
+          this.updateTotalAmount();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -349,7 +379,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       dueDate: new FormControl(today),
       invoiceTotal: new FormControl({ value: '', disabled: true }), // Read-only string field
       invoiceName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
-      totalAmount: new FormControl('0.00', [Validators.required]),
+      totalAmount: new FormControl('0.00', []), // Read-only, calculated from ledger lines
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
@@ -393,8 +423,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       // Update available reservations after populating officeId
       this.updateAvailableReservations();
       
-      // Filter chart of accounts for the office
-      this.filterChartOfAccounts();
+      // Filter cost codes for the office
+      this.filterCostCodes();
       
       // Format totalAmount display
       setTimeout(() => {
@@ -426,8 +456,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       // Update available reservations based on selected office
       this.updateAvailableReservations();
       
-      // Filter chart of accounts for the selected office
-      this.filterChartOfAccounts();
+      // Filter cost codes for the selected office
+      this.filterCostCodes();
       
       // Clear selected reservation if it doesn't belong to the new office
       const currentReservationId = this.form.get('reservationId')?.value;
@@ -476,6 +506,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   updateLedgerLineField(index: number, field: keyof LedgerLineListDisplay, value: any): void {
     if (this.ledgerLines[index]) {
       (this.ledgerLines[index] as any)[field] = value;
+      // Update total amount if amount field changed
+      if (field === 'amount') {
+        this.updateTotalAmount();
+      }
       
       // If transactionType was updated from dropdown, convert the label back to the enum value for storage
       if (field === 'transactionType' && typeof value === 'string') {
@@ -517,11 +551,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
   }
 
-  onChartOfAccountChange(index: number, chartOfAccountId: string | null): void {
-    if (chartOfAccountId === null || chartOfAccountId === undefined) {
-      this.updateLedgerLineField(index, 'chartOfAccountId', null);
+  onCostCodeChange(index: number, costCodeId: string | null): void {
+    if (costCodeId === null || costCodeId === undefined) {
+      this.updateLedgerLineField(index, 'costCodeId', null);
     } else {
-      this.updateLedgerLineField(index, 'chartOfAccountId', chartOfAccountId);
+      this.updateLedgerLineField(index, 'costCodeId', costCodeId);
     }
   }
 
@@ -566,18 +600,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const value = parseFloat(input.value.replace(/[$,]/g, '')) || null;
       line.amount = value;
       // Recalculate total
-      const calculatedTotal = this.calculateTotalAmount();
-      const totalControl = this.form.get('totalAmount');
-      if (totalControl) {
-        totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
-        // Format the display value if not focused
-        setTimeout(() => {
-          const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-          if (totalInput && document.activeElement !== totalInput) {
-            totalInput.value = '$' + this.formatter.currency(calculatedTotal);
-          }
-        }, 0);
-      }
+      this.updateTotalAmount();
     }
   }
 
@@ -585,7 +608,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Create a blank ledger item with all fields null/undefined/0/empty so they appear as editable inputs
     const newLine: LedgerLineListDisplay = {
       Id: 0, // Temporary ID, will be assigned when saved
-      chartOfAccountId: null as string | null, // null makes dropdown show "Select Chart of Account"
+      costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
       transactionType: '', // Empty string for display
       description: '', // Empty string makes it editable per HTML template check
       amount: undefined as any // undefined makes it editable per HTML template check
@@ -593,24 +616,28 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
     (newLine as any).transactionTypeId = undefined;
     this.ledgerLines.push(newLine);
+    this.updateTotalAmount();
   }
 
   removeLedgerLine(index: number): void {
     if (index >= 0 && index < this.ledgerLines.length) {
       this.ledgerLines.splice(index, 1);
-      // Recalculate total after removal
-      const calculatedTotal = this.calculateTotalAmount();
-      const totalControl = this.form.get('totalAmount');
-      if (totalControl) {
-        totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
-        // Format the display value if not focused
-        setTimeout(() => {
-          const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-          if (totalInput && document.activeElement !== totalInput) {
-            totalInput.value = '$' + this.formatter.currency(calculatedTotal);
-          }
-        }, 0);
-      }
+      this.updateTotalAmount();
+    }
+  }
+
+  updateTotalAmount(): void {
+    const calculatedTotal = this.calculateTotalAmount();
+    const totalControl = this.form.get('totalAmount');
+    if (totalControl) {
+      totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
+      // Format the display value
+      setTimeout(() => {
+        const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
+        if (totalInput && document.activeElement !== totalInput) {
+          totalInput.value = '$' + this.formatter.currency(calculatedTotal);
+        }
+      }, 0);
     }
   }
   //#endregion
@@ -677,14 +704,23 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.reservationIdSubscription?.unsubscribe();
-    this.chartOfAccountsSubscription?.unsubscribe();
+    this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
-    const officeId = this.route.snapshot.queryParams['officeId'];
+    const queryParams = this.route.snapshot.queryParams;
+    const officeId = queryParams['officeId'];
+    const reservationId = queryParams['reservationId'];
+    const params: string[] = [];
     if (officeId) {
-      this.router.navigateByUrl(RouterUrl.AccountingList + `?officeId=${officeId}`);
+      params.push(`officeId=${officeId}`);
+    }
+    if (reservationId) {
+      params.push(`reservationId=${reservationId}`);
+    }
+    if (params.length > 0) {
+      this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
     } else {
       this.router.navigateByUrl(RouterUrl.AccountingList);
     }

@@ -97,51 +97,51 @@
             </div>
           </mat-expansion-panel>
 
-          <!-- Chart of Accounts Section -->
-          <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts" 
-            (opened)="onPanelOpened('chartOfAccounts')" 
-            (closed)="onPanelClosed('chartOfAccounts')" 
+          <!-- Cost Codes Section -->
+          <mat-expansion-panel [expanded]="expandedSections.costCodes" 
+            (opened)="onPanelOpened('costCodes')" 
+            (closed)="onPanelClosed('costCodes')" 
             class="mb-4">
             <mat-expansion-panel-header>
-              <mat-panel-title>Chart of Accounts</mat-panel-title>
+              <mat-panel-title>Cost Codes</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
-              @if (isEditingChartOfAccounts && chartOfAccountsId) {
-                <app-chart-of-accounts 
-                  [id]="chartOfAccountsId" 
-                  [officeId]="chartOfAccountsOfficeId"
+              @if (isEditingCostCodes && costCodesId) {
+                <app-cost-codes 
+                  [id]="costCodesId" 
+                  [officeId]="costCodesOfficeId"
                   [embeddedMode]="true" 
-                  (backEvent)="onChartOfAccountsBack()">
-                </app-chart-of-accounts>
+                  (backEvent)="onCostCodesBack()">
+                </app-cost-codes>
               } @else {
                 <!-- Office dropdown and controls -->
                 <div class="flex justify-between gap-8 items-center mt-4 px-4">
                   <mat-form-field appearance="outline" style="width: 300px;">
                     <mat-label>Office</mat-label>
-                    <mat-select [(ngModel)]="selectedChartOfAccountsOfficeId" (selectionChange)="onChartOfAccountsOfficeChange()">
+                    <mat-select [(ngModel)]="selectedCostCodesOfficeId" (selectionChange)="onCostCodesOfficeChange()">
                       <mat-option [value]="null">Select Office</mat-option>
-                      @for (office of chartOfAccountsOffices; track office.officeId) {
+                      @for (office of costCodesOffices; track office.officeId) {
                         <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
                   <div class="flex justify-end items-center gap-5">
-                    <mat-slide-toggle id="toggle-chart-of-accounts-inactive" [checked]="showInactiveChartOfAccounts" color="primary" (change)="toggleInactiveChartOfAccounts()" class="whitespace-nowrap">
+                    <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
                       Inactive
                     </mat-slide-toggle>
-                    <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="onChartOfAccountsAdd()" class="whitespace-nowrap items-center flex gap-1">
+                    <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" class="whitespace-nowrap items-center flex gap-1">
                       <mat-icon class="text-base">add</mat-icon>
                       <span>Add</span>
                     </button>
                   </div>
                 </div>
-                <app-chart-of-accounts-list 
-                  [officeId]="selectedChartOfAccountsOfficeId"
+                <app-cost-codes-list 
+                  [officeId]="selectedCostCodesOfficeId"
                   [embeddedMode]="true"
-                  [showInactiveInput]="showInactiveChartOfAccounts"
-                  (addChartOfAccountEvent)="onChartOfAccountsAdd()"
-                  (editChartOfAccountEvent)="onChartOfAccountsEdit($event)">
-                </app-chart-of-accounts-list>
+                  [showInactiveInput]="showInactiveCostCodes"
+                  (addCostCodeEvent)="onCostCodesAdd()"
+                  (editCostCodeEvent)="onCostCodesEdit($event)">
+                </app-cost-codes-list>
               }
             </div>
           </mat-expansion-panel>

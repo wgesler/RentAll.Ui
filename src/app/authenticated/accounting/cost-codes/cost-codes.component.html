@@ -1,7 +1,7 @@
 @if (isLoading$ | async) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading chart of account...</p>
+    <p>Loading cost code...</p>
   </div>
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
@@ -11,7 +11,7 @@
           <span class="flex flex-column items-center gap-3 py-4">
             <mat-icon class="flex-shrink-0">account_tree</mat-icon>
             <span class="flex-shrink-0 text-xl font-medium">
-              {{ isAddMode ? 'Add Chart of Account' : 'Edit Chart of Account' }}
+              {{ isAddMode ? 'Add Cost Code' : 'Edit Cost Code' }}
             </span>
           </span>
           <div class="flex gap-2">
@@ -20,7 +20,7 @@
               <mat-icon>arrow_back</mat-icon>
               Back
             </button>
-            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveChartOfAccount()"
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCostCode()"
               class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
               <mat-icon>save</mat-icon>
               Save
@@ -33,7 +33,7 @@
           <span class="flex flex-column items-center gap-2">
             <mat-icon class="flex-shrink-0">account_tree</mat-icon>
             <span class="flex-shrink-0 text-lg font-medium">
-              {{ isAddMode ? 'Add Chart of Account' : 'Edit Chart of Account' }}
+              {{ isAddMode ? 'Add Cost Code' : 'Edit Cost Code' }}
             </span>
           </span>
           <div class="flex gap-2">
@@ -42,7 +42,7 @@
               <mat-icon>arrow_back</mat-icon>
               Back
             </button>
-            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveChartOfAccount()"
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCostCode()"
               class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
               <mat-icon>save</mat-icon>
               Save
@@ -51,14 +51,14 @@
         </div>
       }
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveChartOfAccount()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveCostCode()" class="info-form mb-8 pt-5">
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center justify-end">
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
             </div>
-            <!-- First Row: Office, Account No, Account Type -->
+            <!-- First Row: Office, Cost Code, Transaction Type -->
             <div class="col-span-4 flex gap-x-1.5">
               <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
               @if (isAddMode) {
@@ -78,33 +78,33 @@
                 </mat-form-field>
               }
 
-              <!-- Account No -->
+              <!-- Cost Code -->
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Account No</mat-label>
-                  <input matInput formControlName="accountId" type="text" pattern="[0-9]*" (keypress)="onAccountNoKeyPress($event)" required>
-                  @if (form.get('accountId')?.hasError('required') && form.get('accountId')?.touched) {
-                    <mat-error>Account No is required</mat-error>
+                  <mat-label>Cost Code</mat-label>
+                  <input matInput formControlName="costCode" type="text" required>
+                  @if (form.get('costCode')?.hasError('required') && form.get('costCode')?.touched) {
+                    <mat-error>Cost Code is required</mat-error>
                   }
                 </mat-form-field>
               } @else {
                 <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Account No</mat-label>
-                  <input matInput formControlName="accountId" readonly class="readonly-field">
+                  <mat-label>Cost Code</mat-label>
+                  <input matInput formControlName="costCode" readonly class="readonly-field">
                 </mat-form-field>
               }
 
-              <!-- Account Type -->
+              <!-- Transaction Type -->
               <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Account Type</mat-label>
-                <mat-select formControlName="accountType" required>
-                  <mat-option [value]="">Select Account Type</mat-option>
-                  @for (accountType of accountTypes; track accountType.value) {
-                    <mat-option [value]="accountType.value.toString()">{{ accountType.label }}</mat-option>
+                <mat-label>Transaction Type</mat-label>
+                <mat-select formControlName="transactionTypeId" required>
+                  <mat-option [value]="">Select Transaction Type</mat-option>
+                  @for (transactionType of transactionTypes; track transactionType.value) {
+                    <mat-option [value]="transactionType.value.toString()">{{ transactionType.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('accountType')?.hasError('required') && form.get('accountType')?.touched) {
-                  <mat-error>Account Type is required</mat-error>
+                @if (form.get('transactionTypeId')?.hasError('required') && form.get('transactionTypeId')?.touched) {
+                  <mat-error>Transaction Type is required</mat-error>
                 }
               </mat-form-field>
             </div>

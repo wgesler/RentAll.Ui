@@ -63,10 +63,9 @@ export interface InvoiceMonthlyDataResponse {
 // LedgerLine models
 export interface LedgerLineRequest {
   ledgerLineId?: number;
-  invoice?: string | null;
-  chartOfAccountId?: string;
+  invoiceId?: string | null;
+  costCodeId?: string;
   transactionTypeId: number;
-  propertyId?: string | null;
   reservationId?: string | null;
   amount: number;
   description: string;
@@ -75,9 +74,8 @@ export interface LedgerLineRequest {
 export interface LedgerLineResponse {
   ledgerLineId: number;
   invoiceId: string;
-  chartOfAccountId?: string;
+  costCodeId?: string;
   transactionTypeId: number;
-  propertyId?: string | null;
   reservationId?: string | null;
   amount: number;
   description: string; 
@@ -85,7 +83,7 @@ export interface LedgerLineResponse {
 
 export interface LedgerLineListDisplay {
   Id: number;
-  chartOfAccountId: string | null;
+  costCodeId: string | null;
   transactionType: string;
   description: string;
   amount: number;

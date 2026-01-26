@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { InvoiceRequest, InvoiceResponse, InvoiceMonthlyDataResponse } from '../models/accounting.model';
+import { InvoiceRequest, InvoiceResponse, InvoiceMonthlyDataResponse } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'

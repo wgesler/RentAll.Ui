@@ -19,9 +19,9 @@ import { BoardProperty } from '../authenticated/reservation/models/reservation-b
 import { PropertyStatus } from '../authenticated/property/models/property-enums';
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType } from '../authenticated/documents/models/document.enum';
-import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/accounting.model';
+import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
 import { TransactionType, AccountingType } from '../authenticated/accounting/models/accounting-enum';
-import { ChartOfAccountsResponse, ChartOfAccountsListDisplay } from '../authenticated/accounting/models/chart-of-accounts.model';
+import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
 
 @Injectable({
     providedIn: 'root'
@@ -475,21 +475,20 @@ export class MappingService {
     return types[accountType] || 'Unknown';
   }
 
-  mapChartOfAccounts(chartOfAccounts: ChartOfAccountsResponse[], offices?: any[]): ChartOfAccountsListDisplay[] {
-    return chartOfAccounts.map<ChartOfAccountsListDisplay>((account: ChartOfAccountsResponse) => {
-      // Map accountType (number) to AccountingType enum and convert to string label
-      const accountTypeEnum = account.accountType as AccountingType;
+  mapCostCodes(costCodes: CostCodesResponse[], offices?: any[]): CostCodesListDisplay[] {
+    return costCodes.map<CostCodesListDisplay>((costCode: CostCodesResponse) => {
       // Find office name by officeId
-      const office = offices?.find(o => o.officeId === account.officeId);
+      const office = offices?.find(o => o.officeId === costCode.officeId);
       const officeName = office?.name || '';
       return {
-        chartOfAccountId: account.chartOfAccountId,
-        officeId: account.officeId,
+        costCodeId: costCode.costCodeId,
+        officeId: costCode.officeId,
         officeName: officeName,
-        accountId: account.accountId,
-        description: account.description || '',
-        accountType: this.getAccountTypeLabel(accountTypeEnum),
-        isActive: account.isActive ?? true // Default to true if undefined
+        costCode: costCode.costCode || '',
+        transactionTypeId: costCode.transactionTypeId,
+        transactionType: this.getTransactionTypeLabel(costCode.transactionTypeId),
+        description: costCode.description || '',
+        isActive: costCode.isActive ?? true // Default to true if undefined
       };
     });
   }
@@ -500,7 +499,7 @@ export class MappingService {
       const transactionTypeEnum = line.transactionTypeId as TransactionType;
       return {
         Id: line.ledgerLineId,
-        chartOfAccountId: line.chartOfAccountId || null,
+        costCodeId: line.costCodeId || null,
         transactionType: this.getTransactionTypeLabel(transactionTypeEnum),
         description: line.description || '',
         amount: line.amount
