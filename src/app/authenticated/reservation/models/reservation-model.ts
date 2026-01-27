@@ -37,6 +37,8 @@ export interface ReservationRequest {
   extraFee2Name?: string;
   notes?: string;
   allowExtensions: boolean;
+  currentInvoiceNumber: number;
+  creditDue: number;
   isActive: boolean; 
 }
 
@@ -78,6 +80,8 @@ export interface ReservationResponse {
   extraFee2Name?: string;
   notes?: string;
   allowExtensions: boolean;
+  currentInvoiceNumber: number;
+  creditDue: number;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;
@@ -94,6 +98,7 @@ export interface ReservationListResponse {
   officeName: string;
   contactId: string;
   contactName: string;
+  contactTypeId?: number; // EntityType enum value (e.g., EntityType.Company = 3)
   tenantName: string;
   companyName: string;
   agentCode: string;
@@ -101,6 +106,7 @@ export interface ReservationListResponse {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
+  creditDue: number;
   isActive: boolean;
   createdOn: string;
 }
@@ -115,6 +121,7 @@ export interface ReservationListDisplay {
   office?: string;
   contactId: string;
   contactName: string;
+  contactTypeId?: number;
   tenantName: string;
   companyName: string;
   agentCode: string;
@@ -122,8 +129,17 @@ export interface ReservationListDisplay {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
+  creditDue: number;
+  credit?: boolean;
   isActive: boolean;
   createdOn: string;
+}
+
+export interface ReservationPaymentRequest {
+  reservationId: string;
+  costCodeId: number;
+  description: string;
+  amount: number;
 }
 
 

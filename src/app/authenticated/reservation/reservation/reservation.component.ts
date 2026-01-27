@@ -106,7 +106,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private commonService: CommonService,
     private authService: AuthService,
-    private formatterService: FormatterService,
+    public formatterService: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
@@ -248,6 +248,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       taxes: formValue.taxes ? parseFloat(formValue.taxes.toString()) : 0,
       notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
       allowExtensions: formValue.allowExtensions ?? false,
+      currentInvoiceNumber: formValue.currentInvoiceNumber ?? 0,
+      creditDue: formValue.creditDue ?? 0,
       isActive: formValue.isActive ?? true
     };
 
@@ -329,7 +331,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
       extraFee2: new FormControl<string>('0.00'),
       extraFee2Name: new FormControl(''),
       taxes: new FormControl(null),
-      notes: new FormControl('')
+      notes: new FormControl(''),
+      currentInvoiceNumber: new FormControl(0),
+      creditDue: new FormControl(0)
     });
 
     // Initialize field states

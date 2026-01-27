@@ -52,11 +52,11 @@
           <!-- Reservation Dropdown -->
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Select Reservation</mat-label>
-            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [disabled]="!selectedOffice">
               <mat-option [value]="null">Select Reservation</mat-option>
-              @for (reservation of reservations; track reservation.reservationId) {
-                <mat-option [value]="reservation.reservationId">
-                  {{ reservation.reservationCode || 'N/A' }}: <span style="font-weight: 600;">{{ reservation.tenantName || 'Unnamed Tenant' }}</span>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">
+                  {{ reservation.label }}
                 </mat-option>
               }
             </mat-select>

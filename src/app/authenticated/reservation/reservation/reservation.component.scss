@@ -48,6 +48,59 @@
   }
 }
 
+// Credit Due field styling - green text and label, green border, no background fill
+:host ::ng-deep mat-form-field.credit-due-field-wrapper {
+  // Make the label green
+  mat-label {
+    color: #4caf50 !important;
+  }
+  
+  .mdc-text-field {
+    .mdc-text-field__input {
+      color: #4caf50 !important;
+      -webkit-text-fill-color: #4caf50 !important;
+    }
+    
+    input {
+      color: #4caf50 !important;
+      -webkit-text-fill-color: #4caf50 !important;
+    }
+    
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: #4caf50 !important;
+      border-width: 1px !important;
+    }
+  }
+  
+  // Also target disabled state specifically
+  .mdc-text-field--disabled {
+    .mdc-text-field__input {
+      color: #4caf50 !important;
+      -webkit-text-fill-color: #4caf50 !important;
+    }
+    
+    input {
+      color: #4caf50 !important;
+      -webkit-text-fill-color: #4caf50 !important;
+    }
+    
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: #4caf50 !important;
+      border-width: 1px !important;
+    }
+  }
+  
+  // Target the input element directly
+  input.credit-due-field {
+    color: #4caf50 !important;
+    -webkit-text-fill-color: #4caf50 !important;
+  }
+}
+
 // Accordion panel styling
 ::ng-deep mat-expansion-panel {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;

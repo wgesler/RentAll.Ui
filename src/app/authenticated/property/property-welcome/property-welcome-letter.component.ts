@@ -6,9 +6,10 @@ import { AuthService } from '../../../services/auth.service';
 import { PropertyService } from '../services/property.service';
 import { PropertyResponse } from '../models/property.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
-import { ReservationResponse } from '../../reservation/models/reservation-model';
+import { ReservationResponse, ReservationListResponse } from '../../reservation/models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
+import { EntityType } from '../../contact/models/contact-type';
 import { PropertyHtmlService } from '../services/property-html.service';
 import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-html.model';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -52,7 +53,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   propertyHtml: PropertyHtmlResponse | null = null;
   propertyLetter: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
-  reservations: ReservationResponse[] = [];
+  reservations: ReservationListResponse[] = [];
+  availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservation: ReservationResponse | null = null;
   contacts: ContactResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -272,6 +274,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         // Set selected office based on property's officeId
         if (response.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
+          this.filterReservations();
           // Generate preview if reservation is already selected
           if (this.selectedOffice && this.selectedReservation) {
             this.generatePreviewIframe();
@@ -313,6 +316,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         this.offices = offices || [];
         if (this.property?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
+          this.filterReservations();
           if (this.selectedOffice && this.selectedReservation) {
             this.generatePreviewIframe();
           }
@@ -323,25 +327,35 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   loadReservations(): void {
-    if (!this.propertyId) {
+    this.addLoadItem('reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.reservations = [];
+        this.availableReservations = [];
+        if (err.status !== 400 && err.status !== 401) {
+          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
       return;
     }
     
-    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
-      next: (response: ReservationResponse[]) => {
-        this.reservations = response;
-        // Sort by tenant name
-        this.reservations.sort((a, b) => {
-          const nameA = (a.tenantName || '').toLowerCase();
-          const nameB = (b.tenantName || '').toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservations at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => {
+      const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
+      return {
+        value: r,
+        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+      };
     });
   }
 
@@ -382,12 +396,27 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   //#region Form Response Functions
   onReservationSelected(reservationId: string | null): void {
-    if (reservationId) {
-      this.selectedReservation = this.reservations.find(r => r.reservationId === reservationId) || null;
-    } else {
+    if (!reservationId) {
       this.selectedReservation = null;
+      this.generatePreviewIframe();
+      return;
     }
-    this.generatePreviewIframe();
+    
+    // Load full reservation details when selected from dropdown
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        this.selectedReservation = reservation;
+        if (reservation.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+        }
+        this.generatePreviewIframe();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
   //#endregion
   
@@ -1056,6 +1085,15 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Functions
+  addLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.add(key);
+      this.itemsToLoad$.next(newSet);
+    }
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {

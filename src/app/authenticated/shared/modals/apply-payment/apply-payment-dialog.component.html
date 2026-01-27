@@ -1,0 +1,78 @@
+<div class="flex flex-col">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      Apply Payment
+    </span>
+    <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  
+  <mat-dialog-content class="flex-shrink-0 w-full p-6">
+    <div class="grid grid-cols-1 gap-4">
+      <!-- Reservation -->
+      <mat-form-field appearance="outline">
+        <mat-label>Reservation</mat-label>
+        <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange($event.value)">
+          <mat-option [value]="null">All Reservations</mat-option>
+          @for (reservation of availableReservations; track reservation.value.reservationId) {
+            <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      
+      <!-- Cost Center and Type on one line -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Cost Center -->
+        <mat-form-field appearance="outline">
+          <mat-label>Cost Center</mat-label>
+          <mat-select [(ngModel)]="selectedCostCodeId" (selectionChange)="onCostCodeChange($event.value)" required>
+            <mat-option [value]="null">Select Cost Code</mat-option>
+            @for (costCode of creditCostCodes; track costCode.value) {
+              <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        
+        <!-- Type (Read-only) -->
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <input matInput [value]="transactionType" readonly>
+        </mat-form-field>
+      </div>
+      
+      <!-- Description and Amount on one line -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Description -->
+        <mat-form-field appearance="outline">
+          <mat-label>Description</mat-label>
+          <input matInput [(ngModel)]="description" placeholder="Enter description">
+        </mat-form-field>
+        
+        <!-- Amount -->
+        <mat-form-field appearance="outline">
+          <mat-label>Amount</mat-label>
+          <input matInput 
+            type="text"
+            [value]="amountDisplay"
+            (input)="onAmountInput($event)"
+            (focus)="onAmountFocus($event)"
+            (blur)="onAmountBlur($event)"
+            placeholder="0.00"
+            required>
+        </mat-form-field>
+      </div>
+    </div>
+  </mat-dialog-content>
+  
+  <mat-divider class="flex-shrink-0 w-full"/>
+  
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button color="accent" (click)="cancel()" id="cancel">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" (click)="apply()" [disabled]="!isFormValid" id="apply" cdkFocusInitial>
+      Apply
+    </button>
+  </div>
+</div>

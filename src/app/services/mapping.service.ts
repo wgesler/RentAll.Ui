@@ -295,6 +295,7 @@ export class MappingService {
 
   mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
+      console.log(`Reservation ${o.reservationCode}: creditDue = ${o.creditDue}`);
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
@@ -305,12 +306,15 @@ export class MappingService {
         office: o.officeName || undefined,
         contactId: o.contactId,
         contactName: o.contactName,
+        contactTypeId: o.contactTypeId ?? undefined,
         tenantName: o.tenantName,
         companyName: o.companyName || 'N/A',
         agentCode: o.agentCode,
         monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
+        creditDue: o.creditDue,
+        credit: o.creditDue > 0,
         reservationStatusId: o.reservationStatusId,
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)

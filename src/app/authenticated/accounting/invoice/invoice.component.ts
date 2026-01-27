@@ -14,6 +14,7 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
+import { EntityType } from '../../contact/models/contact-type';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -297,8 +298,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId >= StartOfCredits);
     
     // Set availableCostCodes based on payment mode (for new lines)
-    const costCodesToUse = this.isPaymentMode ? this.creditCostCodes : this.debitCostCodes;
-    this.availableCostCodes = costCodesToUse.filter(c => c.isActive).map(c => ({
+    this.availableCostCodes = this.allCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
@@ -345,10 +345,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           this.updateAvailableReservations();
         } else {
           // Form doesn't exist yet, show all reservations
-          this.availableReservations = this.reservations.map(r => ({
-            value: r.reservationId,
-            label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
-          }));
+          this.availableReservations = this.reservations.map(r => {
+            const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
+            return {
+              value: r.reservationId,
+              label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+            };
+          });
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -593,16 +596,28 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   updateAvailableReservations(): void {
     if (this.selectedOffice) {
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-      this.availableReservations = filteredReservations.map(r => ({
-        value: r.reservationId,
-        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
-      }));
+      this.availableReservations = filteredReservations.map(r => {
+        // Use company name if contactTypeId is Company, otherwise use contactName
+        const displayName = (r.contactTypeId === EntityType.Company && r.companyName) 
+          ? r.companyName 
+          : (r.contactName || 'N/A');
+        return {
+          value: r.reservationId,
+          label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+        };
+      });
     } else {
       // If no office selected, show all reservations
-      this.availableReservations = this.reservations.map(r => ({
-        value: r.reservationId,
-        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
-      }));
+      this.availableReservations = this.reservations.map(r => {
+        // Use company name if contactTypeId is Company, otherwise use contactName
+        const displayName = (r.contactTypeId === EntityType.Company && r.companyName) 
+          ? r.companyName 
+          : (r.contactName || 'N/A');
+        return {
+          value: r.reservationId,
+          label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+        };
+      });
     }
   }
 

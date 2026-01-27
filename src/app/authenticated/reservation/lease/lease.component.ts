@@ -5,7 +5,7 @@ import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { ReservationService } from '../services/reservation.service';
-import { ReservationResponse } from '../models/reservation-model';
+import { ReservationResponse, ReservationListResponse } from '../models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { EntityType } from '../../contact/models/contact-type';
@@ -50,7 +50,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   property: PropertyResponse | null = null;
   organization: OrganizationResponse | null = null;
-  reservations: ReservationResponse[] = [];
+  reservations: ReservationListResponse[] = [];
+  availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservation: ReservationResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
@@ -77,7 +78,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation','contacts'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -110,6 +111,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOrganization();
     this.loadContacts();
     this.loadOffices();
+    this.loadReservations();
     this.loadReservation();
     this.loadProperty();
     this.loadLeaseInformation();
@@ -316,16 +318,31 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onReservationSelected(reservationId: string | null): void {
-    // Note: selectedReservation should never be cleared once loaded
     if (!reservationId) {
-      // Reset form control but keep selectedReservation intact
+      this.selectedReservation = null;
       this.form.patchValue({ selectedReservationId: null });
-      // Clear preview to show textarea editor with raw HTML
       this.generatePreviewIframe();
-    } else {
-      // Reservation selected - regenerate preview to show filled-out lease
-      this.generatePreviewIframe();
+      return;
     }
+    
+    // Load full reservation details when selected from dropdown
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        this.selectedReservation = reservation;
+        this.form.patchValue({ selectedReservationId: reservation.reservationId });
+        if (reservation.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+        }
+        this.loadContact();
+        this.generatePreviewIframe();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
+        }
+      }
+    });
   }
 
   onIncludeCheckboxChange(): void {
@@ -373,6 +390,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         if (this.selectedReservation?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+          this.filterReservations();
         }
       });
       this.removeLoadItem('offices');
@@ -417,6 +435,39 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
   
+  loadReservations(): void {
+    this.addLoadItem('reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.reservations = [];
+        this.availableReservations = [];
+        if (err.status !== 400 && err.status !== 401) {
+          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => {
+      const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
+      return {
+        value: r,
+        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+      };
+    });
+  }
+
   loadReservation(): void {
     // This page loads on the add-reservation, in this case return
     if (!this.reservationId || this.reservationId === 'new') {
@@ -431,6 +482,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+          this.filterReservations();
         }
         this.loadContact();
         this.generatePreviewIframe();
@@ -522,8 +574,18 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   getReservationDisplay(): string {
     if (!this.selectedReservation) return '';
     const reservationCode = this.selectedReservation.reservationCode || 'N/A';
-    const tenantName = this.selectedReservation.tenantName || 'Unnamed Tenant';
-    return `${reservationCode}: ${tenantName}`;
+    // Try to get display name from availableReservations, fallback to tenantName
+    const reservationListItem = this.availableReservations.find(r => r.value.reservationId === this.selectedReservation.reservationId);
+    let displayName: string;
+    if (reservationListItem) {
+      // Use company name if contactTypeId is Company, otherwise use contactName
+      displayName = (reservationListItem.value.contactTypeId === EntityType.Company && reservationListItem.value.companyName)
+        ? reservationListItem.value.companyName
+        : (reservationListItem.value.contactName || 'N/A');
+    } else {
+      displayName = this.selectedReservation.tenantName || 'Unnamed Tenant';
+    }
+    return `${reservationCode}: ${displayName}`;
   }
 
   getReservationNoticeText(): string {
@@ -1559,6 +1621,15 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     return result;
+  }
+
+  addLoadItem(key: string): void {
+    const currentSet = this.itemsToLoad$.value;
+    if (!currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.add(key);
+      this.itemsToLoad$.next(newSet);
+    }
   }
 
   removeLoadItem(key: string): void {

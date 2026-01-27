@@ -188,6 +188,7 @@ td.mat-mdc-cell {
   }
 }
 
+// Green checkbox styling for credit column
 td.mat-cell p,
 td.mat-mdc-cell p {
   display: flex;
@@ -204,6 +205,26 @@ td.mat-cell.no-wrap,
 td.mat-mdc-cell.no-wrap {
     white-space: nowrap;
     max-width:none;
+}
+
+// Green checkbox styling for credit column when checked
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox.credit-checked .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox.credit-checked .mdc-checkbox__background,
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__background,
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox[checked] .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox[checked] .mdc-checkbox__background {
+  background-color: #4caf50 !important;
+  border-color: #4caf50 !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox.credit-checked .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox.credit-checked .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-cell.mat-column-credit mat-checkbox[checked] .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-credit mat-checkbox[checked] .mdc-checkbox__checkmark {
+  color: white !important;
 }
 
 td.mat-cell.align-right,

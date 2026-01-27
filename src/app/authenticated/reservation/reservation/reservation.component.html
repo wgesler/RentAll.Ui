@@ -49,7 +49,7 @@
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               @if (!isAddMode) {
-                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (2/4) -->
+                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (1/4 or 2/4), Credit Due (1/4 if > 0) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Code</mat-label>
                   <input matInput formControlName="reservationCode" readonly>
@@ -61,14 +61,21 @@
                   <input matInput formControlName="propertyCode" readonly>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-2">
+                <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly>
                 </mat-form-field>
+
+                @if (reservation?.creditDue > 0) {
+                  <mat-form-field appearance="outline" class="col-span-1 credit-due-field-wrapper">
+                    <mat-label>Credit Due</mat-label>
+                    <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
+                  </mat-form-field>
+                }
               }
 
               @if (isAddMode) {
-                <!-- Add Mode: Line 1: Property (1/4), Property Address (3/4) -->
+                <!-- Add Mode: Line 1: Property (1/4), Property Address (2/4 or 3/4), Credit Due (1/4 if > 0) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Property</mat-label>
                   <mat-select formControlName="propertyId" required>
@@ -82,10 +89,17 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-3">
+                <mat-form-field appearance="outline" [class.col-span-3]="!(reservation?.creditDue > 0)" [class.col-span-2]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly>
                 </mat-form-field>
+
+                @if (reservation?.creditDue > 0) {
+                  <mat-form-field appearance="outline" class="col-span-1 credit-due-field-wrapper">
+                    <mat-label>Credit Due</mat-label>
+                    <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
+                  </mat-form-field>
+                }
 
                 <!-- Add Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
                 <mat-form-field appearance="outline" class="col-span-1">

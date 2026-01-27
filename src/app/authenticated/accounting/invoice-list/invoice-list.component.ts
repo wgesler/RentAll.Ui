@@ -20,9 +20,14 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
+import { EntityType } from '../../contact/models/contact-type';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
+import { LedgerLineRequest } from '../models/invoice.model';
+import { ReservationPaymentRequest } from '../../reservation/models/reservation-model';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-invoice-list',
@@ -64,6 +69,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
+    officeName: { displayAs: 'Office', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
@@ -93,7 +99,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private formatter: FormatterService,
-    private dialog: MatDialog) {
+    private dialog: MatDialog,
+    private authService: AuthService) {
   }
 
   //#region Invoice-List
@@ -257,6 +264,50 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
   }
+
+  openApplyPaymentDialog(): void {
+    if (!this.selectedOffice) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    const dialogData: ApplyPaymentDialogData = {
+      costCodes: this.costCodes,
+      transactionTypes: this.transactionTypes,
+      officeId: this.selectedOffice.officeId,
+      reservations: this.availableReservations,
+      selectedReservation: this.selectedReservation
+    };
+
+    const dialogRef = this.dialog.open(ApplyPaymentDialogComponent, {
+      width: '700px',
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((result: { reservationId: string | null, costCodeId: number | null, description: string, amount: number } | undefined) => {
+      if (result && result.reservationId && result.costCodeId !== null) {
+        const paymentRequest: ReservationPaymentRequest = {
+          reservationId: result.reservationId,
+          costCodeId: result.costCodeId,
+          description: result.description || '',
+          amount: Math.abs(result.amount) // Payment should be positive
+        };
+
+        this.reservationService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success(`Payment of $${paymentRequest.amount.toFixed(2)} applied`, CommonMessage.Success);
+            // Refresh invoices to show updated payment amounts
+            if (this.selectedOffice) {
+              this.getInvoices();
+            }
+          },
+          error: (err: HttpErrorResponse) => {
+            this.toastr.error('Failed to apply payment', CommonMessage.Error);
+          }
+        });
+      }
+    });
+  }
   //#endregion
 
   //#region Filter methods
@@ -392,10 +443,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.tenantName || 'N/A'}`
-    }));
+    this.availableReservations = filteredReservations.map(r => {
+      // Use company name if contactTypeId is Company, otherwise use contactName
+      // Handle both number and string comparisons, and check for null/undefined
+      const contactTypeIdNum = typeof r.contactTypeId === 'string' ? parseInt(r.contactTypeId, 10) : r.contactTypeId;
+      const isCompany = contactTypeIdNum === EntityType.Company || contactTypeIdNum === 3;
+      const hasValidCompanyName = r.companyName && r.companyName.trim() && r.companyName !== 'N/A' && r.companyName.trim().length > 0;
+      
+      // Debug logging (remove after testing)
+      if (r.companyName && r.companyName !== 'N/A') {
+        console.log(`Reservation ${r.reservationCode}: contactTypeId=${r.contactTypeId}, isCompany=${isCompany}, companyName="${r.companyName}", contactName="${r.contactName}"`);
+      }
+      
+      const displayName = (isCompany && hasValidCompanyName) 
+        ? r.companyName.trim() 
+        : (r.contactName || 'N/A');
+      return {
+        value: r,
+        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
+      };
+    });
     
     // Clear selected reservation if it doesn't belong to the selected office
     if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
