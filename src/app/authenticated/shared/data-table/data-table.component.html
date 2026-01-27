@@ -79,8 +79,8 @@
                     <span class="mobile-label"> {{ column.displayAs }} </span>
                     @switch (column.name) {
                         @case ('expand') {
-                            <button mat-icon-button type="button" (click)="item.expandClick?.($event, item)" [matTooltip]="item.expanded ? 'Collapse' : 'Expand'">
-                                <mat-icon>{{ item.expanded ? 'remove' : 'add' }}</mat-icon>
+                            <button mat-icon-button type="button" (click)="item.expandClick?.($event, item)" [matTooltip]="item.expanded ? 'Collapse' : 'Expand'" class="expand-button">
+                                <span class="expand-text">{{ item.expanded ? '−' : '+' }}</span>
                             </button>
                         } @case ('select') {
                             <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"

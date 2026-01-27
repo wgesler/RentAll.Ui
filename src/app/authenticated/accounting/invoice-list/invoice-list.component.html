@@ -1,24 +1,22 @@
 <!-- Ledger lines template - shared between embedded and non-embedded modes -->
-<ng-template #ledgerLinesTemplate let-invoice let-includeDetailRowHeader="includeDetailRowHeader">
+<ng-template #ledgerLinesTemplate let-invoice>
   <div class="detail-lines-wrapper">
     @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
       <table>
-        @if (includeDetailRowHeader !== false) {
-          <thead>
-            <tr>
-              @for (columnName of getLedgerLineColumnNames(); track columnName) {
-                @if (ledgerLinesDisplayedColumns[columnName]) {
-                  <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                      [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                      [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                      [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
-                    {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
-                  </th>
-                }
+        <thead>
+          <tr>
+            @for (columnName of getLedgerLineColumnNames(); track columnName) {
+              @if (ledgerLinesDisplayedColumns[columnName]) {
+                <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                    [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
+                  {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
+                </th>
               }
-            </tr>
-          </thead>
-        }
+            }
+          </tr>
+        </thead>
         <tbody>
           @for (line of invoice.LedgerLines; track line.ledgerLineId; let i = $index) {
             <tr>

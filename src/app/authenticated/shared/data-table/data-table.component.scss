@@ -33,6 +33,22 @@ img {
     display: inline-flex;
 }
 
+// Style for expand button - smaller and more compact
+.expand-button {
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    min-width: 28px !important;
+    padding: 0 !important;
+    
+    .expand-text {
+        font-size: 20px !important;
+        font-weight: 500;
+        line-height: 28px !important;
+        display: inline-block;
+    }
+}
+
 .mat-mdc-no-data-row td {
     text-align: center;
     padding: 50px 0;
@@ -351,8 +367,12 @@ td.mat-mdc-cell.align-center {
     thead {
         background-color: #e0e0e0;
         
+        tr {
+            height: 16px; // 1/3 of typical 48px row height
+        }
+        
         th {
-            padding: 8px 16px;
+            padding: 2px 16px; // Reduced to match 1/3 height
             text-align: left;
             font-weight: 500;
             border-bottom: 1px solid #ccc;
@@ -361,6 +381,7 @@ td.mat-mdc-cell.align-center {
     
     tbody {
         tr {
+            height: 16px; // 1/3 of typical 48px row height
             border-bottom: 1px solid #e0e0e0;
             
             &:hover {
@@ -368,7 +389,7 @@ td.mat-mdc-cell.align-center {
             }
             
             td {
-                padding: 8px 16px;
+                padding: 2px 16px; // Reduced to match 1/3 height
             }
         }
     }
@@ -384,4 +405,12 @@ td.mat-mdc-cell.align-center {
 :host ::ng-deep td.hide-detail-header table thead,
 :host ::ng-deep .hide-detail-header table thead {
     display: none !important;
+}
+
+// Default: show headers (must come after hide rules, use high specificity)
+:host ::ng-deep td .detail-lines-wrapper table thead,
+:host ::ng-deep .datatable-detail-row .detail-lines-wrapper table thead,
+:host ::ng-deep .detail-lines-wrapper table thead {
+    display: table-header-group !important;
+    visibility: visible !important;
 }
