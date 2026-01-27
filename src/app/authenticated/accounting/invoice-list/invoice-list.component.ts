@@ -20,7 +20,7 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
-import { TransactionType } from '../models/accounting-enum';
+import { TransactionTypeLabels } from '../models/accounting-enum';
 
 @Component({
   selector: 'app-invoice-list',
@@ -58,7 +58,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   availableCostCodes: { value: string, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
-  transactionTypes: { value: number, label: string }[] = [];
+  transactionTypes: { value: number, label: string }[] = [] = TransactionTypeLabels;
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
@@ -95,7 +95,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Invoice-List
   ngOnInit(): void {
-    this.setupTransactions();
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
@@ -217,7 +216,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   onPayable(event: InvoiceResponse): void {
     // TODO: Implement payable action
-    console.log('Payable clicked for invoice:', event);
   }
   //#endregion
 
@@ -246,7 +244,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.invoicesDisplay = filtered.map(invoice => {
       // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
       const rawLedgerLines = invoice['ledgerLines'] ?? [];
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, invoice.officeId);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, invoice.officeId, this.transactionTypes);
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceName || '',
@@ -285,18 +283,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         value: c.costCodeId,
         label: `${c.costCode} - ${c.description}`
       }));
-  }
-
-  setupTransactions(): void {
-    this.transactionTypes = [
-      { value: TransactionType.Debit, label: 'Debit' },
-      { value: TransactionType.Credit, label: 'Credit' },
-      { value: TransactionType.Payment, label: 'Payment' },
-      { value: TransactionType.Refund, label: 'Refund' },
-      { value: TransactionType.Charge, label: 'Charge' },
-      { value: TransactionType.Deposit, label: 'Deposit' },
-      { value: TransactionType.Adjustment, label: 'Adjustment' }
-    ];
   }
   //#endregion
 

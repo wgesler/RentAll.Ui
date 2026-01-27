@@ -18,7 +18,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionType } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
@@ -129,9 +129,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: (response: InvoiceResponse) => {
         this.invoice = response;
         this.buildForm();
-        // Load ledger lines from invoice (this will wait for cost codes internally)
+        // Populate form first to ensure selectedOffice is set for cost code filtering
+        this.populateForm();
+        // Load ledger lines from invoice after form is populated
         this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
-        // populateForm is called after loadLedgerLines completes (inside the subscription)
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -191,7 +192,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // All lines should be complete at this point due to validation above
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map(line => {
         const ledgerLine: LedgerLineRequest = {
-          ledgerLineId: line.Id && line.Id !== 0 ? line.Id : undefined,
+          ledgerLineId: line.ledgerLineId || undefined,
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
           costCodeId: line.costCodeId || undefined,
           transactionTypeId: (line as any).transactionTypeId,
@@ -260,15 +261,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   //#region Dropdowns
   initializeTransactionTypes(): void {
-    this.transactionTypes = [
-      { value: TransactionType.Debit, label: 'Debit' },
-      { value: TransactionType.Credit, label: 'Credit' },
-      { value: TransactionType.Payment, label: 'Payment' },
-      { value: TransactionType.Refund, label: 'Refund' },
-      { value: TransactionType.Charge, label: 'Charge' },
-      { value: TransactionType.Deposit, label: 'Deposit' },
-      { value: TransactionType.Adjustment, label: 'Adjustment' }
-    ];
+    this.transactionTypes = TransactionTypeLabels;
   }
 
   filterCostCodes(): void {
@@ -323,38 +316,32 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   loadCostCodes(): void {
-    // Subscribe to cost codes (already loaded on login, just subscribe to updates)
-    this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
-      this.filterCostCodes();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+        this.filterCostCodes();
+      });
     });
   }
 
+
   loadLedgerLines(updateTotalAmount: boolean = true): void {
-    console.log('loadLedgerLines called', { invoice: this.invoice, hasLedgerLines: this.invoice?.ledgerLines?.length, hasledgerLines: this.invoice?.ledgerLines?.length });
     // Check for both LedgerLines (PascalCase) and ledgerLines (camelCase) - API may return either
     const rawLedgerLines = this.invoice?.ledgerLines || this.invoice?.ledgerLines || [];
     if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
-      console.log('No invoice or ledger lines, setting empty array');
       this.ledgerLines = [];
       if (updateTotalAmount) {
         this.form.get('totalAmount')?.setValue('0.00', { emitEvent: false });
-      }
-      // If called from getInvoice (updateTotalAmount is false), call populateForm
-      if (!updateTotalAmount && this.form) {
-        this.populateForm();
       }
       return;
     }
     
     // Store ledger lines - map to display model
-    console.log('Raw ledger lines from invoice:', rawLedgerLines);
     // Get all cost codes (already loaded on login, no need to wait)
     const allCostCodes = this.costCodesService.getAllCostCodesValue();
-    console.log('All cost codes available:', allCostCodes.length);
     // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
-    const officeId = this.invoice.officeId || this.selectedOffice?.officeId || this.form.get('officeId')?.value;
-    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId);
-    console.log('Mapped ledger lines:', this.ledgerLines);
+    // Use invoice.officeId first (most reliable), then fallback to selectedOffice or form value
+    const officeId = this.invoice?.officeId || this.selectedOffice?.officeId || this.form?.get('officeId')?.value;
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId, this.transactionTypes);
     // transactionTypeId is already preserved in the mapped object by the mapping service
     // Ensure all existing ledger lines have isNew: false so they display correctly
     this.ledgerLines.forEach(line => {
@@ -367,11 +354,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     if (updateTotalAmount) {
       this.updateTotalAmount();
     }
-    
-    // If called from getInvoice (updateTotalAmount is false), call populateForm after ledger lines are loaded
-    if (!updateTotalAmount && this.form) {
-      this.populateForm();
-    }
   }
 
   loadMonthlyLedgerLines(reservationId: string, updateTotalAmount: boolean = true): void {
@@ -383,20 +365,17 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         
         // Store ledger lines - map to display model
         const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
-        // Wait for cost codes to be loaded before mapping ledger lines
-        this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-          // Get all cost codes (not filtered by office yet) for mapping
-          const allCostCodes = this.costCodesService.getAllCostCodesValue();
-          // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
-          const officeId = this.selectedOffice?.officeId || this.form.get('officeId')?.value;
-          this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId);
-          // transactionTypeId is already preserved in the mapped object by the mapping service
+        // Get all cost codes (already loaded on login, no need to wait)
+        const allCostCodes = this.costCodesService.getAllCostCodesValue();
+        // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
+        const officeId = this.selectedOffice?.officeId || this.form.get('officeId')?.value;
+        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId, this.transactionTypes);
+        // transactionTypeId is already preserved in the mapped object by the mapping service
         
-          // Calculate total amount from ledger lines and update the form
-          if (updateTotalAmount) {
-            this.updateTotalAmount();
-          }
-        });
+        // Calculate total amount from ledger lines and update the form
+        if (updateTotalAmount) {
+          this.updateTotalAmount();
+        }
       },
       error: (err: HttpErrorResponse) => {
         // On error, reset to empty string for invoice (since it's a string)
@@ -709,7 +688,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   addLedgerLine(): void {
     // Create a blank ledger item with all fields null/undefined/0/empty so they appear as editable inputs
     const newLine: LedgerLineListDisplay = {
-      Id: 0, // Temporary ID, will be assigned when saved
+      ledgerLineId: null, // Temporary ID, will be assigned when saved
       costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
       costCode: null, // Will be populated when costCodeId is selected
       transactionType: '', // Empty string for display

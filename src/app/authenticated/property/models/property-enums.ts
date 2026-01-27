@@ -71,3 +71,16 @@ export enum BedSizeType
     DayBed = 5,
     SofaBed = 6
 }
+
+export function getPropertyStatusLetter(statusId: number): string {
+  const statusMap: { [key: number]: string } = {
+    [PropertyStatus.NotProcessed]: 'N',
+    [PropertyStatus.Cleaned]: 'C',
+    [PropertyStatus.Inspected]: 'I',
+    [PropertyStatus.Ready]: 'R',
+    [PropertyStatus.Occupied]: 'O',
+    [PropertyStatus.Maintenance]: 'M',
+    [PropertyStatus.Offline]: 'F'
+  };
+  return statusMap[statusId] || '?';
+}

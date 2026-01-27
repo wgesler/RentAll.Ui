@@ -40,3 +40,20 @@ export enum DepositType {
   CLR = 1,
   SDW = 2
 }
+
+export function formatReservationStatus(reservationStatusId?: number): string {
+  if (reservationStatusId === undefined || reservationStatusId === null) {
+    return 'Unknown';
+  }
+  const statusLabels: { [key: number]: string } = {
+    [ReservationStatus.PreBooking]: 'Pre-Booking',
+    [ReservationStatus.Confirmed]: 'Confirmed',
+    [ReservationStatus.CheckedIn]: 'Checked In',
+    [ReservationStatus.GaveNotice]: 'Gave Notice',
+    [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
+    [ReservationStatus.Maintenance]: 'Maintenance',
+    [ReservationStatus.OwnerBlocked]: 'Owner Blocked',
+    [ReservationStatus.ArrivalDeparture]: 'Arrival/Departure' 
+  };
+  return statusLabels[reservationStatusId] || 'Unknown';
+}

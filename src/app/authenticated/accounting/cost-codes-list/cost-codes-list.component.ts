@@ -15,6 +15,7 @@ import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { TransactionTypeLabels } from '../models/accounting-enum';
 
 @Component({
   selector: 'app-cost-codes-list',
@@ -71,6 +72,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region CostCodes-List
   ngOnInit(): void {
+    this.initializeTransactionTypes();
     this.loadOffices();
     this.loadCostCodes();
     
@@ -273,7 +275,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(costCode => costCode.isActive !== false);
     }
     // Map cost codes using mapping service to convert transactionTypeId to display string
-    const mapped = this.mappingService.mapCostCodes(filtered, this.offices);
+    const mapped = this.mappingService.mapCostCodes(filtered, this.offices, this.transactionTypes);
     this.costCodesDisplay = mapped;
   }
 
@@ -320,6 +322,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
+  }
+
+  initializeTransactionTypes(): void {
+    this.transactionTypes = TransactionTypeLabels;
   }
 
   ngOnDestroy(): void {

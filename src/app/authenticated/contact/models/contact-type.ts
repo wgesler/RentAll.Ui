@@ -9,3 +9,17 @@ export enum EntityType {
   Hoa = 7
 }
 
+export function formatContactType(contactTypeId?: number): string {
+  if (contactTypeId === undefined || contactTypeId === null) {
+    return 'Unknown';
+  }
+  const typeLabels: { [key: number]: string } = {
+    [EntityType.Unknown]: 'Unknown',
+    [EntityType.Company]: 'Company',
+    [EntityType.Owner]: 'Owner',
+    [EntityType.Tenant]: 'Tenant',      
+    [EntityType.Vendor]: 'Vendor'
+  };
+  return typeLabels[contactTypeId] || 'Unknown';
+}
+

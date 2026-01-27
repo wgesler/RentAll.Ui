@@ -62,7 +62,7 @@ export interface InvoiceMonthlyDataResponse {
 
 // LedgerLine models
 export interface LedgerLineRequest {
-  ledgerLineId?: number;
+  ledgerLineId?: string;
   invoiceId?: string | null;
   costCodeId?: string;
   transactionTypeId: number;
@@ -72,7 +72,7 @@ export interface LedgerLineRequest {
 }
 
 export interface LedgerLineResponse {
-  ledgerLineId: number;
+  ledgerLineId: string;
   invoiceId: string;
   costCodeId?: string;
   transactionTypeId: number;
@@ -82,7 +82,7 @@ export interface LedgerLineResponse {
 }
 
 export interface LedgerLineListDisplay {
-  Id: number;
+  ledgerLineId: string;
   costCodeId: string | null; // ID reference for dropdowns and saving
   costCode: string | null; // Display value retrieved from CostCodes
   transactionType: string;

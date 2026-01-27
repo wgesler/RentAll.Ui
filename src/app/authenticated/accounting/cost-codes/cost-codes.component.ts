@@ -14,7 +14,7 @@ import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
-import { TransactionType } from '../models/accounting-enum';
+import { TransactionTypeLabels } from '../models/accounting-enum';
 
 @Component({
   selector: 'app-cost-codes',
@@ -298,15 +298,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   initializeTransactionTypes(): void {
-    this.transactionTypes = [
-      { value: TransactionType.Debit, label: 'Debit' },
-      { value: TransactionType.Credit, label: 'Credit' },
-      { value: TransactionType.Payment, label: 'Payment' },
-      { value: TransactionType.Refund, label: 'Refund' },
-      { value: TransactionType.Charge, label: 'Charge' },
-      { value: TransactionType.Deposit, label: 'Deposit' },
-      { value: TransactionType.Adjustment, label: 'Adjustment' }
-    ];
+    this.transactionTypes = TransactionTypeLabels;
   }
 
   loadOffices(): void {

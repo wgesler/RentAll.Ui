@@ -133,7 +133,7 @@
                         </tr>
                       </thead>
                       <tbody>
-                        @for (line of ledgerLines; track line.Id; let i = $index) {
+                        @for (line of ledgerLines; track line.ledgerLineId; let i = $index) {
                           <tr class="border-b">
                             <td class="p-2">{{ i + 1 }}</td>
                             <td class="p-2 cost-center-cell">
