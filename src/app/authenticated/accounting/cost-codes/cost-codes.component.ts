@@ -39,7 +39,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
   fromOffice: boolean = false; // Track if navigated from Office component (embedded)
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  transactionTypes: { value: number, label: string }[] = [];
+  transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -63,7 +63,6 @@ export class CostCodesComponent implements OnInit, OnDestroy {
 
   //#region CostCode
   ngOnInit(): void {
-    this.initializeTransactionTypes();
     this.buildForm(); // Build form once in ngOnInit
     this.loadOffices();
     
@@ -297,9 +296,6 @@ export class CostCodesComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
-  initializeTransactionTypes(): void {
-    this.transactionTypes = TransactionTypeLabels;
-  }
 
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {

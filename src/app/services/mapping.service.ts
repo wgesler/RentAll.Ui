@@ -19,7 +19,7 @@ import { getPropertyStatusLetter } from '../authenticated/property/models/proper
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
-import { TransactionType, TransactionTypeLabels, AccountingType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
 
 @Injectable({
@@ -152,7 +152,7 @@ export class MappingService {
     });
   }
 
-  mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], officeId?: number, transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
+  mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
       const costCodeId = line.costCodeId || null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
@@ -160,9 +160,8 @@ export class MappingService {
       let transactionTypeId: number | undefined = undefined;
       
       if (costCodeId && costCodes && costCodes.length > 0) {
-        matchingCostCode = officeId 
-          ? costCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId)
-          : costCodes.find(c => c.costCodeId === costCodeId);
+        // Find cost code by costCodeId (costCodes array is already filtered by office if needed)
+        matchingCostCode = costCodes.find(c => c.costCodeId === costCodeId);
         
         if (matchingCostCode) {
           costCode = matchingCostCode.costCode || null;

@@ -58,7 +58,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   availableCostCodes: { value: string, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
-  transactionTypes: { value: number, label: string }[] = [] = TransactionTypeLabels;
+  transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
@@ -244,7 +244,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.invoicesDisplay = filtered.map(invoice => {
       // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
       const rawLedgerLines = invoice['ledgerLines'] ?? [];
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, invoice.officeId, this.transactionTypes);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceName || '',
@@ -281,7 +281,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
     this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode} - ${c.description}`
+        label: `${c.costCode}: ${c.description}`
       }));
   }
   //#endregion

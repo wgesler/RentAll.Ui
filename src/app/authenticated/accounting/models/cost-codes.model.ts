@@ -1,5 +1,3 @@
-import { AccountingType } from './accounting-enum';
-
 export interface CostCodesRequest {
   costCodeId?: string;
   organizationId: string;

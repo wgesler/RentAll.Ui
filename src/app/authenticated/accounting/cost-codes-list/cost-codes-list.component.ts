@@ -48,7 +48,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   availableCostCodes: { value: string, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
-  transactionTypes: { value: number, label: string }[] = [];
+  transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
   costCodesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
@@ -72,7 +72,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region CostCodes-List
   ngOnInit(): void {
-    this.initializeTransactionTypes();
     this.loadOffices();
     this.loadCostCodes();
     
@@ -288,7 +287,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
     this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
       value: c.costCodeId,
-      label: `${c.costCode} - ${c.description}`
+      label: `${c.costCode}: ${c.description}`
     }));
     
     // Update allCostCodes and apply filters
@@ -322,10 +321,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
-  }
-
-  initializeTransactionTypes(): void {
-    this.transactionTypes = TransactionTypeLabels;
   }
 
   ngOnDestroy(): void {

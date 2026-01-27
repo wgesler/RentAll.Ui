@@ -22,21 +22,6 @@ export const TransactionTypeLabels: { value: TransactionType, label: string }[] 
   { value: TransactionType.Adjustment, label: 'Adjustment' }
 ];
 
-export enum AccountingType {
-  Bank = 0,
-  AccountsReceivable = 1,
-  OtherCurrentAsset = 2,
-  FixedAsset = 3,
-  AccountsPayable = 4,
-  CreditCard = 5,
-  OtherCurrentLiability = 6,
-  LongTermLiability = 7,
-  Equity = 8,
-  Income = 9,
-  CostOfGoodsSold = 10,
-  Expense = 11
-}
-
 export function getTransactionTypeLabel(transactionType: number, transactionTypes?: { value: number, label: string }[]): string {
   if (transactionTypes && transactionTypes.length > 0) {
     const found = transactionTypes.find(t => t.value === transactionType);

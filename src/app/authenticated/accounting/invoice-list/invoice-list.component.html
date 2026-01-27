@@ -1,22 +1,24 @@
 <!-- Ledger lines template - shared between embedded and non-embedded modes -->
-<ng-template #ledgerLinesTemplate let-invoice>
+<ng-template #ledgerLinesTemplate let-invoice let-includeDetailRowHeader="includeDetailRowHeader">
   <div class="detail-lines-wrapper">
     @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
       <table>
-        <thead>
-          <tr>
-            @for (columnName of getLedgerLineColumnNames(); track columnName) {
-              @if (ledgerLinesDisplayedColumns[columnName]) {
-                <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                    [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                    [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
-                    [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
-                  {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
-                </th>
+        @if (includeDetailRowHeader !== false) {
+          <thead>
+            <tr>
+              @for (columnName of getLedgerLineColumnNames(); track columnName) {
+                @if (ledgerLinesDisplayedColumns[columnName]) {
+                  <th [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.min-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
+                      [style.text-align]="ledgerLinesDisplayedColumns[columnName].alignment || 'left'">
+                    {{ ledgerLinesDisplayedColumns[columnName].displayAs }}
+                  </th>
+                }
               }
-            }
-          </tr>
-        </thead>
+            </tr>
+          </thead>
+        }
         <tbody>
           @for (line of invoice.LedgerLines; track line.ledgerLineId; let i = $index) {
             <tr>
@@ -100,7 +102,7 @@
                 [hasActionsPayable]="true"
                 [hasDetailRow]="true"
                 [detailRowTemplate]="ledgerLinesTemplate"
-                [includeDetailRowHeader]="false"
+                [includeDetailRowHeader]="true"
                 [itemsPerPage]="100"
                 (editEvent)="goToInvoice($event)"
                 (rowClickEvent)="goToInvoice($event)"

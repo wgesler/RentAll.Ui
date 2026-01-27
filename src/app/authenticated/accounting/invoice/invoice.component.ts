@@ -46,11 +46,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   availableReservations: { value: string, label: string }[] = [];
   reservationIdSubscription?: Subscription;
   
-  costCodes: CostCodesResponse[] = [];
+  allCostCodes: CostCodesResponse[] = [];
+  officeCostCodes:CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
-  transactionTypes: { value: number, label: string }[] = [];
+  transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   ledgerLines: LedgerLineListDisplay[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'offices', 'reservations']));
@@ -73,7 +74,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   //#region Invoice
   ngOnInit(): void {
-    this.initializeTransactionTypes();
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
@@ -84,13 +84,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.removeLoadItem('invoice');
           this.buildForm();
-          // Wait for offices and reservations to load, then read query params
+          // Wait for offices, reservations, and cost codes to load, then read query params
           forkJoin({
             officesLoaded: this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
-            reservationsLoaded: this.itemsToLoad$.pipe(
-              filter(items => !items.has('reservations')),
-              take(1)
-            )
+            reservationsLoaded: this.itemsToLoad$.pipe(filter(items => !items.has('reservations')), take(1)),
+            costCodesLoaded: this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1))
           }).subscribe(() => {
             // Wait a tick to ensure offices and reservations arrays are populated
             setTimeout(() => {
@@ -129,10 +127,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: (response: InvoiceResponse) => {
         this.invoice = response;
         this.buildForm();
-        // Populate form first to ensure selectedOffice is set for cost code filtering
-        this.populateForm();
-        // Load ledger lines from invoice after form is populated
-        this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
+        // Wait for cost codes to be loaded before populating form and loading ledger lines
+        this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+          // Populate form first to ensure selectedOffice is set for cost code filtering
+          this.populateForm();
+          // Load ledger lines from invoice after form is populated
+          this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
+        });
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -260,24 +261,18 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Dropdowns
-  initializeTransactionTypes(): void {
-    this.transactionTypes = TransactionTypeLabels;
-  }
-
   filterCostCodes(): void {
     if (!this.selectedOffice) {
-      this.costCodes = [];
+      this.officeCostCodes = [];
       this.availableCostCodes = [];
       return;
     }
     
-    // Get all cost codes from service (already loaded on login, no need to wait)
-    const allCostCodes = this.costCodesService.getAllCostCodesValue();
     // Filter cost codes for the selected office
-    this.costCodes = allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
-    this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+    this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
+    this.availableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode} - ${c.description}`
+        label: `${c.costCode}: ${c.description}`
       }));
   }
   //#endregion
@@ -318,6 +313,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   loadCostCodes(): void {
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+        this.allCostCodes = this.costCodesService.getAllCostCodesValue();
         this.filterCostCodes();
       });
     });
@@ -325,8 +321,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
 
   loadLedgerLines(updateTotalAmount: boolean = true): void {
-    // Check for both LedgerLines (PascalCase) and ledgerLines (camelCase) - API may return either
-    const rawLedgerLines = this.invoice?.ledgerLines || this.invoice?.ledgerLines || [];
+    const rawLedgerLines = this.invoice?.ledgerLines || [];
     if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
       this.ledgerLines = [];
       if (updateTotalAmount) {
@@ -335,15 +330,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Store ledger lines - map to display model
-    // Get all cost codes (already loaded on login, no need to wait)
-    const allCostCodes = this.costCodesService.getAllCostCodesValue();
-    // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
-    // Use invoice.officeId first (most reliable), then fallback to selectedOffice or form value
-    const officeId = this.invoice?.officeId || this.selectedOffice?.officeId || this.form?.get('officeId')?.value;
-    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId, this.transactionTypes);
-    // transactionTypeId is already preserved in the mapped object by the mapping service
-    // Ensure all existing ledger lines have isNew: false so they display correctly
+    // If costCodes isn't filtered yet, filter it now
+    if (!this.officeCostCodes || this.officeCostCodes.length === 0) {
+      this.filterCostCodes();
+    }
+    
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
     this.ledgerLines.forEach(line => {
       if (line.isNew === undefined) {
         (line as any).isNew = false;
@@ -363,16 +355,14 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         const invoiceString = response.invoice || '';
         this.form.get('invoiceTotal')?.setValue(invoiceString, { emitEvent: false });
         
-        // Store ledger lines - map to display model
+        if (!this.officeCostCodes || this.officeCostCodes.length === 0) {
+          this.filterCostCodes();
+        }
+
         const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
-        // Get all cost codes (already loaded on login, no need to wait)
-        const allCostCodes = this.costCodesService.getAllCostCodesValue();
-        // Map ledger lines with cost codes to get costCode string and transactionTypeId from CostCode
-        const officeId = this.selectedOffice?.officeId || this.form.get('officeId')?.value;
-        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, allCostCodes, officeId, this.transactionTypes);
-        // transactionTypeId is already preserved in the mapped object by the mapping service
-        
-        // Calculate total amount from ledger lines and update the form
+        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
+
+   // Calculate total amount from ledger lines and update the form
         if (updateTotalAmount) {
           this.updateTotalAmount();
         }
@@ -414,19 +404,17 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       isActive: new FormControl(true)
     });
 
-    // Subscribe to officeId changes to filter reservations
     this.setupOfficeIdHandler();
-    // Subscribe to reservationId changes to load monthly ledger lines
     this.setupReservationIdHandler();
     
-      // Format initial totalAmount display
-      setTimeout(() => {
-        const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-        if (totalInput && document.activeElement !== totalInput) {
-          const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
-          totalInput.value = '$' + this.formatter.currency(totalValue);
-        }
-      }, 100);
+    // Format initial totalAmount display
+    setTimeout(() => {
+      const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
+      if (totalInput && document.activeElement !== totalInput) {
+        const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
+        totalInput.value = '$' + this.formatter.currency(totalValue);
+      }
+    }, 100);
   }
 
   populateForm(): void {
@@ -450,10 +438,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const officeId = this.form.get('officeId')?.value;
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
       
-      // Update available reservations after populating officeId
       this.updateAvailableReservations();
-      
-      // Filter cost codes for the office
       this.filterCostCodes();
       
       // Format totalAmount display
@@ -466,7 +451,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       }, 100);
       
       // In edit mode, ledger lines are already loaded from getInvoice() - don't call loadMonthlyLedgerLines
-      // Only set invoiceTotal if no reservation (since it's a string field)
       if (!this.invoice.reservationId) {
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
       }
@@ -478,13 +462,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   setupOfficeIdHandler(): void {
     // Subscribe to officeId changes - just set selectedOffice and trigger updates
     this.form.get('officeId')?.valueChanges.subscribe(officeId => {
-      // Set selectedOffice from the officeId
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
-      
-      // Update available reservations based on selected office
       this.updateAvailableReservations();
-      
-      // Filter cost codes for the selected office
       this.filterCostCodes();
       
       // Clear selected reservation if it doesn't belong to the new office
@@ -589,7 +568,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     } else {
       this.updateLedgerLineField(index, 'costCodeId', costCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.costCodes.find(c => c.costCodeId === costCodeId);
+      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === costCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
