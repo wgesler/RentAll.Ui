@@ -12,7 +12,7 @@
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Invoice' : 'Edit Invoice' }}
+            {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Invoice' : 'Edit Invoice') }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -81,30 +81,45 @@
                 }
               </mat-form-field>
 
-              <!-- Invoice Date -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Invoice Date</mat-label>
-                <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
-                <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #invoiceDatePicker></mat-datepicker>
-                @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
-                  <mat-error>Invoice Date is required</mat-error>
-                }
-              </mat-form-field>
+              <!-- Invoice Date, Due Date, Invoiced Amount, Paid Amount, Total Due - All on one line -->
+              <div class="col-span-4 grid grid-cols-5 gap-x-1.5">
+                <!-- Invoice Date -->
+                <mat-form-field appearance="outline">
+                  <mat-label>Invoice Date</mat-label>
+                  <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #invoiceDatePicker></mat-datepicker>
+                  @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
+                    <mat-error>Invoice Date is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <!-- Due Date -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Due Date</mat-label>
-                <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" [min]="form.get('invoiceDate')?.value">
-                <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #dueDatePicker></mat-datepicker>
-              </mat-form-field>
+                <!-- Due Date -->
+                <mat-form-field appearance="outline">
+                  <mat-label>Due Date</mat-label>
+                  <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" [min]="form.get('invoiceDate')?.value">
+                  <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #dueDatePicker></mat-datepicker>
+                </mat-form-field>
 
-              <!-- Total Amount -->
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>Total Amount</mat-label>
-                <input matInput type="text" formControlName="totalAmount" readonly class="readonly-field">
-              </mat-form-field>
+                <!-- Invoiced Amount -->
+                <mat-form-field appearance="outline">
+                  <mat-label>Invoiced Amount</mat-label>
+                  <input matInput type="text" formControlName="invoicedAmount" readonly class="readonly-field">
+                </mat-form-field>
+
+                <!-- Paid Amount -->
+                <mat-form-field appearance="outline">
+                  <mat-label>Paid Amount</mat-label>
+                  <input matInput type="text" formControlName="paidAmount" readonly class="readonly-field">
+                </mat-form-field>
+
+                <!-- Total Due -->
+                <mat-form-field appearance="outline">
+                  <mat-label>Total Due</mat-label>
+                  <input matInput type="text" formControlName="totalDue" readonly class="readonly-field">
+                </mat-form-field>
+              </div>
 
 
               <!-- Line Items Section -->
@@ -141,7 +156,7 @@
                                 (selectionChange)="onCostCodeChange(i, $event.value)"
                                 class="w-full cost-code-select">
                                 <mat-option [value]="null">Select Cost Code</mat-option>
-                                @for (costCode of availableCostCodes; track costCode.value) {
+                                @for (costCode of getCostCodesForLine(line); track costCode.value) {
                                   <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
                                 }
                               </mat-select>
@@ -156,6 +171,8 @@
                             </td>
                             <td class="p-2" style="width: 120px;">
                               <input type="text" class="w-full p-1 border rounded" 
+                                [attr.data-field]="'amount'"
+                                [attr.data-index]="i"
                                 [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
                                 (input)="onLedgerAmountInput($event, i)"
                                 (focus)="onLedgerAmountFocus($event, i)"

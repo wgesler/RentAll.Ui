@@ -50,6 +50,7 @@ export interface InvoiceListDisplay {
   dueDate?: string | null;
   totalAmount: number;
   paidAmount: number;
+  dueAmount: number;
   isActive: boolean;
   ledgerLines: LedgerLineResponse[];
 }

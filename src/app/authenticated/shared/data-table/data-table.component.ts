@@ -102,6 +102,23 @@ export class DataTableComponent implements OnChanges, OnInit {
   filterVal: string = null;
 
   tableColumns: ColumnData[] = [];
+  
+  getHeaderAlignment(column: ColumnData): string {
+    return column.headerAlignment || column.alignment || 'left';
+  }
+  
+  isLastColumnBeforeActionsRightAligned(): boolean {
+    const actionsIndex = this.displayedColumns.indexOf('actions');
+    if (actionsIndex <= 0) return false;
+    
+    const lastColumnName = this.displayedColumns[actionsIndex - 1];
+    const lastColumn = this.tableColumns.find(col => col.name === lastColumnName);
+    if (!lastColumn) return false;
+    
+    const alignment = lastColumn.headerAlignment || lastColumn.alignment || 'left';
+    return alignment === 'right';
+  }
+  
   displayedColumns: string[] = [];
 
   selection = new SelectionModel<string>(true, []);

@@ -92,6 +92,11 @@ img {
 
     .mat-column-actions {
         text-align: center;
+        
+        button {
+            margin-left: -4px;
+            margin-right: -4px;
+        }
     }
 
     .mat-row,
@@ -145,6 +150,22 @@ th.mat-mdc-header-cell {
   padding: 0 10px;
   word-break: break-word !important;
   max-width:175px;
+  
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-sort-header-container,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-sort-header-container {
+  justify-content: flex-end !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-container,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-container {
+  justify-content: center !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="left"] .mat-sort-header-container,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="left"] .mat-sort-header-container {
+  justify-content: flex-start !important;
 }
 
 tr.mat-row,

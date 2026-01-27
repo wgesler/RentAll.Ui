@@ -18,7 +18,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels, StartOfCredits } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
@@ -48,8 +48,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes:CostCodesResponse[] = [];
+  debitCostCodes: CostCodesResponse[] = [];
+  creditCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
+  officeAvailableCostCodes: { value: string, label: string }[] = []; // Full office cost codes for existing lines in payment mode
   costCodesSubscription?: Subscription;
+  isPaymentMode: boolean = false; // Track if we're adding a payment (from payable action)
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   ledgerLines: LedgerLineListDisplay[] = [];
@@ -74,6 +78,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   //#region Invoice
   ngOnInit(): void {
+    // Reset payment mode on init
+    this.isPaymentMode = false;
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
@@ -133,6 +139,17 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           this.populateForm();
           // Load ledger lines from invoice after form is populated
           this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
+          
+          // Check if we should add a ledger line (from payable action)
+          const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
+          if (addLedgerLineParam === 'true') {
+            // Set payment mode to use credit cost codes
+            this.isPaymentMode = true;
+            // Refresh cost codes to use credit cost codes
+            this.filterCostCodes();
+            // Add a new ledger line for payment
+            this.addLedgerLine();
+          }
         });
       },
       error: (err: HttpErrorResponse) => {
@@ -204,6 +221,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         return ledgerLine;
       });
     
+    // Calculate amounts from ledger lines
+    const invoicedAmount = this.calculateInvoicedAmount();
+    const paidAmount = this.calculatePaidAmount();
+    
     const invoiceRequest: InvoiceRequest = {
       organizationId: user?.organizationId || '',
       officeId: formValue.officeId,
@@ -213,8 +234,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       reservationCode: reservationCode,
       invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
       dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : null,
-      totalAmount: parseFloat(formValue.totalAmount) || 0,
-      paidAmount: 0, // Always default to 0
+      totalAmount: invoicedAmount,
+      paidAmount: paidAmount,
       notes: formValue.notes || null,
       isActive: formValue.isActive !== undefined ? formValue.isActive : true,
       ledgerLines: ledgerLines
@@ -264,16 +285,43 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   filterCostCodes(): void {
     if (!this.selectedOffice) {
       this.officeCostCodes = [];
+      this.debitCostCodes = [];
+      this.creditCostCodes = [];
       this.availableCostCodes = [];
       return;
     }
     
     // Filter cost codes for the selected office
     this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
-    this.availableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
+    this.debitCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId < StartOfCredits);
+    this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId >= StartOfCredits);
+    
+    // Set availableCostCodes based on payment mode (for new lines)
+    const costCodesToUse = this.isPaymentMode ? this.creditCostCodes : this.debitCostCodes;
+    this.availableCostCodes = costCodesToUse.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
+    
+    // Set officeAvailableCostCodes for existing lines in payment mode
+    this.officeAvailableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+  }
+  
+  getCostCodesForLine(line: LedgerLineListDisplay): { value: string, label: string }[] {
+    // Existing lines always use full office cost codes
+    if (line.isNew !== true) {
+      return this.officeAvailableCostCodes; // full officeCostCodes
+    }
+    
+    // New lines use filtered cost codes based on mode
+    if (this.isPaymentMode) {
+      return this.availableCostCodes; // creditCostCodes for payment mode
+    } else {
+      return this.availableCostCodes; // debitCostCodes for normal edit mode
+    }
   }
   //#endregion
 
@@ -325,7 +373,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
       this.ledgerLines = [];
       if (updateTotalAmount) {
-        this.form.get('totalAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
       }
       return;
     }
@@ -372,7 +422,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
         this.ledgerLines = [];
         if (updateTotalAmount) {
-          this.form.get('totalAmount')?.setValue('0.00', { emitEvent: false });
+          this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+          this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+          this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
         }
         if (err.status !== 404) {
           this.toastr.error('Could not load invoice data for reservation', CommonMessage.Error);
@@ -399,7 +451,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       dueDate: new FormControl(today),
       invoiceTotal: new FormControl({ value: '', disabled: true }), // Read-only string field
       invoiceName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
-      totalAmount: new FormControl('0.00', []), // Read-only, calculated from ledger lines
+      invoicedAmount: new FormControl({ value: '0.00', disabled: true }), // Read-only, calculated from debit ledger lines
+      paidAmount: new FormControl({ value: '0.00', disabled: true }), // Read-only, calculated from credit ledger lines
+      totalDue: new FormControl({ value: '0.00', disabled: true }), // Read-only, invoicedAmount - paidAmount
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
@@ -407,12 +461,31 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.setupOfficeIdHandler();
     this.setupReservationIdHandler();
     
-    // Format initial totalAmount display
+    // Format initial invoicedAmount, paidAmount, and totalDue display
     setTimeout(() => {
-      const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-      if (totalInput && document.activeElement !== totalInput) {
-        const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
-        totalInput.value = '$' + this.formatter.currency(totalValue);
+      const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
+      if (invoicedInput && document.activeElement !== invoicedInput) {
+        const invoicedValue = parseFloat(this.form.get('invoicedAmount')?.value) || 0;
+        const formattedInvoiced = invoicedValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(invoicedValue))
+          : '$' + this.formatter.currency(invoicedValue);
+        invoicedInput.value = formattedInvoiced;
+      }
+      const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
+      if (paidInput && document.activeElement !== paidInput) {
+        const paidValue = parseFloat(this.form.get('paidAmount')?.value) || 0;
+        const formattedPaid = paidValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(paidValue))
+          : '$' + this.formatter.currency(paidValue);
+        paidInput.value = formattedPaid;
+      }
+      const totalDueInput = document.querySelector(`[formControlName="totalDue"]`) as HTMLInputElement;
+      if (totalDueInput && document.activeElement !== totalDueInput) {
+        const totalDueValue = parseFloat(this.form.get('totalDue')?.value) || 0;
+        const formattedTotalDue = totalDueValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(totalDueValue))
+          : '$' + this.formatter.currency(totalDueValue);
+        totalDueInput.value = formattedTotalDue;
       }
     }, 100);
   }
@@ -429,7 +502,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : null,
         invoiceTotal: this.invoice.invoiceName || '', // Use invoiceName for invoiceTotal field
         invoiceName: this.invoice.invoiceName || '',
-        totalAmount: this.invoice.totalAmount.toFixed(2),
+        invoicedAmount: this.invoice.totalAmount.toFixed(2),
+        paidAmount: (this.invoice.paidAmount || 0).toFixed(2),
+        totalDue: ((this.invoice.totalAmount || 0) - (this.invoice.paidAmount || 0)).toFixed(2),
         notes: this.invoice.notes || '',
         isActive: this.invoice.isActive
       }, { emitEvent: false });
@@ -441,12 +516,31 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       this.updateAvailableReservations();
       this.filterCostCodes();
       
-      // Format totalAmount display
+      // Format invoicedAmount, paidAmount, and totalDue display
       setTimeout(() => {
-        const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-        if (totalInput && document.activeElement !== totalInput) {
-          const totalValue = parseFloat(this.form.get('totalAmount')?.value) || 0;
-          totalInput.value = '$' + this.formatter.currency(totalValue);
+        const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
+        if (invoicedInput && document.activeElement !== invoicedInput) {
+          const invoicedValue = parseFloat(this.form.get('invoicedAmount')?.value) || 0;
+          const formattedInvoiced = invoicedValue < 0 
+            ? '-$' + this.formatter.currency(Math.abs(invoicedValue))
+            : '$' + this.formatter.currency(invoicedValue);
+          invoicedInput.value = formattedInvoiced;
+        }
+        const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
+        if (paidInput && document.activeElement !== paidInput) {
+          const paidValue = parseFloat(this.form.get('paidAmount')?.value) || 0;
+          const formattedPaid = paidValue < 0 
+            ? '-$' + this.formatter.currency(Math.abs(paidValue))
+            : '$' + this.formatter.currency(paidValue);
+          paidInput.value = formattedPaid;
+        }
+        const totalDueInput = document.querySelector(`[formControlName="totalDue"]`) as HTMLInputElement;
+        if (totalDueInput && document.activeElement !== totalDueInput) {
+          const totalDueValue = parseFloat(this.form.get('totalDue')?.value) || 0;
+          const formattedTotalDue = totalDueValue < 0 
+            ? '-$' + this.formatter.currency(Math.abs(totalDueValue))
+            : '$' + this.formatter.currency(totalDueValue);
+          totalDueInput.value = formattedTotalDue;
         }
       }, 100);
       
@@ -488,7 +582,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       } else {
         // Clear invoice total if reservation is cleared (invoice is a string, so use empty string)
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
-        this.form.get('totalAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
         this.ledgerLines = [];
       }
     });
@@ -526,21 +622,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         }
       }
       
-      // If amount was updated, recalculate total amount
-      if (field === 'amount') {
-        const calculatedTotal = this.calculateTotalAmount();
-        const totalControl = this.form.get('totalAmount');
-        if (totalControl) {
-          totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
-          // Format the display value if not focused
-          setTimeout(() => {
-            const input = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-            if (input && document.activeElement !== input) {
-              input.value = '$' + this.formatter.currency(calculatedTotal);
-            }
-          }, 0);
-        }
-      }
     }
   }
 
@@ -566,17 +647,59 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       (this.ledgerLines[index] as any).transactionTypeId = undefined;
       this.updateLedgerLineField(index, 'transactionType', '');
     } else {
+      const line = this.ledgerLines[index];
+      const previousTransactionTypeId = (line as any).transactionTypeId;
+      const currentAmount = line.amount || 0;
+      
       this.updateLedgerLineField(index, 'costCodeId', costCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
       const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === costCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
-        (this.ledgerLines[index] as any).transactionTypeId = matchingCostCode.transactionTypeId;
+        const newTransactionTypeId = matchingCostCode.transactionTypeId;
+        (this.ledgerLines[index] as any).transactionTypeId = newTransactionTypeId;
         // Update transactionType display value
-        const transactionType = this.transactionTypes.find(t => t.value === matchingCostCode.transactionTypeId);
+        const transactionType = this.transactionTypes.find(t => t.value === newTransactionTypeId);
         if (transactionType) {
           this.updateLedgerLineField(index, 'transactionType', transactionType.label);
+        }
+        
+        // Check if we're switching between debit and credit types
+        const wasDebit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId < StartOfCredits;
+        const wasCredit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId >= StartOfCredits;
+        const isDebit = newTransactionTypeId < StartOfCredits;
+        const isCredit = newTransactionTypeId >= StartOfCredits;
+        
+        // If we have an amount and we're switching between debit and credit, flip the sign
+        if (currentAmount !== 0 && currentAmount !== null && currentAmount !== undefined) {
+          let newAmount = currentAmount;
+          
+          if (wasDebit && isCredit) {
+            // Switching from debit to credit: make negative
+            newAmount = -Math.abs(currentAmount);
+          } else if (wasCredit && isDebit) {
+            // Switching from credit to debit: make positive
+            newAmount = Math.abs(currentAmount);
+          } else if (isCredit && currentAmount > 0) {
+            // Already credit type but amount is positive: make negative
+            newAmount = -Math.abs(currentAmount);
+          } else if (isDebit && currentAmount < 0) {
+            // Already debit type but amount is negative: make positive
+            newAmount = Math.abs(currentAmount);
+          }
+          
+          // Update the amount if it changed
+          if (newAmount !== currentAmount) {
+            this.updateLedgerLineField(index, 'amount', newAmount);
+            // Update the amount input field display (specifically target the amount field using data attribute)
+            setTimeout(() => {
+              const amountInput = document.querySelector(`input[data-field="amount"][data-index="${index}"]`) as HTMLInputElement;
+              if (amountInput) {
+                amountInput.value = newAmount.toFixed(2);
+              }
+            }, 0);
+          }
         }
       }
     }
@@ -587,22 +710,69 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     return transactionTypeId !== undefined && transactionTypeId !== null ? transactionTypeId : null;
   }
 
-  calculateTotalAmount(): number {
+  calculateInvoicedAmount(): number {
     if (!this.ledgerLines || this.ledgerLines.length === 0) {
       return 0;
     }
     return this.ledgerLines.reduce((sum, line) => {
-      const amount = line.amount || 0;
-      return sum + amount;
+      const transactionTypeId = (line as any).transactionTypeId;
+      // Only sum amounts with transactionTypeId < StartOfCredits (debit types)
+      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId < StartOfCredits) {
+        const amount = line.amount || 0;
+        return sum + amount;
+      }
+      return sum;
     }, 0);
+  }
+
+  calculatePaidAmount(): number {
+    if (!this.ledgerLines || this.ledgerLines.length === 0) {
+      return 0;
+    }
+    return this.ledgerLines.reduce((sum, line) => {
+      const transactionTypeId = (line as any).transactionTypeId;
+      // Only sum amounts with transactionTypeId >= StartOfCredits (credit types)
+      // These amounts are stored as negative, so we sum the absolute values
+      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits) {
+        const amount = Math.abs(line.amount || 0);
+        return sum + amount;
+      }
+      return sum;
+    }, 0);
+  }
+
+  calculateTotalAmount(): number {
+    // Legacy method - kept for compatibility, but should use calculateInvoicedAmount instead
+    return this.calculateInvoicedAmount();
   }
   //#endregion
 
   //#region Ledger Lines
   onLedgerAmountInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
-    // Strip non-numeric characters except decimal point (same as Daily Rate formatDecimalInput)
-    const value = input.value.replace(/[^0-9.]/g, '');
+    const line = this.ledgerLines[index];
+    let value = input.value;
+    
+    // Check if value starts with minus sign
+    const isNegative = value.startsWith('-');
+    
+    // Strip non-numeric characters except decimal point
+    value = value.replace(/[^0-9.]/g, '');
+    
+    // Check if this line has a credit transaction type (>= StartOfCredits)
+    const transactionTypeId = (line as any).transactionTypeId;
+    const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits;
+    
+    // For credit types, automatically add negative sign
+    if (isCreditType && !isNegative && value !== '') {
+      value = '-' + value;
+    } else if (!isCreditType && isNegative) {
+      // For debit types, remove negative sign if present
+      value = value.replace(/^-/, '');
+    } else if (isNegative) {
+      // Keep negative sign if it was there
+      value = '-' + value;
+    }
     
     // Allow only one decimal point
     const parts = value.split('.');
@@ -633,16 +803,24 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const line = this.ledgerLines[index];
     if (line) {
-      // Parse and format exactly like formatDecimalControl
+      // Check if value is negative
+      const isNegative = input.value.startsWith('-');
+      // Parse and format exactly like formatDecimalControl, preserving negative sign
       const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
       let numValue: number;
       let formattedValue: string;
       
+      // Check if this line has a credit transaction type (>= StartOfCredits)
+      const transactionTypeId = (line as any).transactionTypeId;
+      const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits;
+      
       if (rawValue !== '' && rawValue !== null) {
         const parsed = parseFloat(rawValue);
         if (!isNaN(parsed)) {
+          // For credit types, always make it negative; for debit types, use sign from input
+          const finalValue = isCreditType ? -Math.abs(parsed) : (isNegative ? -parsed : parsed);
           // Format to 2 decimal places (same as formatDecimalControl)
-          formattedValue = parsed.toFixed(2);
+          formattedValue = finalValue.toFixed(2);
           numValue = parseFloat(formattedValue);
         } else {
           formattedValue = '0.00';
@@ -689,18 +867,54 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   updateTotalAmount(): void {
-    const calculatedTotal = this.calculateTotalAmount();
-    const totalControl = this.form.get('totalAmount');
-    if (totalControl) {
-      totalControl.setValue(calculatedTotal.toFixed(2), { emitEvent: false });
-      // Format the display value
-      setTimeout(() => {
-        const totalInput = document.querySelector(`[formControlName="totalAmount"]`) as HTMLInputElement;
-        if (totalInput && document.activeElement !== totalInput) {
-          totalInput.value = '$' + this.formatter.currency(calculatedTotal);
-        }
-      }, 0);
+    const invoicedAmount = this.calculateInvoicedAmount();
+    const paidAmount = this.calculatePaidAmount();
+    const totalDue = invoicedAmount - paidAmount;
+    
+    // Update invoicedAmount
+    const invoicedControl = this.form.get('invoicedAmount');
+    if (invoicedControl) {
+      invoicedControl.setValue(invoicedAmount.toFixed(2), { emitEvent: false });
     }
+    
+    // Update paidAmount
+    const paidControl = this.form.get('paidAmount');
+    if (paidControl) {
+      paidControl.setValue(paidAmount.toFixed(2), { emitEvent: false });
+    }
+    
+    // Update totalDue
+    const totalDueControl = this.form.get('totalDue');
+    if (totalDueControl) {
+      totalDueControl.setValue(totalDue.toFixed(2), { emitEvent: false });
+    }
+    
+    // Format the display values
+    setTimeout(() => {
+      const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
+      if (invoicedInput && document.activeElement !== invoicedInput) {
+        const formattedValue = invoicedAmount < 0 
+          ? '-$' + this.formatter.currency(Math.abs(invoicedAmount))
+          : '$' + this.formatter.currency(invoicedAmount);
+        invoicedInput.value = formattedValue;
+      }
+      
+      const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
+      if (paidInput && document.activeElement !== paidInput) {
+        const formattedValue = paidAmount < 0 
+          ? '-$' + this.formatter.currency(Math.abs(paidAmount))
+          : '$' + this.formatter.currency(paidAmount);
+        paidInput.value = formattedValue;
+      }
+      
+      const totalDueInput = document.querySelector(`[formControlName="totalDue"]`) as HTMLInputElement;
+      if (totalDueInput && document.activeElement !== totalDueInput) {
+        const formattedValue = totalDue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(totalDue))
+          : '$' + this.formatter.currency(totalDue);
+        totalDueInput.value = formattedValue;
+      }
+    }, 0);
   }
   //#endregion
 

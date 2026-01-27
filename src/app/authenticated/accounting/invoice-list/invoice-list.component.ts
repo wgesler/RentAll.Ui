@@ -21,6 +21,8 @@ import { OfficeResponse } from '../../organization-configuration/office/models/o
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
 import { TransactionTypeLabels } from '../models/accounting-enum';
+import { MatDialog } from '@angular/material/dialog';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 
 @Component({
   selector: 'app-invoice-list',
@@ -62,20 +64,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   invoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
-    officeName: { displayAs: 'Office', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '20ch' },
-    totalAmount: { displayAs: 'Total', maxWidth: '15ch' },
-    paidAmount: { displayAs: 'Paid', maxWidth: '15ch' }
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
+    totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
 
   ledgerLinesDisplayedColumns: ColumnSet = {
-    lineNo: { displayAs: '#', maxWidth: '5ch', wrap: false, alignment: 'right' },
-    account: { displayAs: 'Account', maxWidth: '20ch', wrap: false },
-    transactionType: { displayAs: 'Transaction Type', maxWidth: '15ch', wrap: false },
-    description: { displayAs: 'Description', maxWidth: '20ch', wrap: true },
-    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false }
+    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
+    costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
+    transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
@@ -90,7 +92,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
-    private formatter: FormatterService) {
+    private formatter: FormatterService,
+    private dialog: MatDialog) {
   }
 
   //#region Invoice-List
@@ -215,7 +218,44 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPayable(event: InvoiceResponse): void {
-    // TODO: Implement payable action
+    // Calculate remaining amount (totalAmount - paidAmount)
+    const totalAmount = event.totalAmount || 0;
+    const paidAmount = event.paidAmount || 0;
+    const remainingAmount = totalAmount - paidAmount;
+    
+    if (remainingAmount <= 0) {
+      // Show dialog that invoice is paid in full
+      this.dialog.open(GenericModalComponent, {
+        data: {
+          title: 'Invoice Paid in Full',
+          message: 'No more payments can be applied to this invoice, it is paid in full.',
+          icon: 'info',
+          iconColor: 'primary',
+          no: '',
+          yes: 'OK',
+          callback: (dialogRef, result) => {
+            dialogRef.close();
+          },
+          useHTML: false
+        }
+      });
+    } else {
+      // Navigate to invoice component and add a ledger line
+      const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
+      const params: string[] = [];
+      if (this.selectedOffice) {
+        params.push(`officeId=${this.selectedOffice.officeId}`);
+      }
+      if (this.selectedReservation) {
+        params.push(`reservationId=${this.selectedReservation.reservationId}`);
+      }
+      params.push('addLedgerLine=true');
+      if (params.length > 0) {
+        this.router.navigateByUrl(url + `?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(url);
+      }
+    }
   }
   //#endregion
 
@@ -245,11 +285,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
       const rawLedgerLines = invoice['ledgerLines'] ?? [];
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
+      const totalAmount = invoice.totalAmount || 0;
+      const paidAmount = invoice.paidAmount || 0;
+      const dueAmount = totalAmount - paidAmount;
+      
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceName || '',
-      totalAmount: '$' + this.formatter.currency(invoice.totalAmount),
-      paidAmount: '$' + this.formatter.currency(invoice.paidAmount),
+      totalAmount: '$' + this.formatter.currency(totalAmount),
+      paidAmount: '$' + this.formatter.currency(paidAmount),
+      dueAmount: '$' + this.formatter.currency(dueAmount),
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
       dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
@@ -424,7 +469,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     switch (columnName) {
       case 'lineNo':
         return lineIndex !== undefined ? lineIndex + 1 : '-';
-      case 'account':
+      case 'costCode':
         return line.costCode || this.getCostCodeDescription(line.costCodeId, invoice.officeId);
       case 'transactionType':
         return line.transactionType || this.getTransactionTypeLabel(line.transactionTypeId ?? 0);
@@ -433,7 +478,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       case 'description':
         return line.description || '-';
       case 'amount':
-        return '$' + this.formatter.currency(line.amount);
+        const amountValue = line.amount || 0;
+        const formattedAmount = this.formatter.currency(Math.abs(amountValue));
+        return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
       default:
         return line[columnName] || '-';
     }

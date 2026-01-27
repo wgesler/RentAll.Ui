@@ -1,13 +1,15 @@
+export const StartOfCredits = 10;
+
 export enum TransactionType {
   Debit = 0,
-  Credit = 1,
-  Payment = 2,
-  Refund = 3,
-  Charge = 4,
-  Deposit = 5,
-  Sdw = 6,
-  Revenue = 7,
-  Adjustment = 8
+  Charge = 1,
+  Deposit = 2,
+  Sdw = 3,
+  Credit = 10,
+  Payment = 11,
+  Refund = 12,
+  Revenue = 13,
+  Adjustment = 14
 }
 
 export const TransactionTypeLabels: { value: TransactionType, label: string }[] = [

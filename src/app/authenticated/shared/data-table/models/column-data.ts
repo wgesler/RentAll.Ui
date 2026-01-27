@@ -7,6 +7,7 @@ export interface ColumnData {
     sort?: boolean;
     maxWidth?: string;
     alignment?: string;
+    headerAlignment?: string; // Separate alignment for header (defaults to alignment if not specified)
 
     obfuscate?: boolean;
     isCheckbox?: boolean;

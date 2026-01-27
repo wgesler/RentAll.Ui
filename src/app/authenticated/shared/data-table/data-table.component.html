@@ -45,7 +45,9 @@
                 <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
                 [style.max-width]="column.maxWidth"
                 [style.width]="column.maxWidth"
-                [style.min-width]="column.maxWidth">
+                [style.min-width]="column.maxWidth"
+                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '30px' : null"
+                [attr.data-alignment]="getHeaderAlignment(column)">
                     @switch (column.name) {
                         @case ('select') {
                             @if (hasButtonSelectAll) {
@@ -69,6 +71,7 @@
                 [style.max-width]="column.maxWidth"
                 [style.width]="column.maxWidth"
                 [style.min-width]="column.maxWidth"
+                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '30px' : null"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
                 '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',
