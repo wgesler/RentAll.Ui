@@ -10,8 +10,8 @@
         </div>
         <mat-card>
           <div class="mat">
-            <!-- Office dropdown and buttons row -->
-            <div class="flex justify-between gap-8 items-center mt-4 px-4">
+            <!-- Office dropdown row -->
+            <div class="flex gap-4 items-center mt-4 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Office</mat-label>
                 <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
@@ -21,15 +21,16 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <div class="flex justify-end items-center gap-5">
-                <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-                  Inactive
-                </mat-slide-toggle>
-                <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" [disabled]="!selectedOffice" class="whitespace-nowrap items-center flex gap-1">
-                  <mat-icon class="text-base">add</mat-icon>
-                  <span>Add</span>
-                </button>
-              </div>
+            </div>
+            <!-- Action buttons row -->
+            <div class="flex justify-end items-center gap-5 mt-3 px-4">
+              <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                Inactive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" [disabled]="!selectedOffice" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
             </div>
             <!-- Filter and data table below -->
             <div class="tableDiv">
@@ -56,8 +57,8 @@
   } @else {
     <div class="mat">
       @if (showInactiveInput === undefined) {
-        <!-- Office dropdown and buttons row - shown when parent doesn't provide controls -->
-        <div class="flex justify-between gap-8 items-center mt-4 px-4">
+        <!-- Office dropdown row - shown when parent doesn't provide controls -->
+        <div class="flex gap-4 items-center mt-4 px-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>Office</mat-label>
             <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
@@ -67,15 +68,16 @@
               }
             </mat-select>
           </mat-form-field>
-          <div class="flex justify-end items-center gap-5">
-            <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-              Inactive
-            </mat-slide-toggle>
-            <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">add</mat-icon>
-              <span>Add</span>
-            </button>
-          </div>
+        </div>
+        <!-- Action buttons row -->
+        <div class="flex justify-end items-center gap-5 mt-3 px-4">
+          <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
         </div>
       }
       <!-- Filter and data table below -->

@@ -33,6 +33,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 export class AccountingComponent implements OnInit, OnDestroy {
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   selectedOfficeId: number | null = null; // Shared office selection state
+  selectedReservationId: string | null = null; // Shared reservation selection state
   
   // Cost Codes controls
   showInactiveCostCodes: boolean = false;
@@ -74,8 +75,20 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.selectedOfficeId = officeId;
   }
 
+  onInvoiceReservationChange(reservationId: string | null): void {
+    this.selectedReservationId = reservationId;
+  }
+
   onCostCodesOfficeChange(officeId: number | null): void {
     this.selectedOfficeId = officeId;
+  }
+
+  onCreateInvoiceOfficeChange(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+  }
+
+  onCreateInvoiceReservationChange(reservationId: string | null): void {
+    this.selectedReservationId = reservationId;
   }
 
   toggleInactiveCostCodes(): void {

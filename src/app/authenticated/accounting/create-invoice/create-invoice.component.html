@@ -7,9 +7,36 @@
   <div class="create-invoice-container">
     <form [formGroup]="form" class="create-invoice-form">
       
-      <!-- Input Fields Section -->
+      <!-- Action Buttons Section - First Row -->
+      <div class="top-controls">
+        <div class="flex gap-2 mt-4 px-4">
+          <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+            [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
+            <mat-icon>print</mat-icon>
+            Print
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+            [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !selectedReservation?.contactId">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+            [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || isDownloading">
+            <mat-icon>download</mat-icon>
+            {{ isDownloading ? 'Downloading...' : 'Download' }}
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" 
+            (click)="selectedOffice && selectedReservation && selectedInvoice ? saveInvoiceAsDocument() : saveInvoice()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <!-- Dropdowns Section - Second Row -->
       <div class="input-controls">
-        <div class="flex gap-3 items-center">
+        <div class="flex gap-3 items-center mt-3 px-4">
           <!-- Office Dropdown -->
           <mat-form-field appearance="outline" class="office-dropdown">
             <mat-label>Office</mat-label>
@@ -49,42 +76,9 @@
         </div>
       </div>
 
-      <!-- Invoice Preview -->
-      <div class="preview-section-container">
+      <!-- Invoice Editor or Preview -->
+      <div class="editor-section">
         @if (selectedOffice && selectedReservation && selectedInvoice && previewIframeHtml) {
-          <!-- Action Buttons -->
-          <div class="action-buttons">
-            <button 
-              mat-raised-button 
-              color="primary" 
-              (click)="onDownload()" 
-              [disabled]="isDownloading"
-              class="action-button">
-              <mat-icon>download</mat-icon>
-              @if (isDownloading) {
-                <span>Downloading...</span>
-              } @else {
-                <span>Download</span>
-              }
-            </button>
-            <button 
-              mat-raised-button 
-              color="primary" 
-              (click)="onPrint()"
-              class="action-button">
-              <mat-icon>print</mat-icon>
-              <span>Print</span>
-            </button>
-            <button 
-              mat-raised-button 
-              color="primary" 
-              (click)="onEmail()"
-              class="action-button">
-              <mat-icon>email</mat-icon>
-              <span>Email</span>
-            </button>
-          </div>
-          
           <!-- Preview iframe when all three are selected -->
           <div class="preview-section">
             <iframe 
@@ -96,11 +90,19 @@
             </iframe>
           </div>
         } @else {
-          <!-- Placeholder message -->
-          <div class="placeholder-message">
-            <mat-icon class="text-6xl mb-4" style="font-size: 64px; width: 64px; height: 64px;">receipt</mat-icon>
-            <p>Please select an Office, Reservation, and Invoice to view the invoice document.</p>
-          </div>
+          <!-- Editor textarea when preview is not available -->
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Invoice (HTML)</mat-label>
+            <textarea 
+              matInput 
+              formControlName="invoice" 
+              rows="20"
+              [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+            </textarea>
+            <mat-hint>
+              Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
+            </mat-hint>
+          </mat-form-field>
         }
       </div>
 

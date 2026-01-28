@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -40,7 +40,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
   @Input() embeddedMode: boolean = false; // If true, hide header
   @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
+  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -100,7 +102,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
-    private authService: AuthService) {
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone) {
   }
 
   //#region Invoice-List
@@ -112,6 +116,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Handle query params for office selection changes (works in both embedded and non-embedded modes)
     // Wait for offices to load before processing query params
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      // Apply initial officeId from @Input if in embedded mode
+      if (this.embeddedMode && this.officeId !== null && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        if (this.selectedOffice) {
+          this.filterCostCodes();
+          this.filterReservations();
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.getInvoices();
+          
+          // Apply initial reservationId from @Input if provided
+          if (this.reservationId !== null && this.reservations.length > 0) {
+            this.selectedReservation = this.reservations.find(r => 
+              r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
+            ) || null;
+          }
+        }
+      }
+      
       this.route.queryParams.subscribe(params => {
         const officeIdParam = params['officeId'];
         if (officeIdParam) {
@@ -125,6 +147,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
                 this.officeIdChange.emit(this.selectedOffice.officeId);
               }
               this.filterCostCodes();
+              this.filterReservations();
               this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
               this.getInvoices(); // Refresh invoices when returning
             }
@@ -150,14 +173,27 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
         if (this.selectedOffice) {
           this.filterCostCodes();
+          this.filterReservations();
           this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
           this.getInvoices();
         } else {
+          this.selectedReservation = null;
           this.applyFilters();
         }
       } else {
         // Offices not loaded yet, wait for them to load in loadOffices()
         // The loadOffices() method will handle setting selectedOffice from officeId input
+      }
+    }
+    
+    // Watch for changes to reservationId input from parent
+    if (changes['reservationId'] && this.embeddedMode) {
+      const newReservationId = changes['reservationId'].currentValue;
+      if (this.reservations.length > 0 && this.selectedOffice) {
+        this.selectedReservation = newReservationId 
+          ? this.reservations.find(r => r.reservationId === newReservationId && r.officeId === this.selectedOffice?.officeId) || null
+          : null;
+        this.applyFilters();
       }
     }
   }
@@ -521,7 +557,25 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onReservationChange(): void {
+    // Emit reservation change to parent if in embedded mode
+    if (this.embeddedMode) {
+      this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);
+    }
+    
+    // Preserve scroll position before filtering to prevent page jump
+    const scrollContainer = document.querySelector('.tableDiv') || document.querySelector('.mat');
+    const scrollTop = scrollContainer ? (scrollContainer as HTMLElement).scrollTop : window.pageYOffset;
+    
     this.applyFilters();
+    
+    // Restore scroll position after Angular change detection completes
+    this.zone.onStable.pipe(take(1)).subscribe(() => {
+      if (scrollContainer) {
+        (scrollContainer as HTMLElement).scrollTop = scrollTop;
+      } else {
+        window.scrollTo({ top: scrollTop, behavior: 'auto' });
+      }
+    });
   }
 
   getTransactionTypeLabel(transactionTypeId: number): string {

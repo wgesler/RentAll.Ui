@@ -54,40 +54,39 @@
         </div>
         <mat-card>
           <div class="mat">
-            <!-- Office dropdown and buttons row -->
-            <div class="flex justify-between gap-8 items-center mt-4 px-4">
-              <div class="flex gap-4 items-center">
-                <mat-form-field appearance="outline" style="width: 300px;">
-                  <mat-label>Office</mat-label>
-                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
-                    <mat-option [value]="null">All Offices</mat-option>
-                    @for (office of offices; track office.officeId) {
-                      <mat-option [value]="office">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline" style="width: 300px;">
-                  <mat-label>Reservation</mat-label>
-                  <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
-                    <mat-option [value]="null">All Reservations</mat-option>
-                    @for (reservation of availableReservations; track reservation.value.reservationId) {
-                      <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              </div>
-              <div class="flex justify-end items-center gap-5">
-                <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-                  Inactive
-                </mat-slide-toggle>
-                <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                  Apply Payment
-                </button>
-                <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-                  <mat-icon class="text-base">add</mat-icon>
-                  <span>Add</span>
-                </button>
-              </div>
+            <!-- Office and Reservation dropdowns row -->
+            <div class="flex gap-4 items-center mt-4 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Office</mat-label>
+                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Reservation</mat-label>
+                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+                  <mat-option [value]="null">All Reservations</mat-option>
+                  @for (reservation of availableReservations; track reservation.value.reservationId) {
+                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <!-- Action buttons row -->
+            <div class="flex justify-end items-center gap-5 mt-3 px-4">
+              <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                Inactive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                Apply Payment
+              </button>
+              <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
             </div>
             <!-- Filter and data table below -->
             <div class="tableDiv">
@@ -119,40 +118,39 @@
     </div>
   } @else {
     <div class="mat">
-      <!-- Office dropdown and buttons row -->
-      <div class="flex justify-between gap-8 items-center mt-4 px-4">
-        <div class="flex gap-4 items-center">
-          <mat-form-field appearance="outline" style="width: 300px;">
-            <mat-label>Office</mat-label>
-            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
-              <mat-option [value]="null">All Offices</mat-option>
-              @for (office of offices; track office.officeId) {
-                <mat-option [value]="office">{{ office.name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline" style="width: 300px;">
-            <mat-label>Reservation</mat-label>
-            <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
-              <mat-option [value]="null">All Reservations</mat-option>
-              @for (reservation of availableReservations; track reservation.value.reservationId) {
-                <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-        </div>
-        <div class="flex justify-end items-center gap-5">
-          <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-            Inactive
-          </mat-slide-toggle>
-          <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-            Apply Payment
-          </button>
-          <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
+      <!-- Office and Reservation dropdowns row -->
+      <div class="flex gap-4 items-center mt-4 px-4">
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>Office</mat-label>
+          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+            <mat-option [value]="null">All Offices</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office">{{ office.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>Reservation</mat-label>
+          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+            <mat-option [value]="null">All Reservations</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <!-- Action buttons row -->
+      <div class="flex justify-end items-center gap-5 mt-3 px-4">
+        <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+          Inactive
+        </mat-slide-toggle>
+        <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+          Apply Payment
+        </button>
+        <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+          <mat-icon class="text-base">add</mat-icon>
+          <span>Add</span>
+        </button>
       </div>
       <!-- Filter and data table below -->
       <div class="tableDiv">

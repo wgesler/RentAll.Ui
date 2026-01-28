@@ -1,5 +1,5 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
@@ -27,6 +27,10 @@ import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { AuthService } from '../../../services/auth.service';
+import { PropertyHtmlRequest } from '../../property/models/property-html.model';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 
 @Component({
   selector: 'app-create-invoice',
@@ -35,7 +39,12 @@ import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } fr
   templateUrl: './create-invoice.component.html',
   styleUrls: ['./create-invoice.component.scss']
 })
-export class CreateInvoiceComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
+export class CreateInvoiceComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
+  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
+
   form: FormGroup;
   contacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
@@ -58,6 +67,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
+  isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
 
@@ -76,6 +86,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     private commonService: CommonService,
     private contactService: ContactService,
     private http: HttpClient,
+    private authService: AuthService,
+    private documentReloadService: DocumentReloadService,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
@@ -90,13 +102,287 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.loadReservations();
     this.loadOrganization();
     this.loadContacts();
+    
+    // In debug mode, load HTML from assets immediately
+    if (this.debuggingHtml) {
+      this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+        next: (html: string) => {
+          if (html) {
+            this.form.patchValue({ invoice: html });
+          }
+        },
+        error: () => {
+          // Silently fail in debug mode if file doesn't exist
+        }
+      });
+    }
+    
+    // Apply initial values from @Input after data loads
+    // Wait for offices to load first
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (this.officeId !== null) {
+        this.applyOfficeSelection(this.officeId);
+      }
+      // Then wait for reservations to load
+      if (this.reservationId !== null) {
+        this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
+          this.applyReservationSelection(this.reservationId);
+        });
+      }
+    });
   }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Handle officeId changes from parent
+    if (changes['officeId'] && !changes['officeId'].firstChange) {
+      const newOfficeId = changes['officeId'].currentValue;
+      if (newOfficeId !== (this.selectedOffice?.officeId ?? null)) {
+        this.applyOfficeSelection(newOfficeId);
+      }
+    }
+    
+    // Handle reservationId changes from parent
+    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
+      const newReservationId = changes['reservationId'].currentValue;
+      if (newReservationId !== (this.selectedReservation?.reservationId ?? null)) {
+        this.applyReservationSelection(newReservationId);
+      }
+    }
+  }
+
+  private applyOfficeSelection(officeId: number | null): void {
+    if (officeId === null) {
+      this.selectedOffice = null;
+      this.form.patchValue({ selectedOfficeId: null }, { emitEvent: false });
+      this.availableReservations = [];
+      this.availableInvoices = [];
+      this.selectedReservation = null;
+      this.selectedInvoice = null;
+      this.previewIframeHtml = '';
+      return;
+    }
+    
+    // Wait for offices to load if not already loaded
+    if (this.offices.length === 0) {
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.offices = offices || [];
+          this.applyOfficeSelection(officeId); // Retry after offices are loaded
+        });
+      });
+      return;
+    }
+    
+    const office = this.offices.find(o => o.officeId === officeId);
+    if (office) {
+      this.selectedOffice = office;
+      this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
+      this.filterReservations();
+    }
+  }
+
+  private applyReservationSelection(reservationId: string | null): void {
+    if (reservationId === null) {
+      this.selectedReservation = null;
+      this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
+      this.availableInvoices = [];
+      this.selectedInvoice = null;
+      this.previewIframeHtml = '';
+      return;
+    }
+    
+    // Wait for reservations to load if not already loaded
+    if (this.reservations.length === 0) {
+      this.reservationService.getReservationList().pipe(take(1)).subscribe({
+        next: (reservations) => {
+          this.reservations = reservations || [];
+          this.filterReservations();
+          this.applyReservationSelection(reservationId); // Retry after reservations are loaded
+        }
+      });
+      return;
+    }
+    
+    const reservation = this.reservations.find(r => r.reservationId === reservationId);
+    if (reservation) {
+      // Load full reservation details
+      this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+        next: (fullReservation: ReservationResponse) => {
+          this.selectedReservation = fullReservation;
+          this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
+          if (this.selectedOffice) {
+            this.loadInvoicesForReservation(reservationId);
+            this.loadProperty(fullReservation.propertyId);
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
+          }
+        }
+      });
+    }
+  }
+
+  //#region Invoice Methods
+  getInvoice(): void {
+    if (this.debuggingHtml) {
+      // Load HTML from assets for faster testing
+      this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(
+        take(1),
+        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })
+      ).subscribe({
+        next: (html: string) => {
+          if (html) {
+            // Update form control with raw HTML
+            this.form.patchValue({ invoice: html });
+            if (this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
+              const processedHtml = this.replacePlaceholders(html);
+              this.processAndSetHtml(processedHtml);
+            }
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not load invoice from assets at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
+        }
+      });
+      return;
+    }
+
+    // Production mode: load from API
+    if (!this.property?.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+      return;
+    }
+
+    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.property.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
+      next: (response: PropertyHtmlResponse) => {
+        if (response) {
+          this.propertyHtml = response;
+          // Update form control with raw HTML
+          if (response.invoice) {
+            this.form.patchValue({ invoice: response.invoice });
+          }
+          if (response.invoice && this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
+            const processedHtml = this.replacePlaceholders(response.invoice);
+            this.processAndSetHtml(processedHtml);
+          }
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load invoice at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  reloadInvoice(): void {
+    // Reload property data to get latest information
+    if (this.property?.propertyId) {
+      this.loadProperty(this.property.propertyId);
+    }
+    // Reload invoice HTML
+    if (this.property?.propertyId) {
+      this.getInvoice();
+    }
+  }
+
+  saveInvoice(): void {
+    if (!this.property?.propertyId) {
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.isSubmitting = true;
+    const formValue = this.form.value;
+
+    // Create and initialize PropertyHtmlRequest
+    const propertyHtmlRequest: PropertyHtmlRequest = {
+      propertyId: this.property.propertyId,
+      organizationId: this.authService.getUser()?.organizationId || '',
+      welcomeLetter: this.propertyHtml?.welcomeLetter || '',
+      inspectionChecklist: this.propertyHtml?.inspectionChecklist || '',
+      lease: this.propertyHtml?.lease || '',
+      letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
+      noticeToVacate: this.propertyHtml?.noticeToVacate || '',
+      creditAuthorization: this.propertyHtml?.creditAuthorization || '',
+      creditApplicationBusiness: this.propertyHtml?.creditApplicationBusiness || '',
+      creditApplicationIndividual: this.propertyHtml?.creditApplicationIndividual || '',
+      invoice: formValue.invoice || '',
+    };
+
+    // Save the HTML using upsert
+    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
+      next: (response) => {
+        this.propertyHtml = response;
+        this.toastr.success('Invoice saved successfully', 'Success');
+        this.isSubmitting = false;
+        this.iframeKey++; // Force iframe refresh
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not save invoice at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.isSubmitting = false;
+      }
+    });
+  }
+
+  saveInvoiceAsDocument(): void {
+    if (!this.selectedOffice) {
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.isSubmitting = true;
+
+    // Generate HTML with styles for PDF
+    const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+      this.previewIframeHtml,
+      this.previewIframeStyles
+    );
+    const invoiceCode = this.selectedInvoice?.invoiceName?.replace(/[^a-zA-Z0-9]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
+    const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    const generateDto: GenerateDocumentFromHtmlDto = {
+      htmlContent: htmlWithStyles,
+      organizationId: this.organization?.organizationId || '',
+      officeId: this.selectedOffice.officeId,
+      officeName: this.selectedOffice.name,
+      propertyId: this.property?.propertyId || null,
+      reservationId: this.selectedReservation?.reservationId || null,
+      documentType: DocumentType.Other,
+      fileName: fileName
+    };
+
+    this.documentService.generate(generateDto).pipe(take(1)).subscribe({
+      next: (documentResponse: DocumentResponse) => {
+        this.toastr.success('Document generated successfully', 'Success');
+        this.isSubmitting = false;
+        this.iframeKey++; // Force iframe refresh
+        
+        // Trigger document list reload
+        this.documentReloadService.triggerReload();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        console.error('Document save error:', err);
+        this.isSubmitting = false;
+        this.iframeKey++; // Force iframe refresh
+      }
+    });
+  }
+  //#endregion
 
   buildForm(): FormGroup {
     return this.fb.group({
       selectedOfficeId: new FormControl(null),
       selectedReservationId: new FormControl(null),
-      selectedInvoiceId: new FormControl(null)
+      selectedInvoiceId: new FormControl(null),
+      invoice: new FormControl('')
     });
   }
 
@@ -182,6 +468,31 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
 
   loadInvoiceHtml(): void {
+    if (this.debuggingHtml) {
+      // Load HTML from assets for faster testing
+      this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+        next: (html: string) => {
+          if (html) {
+            // Update form control with raw HTML
+            this.form.patchValue({ invoice: html });
+            const processedHtml = this.replacePlaceholders(html);
+            this.processAndSetHtml(processedHtml);
+          } else {
+            this.previewIframeHtml = '';
+            this.toastr.warning('No invoice HTML template found in assets.', 'No Template');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not load invoice HTML from assets.', CommonMessage.ServiceError);
+          }
+          this.previewIframeHtml = '';
+        }
+      });
+      return;
+    }
+
+    // Production mode: load from API
     if (!this.property?.propertyId) {
       this.previewIframeHtml = '';
       return;
@@ -191,6 +502,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       next: (response: PropertyHtmlResponse) => {
         if (response && response.invoice) {
           this.propertyHtml = response;
+          // Update form control with raw HTML
+          this.form.patchValue({ invoice: response.invoice });
           const processedHtml = this.replacePlaceholders(response.invoice);
           this.processAndSetHtml(processedHtml);
         } else {
@@ -234,6 +547,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.selectedInvoice = null;
       this.form.patchValue({ selectedReservationId: null, selectedInvoiceId: null });
       this.previewIframeHtml = '';
+      this.officeIdChange.emit(null);
       return;
     }
     
@@ -243,6 +557,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.selectedInvoice = null;
     this.form.patchValue({ selectedInvoiceId: null });
     this.previewIframeHtml = '';
+    this.officeIdChange.emit(officeId);
   }
 
   onReservationSelected(reservationId: string | null): void {
@@ -252,6 +567,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.selectedInvoice = null;
       this.form.patchValue({ selectedInvoiceId: null });
       this.previewIframeHtml = '';
+      this.reservationIdChange.emit(null);
       return;
     }
     
@@ -261,6 +577,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         this.selectedReservation = reservation;
         this.loadProperty(reservation.propertyId);
         this.loadInvoicesForReservation(reservationId);
+        this.reservationIdChange.emit(reservationId);
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -278,8 +595,16 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
     
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
-    if (this.selectedInvoice && this.selectedOffice && this.selectedReservation && this.property) {
-      this.loadInvoiceHtml();
+    if (this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
+      // If HTML is already in the form control (from textarea editing), use it
+      const formHtml = this.form.value.invoice;
+      if (formHtml && formHtml.trim()) {
+        const processedHtml = this.replacePlaceholders(formHtml);
+        this.processAndSetHtml(processedHtml);
+      } else if (this.property) {
+        // Otherwise load from API/assets
+        this.loadInvoiceHtml();
+      }
     }
   }
 
