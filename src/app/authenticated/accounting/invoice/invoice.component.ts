@@ -349,9 +349,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
             const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
             return {
               value: r.reservationId,
-              label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-            };
-          });
+            label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.contactName || 'N/A'}`
+          }));
         }
       },
       error: (err: HttpErrorResponse) => {
