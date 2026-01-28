@@ -22,12 +22,11 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { EntityType } from '../../contact/models/contact-type';
-import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType } from '../models/reservation-enum';
-import { CheckinTimes, CheckoutTimes } from '../../property/models/property-enums';
+import { EntityType } from '../../contact/models/contact-enum';
+import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType, getReservationTypes, getReservationStatuses, getBillingTypes, getFrequencies, getReservationNotices, getDepositTypes } from '../models/reservation-enum';
+import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { UtilityService } from '../../../services/utility.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
@@ -107,7 +106,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private authService: AuthService,
     public formatterService: FormatterService,
-    private utilityService: UtilityService,
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
@@ -227,8 +225,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       tenantName: formValue.tenantName || '',
       arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
       departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
-      checkInTimeId: this.utilityService.normalizeCheckInTimeId(formValue.checkInTimeId),
-      checkOutTimeId: this.utilityService.normalizeCheckOutTimeId(formValue.checkOutTimeId),
+      checkInTimeId: normalizeCheckInTimeId(formValue.checkInTimeId),
+      checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
@@ -567,53 +565,16 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   initializeEnums(): void {
-    this.availableClientTypes = [
-      { value: ReservationType.Private, label: 'Private' },
-      { value: ReservationType.Corporate, label: 'Corporate' },
-      { value: ReservationType.Owner, label: 'Owner' }
-    ];
-
-    this.allReservationStatuses = [
-      { value: ReservationStatus.PreBooking, label: 'Pre-Booking' },
-      { value: ReservationStatus.Confirmed, label: 'Confirmed' },
-      { value: ReservationStatus.CheckedIn, label: 'Checked In' },
-      { value: ReservationStatus.GaveNotice, label: 'Gave Notice' },
-      { value: ReservationStatus.FirstRightRefusal, label: 'First Right of Refusal' },
-      { value: ReservationStatus.Maintenance, label: 'Maintenance' },
-      { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
-    ];
-
+    this.availableClientTypes = getReservationTypes();
+    this.allReservationStatuses = getReservationStatuses();
     // Initialize with all statuses, will be filtered based on reservation type
     this.updateReservationStatusesByReservationType();
-
-    this.checkInTimes = this.utilityService.getCheckInTimes();
-    this.checkOutTimes = this.utilityService.getCheckOutTimes();
-
-    this.availableBillingTypes = [
-      { value: BillingType.Monthly, label: 'Monthly' },
-      { value: BillingType.Daily, label: 'Daily' },
-      { value: BillingType.Nightly, label: 'Nightly' }
-    ];
-
-    this.availableFrequencies = [
-      { value: Frequency.NA, label: 'N/A' },
-      { value: Frequency.OneTime, label: 'One Time' },
-      { value: Frequency.Weekly, label: 'Weekly' },
-      { value: Frequency.EOW, label: 'EOW' },
-      { value: Frequency.Monthly, label: 'Monthly' }
-    ];
-
-    this.availableReservationNotices = [
-      { value: ReservationNotice.ThirtyDays, label: '30 Days' }, // 0
-      { value: ReservationNotice.FifteenDays, label: '15 Days' }, // 1
-      { value: ReservationNotice.FourteenDays, label: '14 Days' } // 2
-    ];
-
-    this.availableDepositTypes = [
-      { value: DepositType.Deposit, label: 'Deposit' },
-      { value: DepositType.CLR, label: 'CLR' },
-      { value: DepositType.SDW, label: 'SDW' },
-    ];
+    this.checkInTimes = getCheckInTimes();
+    this.checkOutTimes = getCheckOutTimes();
+    this.availableBillingTypes = getBillingTypes();
+    this.availableFrequencies = getFrequencies();
+    this.availableReservationNotices = getReservationNotices();
+    this.availableDepositTypes = getDepositTypes();
   }
   //#endregion
 

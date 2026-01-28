@@ -50,6 +50,7 @@ export interface ReservationResponse {
   agentId: string | null;
   propertyId: string;
   contactId: string;
+  contactName: string;
   reservationCode: string;
   reservationTypeId: number;
   reservationStatusId: number;
@@ -98,7 +99,6 @@ export interface ReservationListResponse {
   officeName: string;
   contactId: string;
   contactName: string;
-  contactTypeId?: number; // EntityType enum value (e.g., EntityType.Company = 3)
   tenantName: string;
   companyName: string;
   agentCode: string;
@@ -121,7 +121,6 @@ export interface ReservationListDisplay {
   office?: string;
   contactId: string;
   contactName: string;
-  contactTypeId?: number;
   tenantName: string;
   companyName: string;
   agentCode: string;

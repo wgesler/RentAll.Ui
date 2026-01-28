@@ -11,3 +11,22 @@ export enum UserGroups {
   Client = 9
 }
 
+export function getUserGroup(userGroupId: number | undefined): string {
+  if (userGroupId === undefined || userGroupId === null) return '';
+  
+  const groupMap: { [key: number]: string } = {
+    [UserGroups.Unknown]: 'Unknown',
+    [UserGroups.SuperAdmin]: 'Super Admin',
+    [UserGroups.Admin]: 'Admin',
+    [UserGroups.Accounting]: 'Accounting',
+    [UserGroups.Agent]: 'Agent',
+    [UserGroups.PropertyManager]: 'Property Manager',
+    [UserGroups.Facilities]: 'Facilities',
+    [UserGroups.Housekeeping]: 'Housekeeping',
+    [UserGroups.Corporation]: 'Corporation',
+    [UserGroups.Client]: 'Client'
+  };
+  
+  return groupMap[userGroupId] || '';
+}
+

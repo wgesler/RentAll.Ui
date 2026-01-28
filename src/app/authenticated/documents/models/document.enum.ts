@@ -4,11 +4,18 @@ export enum DocumentType {
   ReservationLease = 2
 }
 
-export function getDocumentTypeLabel(documentType: DocumentType): string {
-  const typeLabels: { [key in DocumentType]: string } = {
+export function getDocumentType(documentTypeId: number | undefined): string {
+  if (documentTypeId === undefined || documentTypeId === null) return '';
+  
+  const typeMap: { [key: number]: string } = {
     [DocumentType.Other]: 'Other',
     [DocumentType.PropertyLetter]: 'Welcome Letter',
     [DocumentType.ReservationLease]: 'Reservation Lease'
   };
-  return typeLabels[documentType] || DocumentType[documentType] || 'Other';
+  
+  return typeMap[documentTypeId] || '';
+}
+
+export function getDocumentTypeLabel(documentType: DocumentType): string {
+  return getDocumentType(documentType) || DocumentType[documentType] || 'Other';
 }

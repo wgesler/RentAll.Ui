@@ -8,7 +8,7 @@ import { ReservationService } from '../services/reservation.service';
 import { ReservationResponse, ReservationListResponse } from '../models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
-import { EntityType } from '../../contact/models/contact-type';
+import { EntityType } from '../../contact/models/contact-enum';
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { PropertyService } from '../../property/services/property.service';
@@ -23,6 +23,7 @@ import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse, HttpClient } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
+import { getCheckInTime, getCheckOutTime } from '../../property/models/property-enums';
 import { ReservationNotice, BillingType, DepositType } from '../models/reservation-enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
@@ -459,13 +460,10 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => {
-      const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
-      return {
-        value: r,
-        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-      };
-    });
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
   }
 
   loadReservation(): void {
@@ -576,15 +574,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     const reservationCode = this.selectedReservation.reservationCode || 'N/A';
     // Try to get display name from availableReservations, fallback to tenantName
     const reservationListItem = this.availableReservations.find(r => r.value.reservationId === this.selectedReservation.reservationId);
-    let displayName: string;
-    if (reservationListItem) {
-      // Use company name if contactTypeId is Company, otherwise use contactName
-      displayName = (reservationListItem.value.contactTypeId === EntityType.Company && reservationListItem.value.companyName)
-        ? reservationListItem.value.companyName
-        : (reservationListItem.value.contactName || 'N/A');
-    } else {
-      displayName = this.selectedReservation.tenantName || 'Unnamed Tenant';
-    }
+    const displayName = reservationListItem?.value.contactName || this.selectedReservation.tenantName || 'Unnamed Tenant';
     return `${reservationCode}: ${displayName}`;
   }
 
@@ -1004,8 +994,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
       result = result.replace(/\{\{reservationDate\}\}/g, this.formatterService.formatDateStringLong(new Date().toISOString()) || '');
-      result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());
       result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getReservationDayNotice());
       result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));

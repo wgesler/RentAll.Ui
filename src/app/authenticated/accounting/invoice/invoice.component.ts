@@ -14,13 +14,13 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
-import { EntityType } from '../../contact/models/contact-type';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionType, TransactionTypeLabels, StartOfCredits } from '../models/accounting-enum';
+import { TransactionTypeLabels, StartOfCredits } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-invoice',
@@ -73,7 +73,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private mappingService: MappingService,
     private costCodesService: CostCodesService,
-    public formatter: FormatterService
+    public formatter: FormatterService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -345,11 +346,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           this.updateAvailableReservations();
         } else {
           // Form doesn't exist yet, show all reservations
-          this.availableReservations = this.reservations.map(r => {
-            const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
-            return {
-              value: r.reservationId,
-            label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${r.contactName || 'N/A'}`
+          this.availableReservations = this.reservations.map(r => ({
+            value: r.reservationId,
+            label: this.utilityService.getReservationLabel(r)
           }));
         }
       },
@@ -595,28 +594,16 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   updateAvailableReservations(): void {
     if (this.selectedOffice) {
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-      this.availableReservations = filteredReservations.map(r => {
-        // Use company name if contactTypeId is Company, otherwise use contactName
-        const displayName = (r.contactTypeId === EntityType.Company && r.companyName) 
-          ? r.companyName 
-          : (r.contactName || 'N/A');
-        return {
-          value: r.reservationId,
-          label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-        };
-      });
+      this.availableReservations = filteredReservations.map(r => ({
+        value: r.reservationId,
+        label: this.utilityService.getReservationLabel(r)
+      }));
     } else {
       // If no office selected, show all reservations
-      this.availableReservations = this.reservations.map(r => {
-        // Use company name if contactTypeId is Company, otherwise use contactName
-        const displayName = (r.contactTypeId === EntityType.Company && r.companyName) 
-          ? r.companyName 
-          : (r.contactName || 'N/A');
-        return {
-          value: r.reservationId,
-          label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-        };
-      });
+      this.availableReservations = this.reservations.map(r => ({
+        value: r.reservationId,
+        label: this.utilityService.getReservationLabel(r)
+      }));
     }
   }
 

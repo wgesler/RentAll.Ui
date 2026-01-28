@@ -9,7 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { DocumentResponse, DocumentRequest } from '../models/document.model';
-import { DocumentType } from '../models/document.enum';
+import { DocumentType, getDocumentType } from '../models/document.enum';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
@@ -329,7 +329,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   getDocumentTypeName(documentType: DocumentType): string {
     const docType = this.documentTypes.find(dt => dt.value === documentType);
-    return docType ? docType.label : DocumentType[documentType] || 'Other';
+    return docType ? docType.label : getDocumentType(documentType) || 'Other';
   }
 
   removeLoadItem(key: string): void {

@@ -2,7 +2,7 @@ import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, Ev
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
+import { InvoiceResponse } from '../models/invoice.model';
 import { AccountingService } from '../services/accounting.service';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
@@ -11,6 +11,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -20,12 +21,10 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
-import { EntityType } from '../../contact/models/contact-type';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
-import { LedgerLineRequest } from '../models/invoice.model';
 import { ReservationPaymentRequest } from '../../reservation/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
 
@@ -99,6 +98,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private formatter: FormatterService,
+    private utilityService: UtilityService,
     private dialog: MatDialog,
     private authService: AuthService) {
   }
@@ -443,26 +443,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => {
-      // Use company name if contactTypeId is Company, otherwise use contactName
-      // Handle both number and string comparisons, and check for null/undefined
-      const contactTypeIdNum = typeof r.contactTypeId === 'string' ? parseInt(r.contactTypeId, 10) : r.contactTypeId;
-      const isCompany = contactTypeIdNum === EntityType.Company || contactTypeIdNum === 3;
-      const hasValidCompanyName = r.companyName && r.companyName.trim() && r.companyName !== 'N/A' && r.companyName.trim().length > 0;
-      
-      // Debug logging (remove after testing)
-      if (r.companyName && r.companyName !== 'N/A') {
-        console.log(`Reservation ${r.reservationCode}: contactTypeId=${r.contactTypeId}, isCompany=${isCompany}, companyName="${r.companyName}", contactName="${r.contactName}"`);
-      }
-      
-      const displayName = (isCompany && hasValidCompanyName) 
-        ? r.companyName.trim() 
-        : (r.contactName || 'N/A');
-      return {
-        value: r,
-        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-      };
-    });
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
     
     // Clear selected reservation if it doesn't belong to the selected office
     if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {

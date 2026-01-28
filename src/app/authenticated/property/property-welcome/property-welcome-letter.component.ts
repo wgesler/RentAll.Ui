@@ -9,15 +9,14 @@ import { ReservationService } from '../../reservation/services/reservation.servi
 import { ReservationResponse, ReservationListResponse } from '../../reservation/models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
-import { EntityType } from '../../contact/models/contact-type';
 import { PropertyHtmlService } from '../services/property-html.service';
 import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-html.model';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
-import { TrashDays } from '../models/property-enums';
-import { BehaviorSubject, Observable, map, finalize, take, switchMap, from, filter, forkJoin, of } from 'rxjs';
+import { getTrashPickupDay, getCheckInTime, getCheckOutTime } from '../models/property-enums';
+import { BehaviorSubject, Observable, map, finalize, take, filter, forkJoin, of, Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
@@ -33,7 +32,6 @@ import { DocumentService } from '../../documents/services/document.service';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
-import { Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 
@@ -67,8 +65,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   iframeKey: number = 0;
   isDownloading: boolean = false;
   welcomeLetterReloadSubscription?: Subscription;
-  includeWelcomeLetter: boolean = true;
-  includeInspectionChecklist: boolean = false;
   debuggingHtml: boolean = true;
    
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings']));
@@ -245,16 +241,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   buildForm(): FormGroup {
     return this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl(null),
-      includeWelcomeLetter: new FormControl(this.includeWelcomeLetter),
-      includeInspectionChecklist: new FormControl(this.includeInspectionChecklist)
+      selectedReservationId: new FormControl(null)
     });
   }
   //#endregion
 
   //#region Data Loading Methods
   loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
@@ -343,22 +336,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     });
   }
 
-  filterReservations(): void {
-    if (!this.selectedOffice) {
-      this.availableReservations = [];
-      return;
-    }
-    
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => {
-      const displayName = (r.contactTypeId === EntityType.Company && r.companyName) ? r.companyName  : (r.contactName || 'N/A');
-      return {
-        value: r,
-        label: `${r.reservationCode || r.reservationId.substring(0, 8)} - ${displayName}`
-      };
-    });
-  }
-
   loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
@@ -418,6 +395,19 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       }
     });
   }
+  
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
+  }
   //#endregion
   
   //#region Form Replacement Functions
@@ -441,8 +431,8 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
-      result = result.replace(/\{\{checkInTime\}\}/g, this.utilityService.getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{checkOutTime\}\}/g, this.utilityService.getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
+      result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
     }
 
     // Replace property placeholders
@@ -561,7 +551,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   getTrashLocation(): string {
     if (!this.property) return 'N/A';
     
-    const trashPickupDay = this.getTrashPickupDay(this.property.trashPickupId);
+    const trashPickupDay = getTrashPickupDay(this.property.trashPickupId);
     const removalLocation = this.property.trashRemoval || 'N/A';
     
     if (trashPickupDay && removalLocation !== 'N/A') {
@@ -573,22 +563,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     }
     
     return 'N/A';
-  }
-
-  getTrashPickupDay(trashPickupId: number | undefined): string {
-    if (!trashPickupId) return '';
-    
-    const dayMap: { [key: number]: string } = {
-      [TrashDays.Monday]: 'Monday',
-      [TrashDays.Tuesday]: 'Tuesday',
-      [TrashDays.Wednesday]: 'Wednesday',
-      [TrashDays.Thursday]: 'Thursday',
-      [TrashDays.Friday]: 'Friday',
-      [TrashDays.Saturday]: 'Saturday',
-      [TrashDays.Sunday]: 'Sunday'
-    };
-    
-    return dayMap[trashPickupId] || '';
   }
 
   getBuildingInfo(): string {
@@ -622,14 +596,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     // Load HTML files and process them
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
-        // Get selected documents
+        // Always include welcome letter
         const selectedDocuments: string[] = [];
 
-        if (this.includeWelcomeLetter && htmlFiles.welcomeLetter) {
+        if (htmlFiles.welcomeLetter) {
           selectedDocuments.push(htmlFiles.welcomeLetter);
-        }
-        if (this.includeInspectionChecklist && htmlFiles.inspectionChecklist) {
-          selectedDocuments.push(htmlFiles.inspectionChecklist);
         }
 
         // If no documents selected, show empty
@@ -796,22 +767,16 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     if (this.debuggingHtml) {
       // Load HTML from assets for faster testing
       return forkJoin({
-        welcomeLetter: this.includeWelcomeLetter ? this.http.get('assets/welcome-letter.html', { responseType: 'text' }) : of(''),
-        inspectionChecklist: this.includeInspectionChecklist ? this.http.get('assets/inspection-checklist.html', { responseType: 'text' }) : of('')
+        welcomeLetter: this.http.get('assets/welcome-letter.html', { responseType: 'text' }),
+        inspectionChecklist: of('')
       });
     } else {
-      // Read HTML from propertyHtml parameters
+      // Read HTML from propertyHtml parameters - always include welcome letter
       return of({
-        welcomeLetter: this.includeWelcomeLetter ? (this.propertyHtml?.welcomeLetter || '') : '',
-        inspectionChecklist: this.includeInspectionChecklist ? (this.propertyHtml?.inspectionChecklist || '') : ''
+        welcomeLetter: this.propertyHtml?.welcomeLetter || '',
+        inspectionChecklist: ''
       });
     }
-  }
-
-  onIncludeCheckboxChange(): void {
-    this.includeWelcomeLetter = this.form.get('includeWelcomeLetter')?.value ?? true;
-    this.includeInspectionChecklist = this.form.get('includeInspectionChecklist')?.value ?? false;
-    this.generatePreviewIframe();
   }
 
   injectStylesIntoIframe(): void {

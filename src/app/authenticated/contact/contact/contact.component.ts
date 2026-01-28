@@ -9,7 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ContactResponse, ContactRequest } from '../models/contact.model';
-import { EntityType } from '../models/contact-type';
+import { EntityType, getContactTypes } from '../models/contact-enum';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -289,21 +289,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   initializeContactTypes(): void {
-    const includedTypes = ['Company', 'Tenant', 'Owner','Vendor', 'Hoa'];
-    this.availableContactTypes = includedTypes
-      .map(key => ({
-        value: EntityType[key as keyof typeof EntityType],
-        label: this.formatContactTypeLabel(key)
-      }));
-  }
-
-  formatContactTypeLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    // e.g., "Company" -> "Company", "Owner" -> "Owner"
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+    this.availableContactTypes = getContactTypes();
   }
   //#endregion
 

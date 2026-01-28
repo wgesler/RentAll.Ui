@@ -24,12 +24,29 @@ export const TransactionTypeLabels: { value: TransactionType, label: string }[] 
   { value: TransactionType.Adjustment, label: 'Adjustment' }
 ];
 
+export function getTransactionType(transactionTypeId: number | undefined): string {
+  if (transactionTypeId === undefined || transactionTypeId === null) return '';
+  
+  const typeMap: { [key: number]: string } = {
+    [TransactionType.Debit]: 'Debit',
+    [TransactionType.Charge]: 'Charge',
+    [TransactionType.Deposit]: 'Deposit',
+    [TransactionType.Sdw]: 'SDW',
+    [TransactionType.Credit]: 'Credit',
+    [TransactionType.Payment]: 'Payment',
+    [TransactionType.Refund]: 'Refund',
+    [TransactionType.Revenue]: 'Revenue',
+    [TransactionType.Adjustment]: 'Adjustment'
+  };
+  
+  return typeMap[transactionTypeId] || '';
+}
+
 export function getTransactionTypeLabel(transactionType: number, transactionTypes?: { value: number, label: string }[]): string {
   if (transactionTypes && transactionTypes.length > 0) {
     const found = transactionTypes.find(t => t.value === transactionType);
-    return found?.label || 'Unknown';
+    return found?.label || getTransactionType(transactionType);
   }
-  // Fallback to shared TransactionTypeLabels constant
-  const found = TransactionTypeLabels.find(t => t.value === transactionType);
-  return found?.label || 'Unknown';
+  // Fallback to getTransactionType function
+  return getTransactionType(transactionType) || 'Unknown';
 }

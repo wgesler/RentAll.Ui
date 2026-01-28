@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PurposefulAny } from '../../../shared/models/amorphous';
 import { SelectionModel } from '@angular/cdk/collections';
-import { Status } from '../../../enums/status.enum';
+import { Status, getStatus } from '../../../enums/status.enum';
 import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { ButtonData } from './models/button-data';
 import { TableItem } from './models/table-item';
@@ -299,7 +299,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   getStatusText(status: number): string {
-    return Status[status].toString();
+    return getStatus(status);
   }
 
   obfuscateValue(value: string): string {

@@ -3,7 +3,7 @@ import { Observable, BehaviorSubject, map } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
-import { EntityType } from '../models/contact-type';
+import { EntityType } from '../models/contact-enum';
 
 @Injectable({
     providedIn: 'root'

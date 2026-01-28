@@ -12,12 +12,11 @@ import { PropertyResponse, PropertyRequest } from '../models/property.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { UtilityService } from '../../../services/utility.service';
 import { ContactService } from '../../contact/services/contact.service';
-import { ContactResponse, ContactListDisplay } from '../../contact/models/contact.model';
-import { EntityType } from '../../contact/models/contact-type';
+import { ContactResponse } from '../../contact/models/contact.model';
+import { EntityType } from '../../contact/models/contact-enum';
 import { MappingService } from '../../../services/mapping.service';
-import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, BedSizeType, CheckinTimes, CheckoutTimes } from '../models/property-enums';
+import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyTypes, getBedSizeTypes, getPropertyStyles, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { RegionService } from '../../organization-configuration/region/services/region.service';
@@ -118,7 +117,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService,
-    public utilityService: UtilityService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService
   ) {
@@ -250,8 +248,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
     
     // Ensure time fields are integers
-    propertyRequest.checkInTimeId = this.utilityService.normalizeCheckInTimeId(formValue.checkInTimeId);
-    propertyRequest.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(formValue.checkOutTimeId);
+    propertyRequest.checkInTimeId = normalizeCheckInTimeId(formValue.checkInTimeId);
+    propertyRequest.checkOutTimeId = normalizeCheckOutTimeId(formValue.checkOutTimeId);
     
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
@@ -495,8 +493,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
       formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
       // Normalize values
-      formData.checkInTimeId = this.utilityService.normalizeCheckInTimeId(this.property.checkInTimeId);
-      formData.checkOutTimeId = this.utilityService.normalizeCheckOutTimeId(this.property.checkOutTimeId);
+      formData.checkInTimeId = normalizeCheckInTimeId(this.property.checkInTimeId);
+      formData.checkOutTimeId = normalizeCheckOutTimeId(this.property.checkOutTimeId);
       
       // Handle enum Id fields as numbers (map from Id fields)
       const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
@@ -680,81 +678,29 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   initializePropertyStyles(): void {
-    this.propertyStyles = Object.keys(PropertyStyle)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .map(key => ({
-        value: PropertyStyle[key],
-        label: this.formatPropertyStyleLabel(key)
-      }));
+    this.propertyStyles = getPropertyStyles();
   }
 
   initializePropertyStatuses(): void {
-    this.propertyStatuses = Object.keys(PropertyStatus)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .map(key => ({
-        value: PropertyStatus[key],
-        label: this.formatPropertyStatusLabel(key)
-      }));
+    this.propertyStatuses = getPropertyStatuses();
   }
 
   initializePropertyTypes(): void {
-     this.propertyTypes = Object.keys(PropertyType)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .map(key => ({
-        value: PropertyType[key],
-        label: this.formatPropertyTypeLabel(key)
-      }));
+    this.propertyTypes = getPropertyTypes();
   }
 
   initializeBedSizeTypes(): void {
-    // Build bedSizeTypes from the BedSizeType enum
-    this.bedSizeTypes = Object.keys(BedSizeType)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .map(key => ({
-        value: BedSizeType[key],
-        label: this.formatBedSizeTypeLabel(key)
-      }));
+    this.bedSizeTypes = getBedSizeTypes();
   }
 
   initializeTimeTypes(): void {
-    this.checkInTimes = this.utilityService.getCheckInTimes();
-    this.checkOutTimes = this.utilityService.getCheckOutTimes();
+    this.checkInTimes = getCheckInTimes();
+    this.checkOutTimes = getCheckOutTimes();
   }
   //#endregion
 
   //#region Formatting enum labels
-  formatBedSizeTypeLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
-  formatPropertyStyleLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
-  formatPropertyStatusLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    // e.g., "NotProcessed" -> "Not Processed"
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
-  formatPropertyTypeLabel(enumKey: string): string {
-    // Convert enum key to a readable label
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
+  // All enum formatting functions have been moved to property-enums.ts
   //#endregion
 
   //#region Data Loading Methods

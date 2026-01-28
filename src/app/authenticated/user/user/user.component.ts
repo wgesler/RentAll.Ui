@@ -9,7 +9,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { UserResponse, UserRequest } from '../models/user.model';
-import { UserGroups } from '../models/user-type';
+import { UserGroups, getUserGroup } from '../models/user-type';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { OrganizationListService } from '../../organization/services/organization-list.service';
 import { OrganizationResponse } from '../../organization/models/organization.model';

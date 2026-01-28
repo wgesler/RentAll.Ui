@@ -3,9 +3,9 @@ import { CompanyResponse, CompanyListDisplay } from '../authenticated/company/mo
 import { VendorResponse, VendorListDisplay } from '../authenticated/vendor/models/vendor.model';
 import { PropertyListDisplay, PropertyListResponse } from '../authenticated/property/models/property.model';
 import { ContactResponse, ContactListDisplay } from '../authenticated/contact/models/contact.model';
-import { formatContactType } from '../authenticated/contact/models/contact-type';
+import { getEntityType } from '../authenticated/contact/models/contact-enum';
 import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
-import { formatReservationStatus } from '../authenticated/reservation/models/reservation-enum';
+import { getReservationStatus } from '../authenticated/reservation/models/reservation-enum';
 import { AgentResponse, AgentListDisplay } from '../authenticated/organization-configuration/agent/models/agent.model';
 import { AreaResponse, AreaListDisplay } from '../authenticated/organization-configuration/area/models/area.model';
 import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization-configuration/building/models/building.model';
@@ -78,7 +78,7 @@ export class MappingService {
     return colors.map<ColorListDisplay>((o: ColorResponse) => ({
       colorId: o.colorId,
       reservationStatusId: o.reservationStatusId,
-      reservationStatus: formatReservationStatus(o.reservationStatusId),
+      reservationStatus: getReservationStatus(o.reservationStatusId),
       color: o.color
     }));
   }
@@ -109,7 +109,7 @@ export class MappingService {
         officeId: o.officeId,
         officeName: o.officeName,
         fullName: o.fullName,
-        contactType: formatContactType(o.entityTypeId),
+        contactType: getEntityType(o.entityTypeId),
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
         isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
@@ -295,7 +295,6 @@ export class MappingService {
 
   mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
-      console.log(`Reservation ${o.reservationCode}: creditDue = ${o.creditDue}`);
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
@@ -306,7 +305,6 @@ export class MappingService {
         office: o.officeName || undefined,
         contactId: o.contactId,
         contactName: o.contactName,
-        contactTypeId: o.contactTypeId ?? undefined,
         tenantName: o.tenantName,
         companyName: o.companyName || 'N/A',
         agentCode: o.agentCode,
