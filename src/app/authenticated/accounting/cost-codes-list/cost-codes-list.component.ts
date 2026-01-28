@@ -55,7 +55,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' },
+    rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes']));

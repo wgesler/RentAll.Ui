@@ -46,7 +46,7 @@
                 [style.max-width]="column.maxWidth"
                 [style.width]="column.maxWidth"
                 [style.min-width]="column.maxWidth"
-                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '30px' : null"
+                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
                 [attr.data-alignment]="getHeaderAlignment(column)">
                     @switch (column.name) {
                         @case ('select') {
@@ -61,6 +61,19 @@
                             } @else {
                                 {{column.displayAs}}
                             }
+                        } @case ('expand') {
+                            @if (expandAllCallback) {
+                                <button mat-icon-button type="button" (click)="toggleExpandAll()" 
+                                        [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'" 
+                                        class="expand-button"
+                                        [style.width.px]="28"
+                                        [style.height.px]="28"
+                                        [style.min-width.px]="28">
+                                    <span class="expand-text">{{ isAllExpanded ? '−' : '+' }}</span>
+                                </button>
+                            } @else {
+                                {{column.displayAs}}
+                            }
                         } @default {
                             {{column.displayAs}}
                         }
@@ -71,7 +84,7 @@
                 [style.max-width]="column.maxWidth"
                 [style.width]="column.maxWidth"
                 [style.min-width]="column.maxWidth"
-                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '30px' : null"
+                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
                 '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',
@@ -225,7 +238,8 @@
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns" ></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row) : null"
-        [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited}" 
+        [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited, 'datatable-row-colored': rowColorColumn && getRowColor(row) !== defaultRowColor}" 
+        [style.background-color]="rowColorColumn ? getRowColor(row) : null"
         [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>
         
         @if (hasDetailRow && detailRowTemplate) {

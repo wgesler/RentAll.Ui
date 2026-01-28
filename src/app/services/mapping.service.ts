@@ -21,6 +21,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
 import { getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
+import { StartOfCredits } from '../authenticated/accounting/models/accounting-enum';
 
 @Injectable({
     providedIn: 'root'
@@ -122,6 +123,8 @@ export class MappingService {
       // Find office name by officeId
       const office = offices?.find(o => o.officeId === costCode.officeId);
       const officeName = office?.name || '';
+      // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
+      const rowColor = costCode.transactionTypeId >= StartOfCredits ? '#E8F5E9' : undefined;
       return {
         costCodeId: costCode.costCodeId,
         officeId: costCode.officeId,
@@ -130,7 +133,8 @@ export class MappingService {
         transactionTypeId: costCode.transactionTypeId,
         transactionType: getTransactionTypeLabel(costCode.transactionTypeId, transactionTypes),
         description: costCode.description || '',
-        isActive: costCode.isActive ?? true // Default to true if undefined
+        isActive: costCode.isActive ?? true, // Default to true if undefined
+        rowColor: rowColor
       };
     });
   }
@@ -174,6 +178,9 @@ export class MappingService {
         ? getTransactionTypeLabel(transactionTypeId, transactionTypes)
         : '';
       
+      // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
+      const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits ? '#E8F5E9' : undefined;
+      
       const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
         ledgerLineId: line.ledgerLineId,
         costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
@@ -181,7 +188,8 @@ export class MappingService {
         transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
         description: line.description || '',
         amount: line.amount,
-        isNew: false // Existing lines are not new
+        isNew: false, // Existing lines are not new
+        rowColor: rowColor
       };
       
       // Preserve transactionTypeId from CostCode for reference

@@ -76,6 +76,10 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() detailRowTemplate: TemplateRef<any>;
   @Input() detailRowContext: any;
   @Input() includeDetailRowHeader: boolean = true;
+  @Input() rowColorColumn?: string; // Name of hidden column that contains row color
+  @Input() defaultRowColor: string = '#fafafa'; // Default row color (light grey)
+  @Input() expandAllCallback?: (expanded: boolean) => void; // Callback for expand/collapse all
+  @Input() isAllExpanded?: boolean = false; // Track if all rows are expanded
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -348,6 +352,10 @@ export class DataTableComponent implements OnChanges, OnInit {
     // string object keys insertion order is preserved
     for (const name in columns) {
       const column = columns[name];
+      // Skip the row color column from being displayed (it's hidden but still in data)
+      if (this.rowColorColumn && name === this.rowColorColumn) {
+        continue;
+      }
       this.tableColumns.push({
         // Handle default data overrides. Lookup 'JS spread syntax' if this still doesn't make sense.
         ...defaultColumnData,
@@ -459,6 +467,22 @@ export class DataTableComponent implements OnChanges, OnInit {
       ...baseContext,
       includeDetailRowHeader: this.includeDetailRowHeader
     };
+  }
+
+  getRowColor(row: PurposefulAny): string {
+    if (!this.rowColorColumn || !row) {
+      return this.defaultRowColor;
+    }
+    const color = row[this.rowColorColumn];
+    return color && typeof color === 'string' ? color : this.defaultRowColor;
+  }
+
+  toggleExpandAll(): void {
+    if (this.expandAllCallback) {
+      const newState = !this.isAllExpanded;
+      this.isAllExpanded = newState;
+      this.expandAllCallback(newState);
+    }
   }
 }
 

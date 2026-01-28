@@ -109,6 +109,12 @@ img {
         background: #fafafa;
     }
 
+    // For rows with custom colors, make hover slightly darker
+    .mat-row.datatable-row-colored:hover,
+    .mat-mdc-row.datatable-row-colored:hover {
+        filter: brightness(0.95);
+    }
+
     .inactive-chip {
         background-color: #fce6e8;
         color: #d23e4d;
@@ -391,23 +397,27 @@ td.mat-mdc-cell.align-center {
     td {
         border: none;
         padding: 0;
+        background-color: #f9f9f9;
+        border-top: 1px solid #e0e0e0;
     }
 }
 
 :host ::ng-deep .detail-lines-wrapper {
-    padding: 0;
+    padding: 12px 0 12px 24px;
     margin: 0 250px 0 40px;
     overflow-x: auto;
+    background-color: #f9f9f9;
+    border-left: 2px solid #e0e0e0;
 }
 
 :host ::ng-deep .detail-lines-wrapper table {
     width: 100%;
     min-width: 800px;
     border-collapse: collapse;
-    background-color: #fafafa;
+    background-color: white;
     
     thead {
-        background-color: #e0e0e0;
+        background-color: #757575;
         
         tr {
             height: 16px; // 1/3 of typical 48px row height
@@ -417,13 +427,14 @@ td.mat-mdc-cell.align-center {
             padding: 2px 16px; // Reduced to match 1/3 height
             text-align: left;
             font-weight: 500;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid #666;
         }
     }
     
     tbody {
         tr {
             height: 16px; // 1/3 of typical 48px row height
+            background-color: white;
             border-bottom: 1px solid #e0e0e0;
             
             &:hover {

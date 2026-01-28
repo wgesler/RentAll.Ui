@@ -29,3 +29,37 @@
     color: #666;
   }
 }
+
+.detail-lines-wrapper {
+  padding: 12px 0 12px 24px;
+  background-color: #f9f9f9;
+  border-left: 2px solid #e0e0e0;
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    
+    thead {
+      tr {
+        background-color: #d0d0d0;
+      }
+      
+      th {
+        border-bottom: 1px solid #bbb;
+        font-weight: 500;
+        color: #333;
+      }
+    }
+    
+    tbody {
+      tr {
+        background-color: white;
+        
+        &.detail-row-colored:hover {
+          filter: brightness(0.95);
+        }
+      }
+    }
+  }
+}

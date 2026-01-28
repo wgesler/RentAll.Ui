@@ -31,6 +31,14 @@
     background-color: #fafafa;
   }
   
+  tr.payment-line {
+    background-color: #E8F5E9; // Very light version of #4caf50 (the $ green)
+    
+    &:hover {
+      background-color: #C8E6C9; // Slightly darker light green on hover
+    }
+  }
+  
   input {
     width: 100%;
     padding: 4px 8px;

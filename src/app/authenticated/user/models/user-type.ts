@@ -29,4 +29,3 @@ export function getUserGroup(userGroupId: number | undefined): string {
   
   return groupMap[userGroupId] || '';
 }
-

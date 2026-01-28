@@ -49,6 +49,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   invoicesDisplay: any[] = []; // Will contain invoices with expand property
 
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
+  isAllExpanded: boolean = false; // Track if all rows are expanded
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -69,9 +70,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
@@ -362,6 +362,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
       };
     });
+    // Update isAllExpanded state after filtering
+    this.updateIsAllExpanded();
+  }
+
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      // Expand all: add all invoice IDs to the set
+      this.invoicesDisplay.forEach(invoice => {
+        if (invoice.invoiceId) {
+          this.expandedInvoices.add(invoice.invoiceId);
+        }
+      });
+    } else {
+      // Collapse all: clear the set
+      this.expandedInvoices.clear();
+    }
+    // Update the expanded state for all invoices
+    this.applyFilters();
+  }
+
+  updateIsAllExpanded(): void {
+    // Check if all visible invoices are expanded
+    if (this.invoicesDisplay.length === 0) {
+      this.isAllExpanded = false;
+      return;
+    }
+    this.isAllExpanded = this.invoicesDisplay.every(invoice => 
+      invoice.invoiceId && this.expandedInvoices.has(invoice.invoiceId)
+    );
   }
   //#endregion
 

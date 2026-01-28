@@ -1,5 +1,3 @@
-import { TransactionType } from './accounting-enum';
-
 export interface InvoiceRequest {
   invoiceId?: string;
   organizationId: string;
@@ -90,4 +88,5 @@ export interface LedgerLineListDisplay {
   description: string;
   amount: number;
   isNew?: boolean; // Track if this is a newly added line (should remain editable)
+  rowColor?: string; // Hidden column for row coloring
 }

@@ -149,7 +149,7 @@
                       </thead>
                       <tbody>
                         @for (line of ledgerLines; track line.ledgerLineId; let i = $index) {
-                          <tr class="border-b">
+                          <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
                             <td class="p-2" style="width: 50px;">{{ i + 1 }}</td>
                             <td class="p-2 cost-center-cell" style="width: 350px;">
                               <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 

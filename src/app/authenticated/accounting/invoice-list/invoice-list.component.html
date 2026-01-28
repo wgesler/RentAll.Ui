@@ -19,7 +19,8 @@
         </thead>
         <tbody>
           @for (line of invoice.LedgerLines; track line.ledgerLineId; let i = $index) {
-            <tr>
+            <tr [style.background-color]="line.rowColor || ''" 
+                [class.detail-row-colored]="line.rowColor">
               @for (columnName of getLedgerLineColumnNames(); track columnName) {
                 @if (ledgerLinesDisplayedColumns[columnName]) {
                   <td [style.max-width]="ledgerLinesDisplayedColumns[columnName].maxWidth"
@@ -104,6 +105,8 @@
                 [hasDetailRow]="true"
                 [detailRowTemplate]="ledgerLinesTemplate"
                 [includeDetailRowHeader]="true"
+                [expandAllCallback]="toggleExpandAll.bind(this)"
+                [isAllExpanded]="isAllExpanded"
                 [itemsPerPage]="100"
                 (editEvent)="goToInvoice($event)"
                 (rowClickEvent)="goToInvoice($event)"
@@ -167,6 +170,8 @@
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
           [includeDetailRowHeader]="false"
+          [expandAllCallback]="toggleExpandAll.bind(this)"
+          [isAllExpanded]="isAllExpanded"
           [itemsPerPage]="100"
           (editEvent)="goToInvoice($event)"
           (rowClickEvent)="goToInvoice($event)"

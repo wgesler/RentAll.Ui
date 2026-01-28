@@ -18,7 +18,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionTypeLabels, StartOfCredits } from '../models/accounting-enum';
+import { TransactionTypeLabels, StartOfCredits, TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 
@@ -318,11 +318,21 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     
     // New lines use filtered cost codes based on mode
-    if (this.isPaymentMode) {
-      return this.availableCostCodes; // creditCostCodes for payment mode
-    } else {
-      return this.availableCostCodes; // debitCostCodes for normal edit mode
+    const sourceCodes = this.isPaymentMode ? this.creditCostCodes : this.debitCostCodes;
+    return sourceCodes.filter(c => c.isActive).map(c => ({
+      value: c.costCodeId,
+      label: `${c.costCode}: ${c.description}`
+    }));
+  }
+
+  isPaymentLine(line: LedgerLineListDisplay): boolean {
+    // Check if transactionType is "Payment" or transactionTypeId is Payment (11)
+    const transactionTypeId = (line as any).transactionTypeId;
+    if (transactionTypeId !== undefined && transactionTypeId !== null) {
+      return transactionTypeId === TransactionType.Payment || transactionTypeId >= StartOfCredits;
     }
+    // Fallback to checking transactionType string
+    return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
   }
   //#endregion
 
