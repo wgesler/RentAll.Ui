@@ -35,6 +35,8 @@ import { PropertyHtmlRequest, PropertyHtmlResponse } from '../../property/models
 import { PropertyHtmlService } from '../../property/services/property-html.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { MappingService } from '../../../services/mapping.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 
 @Component({
   selector: 'app-lease',
@@ -43,7 +45,7 @@ import { MappingService } from '../../../services/mapping.service';
   templateUrl: './lease.component.html',
   styleUrl: './lease.component.scss'
 })
-export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
+export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   
@@ -93,17 +95,19 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
     private authService: AuthService,
-    private toastr: ToastrService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private documentExportService: DocumentExportService,
-    private documentService: DocumentService,
     private sanitizer: DomSanitizer,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
-    private http: HttpClient
+    private http: HttpClient,
+    public override toastr: ToastrService,
+    documentExportService: DocumentExportService,
+    documentService: DocumentService,
+    documentHtmlService: DocumentHtmlService
   ) {
+    super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
   }
 
@@ -139,11 +143,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   getLease(): void {
     // This loads on add reservation, do nothing
     if (!this.propertyId) {
-      this.removeLoadItem('lease');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
       return;
     }
 
-     this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('lease'); })).subscribe({
+     this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease'); })).subscribe({
        next: (response: PropertyHtmlResponse) => {
          if (response) {
            this.propertyHtml = response;
@@ -244,7 +248,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       noticeToVacate: formValue.lease || '',
       creditAuthorization: formValue.lease || '',
       creditApplicationBusiness: formValue.lease || '',
-      creditApplicationIndividual: formValue.lease || ''
+      creditApplicationIndividual: formValue.lease || '',
+      invoice: this.propertyHtml?.invoice || ''
     };
 
     // Save the HTML using upsert
@@ -273,7 +278,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     this.isSubmitting = true;
 
     // Generate HTML with styles for PDF
-    const htmlWithStyles = this.getPdfHtmlWithStyles();
+    const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+      this.previewIframeHtml,
+      this.previewIframeStyles,
+      { fontSize: '10pt', includeLeaseStyles: true }
+    );
     const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
     const fileName = `Lease_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
     
@@ -317,7 +326,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       includeRentalCreditApplication: new FormControl(this.includeRentalCreditApplication)
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   onReservationSelected(reservationId: string | null): void {
     if (!reservationId) {
       this.selectedReservation = null;
@@ -346,6 +357,19 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
+  }
+
   onIncludeCheckboxChange(): void {
     this.includeLease = this.form.get('includeLease')?.value ?? true;
     this.includeLetterOfResponsibility = this.form.get('includeLetterOfResponsibility')?.value ?? true;
@@ -362,15 +386,14 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
     });
   }
 
-
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
@@ -394,17 +417,17 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
           this.filterReservations();
         }
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
 
   loadProperty(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
-    
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
+
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
       },
@@ -418,11 +441,11 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
   loadLeaseInformation(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('leaseInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
       return;
     }
     
-    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
+    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
         this.generatePreviewIframe();
@@ -437,8 +460,8 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   loadReservations(): void {
-    this.addLoadItem('reservations');
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -453,27 +476,14 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  filterReservations(): void {
-    if (!this.selectedOffice) {
-      this.availableReservations = [];
-      return;
-    }
-    
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: this.utilityService.getReservationLabel(r)
-    }));
-  }
-
   loadReservation(): void {
     // This page loads on the add-reservation, in this case return
     if (!this.reservationId || this.reservationId === 'new') {
-      this.removeLoadItem('reservation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       return;
     }
     
-    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.removeLoadItem('reservation'); })).subscribe({
+    this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
         this.form.patchValue({ selectedReservationId: reservation.reservationId });
@@ -1079,10 +1089,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
 
     return result;
   }
-
   //#endregion
 
-  //#region Preview, Download, Print, Email Functions
+  //#region Html Processing
   generatePreviewIframe(): void {
     // Check form control value - if null, show html, else show the lease
     const formReservationId = this.form.get('selectedReservationId')?.value;
@@ -1209,6 +1218,18 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  stripAndReplace(html: string): string {
+    return this.documentHtmlService.stripAndReplace(html);
+  }
+
+  processAndSetHtml(html: string): void {
+    const result = this.documentHtmlService.processHtml(html, true);
+    this.previewIframeHtml = result.processedHtml;
+    this.previewIframeStyles = result.extractedStyles;
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    this.iframeKey++; // Force iframe refresh
+  }
+
   loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {
     if (this.debuggingHtml) {
       // Load HTML from assets for faster testing
@@ -1231,166 +1252,55 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
         rentalCreditApplication: this.includeRentalCreditApplication ? (this.propertyHtml?.creditApplicationIndividual || '') : '',
       });
     }
+  }  
+  //#endregion 
+
+  //#region Abstract BaseDocumentComponent
+  protected getDocumentConfig(): DocumentConfig {
+    return {
+      previewIframeHtml: this.previewIframeHtml,
+      previewIframeStyles: this.previewIframeStyles,
+      organization: this.organization,
+      selectedOffice: this.selectedOffice,
+      selectedReservation: this.selectedReservation || undefined,
+      propertyId: this.propertyId || null,
+      contacts: this.contacts.length > 0 ? this.contacts : (this.contact ? [this.contact] : []),
+      isDownloading: this.isDownloading,
+      printStyleOptions: { fontSize: '10pt', includeLeaseStyles: true }
+    };
   }
 
-  processAndSetHtml(html: string): void {
-    // Extract all <style> tags from the HTML
-    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-    const extractedStyles: string[] = [];
-    let match;
-    
-    styleRegex.lastIndex = 0;
-    while ((match = styleRegex.exec(html)) !== null) {
-      if (match[1]) {
-        extractedStyles.push(match[1].trim());
-      }
-    }
-
-    // Store extracted styles separately (will be injected dynamically)
-    this.previewIframeStyles = extractedStyles.join('\n\n');
-
-    // Remove <style> tags from HTML (we'll inject them dynamically)
-    let processedHtml = html.replace(styleRegex, '');
-
-    // Remove <title> tag if it exists
-    processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
-
-    // Fix the logo by adding width attribute directly
-    processedHtml = processedHtml.replace(
-      /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
-      (match, attributes) => {
-        // Remove existing width and height attributes if they exist
-        let newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
-        // Add width="180" and height="auto"
-        return `<img${newAttributes} width="180" height="auto">`;
-      }
-    );
-    
-    // Use the HTML document without style tags (styles will be injected dynamically)
-    this.previewIframeHtml = processedHtml;
-    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(processedHtml);
-    
-    this.iframeKey++; // Force iframe refresh
+  protected setDownloading(value: boolean): void {
+    this.isDownloading = value;
   }
 
-  injectStylesIntoIframe(): void {
-    if (!this.previewIframeStyles) {
-      return;
-    }
+  override async onDownload(): Promise<void> {
+    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
+    const fileName = `Lease_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-    // Find the iframe element
-    const iframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement;
-    if (!iframe || !iframe.contentDocument || !iframe.contentWindow) {
-      // Retry after a short delay if iframe isn't ready yet
-      setTimeout(() => this.injectStylesIntoIframe(), 50);
-      return;
-    }
+    const downloadConfig: DownloadConfig = {
+      fileName: fileName,
+      documentType: DocumentType.ReservationLease,
+      noPreviewMessage: 'Please select an office and reservation to generate the lease',
+      noSelectionMessage: 'Organization or Office not available'
+    };
 
-    try {
-      const iframeDoc = iframe.contentDocument;
-      const iframeHead = iframeDoc.head || iframeDoc.getElementsByTagName('head')[0];
-      
-      if (!iframeHead) {
-        return;
-      }
-
-      // Check if styles are already injected (to avoid duplicates)
-      const existingStyle = iframeHead.querySelector('style[data-dynamic-styles]');
-      if (existingStyle) {
-        existingStyle.textContent = this.previewIframeStyles;
-      } else {
-        // Create a new style element and inject the styles
-        // Place it at the end of head to ensure it has highest priority
-        const styleElement = iframeDoc.createElement('style');
-        styleElement.setAttribute('data-dynamic-styles', 'true');
-        styleElement.setAttribute('type', 'text/css');
-        styleElement.textContent = this.previewIframeStyles;
-        iframeHead.appendChild(styleElement);
-      }
-      
-      // Force a reflow to ensure styles are applied
-      if (iframeDoc.body) {
-        iframeDoc.body.offsetHeight;
-      }
-    } catch (error) {
-      // Cross-origin or other security error - this is expected in some cases
-      // Silently fail as this is not critical for functionality
-    }
+    await super.onDownload(downloadConfig);
   }
 
-  async onDownload(): Promise<void> {
-    if (!this.previewIframeHtml) {
+  override onPrint(): void {
+    super.onPrint('Please select an office and reservation to generate the lease');
+  }
+
+  override async onEmail(): Promise<void> {
+    // Lease component uses contact (singular) instead of contacts array
+    // Override to handle this difference
+    const config = this.getDocumentConfig();
+    if (!config.previewIframeHtml) {
       this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
       return;
     }
 
-    if (!this.organization?.organizationId || !this.selectedOffice) {
-      this.toastr.warning('Organization or Office not available', 'No Selection');
-      return;
-    }
-
-    this.isDownloading = true;
-    try {
-      const htmlWithStyles = this.getPdfHtmlWithStyles();
-      const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
-      const fileName = `Lease_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-
-      const generateDto: GenerateDocumentFromHtmlDto = {
-        htmlContent: htmlWithStyles,
-        organizationId: this.organization.organizationId,
-        officeId: this.selectedOffice.officeId,
-        officeName: this.selectedOffice.name,
-        propertyId: this.propertyId || null,
-        reservationId: this.selectedReservation?.reservationId || null,
-        documentType: DocumentType.ReservationLease,
-        fileName: fileName
-      };
-
-      // Use server-side PDF generation
-      this.documentService.generateDownload(generateDto).pipe(take(1)).subscribe({
-        next: (pdfBlob: Blob) => {
-          // Create download link and trigger download
-          const pdfUrl = URL.createObjectURL(pdfBlob);
-          const link = document.createElement('a');
-          link.href = pdfUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Clean up
-          setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
-          this.isDownloading = false;
-        },
-        error: (error: HttpErrorResponse) => {
-          this.isDownloading = false;
-          this.toastr.error('Error generating PDF. Please try again.', 'Error');
-        }
-      });
-    } catch (error) {
-      this.isDownloading = false;
-      this.toastr.error('Error generating PDF. Please try again.', 'Error');
-    }
-  }
-
-  onPrint(): void {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
-      return;
-    }
-
-    // Get the HTML with styles injected
-    const htmlWithStyles = this.getPreviewHtmlWithStyles();
-    this.documentExportService.printHTML(htmlWithStyles);
-  }
-
-  async onEmail(): Promise<void> {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
-      return;
-    }
-
-    // Get tenant email from contact
     const tenantEmail = this.contact?.email || '';
     if (!tenantEmail) {
       this.toastr.warning('No email address found for this reservation', 'No Email');
@@ -1401,9 +1311,9 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
       await this.documentExportService.emailWithPDF({
         recipientEmail: tenantEmail,
         subject: 'Your Lease Agreement',
-        organizationName: this.organization?.name,
-        tenantName: this.selectedReservation?.tenantName,
-        htmlContent: '' // Not used anymore, but keeping for interface compatibility
+        organizationName: config.organization?.name,
+        tenantName: config.selectedReservation?.tenantName,
+        htmlContent: ''
       });
     } catch (error) {
       this.toastr.error('Error opening email client. Please try again.', 'Error');
@@ -1411,226 +1321,7 @@ export class LeaseComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region HTML Generation Functions
-  getPreviewHtmlWithStyles(): string {
-    const bodyContent = this.extractBodyContent();
-    const printStyles = this.getPrintStyles(true);
-    return this.buildHtmlDocument(bodyContent, printStyles);
-  }
-
-  getPdfHtmlWithStyles(): string {
-    const bodyContent = this.extractBodyContent();
-    const pdfStyles = this.getPrintStyles(false);
-    return this.buildHtmlDocument(bodyContent, pdfStyles);
-  }
-
-  extractBodyContent(): string {
-    let bodyContent = this.previewIframeHtml;
-    
-    // Find the opening <body> tag
-    const bodyStartMatch = bodyContent.match(/<body[^>]*>/i);
-    if (bodyStartMatch) {
-      const bodyStartIndex = bodyStartMatch.index + bodyStartMatch[0].length;
-      // Extract everything from after <body> to the end (or before </html> if it exists)
-      let content = bodyContent.substring(bodyStartIndex);
-      
-      // Remove all closing </body> tags (for concatenated documents)
-      content = content.replace(/<\/body>/gi, '');
-      
-      // Remove all closing </html> tags if they exist
-      content = content.replace(/<\/html>/gi, '');
-      
-      return content.trim();
-    }
-    
-    // Fallback: remove HTML structure tags
-    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '').replace(/<body[^>]*>|<\/body>/gi, '');
-  }
-
-  getPrintStyles(wrapInMediaQuery: boolean): string {
-    const styles = `
-      @page {
-        size: letter;
-        margin: 0.75in;
-      }
-      
-      body {
-        font-size: 10pt !important;
-        line-height: 1.4 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      
-      .header {
-        position: relative !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        margin-bottom: 1rem !important;
-      }
-      
-      .logo {
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        max-height: 100px !important;
-        max-width: 200px !important;
-        display: block !important;
-        margin-bottom: 1rem !important;
-      }
-      
-      .content {
-        margin-top: 0 !important;
-      }
-      
-      h1 {
-        font-size: 18pt !important;
-      }
-      
-      h2 {
-        font-size: 14pt !important;
-      }
-      
-      h3 {
-        font-size: 12pt !important;
-      }
-      
-      p {
-        margin: 0.3em 0 !important;
-        font-size: 10pt !important;
-      }
-      
-      p, li {
-        orphans: 2;
-        widows: 2;
-      }
-      
-      /* Ensure page breaks work for all sections */
-      P.breakhere,
-      p.breakhere {
-        page-break-before: always !important;
-        break-before: page !important;
-        display: block !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      
-      /* Ensure all sections are visible in print */
-      section,
-      .corporate-letter,
-      .notice-intent {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        display: block !important;
-      }
-      
-      /* Allow container tables to break across pages */
-      #container,
-      table#container {
-        page-break-inside: auto !important;
-        break-inside: auto !important;
-      }
-      
-      /* Allow container table rows to break if needed */
-      #container tr,
-      table#container tr {
-        page-break-inside: auto !important;
-        break-inside: auto !important;
-      }
-      
-      /* Keep equal height boxes in print - use min-height instead of height trick */
-      #container tbody tr:first-child td {
-        height: 1px !important;
-      }
-      
-      #container tbody tr:first-child td .border {
-        height: 100% !important;
-      }
-      
-      /* Prevent header from breaking but allow content to flow */
-      #header,
-      table#header {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-    `;
-    
-    return wrapInMediaQuery ? `@media print {${styles}}` : styles;
-  }
-
-  buildHtmlDocument(bodyContent: string, additionalStyles: string): string {
-    return `<!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-      ${this.previewIframeStyles}
-      ${additionalStyles}
-        </style>
-      </head>
-      <body>
-      ${bodyContent}
-      </body>
-      </html>`;
-  }
-  //#endregion
-
   //#region Utility Methods
-  stripAndReplace(html: string): string {
-    if (!html) return '';
-    
-    let result = html;
-    
-    // Remove DOCTYPE declaration (case insensitive, with any attributes)
-    result = result.replace(/<!DOCTYPE\s+[^>]*>/gi, '');
-    
-    // Remove <html> opening tag (with any attributes)
-    result = result.replace(/<html[^>]*>/gi, '');
-    
-    // Remove </html> closing tag
-    result = result.replace(/<\/html>/gi, '');
-    
-    // Remove <head> section including all content inside (non-greedy match)
-    result = result.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
-    
-    // Remove opening <body> tag (with any attributes)
-    result = result.replace(/<body[^>]*>/gi, '');
-    
-    // Remove closing </body> tag
-    result = result.replace(/<\/body>/gi, '');
-    
-    // Trim whitespace and add page break at the beginning
-    result = result.trim();
-    
-    // Add page break if there's content
-    if (result) {
-      result = '<p class="breakhere"></p>\n' + result;
-    }
-    
-    return result;
-  }
-
-  addLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (!currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.add(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

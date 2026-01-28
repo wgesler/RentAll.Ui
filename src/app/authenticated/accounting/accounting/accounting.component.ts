@@ -5,6 +5,8 @@ import { MaterialModule } from '../../../material.module';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
+import { CreateInvoiceComponent } from '../create-invoice/create-invoice.component';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { Router } from '@angular/router';
@@ -15,12 +17,21 @@ import { CostCodesService } from '../services/cost-codes.service';
 @Component({
   selector: 'app-accounting',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, InvoiceListComponent, CostCodesListComponent, CostCodesComponent],
+  imports: [
+    CommonModule, 
+    MaterialModule, 
+    FormsModule, 
+    InvoiceListComponent, 
+    CostCodesListComponent, 
+    CostCodesComponent,
+    CreateInvoiceComponent,
+    DocumentListComponent
+  ],
   templateUrl: './accounting.component.html',
   styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
-  selectedTabIndex: number = 0; // Default to Invoices tab
+  selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   selectedOfficeId: number | null = null; // Shared office selection state
   
   // Cost Codes controls

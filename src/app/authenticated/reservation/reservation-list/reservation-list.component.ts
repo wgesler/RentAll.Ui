@@ -12,6 +12,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -59,7 +60,8 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     public router: Router,
     public mappingService: MappingService,
     private companyService: CompanyService,
-    private propertyService: PropertyService) {
+    private propertyService: PropertyService,
+    private utilityService: UtilityService) {
   }
 
   //#region Reservation List
@@ -78,7 +80,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
       return; // Already loaded or loading
     }
 
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (response: ReservationListResponse[]) => {
         this.isServiceError = false;
         this.allReservations = this.mappingService.mapReservationList(response);
@@ -130,7 +132,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
         this.companies = companies;
       },
@@ -144,7 +146,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.properties = properties;
         // Get reservations - ReservationListResponse already includes contactName, so we don't need contacts
@@ -155,7 +157,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('properties');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
         // Get reservations even if properties failed - ReservationListResponse already includes contactName
         this.getReservations();
       }
@@ -239,15 +241,6 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
 
     this.itemsToLoad$.complete();

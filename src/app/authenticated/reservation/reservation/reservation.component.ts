@@ -37,6 +37,7 @@ import { GenericModalComponent } from '../../shared/modals/generic/generic-modal
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-reservation',
@@ -109,7 +110,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
-    private documentReloadService: DocumentReloadService
+    private documentReloadService: DocumentReloadService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -861,7 +863,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
     });
@@ -880,7 +882,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
   
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents'); })).subscribe({
+    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
       next: (agents: AgentResponse[]) => {
         this.agents = agents;
       },
@@ -894,7 +896,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.properties = properties;
        },
@@ -908,7 +910,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
         this.companies = companies;
       },
@@ -1099,15 +1101,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

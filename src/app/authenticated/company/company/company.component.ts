@@ -73,7 +73,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
         this.companyId = paramMap.get('id');
         this.isAddMode = this.companyId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('company');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company');
           this.buildForm();
         } else {
           this.getCompany();
@@ -86,7 +86,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
   }
 
   getCompany(): void {
-    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1), finalize(() => { this.removeLoadItem('company'); })).subscribe({
+    this.companyService.getCompanyByGuid(this.companyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company'); })).subscribe({
       next: (response: CompanyResponse) => {
         this.company = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -290,15 +290,6 @@ export class CompanyComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

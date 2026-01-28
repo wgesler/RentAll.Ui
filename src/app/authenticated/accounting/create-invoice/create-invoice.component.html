@@ -1,0 +1,109 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading invoice...</p>
+  </div>
+} @else {
+  <div class="create-invoice-container">
+    <form [formGroup]="form" class="create-invoice-form">
+      
+      <!-- Input Fields Section -->
+      <div class="input-controls">
+        <div class="flex gap-3 items-center">
+          <!-- Office Dropdown -->
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>Office</mat-label>
+            <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeSelected($event.value)">
+              <mat-option [value]="null">Select Office</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Reservation Dropdown -->
+          <mat-form-field appearance="outline" class="reservation-dropdown">
+            <mat-label>Select Reservation</mat-label>
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [disabled]="!selectedOffice">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">
+                  {{ reservation.label }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Invoice Dropdown -->
+          <mat-form-field appearance="outline" class="invoice-dropdown">
+            <mat-label>Select Invoice</mat-label>
+            <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)" [disabled]="!selectedReservation">
+              <mat-option [value]="null">Select Invoice</mat-option>
+              @for (invoice of availableInvoices; track invoice.value.invoiceId) {
+                <mat-option [value]="invoice.value.invoiceId">
+                  {{ invoice.label }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Invoice Preview -->
+      <div class="preview-section-container">
+        @if (selectedOffice && selectedReservation && selectedInvoice && previewIframeHtml) {
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button 
+              mat-raised-button 
+              color="primary" 
+              (click)="onDownload()" 
+              [disabled]="isDownloading"
+              class="action-button">
+              <mat-icon>download</mat-icon>
+              @if (isDownloading) {
+                <span>Downloading...</span>
+              } @else {
+                <span>Download</span>
+              }
+            </button>
+            <button 
+              mat-raised-button 
+              color="primary" 
+              (click)="onPrint()"
+              class="action-button">
+              <mat-icon>print</mat-icon>
+              <span>Print</span>
+            </button>
+            <button 
+              mat-raised-button 
+              color="primary" 
+              (click)="onEmail()"
+              class="action-button">
+              <mat-icon>email</mat-icon>
+              <span>Email</span>
+            </button>
+          </div>
+          
+          <!-- Preview iframe when all three are selected -->
+          <div class="preview-section">
+            <iframe 
+              [srcdoc]="previewIframeHtml" 
+              class="preview-iframe"
+              [attr.key]="iframeKey"
+              (load)="injectStylesIntoIframe()"
+              frameborder="0">
+            </iframe>
+          </div>
+        } @else {
+          <!-- Placeholder message -->
+          <div class="placeholder-message">
+            <mat-icon class="text-6xl mb-4" style="font-size: 64px; width: 64px; height: 64px;">receipt</mat-icon>
+            <p>Please select an Office, Reservation, and Invoice to view the invoice document.</p>
+          </div>
+        }
+      </div>
+
+    </form>
+  </div>
+}

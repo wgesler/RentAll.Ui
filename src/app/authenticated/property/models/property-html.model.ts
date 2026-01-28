@@ -4,6 +4,7 @@ export interface PropertyHtmlRequest {
   welcomeLetter: string;
   inspectionChecklist: string;
   lease: string;
+  invoice: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
   creditAuthorization: string;
@@ -17,6 +18,7 @@ export interface PropertyHtmlResponse {
   welcomeLetter: string;
   inspectionChecklist: string;
   lease: string;
+  invoice: string;
   letterOfResponsibility: string;
   noticeToVacate: string;
   creditAuthorization: string;

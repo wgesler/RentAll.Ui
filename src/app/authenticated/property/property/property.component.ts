@@ -32,6 +32,7 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-property',
@@ -118,7 +119,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private areaService: AreaService,
     private buildingService: BuildingService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
-    private documentReloadService: DocumentReloadService
+    private documentReloadService: DocumentReloadService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -198,7 +200,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   getProperty(): void {
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         this.populateForm();
@@ -208,7 +210,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('property');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
   }
@@ -699,15 +701,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Formatting enum labels
-  // All enum formatting functions have been moved to property-enums.ts
-  //#endregion
-
   //#region Data Loading Methods
   loadContacts(): void {
     // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts?.filter(c => c.entityTypeId === EntityType.Owner) || [];
       });
     });
@@ -721,7 +719,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1), finalize(() => { this.removeLoadItem('locationLookups'); })).subscribe({
+    }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);

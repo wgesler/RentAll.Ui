@@ -125,7 +125,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
                 this.officeIdChange.emit(this.selectedOffice.officeId);
               }
               this.filterCostCodes();
-              this.addLoadItem('invoices');
+              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
               this.getInvoices(); // Refresh invoices when returning
             }
             this.applyFilters();
@@ -150,7 +150,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
         if (this.selectedOffice) {
           this.filterCostCodes();
-          this.addLoadItem('invoices');
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
           this.getInvoices();
         } else {
           this.applyFilters();
@@ -163,7 +163,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getInvoices(): void {
-    this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.removeLoadItem('invoices'); })).subscribe({
+    this.accountingService.getInvoicesByOffice().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
          this.applyFilters();
@@ -418,7 +418,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
         // Set selectedOffice from input (embedded mode) or query params (standalone mode)
         if (this.embeddedMode && this.officeId !== null && this.officeId !== undefined) {
@@ -437,7 +437,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Only load invoices if an office is selected
         if (this.selectedOffice) {
           this.filterCostCodes();
-          this.addLoadItem('invoices');
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
           this.getInvoices();
         } else {
           // No office selected, clear invoices display
@@ -449,8 +449,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadReservations(): void {
-    this.addLoadItem('reservations');
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -509,7 +509,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Only load invoices if an office is selected
     if (this.selectedOffice) {
       this.filterCostCodes();
-      this.addLoadItem('invoices');
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
       this.getInvoices();
     } else {
       // Clear invoices when no office is selected
@@ -577,24 +577,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  addLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (!currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.add(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
     this.costCodesSubscription?.unsubscribe();

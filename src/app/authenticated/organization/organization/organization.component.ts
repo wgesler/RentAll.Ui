@@ -12,6 +12,7 @@ import { OrganizationResponse, OrganizationRequest } from '../models/organizatio
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { UtilityService } from '../../../services/utility.service';
 import { fileValidator } from '../../../validators/file-validator';
 import { FileDetails } from '../../../shared/models/fileDetails';
 
@@ -48,7 +49,8 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private commonService: CommonService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -60,7 +62,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         this.organizationId = paramMap.get('id');
         this.isAddMode = this.organizationId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('organization');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
           this.buildForm();
         } else {
           this.getOrganization();
@@ -73,7 +75,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   }
 
   getOrganization(): void {
-    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (response: OrganizationResponse) => {
         this.organization = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -275,15 +277,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

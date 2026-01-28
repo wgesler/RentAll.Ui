@@ -14,6 +14,7 @@ import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 
 @Component({
@@ -57,7 +58,8 @@ export class CostCodesComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -78,7 +80,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
           this.isAddMode = idStr === 'new';
           this.updateCostCodeValidators(); // Update validators based on mode
           if (this.isAddMode) {
-            this.removeLoadItem('costCode');
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
           } else {
             this.costCodeId = idStr;
             if (this.selectedOffice) {
@@ -88,7 +90,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
               this.selectedOffice = this.offices[0];
               this.getCostCode();
             } else {
-              this.removeLoadItem('costCode');
+              this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
             }
           }
         }
@@ -127,7 +129,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
           const idParam = paramMap.get('id');
           this.isAddMode = idParam === 'new';
           if (this.isAddMode) {
-            this.removeLoadItem('costCode');
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
             // Form already built, no need to rebuild
           } else {
             this.costCodeId = idParam || '';
@@ -148,7 +150,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
     if (!this.selectedOffice || !this.costCodeId) {
       return;
     }
-    this.costCodesService.getCostCodeById(this.costCodeId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.removeLoadItem('costCode'); })).subscribe({
+    this.costCodesService.getCostCodeById(this.costCodeId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
       next: (response: CostCodesResponse) => {
         this.costCode = response;
         this.populateForm();
@@ -302,7 +304,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       });
     });
   }
@@ -335,15 +337,6 @@ export class CostCodesComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

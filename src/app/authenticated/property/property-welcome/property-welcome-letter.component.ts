@@ -34,6 +34,8 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { MappingService } from '../../../services/mapping.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -42,7 +44,7 @@ import { DocumentReloadService } from '../../documents/services/document-reload.
   templateUrl: './property-welcome-letter.component.html',
   styleUrls: ['./property-welcome-letter.component.scss']
 })
-export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
+export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
   @Input() propertyId: string;
   
   isSubmitting: boolean = false;
@@ -78,18 +80,20 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
-    private toastr: ToastrService,
+    public override toastr: ToastrService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
-    private documentExportService: DocumentExportService,
-    private documentService: DocumentService,
+    documentExportService: DocumentExportService,
+    documentService: DocumentService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
-    private http: HttpClient
+    private http: HttpClient,
+    documentHtmlService: DocumentHtmlService
   ) {
+    super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
   }
 
@@ -97,7 +101,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.propertyId) {
       const currentSet = this.itemsToLoad$.value;
-      currentSet.forEach(item => this.removeLoadItem(item));
+      currentSet.forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
       return;
     }
 
@@ -134,11 +138,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   getWelcomeLetter(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('welcomeLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter');
       return;
     }
 
-    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.removeLoadItem('welcomeLetter'); })).subscribe({
+    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter'); })).subscribe({
       next: (response: PropertyHtmlResponse) => {
         if (response) {
           this.propertyHtml = response;
@@ -175,6 +179,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       creditAuthorization: this.propertyHtml?.creditAuthorization || '',
       creditApplicationBusiness: this.propertyHtml?.creditApplicationBusiness || '',      
       creditApplicationIndividual: this.propertyHtml?.creditApplicationIndividual || '',
+      invoice: this.propertyHtml?.invoice || '',
     };
 
     // Save the HTML using upsert
@@ -203,7 +208,10 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     this.isSubmitting = true;
 
     // Generate HTML with styles for PDF
-    const htmlWithStyles = this.getPdfHtmlWithStyles();
+    const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+      this.previewIframeHtml,
+      this.previewIframeStyles
+    );
     const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
     const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
     
@@ -249,7 +257,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
     });
@@ -257,11 +265,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   loadProperty(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         // Set selected office based on property's officeId
@@ -285,11 +293,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   loadBuildings(): void {
     const orgId = this.authService.getUser()?.organizationId;
     if (!orgId) {
-      this.removeLoadItem('buildings');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
       return;
     }
 
-    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.removeLoadItem('buildings'); })).subscribe({
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (buildings: BuildingResponse[]) => {
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
       },
@@ -315,13 +323,13 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
           }
         }
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
 
   loadReservations(): void {
-    this.addLoadItem('reservations');
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -337,7 +345,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
@@ -351,11 +359,11 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
 
   loadPropertyLetterInformation(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('propertyLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
       return;
     }
 
-    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyLetter'); })).subscribe({
+    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
           this.propertyLetter = response;
@@ -365,7 +373,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load property letter information at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('propertyLetter');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
       }
     });
   }
@@ -411,14 +419,6 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   //#endregion
   
   //#region Form Replacement Functions
-  getOrganizationName(): string {
-    if (!this.organization) return '';
-    if (this.selectedOffice) {
-      return this.organization.name + ' ' + this.selectedOffice.name;
-    }
-    return this.organization.name;
-  }
-
   replacePlaceholders(html: string): string {
     let result = html;
 
@@ -525,6 +525,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
     return result;
   }
 
+  getOrganizationName(): string {
+    if (!this.organization) return '';
+    if (this.selectedOffice) {
+      return this.organization.name + ' ' + this.selectedOffice.name;
+    }
+    return this.organization.name;
+  }
+
   getCommunityAddress(): string {
     if (!this.property) return '';
     const parts = [
@@ -585,7 +593,7 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Preview, Download, Print, Email Functions
+  //#region Html Processing
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected
     if (!this.selectedOffice || !this.selectedReservation) {
@@ -691,76 +699,14 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
   }
 
   processAndSetHtml(html: string): void {
-    // Extract all <style> tags from the HTML
-    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-    const extractedStyles: string[] = [];
-    let match;
-    
-    styleRegex.lastIndex = 0;
-    while ((match = styleRegex.exec(html)) !== null) {
-      if (match[1]) {
-        extractedStyles.push(match[1].trim());
-      }
-    }
-
-    // Store extracted styles separately (will be injected dynamically)
-    this.previewIframeStyles = extractedStyles.join('\n\n');
-
-    // Remove <style> tags from HTML (we'll inject them dynamically)
-    let processedHtml = html.replace(styleRegex, '');
-
-    // Remove <title> tag if it exists
-    processedHtml = processedHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
-
-    // Fix the logo by adding width attribute directly
-    processedHtml = processedHtml.replace(
-      /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
-      (match, attributes) => {
-        // Remove existing width and height attributes if they exist
-        let newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
-        // Add width="180" and height="auto"
-        return `<img${newAttributes} width="180" height="auto">`;
-      }
-    );
-    
-    // Use the HTML document without style tags (styles will be injected dynamically)
-    this.previewIframeHtml = processedHtml;
-    
+    const result = this.documentHtmlService.processHtml(html, true);
+    this.previewIframeHtml = result.processedHtml;
+    this.previewIframeStyles = result.extractedStyles;
     this.iframeKey++; // Force iframe refresh
   }
 
   stripAndReplace(html: string): string {
-    if (!html) return '';
-    
-    let result = html;
-    
-    // Remove DOCTYPE declaration (case insensitive, with any attributes)
-    result = result.replace(/<!DOCTYPE\s+[^>]*>/gi, '');
-    
-    // Remove <html> opening tag (with any attributes)
-    result = result.replace(/<html[^>]*>/gi, '');
-    
-    // Remove </html> closing tag
-    result = result.replace(/<\/html>/gi, '');
-    
-    // Remove <head> section including all content inside (non-greedy match)
-    result = result.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
-    
-    // Remove opening <body> tag (with any attributes)
-    result = result.replace(/<body[^>]*>/gi, '');
-    
-    // Remove closing </body> tag
-    result = result.replace(/<\/body>/gi, '');
-    
-    // Trim whitespace and add page break at the beginning
-    result = result.trim();
-    
-    // Add page break if there's content
-    if (result) {
-      result = '<p class="breakhere"></p>\n' + result;
-    }
-    
-    return result;
+    return this.documentHtmlService.stripAndReplace(html);
   }
 
   loadHtmlFiles(): Observable<{ welcomeLetter: string; inspectionChecklist: string }> {
@@ -778,296 +724,56 @@ export class PropertyWelcomeLetterComponent implements OnInit, OnDestroy {
       });
     }
   }
+  //#endregion
 
-  injectStylesIntoIframe(): void {
-    if (!this.previewIframeStyles) {
-      return;
-    }
-
-    // Find the iframe element
-    const iframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement;
-    if (!iframe || !iframe.contentDocument || !iframe.contentWindow) {
-      // Retry after a short delay if iframe isn't ready yet
-      setTimeout(() => this.injectStylesIntoIframe(), 50);
-      return;
-    }
-
-    try {
-      const iframeDoc = iframe.contentDocument;
-      const iframeHead = iframeDoc.head || iframeDoc.getElementsByTagName('head')[0];
-      
-      if (!iframeHead) {
-        return;
-      }
-
-      // Check if styles are already injected (to avoid duplicates)
-      const existingStyle = iframeHead.querySelector('style[data-dynamic-styles]');
-      if (existingStyle) {
-        existingStyle.textContent = this.previewIframeStyles;
-      } else {
-        // Create a new style element and inject the styles
-        // Place it at the end of head to ensure it has highest priority
-        const styleElement = iframeDoc.createElement('style');
-        styleElement.setAttribute('data-dynamic-styles', 'true');
-        styleElement.setAttribute('type', 'text/css');
-        styleElement.textContent = this.previewIframeStyles;
-        iframeHead.appendChild(styleElement);
-      }
-      
-      // Force a reflow to ensure styles are applied
-      if (iframeDoc.body) {
-        iframeDoc.body.offsetHeight;
-      }
-    } catch (error) {
-      // Cross-origin or other security error - this is expected in some cases
-      // Silently fail as this is not critical for functionality
-    }
+  // #region Abstract BaseDocumentComponent
+  protected getDocumentConfig(): DocumentConfig {
+    return {
+      previewIframeHtml: this.previewIframeHtml,
+      previewIframeStyles: this.previewIframeStyles,
+      organization: this.organization,
+      selectedOffice: this.selectedOffice,
+      selectedReservation: this.selectedReservation || undefined,
+      propertyId: this.propertyId || null,
+      contacts: this.contacts,
+      isDownloading: this.isDownloading
+    };
   }
 
-  async onDownload(): Promise<void> {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
-      return;
-    }
+  protected setDownloading(value: boolean): void {
+    this.isDownloading = value;
+  }
 
-    if (!this.organization?.organizationId || !this.selectedOffice) {
-      this.toastr.warning('Organization or Office not available', 'No Selection');
-      return;
-    }
-
-    this.isDownloading = true;
-    
-    const htmlWithStyles = this.getPdfHtmlWithStyles();
+  override async onDownload(): Promise<void> {
     const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
     const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-    const generateDto: GenerateDocumentFromHtmlDto = {
-      htmlContent: htmlWithStyles,
-      organizationId: this.organization.organizationId,
-      officeId: this.selectedOffice.officeId,
-      officeName: this.selectedOffice.name,
-      propertyId: this.propertyId || null,
-      reservationId: this.selectedReservation?.reservationId || null,
+    const downloadConfig: DownloadConfig = {
+      fileName: fileName,
       documentType: DocumentType.PropertyLetter,
-      fileName: fileName
+      noPreviewMessage: 'Please select an office and reservation to generate the welcome letter',
+      noSelectionMessage: 'Organization or Office not available'
     };
 
-    // Use server-side PDF generation
-    this.documentService.generateDownload(generateDto).pipe(take(1)).subscribe({
-      next: (pdfBlob: Blob) => {
-        // Create download link and trigger download
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
-        this.isDownloading = false;
-      },
-      error: (error: HttpErrorResponse) => {
-        this.isDownloading = false;
-        this.toastr.error('Error generating PDF. Please try again.', 'Error');
-        console.error('PDF generation error:', error);
-      }
-    });
+    await super.onDownload(downloadConfig);
   }
 
-  onPrint(): void {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
-      return;
-    }
-
-    // Get the HTML with styles injected
-    const htmlWithStyles = this.getPreviewHtmlWithStyles();
-    this.documentExportService.printHTML(htmlWithStyles);
+  override onPrint(): void {
+    super.onPrint('Please select an office and reservation to generate the welcome letter');
   }
 
-  async onEmail(): Promise<void> {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'No Preview');
-      return;
-    }
+  override async onEmail(): Promise<void> {
+    const emailConfig: EmailConfig = {
+      subject: 'Your Upcoming Visit',
+      noPreviewMessage: 'Please select an office and reservation to generate the welcome letter',
+      noEmailMessage: 'No email address found for this reservation'
+    };
 
-    // Get tenant email by looking up contact from contactId
-    let tenantEmail = '';
-    if (this.selectedReservation?.contactId) {
-      const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId);
-      if (contact) {
-        tenantEmail = contact.email || '';
-      }
-    }
-
-    if (!tenantEmail) {
-      this.toastr.warning('No email address found for this reservation', 'No Email');
-      return;
-    }
-
-    try {
-      await this.documentExportService.emailWithPDF({
-        recipientEmail: tenantEmail,
-        subject: 'Your Upcoming Visit',
-        organizationName: this.organization?.name,
-        tenantName: this.selectedReservation?.tenantName,
-        htmlContent: '' // Not used anymore, but keeping for interface compatibility
-      });
-    } catch (error) {
-      this.toastr.error('Error opening email client. Please try again.', 'Error');
-    }
-  }
-  //#endregion
-
-  //#region HTML Generation Functions
-  getPreviewHtmlWithStyles(): string {
-    const bodyContent = this.extractBodyContent();
-    const printStyles = this.getPrintStyles(true);
-    return this.buildHtmlDocument(bodyContent, printStyles);
-  }
-
-  getPdfHtmlWithStyles(): string {
-    const bodyContent = this.extractBodyContent();
-    const pdfStyles = this.getPrintStyles(false);
-    return this.buildHtmlDocument(bodyContent, pdfStyles);
-  }
-
-  extractBodyContent(): string {
-    let bodyContent = this.previewIframeHtml;
-    
-    // Find the opening <body> tag
-    const bodyStartMatch = bodyContent.match(/<body[^>]*>/i);
-    if (bodyStartMatch) {
-      const bodyStartIndex = bodyStartMatch.index + bodyStartMatch[0].length;
-      // Extract everything from after <body> to the end (or before </html> if it exists)
-      let content = bodyContent.substring(bodyStartIndex);
-      
-      // Remove all closing </body> tags (for concatenated documents)
-      content = content.replace(/<\/body>/gi, '');
-      
-      // Remove all closing </html> tags if they exist
-      content = content.replace(/<\/html>/gi, '');
-      
-      return content.trim();
-    }
-    
-    // Fallback: remove HTML structure tags
-    return bodyContent.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '').replace(/<body[^>]*>|<\/body>/gi, '');
-  }
-
-  getPrintStyles(wrapInMediaQuery: boolean): string {
-    const styles = `
-      @page {
-        size: letter;
-        margin: 0.75in;
-        margin-bottom: 1in;
-      }
-      
-      body {
-        font-size: 11pt !important;
-        line-height: 1.4 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      
-      .header {
-        position: relative !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        margin-bottom: 1rem !important;
-      }
-      
-      .logo {
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        max-height: 100px !important;
-        max-width: 200px !important;
-        display: block !important;
-        margin-bottom: 1rem !important;
-      }
-      
-      .content {
-        margin-top: 0 !important;
-      }
-      
-      h1 {
-        font-size: 18pt !important;
-      }
-      
-      h2 {
-        font-size: 14pt !important;
-      }
-      
-      h3 {
-        font-size: 12pt !important;
-      }
-      
-      p {
-        margin: 0.3em 0 !important;
-      }
-      
-      p, li {
-        orphans: 2;
-        widows: 2;
-      }
-      
-      /* Ensure page breaks work for all sections */
-      P.breakhere,
-      p.breakhere {
-        page-break-before: always !important;
-        break-before: page !important;
-        display: block !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-    `;
-    
-    return wrapInMediaQuery ? `@media print {${styles}}` : styles;
-  }
-
-  buildHtmlDocument(bodyContent: string, additionalStyles: string): string {
-    return `<!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-      ${this.previewIframeStyles}
-      ${additionalStyles}
-        </style>
-      </head>
-      <body>
-      ${bodyContent}
-      </body>
-      </html>`;
+    await super.onEmail(emailConfig);
   }
   //#endregion
 
   //#region Utility Functions
-  addLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (!currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.add(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

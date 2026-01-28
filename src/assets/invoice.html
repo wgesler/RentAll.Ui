@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guest Invoice</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --border: #dcdcdc;
+      --text: #222;
+      --muted: #666;
+      --accent: #1f4fd8;
+      --bg-light: #f7f7f7;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      background: white;
+    }
+
+    .invoice {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      color: var(--accent);
+    }
+
+    .header .meta {
+      text-align: right;
+      font-size: 14px;
+    }
+
+    .header .meta div {
+      margin-bottom: 4px;
+    }
+
+    /* Info blocks */
+    .info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .info-box {
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 4px;
+    }
+
+    .info-box h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .info-box p {
+      margin: 4px 0;
+      font-size: 15px;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    thead {
+      background: var(--bg-light);
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    th {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td.right,
+    th.right {
+      text-align: right;
+    }
+
+    /* Totals */
+    .totals {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .totals table {
+      width: 360px;
+    }
+
+    .totals td {
+      border: none;
+      padding: 6px 0;
+      font-size: 15px;
+    }
+
+    .totals tr.total td {
+      font-weight: bold;
+      border-top: 2px solid var(--border);
+      padding-top: 10px;
+      font-size: 16px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice">
+
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>Guest Invoice</h1>
+        <div>Property / Organization Name</div>
+      </div>
+      <div class="meta">
+        <div><strong>Invoice #:</strong> 000000</div>
+        <div><strong>Client #:</strong> 000000</div>
+        <div><strong>Invoice Date:</strong> MM/DD/YYYY</div>
+      </div>
+    </div>
+
+    <!-- Guest / Stay Info -->
+    <div class="info">
+      <div class="info-box">
+        <h3>Guest Information</h3>
+        <p><strong>Name:</strong> Guest Name</p>
+        <p><strong>Email:</strong> guest@email.com</p>
+        <p><strong>Phone:</strong> (000) 000-0000</p>
+      </div>
+
+      <div class="info-box">
+        <h3>Stay Details</h3>
+        <p><strong>Check-in:</strong> MM/DD/YYYY</p>
+        <p><strong>Check-out:</strong> MM/DD/YYYY</p>
+        <p><strong>Nights:</strong> 00</p>
+      </div>
+    </div>
+
+    <!-- Charges Table -->
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="right">Qty</th>
+          <th class="right">Rate</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Nightly Stay</td>
+          <td class="right">30</td>
+          <td class="right">$100.00</td>
+          <td class="right">$3,000.00</td>
+        </tr>
+        <tr>
+          <td>Cleaning Fee</td>
+          <td class="right">1</td>
+          <td class="right">$150.00</td>
+          <td class="right">$150.00</td>
+        </tr>
+        <!-- Add more rows as needed -->
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals">
+      <table>
+        <tr>
+          <td>Subtotal</td>
+          <td class="right">$3,150.00</td>
+        </tr>
+        <tr>
+          <td>Tax</td>
+          <td class="right">$0.00</td>
+        </tr>
+        <tr class="total">
+          <td>Total Due</td>
+          <td class="right">$3,150.00</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>
+        Thank you for your stay. Please contact us if you have any questions
+        regarding this invoice.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

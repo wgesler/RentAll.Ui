@@ -17,6 +17,7 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 export interface UserDialogData {
@@ -65,6 +66,7 @@ export class UserComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private authService: AuthService,
     private mappingService: MappingService,
+    private utilityService: UtilityService,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: UserDialogData,
     @Optional() private dialogRef?: MatDialogRef<UserComponent>
   ) {
@@ -95,7 +97,7 @@ export class UserComponent implements OnInit, OnDestroy {
           this.userId = paramMap.get('id');
           this.isAddMode = this.userId === 'new';
           if (this.isAddMode) {
-            this.removeLoadItem('user');
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user');
             this.buildForm();
             this.setupPasswordValidation();
           } else {
@@ -111,7 +113,7 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   getUser(): void {
-    this.userService.getUserByGuid(this.userId).pipe(take(1), finalize(() => { this.removeLoadItem('user'); })).subscribe({
+    this.userService.getUserByGuid(this.userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user'); })).subscribe({
       next: (response: UserResponse) => {
         this.user = response;
         this.buildForm();
@@ -605,15 +607,6 @@ export class UserComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-  
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     if (this.organizationsSubscription) {

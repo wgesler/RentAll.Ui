@@ -10,6 +10,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -47,7 +48,8 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     public companyService: CompanyService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private utilityService: UtilityService) {
   }
 
   //#region Company-List
@@ -56,7 +58,7 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   getCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.removeLoadItem('companies'); })).subscribe({
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
       next: (companies) => {
         this.allCompanies = this.mappingService.mapCompanies(companies, undefined);
         this.applyFilters();
@@ -109,15 +111,6 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

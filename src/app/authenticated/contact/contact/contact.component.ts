@@ -21,6 +21,7 @@ import { VendorResponse } from '../../vendor/models/vendor.model';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-contact',
@@ -61,7 +62,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     private companyService: CompanyService,
     private vendorService: VendorService,
     private officeService: OfficeService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -77,7 +79,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.contactId = paramMap.get('id');
         this.isAddMode = this.contactId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('contact');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
           this.buildForm();
         } else {
           this.getContact();
@@ -90,7 +92,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   getContact(): void {
-    this.contactService.getContactByGuid(this.contactId).pipe(take(1),finalize(() => { this.removeLoadItem('contact'); })).subscribe({
+    this.contactService.getContactByGuid(this.contactId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact'); })).subscribe({
       next: (response: ContactResponse) => {
         this.contact = response;
         this.buildForm();
@@ -324,11 +326,11 @@ export class ContactComponent implements OnInit, OnDestroy {
   loadCompanies(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
-      this.removeLoadItem('companies');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
       return;
     }
 
-    this.companyService.getCompanies().pipe(take(1),finalize(() => { this.removeLoadItem('companies'); })).subscribe({
+    this.companyService.getCompanies().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
       next: (companies: CompanyResponse[]) => {
         this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
       },
@@ -344,11 +346,11 @@ export class ContactComponent implements OnInit, OnDestroy {
   loadVendors(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
-      this.removeLoadItem('vendors');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors');
       return;
     }
 
-    this.vendorService.getVendors().pipe(take(1),finalize(() => { this.removeLoadItem('vendors'); })).subscribe({
+    this.vendorService.getVendors().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })).subscribe({
       next: (vendors: VendorResponse[]) => {
         this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
       },
@@ -373,15 +375,6 @@ export class ContactComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

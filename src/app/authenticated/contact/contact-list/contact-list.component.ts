@@ -10,6 +10,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -45,7 +46,8 @@ export class ContactListComponent implements OnInit, OnDestroy {
     public contactService: ContactService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private utilityService: UtilityService) {
   }
 
   //#region Contacts
@@ -59,7 +61,7 @@ export class ContactListComponent implements OnInit, OnDestroy {
 
   getContacts(): void {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
         next: (response: ContactResponse[]) => {
           this.allContacts = this.mappingService.mapContacts(response || []);
           this.applyFilters();
@@ -109,15 +111,6 @@ export class ContactListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

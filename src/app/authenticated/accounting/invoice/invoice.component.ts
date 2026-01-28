@@ -90,7 +90,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.invoiceId = paramMap.get('id');
         this.isAddMode = this.invoiceId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('invoice');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
           this.buildForm();
           // Wait for offices, reservations, and cost codes to load, then read query params
           forkJoin({
@@ -131,7 +131,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
 
   getInvoice(): void {
-    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.removeLoadItem('invoice'); })).subscribe({
+    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
         this.invoice = response;
         this.buildForm();
@@ -342,13 +342,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       });
     });
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         // Update available reservations - will filter by officeId if form exists and office is selected
@@ -979,15 +979,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   //#endregion
 
    //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.reservationIdSubscription?.unsubscribe();

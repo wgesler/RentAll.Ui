@@ -10,6 +10,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -68,7 +69,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public route: ActivatedRoute,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private utilityService: UtilityService) {
   }
 
   //#region CostCodes-List
@@ -204,7 +206,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
         // Set selectedOffice from input (embedded mode) or query params (standalone mode)
         if (this.embeddedMode && this.officeId !== null && this.officeId !== undefined) {
@@ -236,7 +238,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   loadCostCodes(): void {
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.removeLoadItem('costCodes');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(codes => {
         this.filterCostCodes();
       });
@@ -306,24 +308,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  addLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (!currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.add(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();

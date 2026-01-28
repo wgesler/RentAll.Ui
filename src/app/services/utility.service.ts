@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ReservationListResponse } from '../authenticated/reservation/models/reservation-model';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -7,9 +8,24 @@ import { ReservationListResponse } from '../authenticated/reservation/models/res
 export class UtilityService {
   constructor() { }
 
-  // Removes an item from an itemsToLoad array
-  removeLoadItem(itemsToLoad: string[], itemToRemove: string): string[] {
-    return itemsToLoad.filter(item => item !== itemToRemove);
+  // Adds an item to a BehaviorSubject<Set<string>>
+  addLoadItem(itemsToLoad$: BehaviorSubject<Set<string>>, key: string): void {
+    const currentSet = itemsToLoad$.value;
+    if (!currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.add(key);
+      itemsToLoad$.next(newSet);
+    }
+  }
+
+  // Removes an item from a BehaviorSubject<Set<string>>
+  removeLoadItemFromSet(itemsToLoad$: BehaviorSubject<Set<string>>, key: string): void {
+    const currentSet = itemsToLoad$.value;
+    if (currentSet.has(key)) {
+      const newSet = new Set(currentSet);
+      newSet.delete(key);
+      itemsToLoad$.next(newSet);
+    }
   }
 
   // Gets formatted reservation label for display in dropdowns and lists

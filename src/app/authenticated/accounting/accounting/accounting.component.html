@@ -8,12 +8,15 @@
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
-        <mat-tab label="Invoices">
+        <mat-tab label="Outstanding Invoices">
           <app-invoice-list 
             [embeddedMode]="true"
             [officeId]="selectedOfficeId"
             (officeIdChange)="onInvoiceOfficeChange($event)">
           </app-invoice-list>
+        </mat-tab>
+        <mat-tab label="Create Invoice">
+          <app-create-invoice></app-create-invoice>
         </mat-tab>
         <mat-tab label="Cost Codes">
           @if (isEditingCostCodes && costCodesId) {
@@ -55,6 +58,9 @@
               (editCostCodeEvent)="onCostCodesEdit($event)">
             </app-cost-codes-list>
           }
+        </mat-tab>
+        <mat-tab label="Documents">
+          <app-document-list [hideHeader]="true"></app-document-list>
         </mat-tab>
       </mat-tab-group>
     </mat-card>
