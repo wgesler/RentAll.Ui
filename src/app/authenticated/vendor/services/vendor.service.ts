@@ -33,18 +33,8 @@ export class VendorService {
   }
 
   // PUT: Update entire vendor
-  updateVendor(vendorId: string, vendor: VendorRequest): Observable<VendorResponse> {
-    return this.http.put<VendorResponse>(this.controller + vendorId, vendor);
-  }
-
-  // PATCH: Partially update vendor
-  updateVendorPartial(vendorId: string, vendor: Partial<VendorRequest>): Observable<VendorResponse> {
-    return this.http.patch<VendorResponse>(this.controller + vendorId, vendor);
-  }
-
-  // PATCH: Update vendor logo
-  updateVendorLogo(vendorId: string, vendor: VendorRequest): Observable<VendorResponse> {
-    return this.http.patch<VendorResponse>(this.controller + vendorId, vendor);
+  updateVendor(vendor: VendorRequest): Observable<VendorResponse> {
+    return this.http.put<VendorResponse>(this.controller, vendor);
   }
 
   // DELETE: Delete vendor

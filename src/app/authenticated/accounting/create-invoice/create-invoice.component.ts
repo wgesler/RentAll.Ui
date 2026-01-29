@@ -31,6 +31,11 @@ import { AuthService } from '../../../services/auth.service';
 import { PropertyHtmlRequest } from '../../property/models/property-html.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { AccountingOfficeService } from '../../organization-configuration/accounting/services/accounting-office.service';
+import { AccountingOfficeResponse } from '../../organization-configuration/accounting/models/accounting-office.model';
+import { EntityType } from '../../contact/models/contact-enum';
+import { CompanyResponse } from '../../company/models/company.model';
+import { CompanyService } from '../../company/services/company.service';
 
 @Component({
   selector: 'app-create-invoice',
@@ -48,9 +53,14 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   form: FormGroup;
   organization: OrganizationResponse | null = null;
   contacts: ContactResponse[] = [];
+  contact: ContactResponse | null = null;
+  company: CompanyResponse | null = null;
+  isCompanyRental: boolean = false;
+
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
+  accountingOffice: AccountingOfficeResponse | null = null;
  
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -85,13 +95,15 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     private formatterService: FormatterService,
     private commonService: CommonService,
     private contactService: ContactService,
+    private companyService: CompanyService,
     private http: HttpClient,
     private authService: AuthService,
     private documentReloadService: DocumentReloadService,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService
+    documentHtmlService: DocumentHtmlService,
+    private accountingOfficeService: AccountingOfficeService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
@@ -263,6 +275,36 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         this.offices = offices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       });
+    });
+  }
+
+  loadAccountingOffice(): void {
+    if (!this.selectedOffice || !this.selectedOffice.officeId) {
+      this.accountingOffice = null;
+      return;
+    }
+
+    this.accountingOfficeService.getAccountingOffices().pipe(take(1)).subscribe({
+      next: (accountingOffices: AccountingOfficeResponse[]) => {
+        // Find the accounting office that has linkedOfficeId matching the selected office's officeId
+        this.accountingOffice = accountingOffices.find(ao => ao.linkedOfficeId === this.selectedOffice?.officeId) || null;
+        // Regenerate preview if all required data is available
+        if (this.selectedInvoice && this.selectedOffice && this.selectedReservation && this.property) {
+          const formHtml = this.form.value.invoice;
+          if (formHtml && formHtml.trim()) {
+            const processedHtml = this.replacePlaceholders(formHtml);
+            this.processAndSetHtml(processedHtml);
+          } else {
+            this.loadInvoiceHtml();
+          }
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.accountingOffice = null;
+        if (err.status !== 400) {
+          console.error('Error loading accounting office:', err);
+        }
+      }
     });
   }
 
@@ -441,6 +483,35 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       });
     });
   }
+
+ loadContact(): void {
+    if (!this.selectedReservation?.contactId) {
+      this.contact = null;
+      return;
+    }
+
+    this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
+    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
+      this.loadCompany(this.contact.entityId);
+      this.isCompanyRental = true; 
+    } else {
+      this.company = null;
+      this.isCompanyRental = false;
+    }
+  }
+ 
+  loadCompany(companyId: string): void {
+    this.companyService.getCompanyByGuid(companyId).pipe(take(1)).subscribe({
+      next: (response: CompanyResponse) => {
+        this.company = response;
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -458,6 +529,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
     
     this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+    this.loadAccountingOffice(); // Load accounting office when office changes
     this.filterReservations();
     this.availableInvoices = [];
     this.selectedInvoice = null;
@@ -469,6 +541,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   onReservationSelected(reservationId: string | null): void {
     if (!reservationId) {
       this.selectedReservation = null;
+      this.contact = null;
       this.availableInvoices = [];
       this.selectedInvoice = null;
       this.form.patchValue({ selectedInvoiceId: null });
@@ -481,6 +554,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
+        this.loadContact(); // Load contact from reservation
         this.loadProperty(reservation.propertyId);
         this.loadInvoicesForReservation(reservationId);
         this.reservationIdChange.emit(reservationId);
@@ -554,6 +628,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     if (office) {
       this.selectedOffice = office;
       this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
+      this.loadAccountingOffice(); 
       this.filterReservations();
     }
   }
@@ -586,6 +661,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
         next: (fullReservation: ReservationResponse) => {
           this.selectedReservation = fullReservation;
+          this.loadContact(); // Load contact from reservation
           this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
           if (this.selectedOffice) {
             this.loadInvoicesForReservation(reservationId);
@@ -624,6 +700,35 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.departureDate) || '');
     }
 
+    // Replace contact placeholders
+    if (this.contact) {
+      result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
+      result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
+      result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
+      
+      // Contact address fields
+       if (this.contact.entityTypeId === EntityType.Company && this.company) {
+        // Use company address if contact is a company
+        result = result.replace(/\{\{contactAddress1\}\}/g, this.company.address1 || '');
+        result = result.replace(/\{\{contactAddress2\}\}/g, this.company.address2 || '');
+        result = result.replace(/\{\{contactCity\}\}/g, this.company.city || '');
+        result = result.replace(/\{\{contactState\}\}/g, this.company.state || '');
+        result = result.replace(/\{\{contactZip\}\}/g, this.company.zip || '');
+      } else {
+        // Use contact address
+        result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
+        result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
+        result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
+        result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
+        result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
+      }
+    }
+
+    // Replace contact placeholders
+    if (this.company) {
+       result = result.replace(/\{\{companyName\}\}/g, this.company.name || '');
+    }
+
     // Replace property placeholders
     if (this.property) {
       result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
@@ -633,13 +738,15 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     // Replace office placeholders
     if (this.selectedOffice) {
       result = result.replace(/\{\{officeName\}\}/g, this.selectedOffice.name || '');
-      
+    }
+
+    if (this.accountingOffice) {
       // Replace office logo placeholder
       let officeLogoDataUrl = '';
-      if (this.selectedOffice.fileDetails?.dataUrl) {
-        officeLogoDataUrl = this.selectedOffice.fileDetails.dataUrl;
-      } else if (this.selectedOffice.fileDetails?.file && this.selectedOffice.fileDetails?.contentType) {
-        officeLogoDataUrl = `data:${this.selectedOffice.fileDetails.contentType};base64,${this.selectedOffice.fileDetails.file}`;
+      if (this.accountingOffice.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.accountingOffice.fileDetails.dataUrl;
+      } else if (this.accountingOffice.fileDetails?.file && this.accountingOffice.fileDetails?.contentType) {
+        officeLogoDataUrl = `data:${this.accountingOffice.fileDetails.contentType};base64,${this.accountingOffice.fileDetails.file}`;
       }
       
       // Fallback to organization logo if office logo is not available
@@ -661,7 +768,11 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
     
     // Remove img tags that contain logo placeholders if no logo is available
-    if ((!this.selectedOffice?.fileDetails?.dataUrl && !this.selectedOffice?.fileDetails?.file) && !this.organization?.fileDetails?.dataUrl) {
+    const hasOfficeLogo = this.selectedOffice?.fileDetails?.dataUrl || this.selectedOffice?.fileDetails?.file;
+    const hasAccountingOfficeLogo = this.accountingOffice?.fileDetails?.dataUrl || this.accountingOffice?.fileDetails?.file;
+    const hasOrgLogo = this.organization?.fileDetails?.dataUrl;
+    
+    if (!hasOfficeLogo && !hasAccountingOfficeLogo && !hasOrgLogo) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }

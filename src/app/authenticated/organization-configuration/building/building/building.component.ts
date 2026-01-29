@@ -187,7 +187,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       }
       buildingRequest.buildingId = buildingIdNum;
       buildingRequest.organizationId = this.building?.organizationId || user?.organizationId || '';
-      this.buildingService.updateBuilding(buildingIdNum, buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.buildingService.updateBuilding(buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: BuildingResponse) => {
           this.toastr.success('Building updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (this.embeddedMode) {

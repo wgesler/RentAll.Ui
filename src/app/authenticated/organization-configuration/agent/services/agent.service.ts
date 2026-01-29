@@ -33,8 +33,8 @@ export class AgentService {
   }
 
   // PUT: Update entire agent
-  updateAgent(agentId: string, agent: AgentRequest): Observable<AgentResponse> {
-    return this.http.put<AgentResponse>(this.controller + agentId, agent);
+  updateAgent(agent: AgentRequest): Observable<AgentResponse> {
+    return this.http.put<AgentResponse>(this.controller, agent);
   }
 
   // DELETE: Delete agent

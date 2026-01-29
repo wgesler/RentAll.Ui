@@ -242,7 +242,8 @@
             <h2 style="color: #000 !important;">Guest Information</h2>
             <p>
               <span class="label">Reservation #:</span> {{reservationCode}}<br>
-              <span class="label">Name(s):</span> {{responsibleParty}}<br>
+              <span class="label">Name:</span> {{contactName}}<br>
+              <span *ngIf="isCompanyRental"><span class="label">CompanyName:</span> {{companyName}}<br></span>
               <span class="label">Address:</span> {{contactAddress1}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
               <span class="label">Occupant:</span> {{tenantName}}
             </p>

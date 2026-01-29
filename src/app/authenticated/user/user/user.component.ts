@@ -212,7 +212,7 @@ export class UserComponent implements OnInit, OnDestroy {
         }
         
         if (hasUserUpdates) {
-          requests.push(this.userService.updateUser(this.userId, userRequest));
+          requests.push(this.userService.updateUser(userRequest));
         }
 
         if (requests.length === 0) {
@@ -242,7 +242,7 @@ export class UserComponent implements OnInit, OnDestroy {
         });
       } else {
         // Regular admin update
-        this.userService.updateUser(this.userId, userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        this.userService.updateUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: (response: UserResponse) => {
             this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
             if (this.isDialog && this.dialogRef) {

@@ -22,6 +22,7 @@ import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/acco
 import { getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
 import { StartOfCredits } from '../authenticated/accounting/models/accounting-enum';
+import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organization-configuration/accounting/models/accounting-office.model';
 
 @Injectable({
     providedIn: 'root'
@@ -230,6 +231,19 @@ export class MappingService {
         value: office.officeId,
         name: office.name
       }));
+  }
+
+  mapAccountingOffices(offices: AccountingOfficeResponse[]): AccountingOfficeListDisplay[] {
+    return offices.map<AccountingOfficeListDisplay>((o: AccountingOfficeResponse) => ({
+      officeId: o.officeId,
+      name: o.name,
+      address: o.city + ', ' + o.state,
+      phone: this.formatter.phoneNumber(o.phone),
+      fax: this.formatter.phoneNumber(o.fax),
+      bankName: o.bankName,
+      email: o.email,
+      isActive: o.isActive
+    }));
   }
 
   mapOrganizations(organizations: OrganizationResponse[]): OrganizationListDisplay[] {

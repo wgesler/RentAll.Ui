@@ -33,8 +33,8 @@ export class AreaService {
   }
 
   // PUT: Update entire area
-  updateArea(areaId: number, area: AreaRequest): Observable<AreaResponse> {
-    return this.http.put<AreaResponse>(this.controller + areaId, area);
+  updateArea(area: AreaRequest): Observable<AreaResponse> {
+    return this.http.put<AreaResponse>(this.controller, area);
   }
 
   // DELETE: Delete area

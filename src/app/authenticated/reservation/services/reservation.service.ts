@@ -42,7 +42,7 @@ export class ReservationService {
   }
 
   // PUT: Update entire reservation
-  updateReservation(reservationId: string, reservation: ReservationRequest): Observable<ReservationResponse> {
+  updateReservation(reservation: ReservationRequest): Observable<ReservationResponse> {
     return this.http.put<ReservationResponse>(this.controller, reservation);
   }
 

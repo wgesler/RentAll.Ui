@@ -261,7 +261,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
-      : this.reservationService.updateReservation(this.reservationId, reservationRequest);
+      : this.reservationService.updateReservation(reservationRequest);
 
     save$.pipe(take(1),  finalize(() => this.isSubmitting = false) ).subscribe({
       next: (response: ReservationResponse) => {

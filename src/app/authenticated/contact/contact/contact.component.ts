@@ -155,7 +155,7 @@ export class ContactComponent implements OnInit, OnDestroy {
 
     const save$ = this.isAddMode
       ? this.contactService.createContact(contactRequest)
-      : this.contactService.updateContact(this.contactId, contactRequest);
+      : this.contactService.updateContact(contactRequest);
 
     save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {

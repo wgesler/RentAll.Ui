@@ -152,7 +152,7 @@ export class VendorComponent implements OnInit, OnDestroy {
 
     const save$ = this.isAddMode
       ? this.vendorService.createVendor(vendorRequest)
-      : this.vendorService.updateVendor(this.vendorId, vendorRequest);
+      : this.vendorService.updateVendor(vendorRequest);
 
     save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {

@@ -184,7 +184,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       }
       areaRequest.areaId = areaIdNum;
       areaRequest.organizationId = this.area?.organizationId || user?.organizationId || '';
-      this.areaService.updateArea(areaIdNum, areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.areaService.updateArea(areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AreaResponse) => {
           this.toastr.success('Area updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (this.embeddedMode) {

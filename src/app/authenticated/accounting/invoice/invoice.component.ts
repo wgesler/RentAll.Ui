@@ -252,7 +252,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     const save$ = isCreating
       ? this.accountingService.createInvoice(invoiceRequest)
-      : this.accountingService.updateInvoice(this.invoiceId, invoiceRequest);
+      : this.accountingService.updateInvoice(invoiceRequest);
 
     save$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
@@ -377,7 +377,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       });
     });
   }
-
 
   loadLedgerLines(updateTotalAmount: boolean = true): void {
     const rawLedgerLines = this.invoice?.ledgerLines || [];

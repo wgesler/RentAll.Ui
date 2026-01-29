@@ -134,7 +134,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
     const saveOperation = this.isAddMode
       ? this.documentService.createDocument(documentRequest)
-      : this.documentService.updateDocument(this.documentId, documentRequest);
+      : this.documentService.updateDocument(documentRequest);
 
     saveOperation.pipe(
       take(1),

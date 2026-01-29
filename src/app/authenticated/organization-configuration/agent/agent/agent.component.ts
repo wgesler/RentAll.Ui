@@ -174,7 +174,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       const agentIdStr = idToUse?.toString() || '';
       agentRequest.agentId = agentIdStr;
       agentRequest.organizationId = this.agent?.organizationId || user?.organizationId || '';
-      this.agentService.updateAgent(agentIdStr, agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.agentService.updateAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (this.embeddedMode) {

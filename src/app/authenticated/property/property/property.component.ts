@@ -342,7 +342,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     } else {
       propertyRequest.propertyId = this.propertyId;
       propertyRequest.organizationId = this.property?.organizationId || user?.organizationId || '';
-      this.propertyService.updateProperty(this.propertyId, propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
+      this.propertyService.updateProperty(propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           

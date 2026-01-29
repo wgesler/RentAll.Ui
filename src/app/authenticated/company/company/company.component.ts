@@ -159,7 +159,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
 
     const save$ = this.isAddMode
       ? this.companyService.createCompany(companyRequest)
-      : this.companyService.updateCompany(this.companyId, companyRequest);
+      : this.companyService.updateCompany(companyRequest);
 
     save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {

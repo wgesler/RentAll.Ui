@@ -8,6 +8,8 @@ import { AgentListComponent } from '../agent/agent-list/agent-list.component';
 import { AgentComponent } from '../agent/agent/agent.component';
 import { OfficeListComponent } from '../office/office-list/office-list.component';
 import { OfficeComponent } from '../office/office/office.component';
+import { AccountingOfficeListComponent } from '../accounting/accounting-office-list/accounting-office-list.component';
+import { AccountingOfficeComponent } from '../accounting/accounting-office/accounting-office.component';
 import { RegionListComponent } from '../region/region-list/region-list.component';
 import { RegionComponent } from '../region/region/region.component';
 import { AreaListComponent } from '../area/area-list/area-list.component';
@@ -35,6 +37,8 @@ import { take, finalize } from 'rxjs';
     AgentComponent,
     OfficeListComponent,
     OfficeComponent,
+    AccountingOfficeListComponent,
+    AccountingOfficeComponent,
     RegionListComponent,
     RegionComponent,
     AreaListComponent,
@@ -52,6 +56,7 @@ import { take, finalize } from 'rxjs';
 export class ConfigurationComponent implements OnInit, OnDestroy {
   expandedSections = {
     offices: false,
+    accountingOffices: false,
     agents: false,
     regions: false,
     area: false,
@@ -63,6 +68,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   agentId: string | null = null;
   isEditingOffice: boolean = false;
   officeId: string | number | null = null;
+  isEditingAccountingOffice: boolean = false;
+  accountingOfficeId: string | number | null = null;
   isEditingRegion: boolean = false;
   regionId: string | number | null = null;
   isEditingArea: boolean = false;
@@ -127,7 +134,19 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.officeId = null;
     this.isEditingOffice = false;
   }
-  
+
+  onAccountingOfficeSelected(accountingOfficeId: string | number | null): void {
+    this.accountingOfficeId = accountingOfficeId;
+    this.isEditingAccountingOffice = accountingOfficeId !== null;
+    if (this.isEditingAccountingOffice) {
+      this.expandedSections.accountingOffices = true;
+    }
+  }
+
+  onAccountingOfficeBack(): void {
+    this.accountingOfficeId = null;
+    this.isEditingAccountingOffice = false;
+  }
 
   onAgentSelected(agentId: string | number | null): void {
     this.agentId = agentId !== null ? agentId.toString() : null;

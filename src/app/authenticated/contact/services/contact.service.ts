@@ -99,13 +99,8 @@ export class ContactService {
   }
 
   // PUT: Update entire contact
-  updateContact(contactId: string, contact: ContactRequest): Observable<ContactResponse> {
-    return this.http.put<ContactResponse>(this.controller + contactId, contact);
-  }
-
-  // PATCH: Partially update contact
-  updateContactPartial(contactId: string, contact: Partial<ContactRequest>): Observable<ContactResponse> {
-    return this.http.patch<ContactResponse>(this.controller + contactId, contact);
+  updateContact(contact: ContactRequest): Observable<ContactResponse> {
+    return this.http.put<ContactResponse>(this.controller, contact);
   }
 
   // DELETE: Delete contact

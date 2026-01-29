@@ -3,12 +3,12 @@ import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, 
 import { MaterialModule } from '../../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
-import { OfficeService } from '../services/office.service';
+import { AccountingOfficeService } from '../services/accounting-office.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { RouterUrl } from '../../../../app.routes';
-import { OfficeResponse, OfficeRequest } from '../models/office.model';
+import { AccountingOfficeResponse, AccountingOfficeRequest } from '../models/accounting-office.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { FormatterService } from '../../../../services/formatter-service';
@@ -16,23 +16,27 @@ import { NavigationContextService } from '../../../../services/navigation-contex
 import { CommonService } from '../../../../services/common.service';
 import { fileValidator } from '../../../../validators/file-validator';
 import { FileDetails } from '../../../../shared/models/fileDetails';
+import { OfficeService } from '../../office/services/office.service';
+import { OfficeResponse } from '../../office/models/office.model';
+import { MappingService } from '../../../../services/mapping.service';
+import { Subscription } from 'rxjs';
+import { UtilityService } from '../../../../services/utility.service';
 
 @Component({
-  selector: 'app-office',
+  selector: 'app-accounting-office',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './office.component.html',
-  styleUrl: './office.component.scss'
+  templateUrl: './accounting-office.component.html',
+  styleUrl: './accounting-office.component.scss'
 })
 
-export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
+export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
   routeOfficeId: string | null = null;
-  office: OfficeResponse;
   form: FormGroup;
   fileName: string = null;
   fileDetails: FileDetails = null;
@@ -44,12 +48,17 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   states: string[] = [];
+  accountingOffice: AccountingOfficeResponse;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  officesSubscription?: Subscription;
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
-    public officeService: OfficeService,
+    public accountingOfficeService: AccountingOfficeService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
@@ -57,64 +66,76 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private formatterService: FormatterService,
     private navigationContext: NavigationContextService,
-    private commonService: CommonService
+    private commonService: CommonService,
+    private officeService: OfficeService,
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
   //#region Office
   ngOnInit(): void {
     this.loadStates();
-    // Check for returnTo query parameter
+    this.loadOffices();
+
     this.route.queryParams.subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
-    // If not in embedded mode, get office ID from route
-    if (!this.embeddedMode) {
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.routeOfficeId = paramMap.get('id');
-          this.isAddMode = this.routeOfficeId === 'new';
+    // Wait for offices to be loaded before loading accounting office data
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (!this.embeddedMode) {
+        this.route.paramMap.subscribe((paramMap: ParamMap) => {
+          if (paramMap.has('id')) {
+            this.routeOfficeId = paramMap.get('id');
+            this.isAddMode = this.routeOfficeId === 'new';
+            if (this.isAddMode) {
+              this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+              this.buildForm();
+              this.setupOfficeSelectionHandler();
+            } else {
+              this.getAccountingOffice(this.routeOfficeId);
+            }
+          }
+        });
+        if (!this.isAddMode) {
+          this.buildForm();
+        }
+      } else {
+        // In embedded mode, use the input id
+        if (this.id) {
+          this.isAddMode = this.id === 'new' || this.id === 'new';
           if (this.isAddMode) {
-            this.removeLoadItem('office');
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
             this.buildForm();
+            this.setupOfficeSelectionHandler();
           } else {
-            this.getOffice(this.routeOfficeId);
+            this.getAccountingOffice(this.id.toString());
           }
         }
-      });
-      if (!this.isAddMode) {
-        this.buildForm();
       }
-    } else {
-      // In embedded mode, use the input id
-      if (this.id) {
-        this.isAddMode = this.id === 'new' || this.id === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('office');
-          this.buildForm();
-        } else {
-          this.getOffice(this.id.toString());
-        }
-      }
-    }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     // If in embedded mode and id changes, reload office
     if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
-      if (newId && newId !== 'new') {
-        this.getOffice(newId.toString());
-      } else if (newId === 'new') {
-        this.isAddMode = true;
-        this.removeLoadItem('office');
-        this.buildForm();
-      }
+      // Wait for offices to be loaded before getting accounting office
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        if (newId && newId !== 'new') {
+          this.getAccountingOffice(newId.toString());
+        } else if (newId === 'new') {
+          this.isAddMode = true;
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+          this.buildForm();
+          this.setupOfficeSelectionHandler();
+        }
+      });
     }
   }
 
-  getOffice(id?: string | number): void {
+  getAccountingOffice(id?: string | number): void {
     const idToUse = id || this.id || this.routeOfficeId;
     if (!idToUse || idToUse === 'new') {
       return;
@@ -127,9 +148,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('office'); })).subscribe({
-      next: (response: OfficeResponse) => {
-        this.office = response;
+    this.accountingOfficeService.getAccountingOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
+      next: (response: AccountingOfficeResponse) => {
+        this.accountingOffice = response;
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
@@ -140,8 +161,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
             if (this.fileDetails.file.startsWith('data:')) {
               this.fileDetails.dataUrl = this.fileDetails.file;
             } else {
-              // Construct dataUrl from base64 string
-              this.fileDetails.dataUrl = `data:${contentType};base64,${this.fileDetails.file}`;
+               this.fileDetails.dataUrl = `data:${contentType};base64,${this.fileDetails.file}`;
             }
           }
           this.hasNewFileUpload = false; // FileDetails from API, not a new upload
@@ -160,7 +180,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load office info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       }
     });
   }
@@ -171,66 +191,78 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.isSubmitting = true;
     const formValue = this.form.value;
     const user = this.authService.getUser();
-    const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
-    const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
+    
+    // Validate required fields
+    if (!user?.organizationId) {
+      this.toastr.error('Organization ID is missing', CommonMessage.Error);
+      return;
+    }
+    
+    // Validate that linkedOfficeId is provided for create mode
+    if (this.isAddMode && !formValue.linkedOfficeId) {
+      this.toastr.error('Please select an office', CommonMessage.Error);
+      this.form.get('linkedOfficeId')?.markAsTouched();
+      return;
+    }
 
-    const officeRequest: OfficeRequest = {
-      organizationId: user?.organizationId || '',
-      officeCode: formValue.officeCode,
+    this.isSubmitting = true;
+    const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
+    const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
+    const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
+
+    const linkedOfficeIdNum = formValue.linkedOfficeId ? Number(formValue.linkedOfficeId) : undefined;
+    
+    if (this.isAddMode && (!linkedOfficeIdNum || linkedOfficeIdNum === 0)) {
+      this.toastr.error('Please select a valid office', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+    
+    const officeRequest: AccountingOfficeRequest = {
+      organizationId: user.organizationId,
+      officeId: this.isAddMode ? linkedOfficeIdNum! : 0, // Will be set correctly in update mode below
       name: formValue.name,
       address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2 || '',
-      suite: formValue.suite || '',
+      address2: formValue.address2?.trim() || undefined,
+      suite: formValue.suite?.trim() || undefined,
       city: (formValue.city || '').trim(),
       state: (formValue.state || '').trim(),
       zip: (formValue.zip || '').trim(),
-      website: formValue.website || '',
       phone: phoneDigits,
-      fax: faxDigits || undefined,
-      // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
-      // Otherwise: send logoPath (existing path, or null if logo was removed)
+      fax: faxDigits,
+      bankName: formValue.bankName || '',
+      bankRouting: formValue.bankRouting || '',
+      bankAccount: formValue.bankAccount || '',
+      bankSwiftCode: formValue.bankSwiftCode || '',
+      bankAddress: formValue.bankAddress || '',
+      bankPhone: bankPhoneDigits,
+      email: formValue.email || '',
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       logoPath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.logoPath,
-      isActive: formValue.isActive,
-      // Configuration fields
-      maintenanceEmail: formValue.maintenanceEmail || undefined,
-      afterHoursPhone: formValue.afterHoursPhone ? this.formatterService.stripPhoneFormatting(formValue.afterHoursPhone) : undefined,
-      afterHoursInstructions: formValue.afterHoursInstructions || undefined,
-      daysToRefundDeposit: formValue.daysToRefundDeposit || 0,
-      defaultDeposit: formValue.defaultDeposit ? parseFloat(formValue.defaultDeposit.toString()) : 0,
-      defaultSdw: formValue.defaultSdw ? parseFloat(formValue.defaultSdw.toString()) : 0,
-      defaultKeyFee: formValue.defaultKeyFee ? parseFloat(formValue.defaultKeyFee.toString()) : 0,
-      undisclosedPetFee: formValue.undisclosedPetFee ? parseFloat(formValue.undisclosedPetFee.toString()) : 0,
-      minimumSmokingFee: formValue.minimumSmokingFee ? parseFloat(formValue.minimumSmokingFee.toString()) : 0,
-      utilityOneBed: formValue.utilityOneBed ? parseFloat(formValue.utilityOneBed.toString()) : 0,
-      utilityTwoBed: formValue.utilityTwoBed ? parseFloat(formValue.utilityTwoBed.toString()) : 0,
-      utilityThreeBed: formValue.utilityThreeBed ? parseFloat(formValue.utilityThreeBed.toString()) : 0,
-      utilityFourBed: formValue.utilityFourBed ? parseFloat(formValue.utilityFourBed.toString()) : 0,
-      utilityHouse: formValue.utilityHouse ? parseFloat(formValue.utilityHouse.toString()) : 0,
-      maidOneBed: formValue.maidOneBed ? parseFloat(formValue.maidOneBed.toString()) : 0,
-      maidTwoBed: formValue.maidTwoBed ? parseFloat(formValue.maidTwoBed.toString()) : 0,
-      maidThreeBed: formValue.maidThreeBed ? parseFloat(formValue.maidThreeBed.toString()) : 0,
-      maidFourBed: formValue.maidFourBed ? parseFloat(formValue.maidFourBed.toString()) : 0,
-      parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
-      parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0
+      isActive: formValue.isActive
     };
 
+    console.log('=== Accounting Office Save Request ===');
+    console.log('Is Add Mode:', this.isAddMode);
+    console.log('Linked Office ID:', linkedOfficeIdNum);
+    console.log('Organization ID:', user.organizationId);
+    console.log('Request Object:', officeRequest);
+    console.log('Request JSON:', JSON.stringify(officeRequest, null, 2));
+    console.log('=====================================');
+
     if (this.isAddMode) {
-      this.officeService.createOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: OfficeResponse) => {
+      this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          // Reload offices globally to ensure all components have the latest data
-          this.officeService.loadAllOffices();
           if (this.embeddedMode) {
             this.backEvent.emit();
           } else if (this.returnToSettings) {
             this.navigationContext.setCurrentAgentId(null);
             this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
           } else {
-            this.router.navigateByUrl(RouterUrl.OfficeList);
+            this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
           }
         },
         error: (err: HttpErrorResponse) => {
@@ -248,19 +280,25 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       officeRequest.officeId = officeIdNum;
-      officeRequest.organizationId = this.office?.organizationId || user?.organizationId || '';
-      this.officeService.updateOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: OfficeResponse) => {
+      officeRequest.organizationId = this.accountingOffice?.organizationId || user?.organizationId || '';
+      
+      console.log('=== Accounting Office Update Request ===');
+      console.log('Office ID:', officeIdNum);
+      console.log('Organization ID:', officeRequest.organizationId);
+      console.log('Request Object:', officeRequest);
+      console.log('Request JSON:', JSON.stringify(officeRequest, null, 2));
+      console.log('========================================');
+      
+      this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          // Reload offices globally to ensure all components have the latest data including fileDetails
-          this.officeService.loadAllOffices();
           if (this.embeddedMode) {
             this.backEvent.emit();
           } else if (this.returnToSettings) {
             this.navigationContext.setCurrentAgentId(null);
             this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
           } else {
-            this.router.navigateByUrl(RouterUrl.OfficeList);
+            this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
           }
         },
         error: (err: HttpErrorResponse) => {
@@ -274,6 +312,17 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Loading Methods
+  loadOffices(): void {
+    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    });
+  }
+
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -286,7 +335,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.states = [...states];
       },
       error: (err) => {
-        console.error('Office Component - Error loading states:', err);
+        console.error('Accounting Office Component - Error loading states:', err);
       }
     });
   }
@@ -295,7 +344,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
-      officeCode: new FormControl('', [Validators.required]),
+      linkedOfficeId: new FormControl(null),
       name: new FormControl('', [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
@@ -305,73 +354,64 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       zip: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
-      website: new FormControl(''),
+      email: new FormControl('', [Validators.required, Validators.email]),
+      bankName: new FormControl('', [Validators.required]),
+      bankRouting: new FormControl('', [Validators.required]),
+      bankAccount: new FormControl('', [Validators.required]),
+      bankSwiftCode: new FormControl('', [Validators.required]),
+      bankAddress: new FormControl('', [Validators.required]),
+      bankPhone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
-      isActive: new FormControl(true),
-      // Configuration fields
-      maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
-      afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
-      afterHoursInstructions: new FormControl<string>(''),
-      defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
-      defaultSdw: new FormControl<string>('0.00', [Validators.required]),
-      daysToRefundDeposit: new FormControl<string>('0', [Validators.required]),
-      defaultKeyFee: new FormControl<string>('0.00', [Validators.required]),
-      undisclosedPetFee: new FormControl<string>('0.00', [Validators.required]),
-      minimumSmokingFee: new FormControl<string>('0.00', [Validators.required]),
-      utilityOneBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityTwoBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityThreeBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityFourBed: new FormControl<string>('0.00', [Validators.required]),
-      utilityHouse: new FormControl<string>('0.00', [Validators.required]),
-      maidOneBed: new FormControl<string>('0.00', [Validators.required]),
-      maidTwoBed: new FormControl<string>('0.00', [Validators.required]),
-      maidThreeBed: new FormControl<string>('0.00', [Validators.required]),
-      maidFourBed: new FormControl<string>('0.00', [Validators.required]),
-      parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
-      parkingHighEnd: new FormControl<string>('0.00', [Validators.required])
+      isActive: new FormControl(true)
     });
   }
 
   populateForm(): void {
-    if (this.office && this.form) {
+    if (this.accountingOffice && this.form) {
       this.form.patchValue({
-        officeCode: this.office.officeCode?.toUpperCase() || '',
-        name: this.office.name,
-         address1: this.office.address1,
-        address2: this.office.address2 || '',
-        suite: this.office.suite || '',
-        city: this.office.city,
-        state: this.office.state,
-        zip: this.office.zip,
-        phone: this.formatterService.phoneNumber(this.office.phone),
-        fax: this.formatterService.phoneNumber(this.office.fax) || '',
-        website: this.office.website || '',
-        isActive: this.office.isActive
-      });
+        linkedOfficeId: this.accountingOffice.linkedOfficeId || null,
+        name: this.accountingOffice.name,
+        address1: this.accountingOffice.address1,
+        address2: this.accountingOffice.address2 || '',
+        suite: this.accountingOffice.suite || '',
+        city: this.accountingOffice.city,
+        state: this.accountingOffice.state,
+        zip: this.accountingOffice.zip,
+        phone: this.formatterService.phoneNumber(this.accountingOffice.phone),
+        fax: this.accountingOffice.fax ? this.formatterService.phoneNumber(this.accountingOffice.fax) : '',
+        email: this.accountingOffice.email || '',
+        bankName: this.accountingOffice.bankName || '',
+        bankRouting: this.accountingOffice.bankRouting || '',
+        bankAccount: this.accountingOffice.bankAccount || '',
+        bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
+        bankAddress: this.accountingOffice.bankAddress || '',
+        bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
+        isActive: this.accountingOffice.isActive
+      }, { emitEvent: false });
     }
-    // Populate configuration fields from office response
-    if (this.office && this.form) {
-      this.form.patchValue({
-        maintenanceEmail: this.office.maintenanceEmail || '',
-        afterHoursPhone: this.formatterService.phoneNumber(this.office.afterHoursPhone) || '',
-        afterHoursInstructions: this.office.afterHoursInstructions || '',
-        defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
-        defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
-        daysToRefundDeposit: this.office.daysToRefundDeposit !== null && this.office.daysToRefundDeposit !== undefined ? this.office.daysToRefundDeposit.toString() : '0',
-        defaultKeyFee: this.office.defaultKeyFee !== null && this.office.defaultKeyFee !== undefined ? this.office.defaultKeyFee.toFixed(2) : '0.00',
-        undisclosedPetFee: this.office.undisclosedPetFee !== null && this.office.undisclosedPetFee !== undefined ? this.office.undisclosedPetFee.toFixed(2) : '0.00',
-        minimumSmokingFee: this.office.minimumSmokingFee !== null && this.office.minimumSmokingFee !== undefined ? this.office.minimumSmokingFee.toFixed(2) : '0.00',
-        utilityOneBed: this.office.utilityOneBed !== null && this.office.utilityOneBed !== undefined ? this.office.utilityOneBed.toFixed(2) : '0.00',
-        utilityTwoBed: this.office.utilityTwoBed !== null && this.office.utilityTwoBed !== undefined ? this.office.utilityTwoBed.toFixed(2) : '0.00',
-        utilityThreeBed: this.office.utilityThreeBed !== null && this.office.utilityThreeBed !== undefined ? this.office.utilityThreeBed.toFixed(2) : '0.00',
-        utilityFourBed: this.office.utilityFourBed !== null && this.office.utilityFourBed !== undefined ? this.office.utilityFourBed.toFixed(2) : '0.00',
-        utilityHouse: this.office.utilityHouse !== null && this.office.utilityHouse !== undefined ? this.office.utilityHouse.toFixed(2) : '0.00',
-        maidOneBed: this.office.maidOneBed !== null && this.office.maidOneBed !== undefined ? this.office.maidOneBed.toFixed(2) : '0.00',
-        maidTwoBed: this.office.maidTwoBed !== null && this.office.maidTwoBed !== undefined ? this.office.maidTwoBed.toFixed(2) : '0.00',
-        maidThreeBed: this.office.maidThreeBed !== null && this.office.maidThreeBed !== undefined ? this.office.maidThreeBed.toFixed(2) : '0.00',
-        maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
-        parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
-        parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00'
+  }
+
+  setupOfficeSelectionHandler(): void {
+    // Only populate from office selection in add mode
+    if (this.isAddMode) {
+      this.form.get('linkedOfficeId')?.valueChanges.subscribe(linkedOfficeId => {
+        if (linkedOfficeId && this.offices.length > 0) {
+          const selectedOffice = this.offices.find(o => o.officeId === linkedOfficeId);
+          if (selectedOffice) {
+            // Populate form fields with office data (excluding bank fields)
+            this.form.patchValue({
+              name: selectedOffice.name || '',
+              address1: selectedOffice.address1 || '',
+              address2: selectedOffice.address2 || '',
+              suite: selectedOffice.suite || '',
+              city: selectedOffice.city || '',
+              state: selectedOffice.state || '',
+              zip: selectedOffice.zip || '',
+              phone: selectedOffice.phone ? this.formatterService.phoneNumber(selectedOffice.phone) : '',
+              fax: selectedOffice.fax ? this.formatterService.phoneNumber(selectedOffice.fax) : ''
+            }, { emitEvent: false });
+          }
+        }
       });
     }
   }
@@ -438,12 +478,12 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.formatterService.formatPhoneInput(event, this.form.get('fax'));
   }
 
-  formatConfigPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('afterHoursPhone'));
+  formatBankPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('bankPhone'));
   }
 
-  onConfigPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('afterHoursPhone'));
+  onBankPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('bankPhone'));
   }
   //#endregion
 
@@ -465,20 +505,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  onCodeInput(event: Event): void {
-    this.formatterService.formatCodeInput(event, this.form.get('officeCode'));
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
@@ -489,10 +517,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.navigationContext.setCurrentAgentId(null);
       this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
     } else {
-      this.router.navigateByUrl(RouterUrl.OfficeList);
+      this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
     }
   }
 
 //#endregion
 }
-

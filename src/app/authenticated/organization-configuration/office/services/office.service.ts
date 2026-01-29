@@ -73,8 +73,8 @@ export class OfficeService {
   }
 
   // PUT: Update entire office
-  updateOffice(officeId: number, office: OfficeRequest): Observable<OfficeResponse> {
-    return this.http.put<OfficeResponse>(this.controller + officeId, office);
+  updateOffice(office: OfficeRequest): Observable<OfficeResponse> {
+    return this.http.put<OfficeResponse>(this.controller, office);
   }
 
   // DELETE: Delete office

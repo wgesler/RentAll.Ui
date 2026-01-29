@@ -1,0 +1,289 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading office...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
+    <section class="content-card">
+      @if (!embeddedMode) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">store</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Office' : 'Edit Office' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+        </div>
+      }
+      @if (embeddedMode) {
+        <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
+          <span class="flex flex-column items-center gap-2">
+            <mat-icon class="flex-shrink-0">store</mat-icon>
+            <span class="flex-shrink-0 text-lg font-medium">
+              {{ isAddMode ? 'Add Office' : 'Edit Office' }}
+            </span>
+          </span>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      }
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveOffice()" class="info-form mb-8 pt-5">
+            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+              <mat-checkbox formControlName="isActive" color="primary">
+                Is Active
+              </mat-checkbox>
+            </div>
+
+            <mat-accordion multi="true">
+              <!-- Details Accordion -->
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Details</mat-panel-title>
+                </mat-expansion-panel-header>
+                
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-[0.5]">
+                      <mat-label>Office</mat-label>
+                      <mat-select formControlName="linkedOfficeId">
+                        <mat-option [value]="null">Select Office</mat-option>
+                        @for (office of offices; track office.officeId) {
+                          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Name</mat-label>
+                      <input matInput formControlName="name" required>
+                      @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                        <mat-error>Name is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Address 1</mat-label>
+                      <input matInput formControlName="address1" required>
+                      @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                        <mat-error>Address 1 is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Address 2</mat-label>
+                      <input matInput formControlName="address2">
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Suite</mat-label>
+                      <input matInput formControlName="suite">
+                    </mat-form-field>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>City</mat-label>
+                    <input matInput formControlName="city" required>
+                    @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                      <mat-error>City is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>State</mat-label>
+                    <mat-select formControlName="state" required>
+                      <mat-option value="">Select State</mat-option>
+                      @for (state of states; track state) {
+                        <mat-option [value]="state">{{ state }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                      <mat-error>State is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Zip</mat-label>
+                    <input matInput formControlName="zip" required>
+                    @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                      <mat-error>Zip is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Phone</mat-label>
+                      <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
+                      @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
+                        <mat-error>Phone is required</mat-error>
+                      }
+                      @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
+                        <mat-error>Invalid phone format</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Fax</mat-label>
+                      <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
+                      @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
+                        <mat-error>Invalid phone format</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Email</mat-label>
+                      <input matInput formControlName="email" type="email" required>
+                      @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+                        <mat-error>Email is required</mat-error>
+                      }
+                      @if (form.get('email')?.hasError('email') && form.get('email')?.touched && !form.get('email')?.hasError('required')) {
+                        <mat-error>Invalid email format</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <!-- Office Logo Section -->
+                <mat-divider class="my-5"/>
+                <h3 class="pt-3">Office Logo</h3>
+                <div class="flex justify-start image-input items-center mb-4">
+                  @if (fileDetails && fileDetails.file) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="fileDetails.dataUrl" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      @if (fileName) {
+                        <span class="text-sm font-semibold">{{ fileName }}</span>
+                      }
+                      <div class="flex flex-col gap-2">
+                        <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                          Choose Image
+                        </button>
+                        <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                          Delete Image
+                        </button>
+                      </div>
+                    </div>
+                  } @else if (logoPath && !fileDetails) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Office Logo" title="Office Logo" [src]="logoPath" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                        Choose Image
+                      </button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeLogo()" style="width: 100%;">
+                        Delete Image
+                      </button>
+                    </div>
+                  } @else {
+                    <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                      Choose Image
+                    </button>
+                  }
+                  <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="upload($event)" style="display: none;" />
+                </div>
+                @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+                  <div class="image-file-error mb-4">
+                    Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+                  </div>
+                }
+                <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+              </mat-expansion-panel>
+
+              <!-- Bank Information Accordion -->
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Bank Information</mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Bank Name</mat-label>
+                      <input matInput formControlName="bankName" required>
+                      @if (form.get('bankName')?.hasError('required') && form.get('bankName')?.touched) {
+                        <mat-error>Bank Name is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Bank Phone</mat-label>
+                      <input matInput formControlName="bankPhone" maxlength="14" (blur)="formatBankPhone()" (input)="onBankPhoneInput($event)" placeholder="(555) 555-5555">
+                      @if (form.get('bankPhone')?.hasError('pattern') && form.get('bankPhone')?.touched) {
+                        <mat-error>Invalid phone format</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+
+                  <div class="col-span-4 flex gap-x-1.5">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Bank Routing</mat-label>
+                      <input matInput formControlName="bankRouting" required>
+                      @if (form.get('bankRouting')?.hasError('required') && form.get('bankRouting')?.touched) {
+                        <mat-error>Bank Routing is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Bank Account</mat-label>
+                      <input matInput formControlName="bankAccount" required>
+                      @if (form.get('bankAccount')?.hasError('required') && form.get('bankAccount')?.touched) {
+                        <mat-error>Bank Account is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Bank SWIFT Code</mat-label>
+                      <input matInput type="text" formControlName="bankSwiftCode" required
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('bankSwiftCode')?.hasError('required') && form.get('bankSwiftCode')?.touched) {
+                        <mat-error>Bank SWIFT Code is required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="col-span-4">
+                    <mat-label>Bank Address</mat-label>
+                    <input matInput type="text" formControlName="bankAddress" required
+                      (focus)="selectAllOnFocus($event)">
+                    @if (form.get('bankAddress')?.hasError('required') && form.get('bankAddress')?.touched) {
+                      <mat-error>Bank Address is required</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </mat-expansion-panel>
+
+            </mat-accordion>
+
+            @if (isSubmitting) {
+              <div class="flex justify-start gap-3 items-center mt-4">
+                <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+                <span>Saving...</span>
+              </div>
+            }
+          </form>
+      </mat-card>
+    </section>
+  </div>
+}

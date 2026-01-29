@@ -43,8 +43,8 @@ export class AccountingService {
   }
 
   // PUT: Update entire invoice
-  updateInvoice(invoiceId: string, invoice: InvoiceRequest): Observable<InvoiceResponse> {
-    return this.http.put<InvoiceResponse>(this.controller + 'invoice/' + invoiceId, invoice);
+  updateInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
+    return this.http.put<InvoiceResponse>(this.controller + 'invoice', invoice);
   }
 
 

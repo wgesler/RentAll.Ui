@@ -33,13 +33,8 @@ export class OrganizationService {
   }
 
   // PUT: Update entire organization
-  updateOrganization(organizationId: string, organization: OrganizationRequest): Observable<OrganizationResponse> {
-    return this.http.put<OrganizationResponse>(this.controller + organizationId, organization);
-  }
-
-  // PATCH: Partially update organization
-  updateOrganizationPartial(organizationId: string, organization: Partial<OrganizationRequest>): Observable<OrganizationResponse> {
-    return this.http.patch<OrganizationResponse>(this.controller + organizationId, organization);
+  updateOrganization(organization: OrganizationRequest): Observable<OrganizationResponse> {
+    return this.http.put<OrganizationResponse>(this.controller, organization);
   }
 
   // DELETE: Delete organization

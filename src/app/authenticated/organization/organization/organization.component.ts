@@ -149,7 +149,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
     const save$ = this.isAddMode
       ? this.organizationService.createOrganization(organizationRequest)
-      : this.organizationService.updateOrganization(this.organizationId, organizationRequest);
+      : this.organizationService.updateOrganization(organizationRequest);
 
     save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {

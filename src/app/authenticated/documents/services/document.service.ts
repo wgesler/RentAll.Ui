@@ -43,13 +43,8 @@ export class DocumentService {
   }
 
   // PUT: Update entire document
-  updateDocument(documentId: string, document: DocumentRequest): Observable<DocumentResponse> {
-    return this.http.put<DocumentResponse>(this.controller + documentId, document);
-  }
-
-  // PATCH: Partially update document
-  updateDocumentPartial(documentId: string, document: Partial<DocumentRequest>): Observable<DocumentResponse> {
-    return this.http.patch<DocumentResponse>(this.controller + documentId, document);
+  updateDocument(document: DocumentRequest): Observable<DocumentResponse> {
+    return this.http.put<DocumentResponse>(this.controller, document);
   }
 
   // DELETE: Delete document

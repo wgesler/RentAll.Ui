@@ -34,13 +34,8 @@ export class PropertyService {
   }
 
   // PUT: Update entire property
-  updateProperty(propertyId: string, property: PropertyRequest): Observable<PropertyResponse> {
-    return this.http.put<PropertyResponse>(this.controller + propertyId, property);
-  }
-
-  // PATCH: Partially update property
-  updatePropertyPartial(propertyId: string, property: Partial<PropertyRequest>): Observable<PropertyResponse> {
-    return this.http.patch<PropertyResponse>(this.controller + propertyId, property);
+  updateProperty(property: PropertyRequest): Observable<PropertyResponse> {
+    return this.http.put<PropertyResponse>(this.controller, property);
   }
 
   // DELETE: Delete property

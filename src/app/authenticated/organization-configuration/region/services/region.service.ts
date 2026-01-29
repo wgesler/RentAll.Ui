@@ -33,8 +33,8 @@ export class RegionService {
   }
 
   // PUT: Update entire region
-  updateRegion(regionId: number, region: RegionRequest): Observable<RegionResponse> {
-    return this.http.put<RegionResponse>(this.controller + regionId, region);
+  updateRegion(region: RegionRequest): Observable<RegionResponse> {
+    return this.http.put<RegionResponse>(this.controller, region);
   }
 
   // DELETE: Delete region

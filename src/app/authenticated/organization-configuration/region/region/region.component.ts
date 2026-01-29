@@ -183,7 +183,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       }
       regionRequest.regionId = regionIdNum;
       regionRequest.organizationId = this.region?.organizationId || user?.organizationId || '';
-      this.regionService.updateRegion(regionIdNum, regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      this.regionService.updateRegion(regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: RegionResponse) => {
           this.toastr.success('Region updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (this.embeddedMode) {

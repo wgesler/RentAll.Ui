@@ -33,18 +33,8 @@ export class CompanyService {
   }
 
   // PUT: Update entire company
-  updateCompany(companyId: string, company: CompanyRequest): Observable<CompanyResponse> {
-    return this.http.put<CompanyResponse>(this.controller + companyId, company);
-  }
-
-  // PATCH: Partially update company
-  updateCompanyPartial(companyId: string, company: Partial<CompanyRequest>): Observable<CompanyResponse> {
-    return this.http.patch<CompanyResponse>(this.controller + companyId, company);
-  }
-
-  // PATCH: Update company logo
-  updateCompanyLogo(companyId: string, company: CompanyRequest): Observable<CompanyResponse> {
-    return this.http.patch<CompanyResponse>(this.controller + companyId, company);
+  updateCompany(company: CompanyRequest): Observable<CompanyResponse> {
+    return this.http.put<CompanyResponse>(this.controller, company);
   }
 
   // DELETE: Delete company

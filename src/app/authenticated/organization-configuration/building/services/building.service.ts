@@ -33,8 +33,8 @@ export class BuildingService {
   }
 
   // PUT: Update entire building
-  updateBuilding(buildingId: number, building: BuildingRequest): Observable<BuildingResponse> {
-    return this.http.put<BuildingResponse>(this.controller + buildingId, building);
+  updateBuilding(building: BuildingRequest): Observable<BuildingResponse> {
+    return this.http.put<BuildingResponse>(this.controller, building);
   }
 
   // DELETE: Delete building

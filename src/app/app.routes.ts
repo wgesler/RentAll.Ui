@@ -34,6 +34,8 @@ import { BuildingComponent } from './authenticated/organization-configuration/bu
 import { BuildingListComponent } from './authenticated/organization-configuration/building/building-list/building-list.component';
 import { OfficeComponent } from './authenticated/organization-configuration/office/office/office.component';
 import { OfficeListComponent } from './authenticated/organization-configuration/office/office-list/office-list.component';
+import { AccountingOfficeComponent } from './authenticated/organization-configuration/accounting/accounting-office/accounting-office.component';
+import { AccountingOfficeListComponent } from './authenticated/organization-configuration/accounting/accounting-office-list/accounting-office-list.component';
 import { RegionComponent } from './authenticated/organization-configuration/region/region/region.component';
 import { RegionListComponent } from './authenticated/organization-configuration/region/region-list/region-list.component';
 import { ColorComponent } from './authenticated/organization-configuration/color/color/color.component';
@@ -78,6 +80,8 @@ export enum RouterToken {
   Building = RouterToken.BuildingList + '/:id',
   OfficeList = 'offices',
   Office = RouterToken.OfficeList + '/:id',
+  AccountingOfficeList = 'accounting-offices',
+  AccountingOffice = RouterToken.AccountingOfficeList + '/:id',
   RegionList = 'regions',
   Region = RouterToken.RegionList + '/:id',
   ColorList = 'colors',
@@ -119,6 +123,8 @@ export enum RouterUrl {
   Building             = `${RouterToken.Auth}/${RouterToken.Building}`,
   OfficeList        = `${RouterToken.Auth}/${RouterToken.OfficeList}`,
   Office            = `${RouterToken.Auth}/${RouterToken.Office}`,
+  AccountingOfficeList = `${RouterToken.Auth}/${RouterToken.AccountingOfficeList}`,
+  AccountingOffice = `${RouterToken.Auth}/${RouterToken.AccountingOffice}`,
   RegionList           = `${RouterToken.Auth}/${RouterToken.RegionList}`,
   Region               = `${RouterToken.Auth}/${RouterToken.Region}`,
   ColorList            = `${RouterToken.Auth}/${RouterToken.ColorList}`,
@@ -167,6 +173,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Building, component: BuildingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.OfficeList, component: OfficeListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Office, component: OfficeComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingOfficeList, component: AccountingOfficeListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingOffice, component: AccountingOfficeComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RegionList, component: RegionListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Region, component: RegionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ColorList, component: ColorListComponent, canActivate: [authRouteGuard] },

@@ -97,6 +97,23 @@
             </div>
           </mat-expansion-panel>
 
+          <!-- Accounting Offices Section -->
+          <mat-expansion-panel [expanded]="expandedSections.accountingOffices" 
+            (opened)="onPanelOpened('accountingOffices')" 
+            (closed)="onPanelClosed('accountingOffices')" 
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Accounting</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="agents-container">
+              @if (isEditingAccountingOffice && accountingOfficeId) {
+                <app-accounting-office [id]="accountingOfficeId" [embeddedMode]="true" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+              } @else {
+                <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)"></app-accounting-office-list>
+              }
+            </div>
+          </mat-expansion-panel>
+
           <!-- Cost Codes Section -->
           <mat-expansion-panel [expanded]="expandedSections.costCodes" 
             (opened)="onPanelOpened('costCodes')" 

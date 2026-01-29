@@ -33,13 +33,8 @@ export class UserService {
   }
 
   // PUT: Update entire user
-  updateUser(userId: string, user: UserRequest): Observable<UserResponse> {
-    return this.http.put<UserResponse>(this.controller + userId, user);
-  }
-
-  // PATCH: Partially update user
-  updateUserPartial(userId: string, user: Partial<UserRequest>): Observable<UserResponse> {
-    return this.http.patch<UserResponse>(this.controller + userId, user);
+  updateUser(user: UserRequest): Observable<UserResponse> {
+    return this.http.put<UserResponse>(this.controller, user);
   }
 
   // DELETE: Delete user
