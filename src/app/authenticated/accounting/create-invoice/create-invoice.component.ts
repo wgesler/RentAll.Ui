@@ -740,6 +740,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         result = result.replace(/\{\{contactCity\}\}/g, this.company.city || '');
         result = result.replace(/\{\{contactState\}\}/g, this.company.state || '');
         result = result.replace(/\{\{contactZip\}\}/g, this.company.zip || '');
+        result = result.replace(/\{\{contactAddress\}\}/g, this.getCompanyAddress() || '');
+
       } else {
         // Use contact address
         result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
@@ -747,6 +749,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
         result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
         result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
+        result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress() || '');
       }
     }
 
@@ -759,6 +762,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     if (this.property) {
       result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
       result = result.replace(/\{\{propertyAddress\}\}/g, this.getPropertyAddress() || '');
+      result = result.replace(/\{\{propertySuite\}\}/g, this.property.suite || '');
     }
 
     // Replace office placeholders
@@ -797,16 +801,22 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     return result;
   }
 
+  getCompanyAddress(): string {
+    if (!this.company) return '';
+      let address = this.company.address1 + ' ' + this.company.city + ', ' +  this.company.state + ' ' +   this.company.zip
+      return address
+     }
+
+  getContactAddress(): string {
+    if (!this.contact) return '';
+    let address = this.contact.address1 + ' ' + this.contact.city + ', ' +  this.contact.state + ' ' +   this.contact.zip;
+    return address
+  }
+
   getPropertyAddress(): string {
     if (!this.property) return '';
-    const parts = [
-      this.property.address1,
-      this.property.suite ? `#${this.property.suite}` : '',
-      this.property.city,
-      this.property.state,
-      this.property.zip
-    ].filter(p => p);
-    return parts.join(', ');
+    let address =  this.property.address1 + ' ' + this.property.city + ', ' +  this.property.state + ' ' +   this.property.zip
+    return address 
   }
   //#endregion
 

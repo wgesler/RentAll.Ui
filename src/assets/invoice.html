@@ -290,7 +290,7 @@
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
-  <p style="margin-bottom: 10px;"><span class="label">Client Invoice #:</span> {{invoiceName}}</p>
+  <p style="text-align: center; margin-bottom: 10px;"><span class="label">Client Invoice #:</span> {{invoiceName}}</p>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
@@ -300,6 +300,7 @@
               <span class="label">Client Number:</span> {{reservationCode}}<br>
               <span class="label">Client Name:</span> {{contactName}}<br>
               <span class="label">Company Name:</span> {{companyName}}<br>
+              <span class="label">Client Address:</span> {{contactAddress}}<br>
             </p>
           </div>
         </td>
@@ -308,7 +309,8 @@
           <div class="border">
             <p>
               <span class="label">Property Address:</span> {{propertyAddress}}<br>
-              <span class="label">Unit ID:</span> {{propertyCode}}
+              <span class="label">Unit ID:</span> {{propertySuite}}<br>
+              <span class="label">Billing Type:</span> {{billingType}}<br>
             </p>
           </div>
         </td>
