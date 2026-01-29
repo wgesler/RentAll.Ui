@@ -791,10 +791,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     } else {
       input.value = value;
     }
-    
-    // DON'T update line.amount during typing - just sanitize the input value
-    // This matches the property component behavior where form control stores raw string
-    // The input manages its own value during typing, we'll parse and update the model on blur only
   }
 
   onLedgerAmountFocus(event: Event, index: number): void {

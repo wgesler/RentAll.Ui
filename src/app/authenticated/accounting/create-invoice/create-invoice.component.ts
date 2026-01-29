@@ -1,5 +1,6 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
 import { Component, OnInit, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
@@ -82,6 +83,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
+  safePreviewIframeHtml: SafeHtml = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
@@ -106,6 +108,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     private http: HttpClient,
     private authService: AuthService,
     private documentReloadService: DocumentReloadService,
+    private sanitizer: DomSanitizer,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
@@ -114,6 +117,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
+    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }
 
   //#region Create Invoice Methods
@@ -416,7 +420,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
           if (err.status !== 400) {
             this.toastr.error('Could not load invoice HTML from assets.', CommonMessage.ServiceError);
           }
-          this.previewIframeHtml = '';
+          this.clearPreview();
         }
       });
       return;
@@ -437,7 +441,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
           const processedHtml = this.replacePlaceholders(response.invoice);
           this.processAndSetHtml(processedHtml);
         } else {
-          this.previewIframeHtml = '';
+          this.clearPreview();
           this.toastr.warning('No invoice HTML template found for this property.', 'No Template');
         }
       },
@@ -543,7 +547,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.form.patchValue({ selectedReservationId: null, selectedInvoiceId: null });
       this.form.get('selectedReservationId')?.disable();
       this.form.get('selectedInvoiceId')?.disable();
-      this.previewIframeHtml = '';
+      this.clearPreview();
       this.officeIdChange.emit(null);
       return;
     }
@@ -570,7 +574,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.selectedInvoice = null;
       this.form.patchValue({ selectedInvoiceId: null });
       this.form.get('selectedInvoiceId')?.disable();
-      this.previewIframeHtml = '';
+      this.clearPreview();
       this.reservationIdChange.emit(null);
       return;
     }
@@ -638,7 +642,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.availableInvoices = [];
       this.selectedReservation = null;
       this.selectedInvoice = null;
-      this.previewIframeHtml = '';
+      this.clearPreview();
       return;
     }
     
@@ -779,6 +783,14 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
 
+    // Replace accounting office placeholders
+    if (this.selectedAccountingOffice) {
+      result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice.name || '');
+      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.selectedAccountingOffice.address1 || '');
+      result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, this.selectedAccountingOffice.city + ', ' + this.selectedAccountingOffice.state + ' ' + this.selectedAccountingOffice.zip|| '');
+      result = result.replace(/\{\{accountingOfficeEmail\}\}/g, this.selectedAccountingOffice.email || '');
+    }
+
     // Replace any remaining placeholders with empty string
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
@@ -802,7 +814,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   generatePreviewIframe(): void {
     // Only generate preview if both office and reservation are selected
     if (!this.selectedOffice || !this.selectedReservation) {
-      this.previewIframeHtml = '';
+      this.clearPreview();
       return;
     }
 
@@ -894,11 +906,11 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
           this.processAndSetHtml(combinedHtml);
         } catch (error) {
-          this.previewIframeHtml = '';
+          this.clearPreview();
         }
       },
       error: () => {
-        this.previewIframeHtml = '';
+        this.clearPreview();
       }
     });
   }
@@ -907,7 +919,14 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
+    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.iframeKey++; // Force iframe refresh
+  }
+
+  clearPreview(): void {
+    this.previewIframeHtml = '';
+    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+    this.previewIframeStyles = '';
   }
 
   stripAndReplace(html: string): string {

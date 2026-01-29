@@ -71,7 +71,7 @@
     .logo-container {
       display: table-cell;
       vertical-align: top;
-      width: 50%;
+      width: 100%;
     }
 
     .logo {
@@ -216,46 +216,99 @@
       padding-top: 12px;
     }
 
+    .accounting-office-container {
+      width: fit-content;
+      margin: 0 auto;
+      font-size: 9pt;
+      line-height: 1.4;
+    }
+
+    .accounting-office-container table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .accounting-office-logo-cell {
+      width: 150px;
+      padding-right: 10px;
+      vertical-align: middle;
+    }
+
+    .accounting-office-info-cell {
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .accounting-office-container img {
+      max-height: 60px;
+      max-width: 150px;
+      display: block;
+    }
+
+    .accounting-office-container p {
+      margin: 2px 0;
+      font-size: 9pt;
+      text-align: left;
+    }
+
+    .accounting-office-invoice-number {
+      margin-top: 10px;
+      text-align: left;
+    }
+
+    .accounting-office-email {
+      color: #0000EE;
+      text-decoration: underline;
+    }
+
   </style>
 </head>
 
 <body>
 <div class="page">
-  <!-- Header Row: Logo and Invoice Information -->
+  <!-- Header Row: Accounting Office Information and Invoice Information -->
   <div class="header-row">
     <div class="logo-container">
-      <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo">
+      <div class="accounting-office-container">
+        <table>
+          <tr>
+            <td class="accounting-office-logo-cell">
+              <img src="{{officeLogoBase64}}" alt="Accounting Office Logo">
+            </td>
+            <td class="accounting-office-info-cell">
+              <p><strong>{{accountingOfficeName}}</strong></p>
+              <p>{{accountingOfficeAddress}}</p>
+              <p>{{accountingOfficeCityStateZip}}</p>
+              <p><span class="accounting-office-email">{{accountingOfficeEmail}}</span></p>
+            </td>
+          </tr>
+        </table>
+      </div>
     </div>
     <div class="invoice-info-header">
-      <p><span class="label">Invoice #:</span> {{invoiceName}}</p>
-      <p><span class="label">Invoice Date:</span> {{invoiceDate}}</p>
-      <p><span class="label">Due Date:</span> {{dueDate}}</p>
     </div>
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
+  <p style="margin-bottom: 10px;"><span class="label">Client Invoice #:</span> {{invoiceName}}</p>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
-            <h2 style="color: #000 !important;">Guest Information</h2>
             <p>
-              <span class="label">Reservation #:</span> {{reservationCode}}<br>
-              <span class="label">Name:</span> {{contactName}}<br>
-              <span *ngIf="isCompanyRental"><span class="label">CompanyName:</span> {{companyName}}<br></span>
-              <span class="label">Address:</span> {{contactAddress1}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
-              <span class="label">Occupant:</span> {{tenantName}}
+              <span class="label">Client Number:</span> {{reservationCode}}<br>
+              <span class="label">Client Name:</span> {{contactName}}<br>
+              <span class="label">Company Name:</span> {{companyName}}<br>
             </p>
           </div>
         </td>
 
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
-            <h2 style="color: #000 !important;">Property Information</h2>
             <p>
-              <span class="label">Property Code:</span> {{propertyCode}}<br>
-              <span class="label">Property Address:</span> {{propertyAddress}}
+              <span class="label">Property Address:</span> {{propertyAddress}}<br>
+              <span class="label">Unit ID:</span> {{propertyCode}}
             </p>
           </div>
         </td>

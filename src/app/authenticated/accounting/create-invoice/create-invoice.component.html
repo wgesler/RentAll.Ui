@@ -82,7 +82,7 @@
           <!-- Preview iframe when all three are selected -->
           <div class="preview-section">
             <iframe 
-              [srcdoc]="previewIframeHtml" 
+              [srcdoc]="safePreviewIframeHtml" 
               class="preview-iframe"
               [attr.key]="iframeKey"
               (load)="injectStylesIntoIframe()"
