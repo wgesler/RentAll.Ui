@@ -264,8 +264,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   buildForm(): FormGroup {
     return this.fb.group({
       selectedOfficeId: new FormControl(null),
-      selectedReservationId: new FormControl(null),
-      selectedInvoiceId: new FormControl(null),
+      selectedReservationId: new FormControl({ value: null, disabled: true }),
+      selectedInvoiceId: new FormControl({ value: null, disabled: true }),
       invoice: new FormControl('')
     });
   }
@@ -541,6 +541,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.selectedReservation = null;
       this.selectedInvoice = null;
       this.form.patchValue({ selectedReservationId: null, selectedInvoiceId: null });
+      this.form.get('selectedReservationId')?.disable();
+      this.form.get('selectedInvoiceId')?.disable();
       this.previewIframeHtml = '';
       this.officeIdChange.emit(null);
       return;
@@ -554,6 +556,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.availableInvoices = [];
     this.selectedInvoice = null;
     this.form.patchValue({ selectedInvoiceId: null });
+    this.form.get('selectedReservationId')?.enable();
+    this.form.get('selectedInvoiceId')?.disable();
     this.previewIframeHtml = '';
     this.officeIdChange.emit(officeId);
   }
@@ -565,6 +569,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.availableInvoices = [];
       this.selectedInvoice = null;
       this.form.patchValue({ selectedInvoiceId: null });
+      this.form.get('selectedInvoiceId')?.disable();
       this.previewIframeHtml = '';
       this.reservationIdChange.emit(null);
       return;
@@ -577,6 +582,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         this.loadContact(); // Load contact from reservation
         this.loadProperty(reservation.propertyId);
         this.loadInvoicesForReservation(reservationId);
+        this.form.get('selectedInvoiceId')?.enable();
         this.reservationIdChange.emit(reservationId);
       },
       error: (err: HttpErrorResponse) => {
@@ -653,6 +659,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
       this.availableInvoices = [];
       this.selectedInvoice = null;
+      this.form.get('selectedInvoiceId')?.disable();
       this.previewIframeHtml = '';
       return;
     }
@@ -677,6 +684,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
           this.selectedReservation = fullReservation;
           this.loadContact(); // Load contact from reservation
           this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
+          this.form.get('selectedInvoiceId')?.enable();
           if (this.selectedOffice) {
             this.loadInvoicesForReservation(reservationId);
             this.loadProperty(fullReservation.propertyId);

@@ -51,7 +51,7 @@
           <!-- Reservation Dropdown -->
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Select Reservation</mat-label>
-            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [disabled]="!selectedOffice">
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
               <mat-option [value]="null">Select Reservation</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">
@@ -64,7 +64,7 @@
           <!-- Invoice Dropdown -->
           <mat-form-field appearance="outline" class="invoice-dropdown">
             <mat-label>Select Invoice</mat-label>
-            <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)" [disabled]="!selectedReservation">
+            <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)">
               <mat-option [value]="null">Select Invoice</mat-option>
               @for (invoice of availableInvoices; track invoice.value.invoiceId) {
                 <mat-option [value]="invoice.value.invoiceId">
