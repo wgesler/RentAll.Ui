@@ -344,7 +344,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
-      linkedOfficeId: new FormControl(null),
+      officeId: new FormControl(null),
       name: new FormControl('', [Validators.required]),
       address1: new FormControl('', [Validators.required]),
       address2: new FormControl(''),
@@ -369,7 +369,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   populateForm(): void {
     if (this.accountingOffice && this.form) {
       this.form.patchValue({
-        linkedOfficeId: this.accountingOffice.linkedOfficeId || null,
+        officeId: this.accountingOffice.officeId || null,
         name: this.accountingOffice.name,
         address1: this.accountingOffice.address1,
         address2: this.accountingOffice.address2 || '',

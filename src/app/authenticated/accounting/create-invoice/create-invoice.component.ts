@@ -60,7 +60,14 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
-  accountingOffice: AccountingOfficeResponse | null = null;
+
+  accountingOffices: AccountingOfficeResponse[] = [];
+  selectedAccountingOffice: AccountingOfficeResponse | null = null;
+  accountingOfficesSubscription?: Subscription;
+  
+  accountingOfficeLogo: string = '';
+  officeLogo: string = '';
+  orgLogo: string = '';
  
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -81,7 +88,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   debuggingHtml: boolean = true;
 
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -109,39 +116,42 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.form = this.buildForm();
   }
 
-  //#region Invoice Methods
+  //#region Create Invoice Methods
   ngOnInit(): void {
     this.loadOffices();
+    this.loadAccountingOffices();
     this.loadReservations();
     this.loadOrganization();
     this.loadContacts();
     
-    // In debug mode, load HTML from assets immediately
-    if (this.debuggingHtml) {
-      this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
-        next: (html: string) => {
-          if (html) {
-            this.form.patchValue({ invoice: html });
-          }
-        },
-        error: () => {
-          // Silently fail in debug mode if file doesn't exist
-        }
-      });
-    }
-    
-    // Apply initial values from @Input after data loads
-    // Wait for offices to load first
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null) {
-        this.applyOfficeSelection(this.officeId);
-      }
-      // Then wait for reservations to load
-      if (this.reservationId !== null) {
-        this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
-          this.applyReservationSelection(this.reservationId);
+    // Wait for all items to load before proceeding
+    this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
+      // In debug mode, load HTML from assets immediately
+      if (this.debuggingHtml) {
+        this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+          next: (html: string) => {
+            if (html) {
+              this.form.patchValue({ invoice: html });
+            }
+          },
+          error: () => {
+           }
         });
       }
+      
+      forkJoin([
+        this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
+        this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
+        if (this.officeId !== null) {
+          this.applyOfficeSelection(this.officeId);
+        }
+        // Then wait for reservations to load
+        if (this.reservationId !== null) {
+          this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
+            this.applyReservationSelection(this.reservationId);
+          });
+        }
+      });
     });
   }
 
@@ -160,13 +170,6 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       if (newReservationId !== (this.selectedReservation?.reservationId ?? null)) {
         this.applyReservationSelection(newReservationId);
       }
-    }
-  }
-
-  reloadInvoice(): void {
-    if (this.property?.propertyId) {
-      this.loadProperty(this.property.propertyId);
-      this.loadPropertyHtml();
     }
   }
 
@@ -270,41 +273,20 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       });
     });
   }
 
-  loadAccountingOffice(): void {
-    if (!this.selectedOffice || !this.selectedOffice.officeId) {
-      this.accountingOffice = null;
-      return;
-    }
-
-    this.accountingOfficeService.getAccountingOffices().pipe(take(1)).subscribe({
-      next: (accountingOffices: AccountingOfficeResponse[]) => {
-        // Find the accounting office that has linkedOfficeId matching the selected office's officeId
-        this.accountingOffice = accountingOffices.find(ao => ao.linkedOfficeId === this.selectedOffice?.officeId) || null;
-        // Regenerate preview if all required data is available
-        if (this.selectedInvoice && this.selectedOffice && this.selectedReservation && this.property) {
-          const formHtml = this.form.value.invoice;
-          if (formHtml && formHtml.trim()) {
-            const processedHtml = this.replacePlaceholders(formHtml);
-            this.processAndSetHtml(processedHtml);
-          } else {
-            this.loadInvoiceHtml();
-          }
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.accountingOffice = null;
-        if (err.status !== 400) {
-          console.error('Error loading accounting office:', err);
-        }
-      }
+  loadAccountingOffices(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
+    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe(() => {
+      this.accountingOffices = this.accountingOfficeService.getAllAccountingOfficesValue();
+      this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+      });
     });
   }
 
@@ -472,6 +454,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
       next: (org: OrganizationResponse | null) => {
         this.organization = org;
+        this.updateOrgLogo();
       }
     });
   }
@@ -514,10 +497,45 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
+  //#region Logo Update Methods
+  updateAccountingOfficeLogo(): void {
+    if (this.selectedAccountingOffice?.fileDetails?.dataUrl) {
+      this.accountingOfficeLogo = this.selectedAccountingOffice.fileDetails.dataUrl;
+    } else if (this.selectedAccountingOffice?.fileDetails?.file && this.selectedAccountingOffice?.fileDetails?.contentType) {
+      this.accountingOfficeLogo = `data:${this.selectedAccountingOffice.fileDetails.contentType};base64,${this.selectedAccountingOffice.fileDetails.file}`;
+    } else {
+      this.accountingOfficeLogo = '';
+    }
+  }
+
+  updateOfficeLogo(): void {
+    if (this.selectedOffice?.fileDetails?.dataUrl) {
+      this.officeLogo = this.selectedOffice.fileDetails.dataUrl;
+    } else if (this.selectedOffice?.fileDetails?.file && this.selectedOffice?.fileDetails?.contentType) {
+      this.officeLogo = `data:${this.selectedOffice.fileDetails.contentType};base64,${this.selectedOffice.fileDetails.file}`;
+    } else {
+      this.officeLogo = '';
+    }
+  }
+
+  updateOrgLogo(): void {
+    if (this.organization?.fileDetails?.dataUrl) {
+      this.orgLogo = this.organization.fileDetails.dataUrl;
+    } else if (this.organization?.fileDetails?.file && this.organization?.fileDetails?.contentType) {
+      this.orgLogo = `data:${this.organization.fileDetails.contentType};base64,${this.organization.fileDetails.file}`;
+    } else {
+      this.orgLogo = '';
+    }
+  }
+  //#endregion
+
   //#region Form Response Methods
   onOfficeSelected(officeId: number | null): void {
     if (!officeId) {
       this.selectedOffice = null;
+      this.updateOfficeLogo();
+      this.selectedAccountingOffice = null;
+      this.updateAccountingOfficeLogo();
       this.availableReservations = [];
       this.availableInvoices = [];
       this.selectedReservation = null;
@@ -529,7 +547,9 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
     
     this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    this.loadAccountingOffice(); // Load accounting office when office changes
+    this.updateOfficeLogo();
+    this.selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === officeId) || null;
+    this.updateAccountingOfficeLogo();
     this.filterReservations();
     this.availableInvoices = [];
     this.selectedInvoice = null;
@@ -604,6 +624,9 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   applyOfficeSelection(officeId: number | null): void {
     if (officeId === null) {
       this.selectedOffice = null;
+      this.updateOfficeLogo();
+      this.selectedAccountingOffice = null;
+      this.updateAccountingOfficeLogo();
       this.form.patchValue({ selectedOfficeId: null }, { emitEvent: false });
       this.availableReservations = [];
       this.availableInvoices = [];
@@ -613,22 +636,13 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       return;
     }
     
-    // Wait for offices to load if not already loaded
-    if (this.offices.length === 0) {
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
-          this.offices = offices || [];
-          this.applyOfficeSelection(officeId); // Retry after offices are loaded
-        });
-      });
-      return;
-    }
-    
     const office = this.offices.find(o => o.officeId === officeId);
     if (office) {
       this.selectedOffice = office;
+      this.updateOfficeLogo();
+      this.selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === officeId) || null;
+      this.updateAccountingOfficeLogo();
       this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
-      this.loadAccountingOffice(); 
       this.filterReservations();
     }
   }
@@ -740,39 +754,19 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{officeName\}\}/g, this.selectedOffice.name || '');
     }
 
-    if (this.accountingOffice) {
-      // Replace office logo placeholder
-      let officeLogoDataUrl = '';
-      if (this.accountingOffice.fileDetails?.dataUrl) {
-        officeLogoDataUrl = this.accountingOffice.fileDetails.dataUrl;
-      } else if (this.accountingOffice.fileDetails?.file && this.accountingOffice.fileDetails?.contentType) {
-        officeLogoDataUrl = `data:${this.accountingOffice.fileDetails.contentType};base64,${this.accountingOffice.fileDetails.file}`;
-      }
-      
-      // Fallback to organization logo if office logo is not available
-      if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
-        officeLogoDataUrl = this.organization.fileDetails.dataUrl;
-      }
-      
-      if (officeLogoDataUrl) {
-        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
-      }
+    // Replace office logo placeholder - prefer accounting office logo, fallback to office logo, then org logo
+    const officeLogoDataUrl = this.accountingOfficeLogo || this.officeLogo || this.orgLogo;
+    if (officeLogoDataUrl) {
+      result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
     }
 
     // Replace organization logo placeholder
-    if (this.organization) {
-      const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
-      if (orgLogoDataUrl) {
-        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
-      }
+    if (this.orgLogo) {
+      result = result.replace(/\{\{orgLogoBase64\}\}/g, this.orgLogo);
     }
-    
+
     // Remove img tags that contain logo placeholders if no logo is available
-    const hasOfficeLogo = this.selectedOffice?.fileDetails?.dataUrl || this.selectedOffice?.fileDetails?.file;
-    const hasAccountingOfficeLogo = this.accountingOffice?.fileDetails?.dataUrl || this.accountingOffice?.fileDetails?.file;
-    const hasOrgLogo = this.organization?.fileDetails?.dataUrl;
-    
-    if (!hasOfficeLogo && !hasAccountingOfficeLogo && !hasOrgLogo) {
+    if (!officeLogoDataUrl && !this.orgLogo) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }

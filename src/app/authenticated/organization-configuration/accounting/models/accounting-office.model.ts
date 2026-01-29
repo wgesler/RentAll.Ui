@@ -3,7 +3,6 @@ import { FileDetails } from "../../../../shared/models/fileDetails";
 export interface AccountingOfficeRequest {
   organizationId: string;
   officeId: number;
-  linkedOfficeId?: number;
   name: string;
   address1: string;
   address2?: string;
@@ -28,7 +27,6 @@ export interface AccountingOfficeRequest {
 export interface AccountingOfficeResponse {
   organizationId: string;
   officeId: number;
-  linkedOfficeId?: number;
   name: string;
   address1: string;
   address2?: string;
