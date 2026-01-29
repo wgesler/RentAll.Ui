@@ -1,65 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>Guest Invoice</title>
-  <style>
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      line-height: 1.6;
-      color: #000;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 10px;
+
+  <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style type="text/css">
+    P.breakhere {
+      page-break-before: always;
     }
 
-    .header {
-      position: relative;
-      margin-bottom: 0;
-      min-height: 0px;
+    @media print {
+      @page {
+        margin: 0.75in;
+        size: letter;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;Edward Jones Client Survey: Get Rewarded for Your Time
+        Edward Jones Client Survey<research@survey.cmbclient.net>
+        color-adjust: exact;
+      }
+
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+  </style>
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: arial, sans-serif;
+      max-width: 8.5in;
+      width: 8.5in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    p {
+      font-size: 10pt;
+      line-height: 150%;
+    }
+
+    #container {
+      max-width: 100% !important;
+      width: 100% !important;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
+    }
+
+    .header-row {
+      display: table;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .logo-container {
+      display: table-cell;
+      vertical-align: top;
+      width: 50%;
     }
 
     .logo {
-      position: absolute;
-      top: 0;
-      left: 0;
       max-height: 100px;
       max-width: 200px;
       display: block;
     }
 
-    .content {
-      margin-top: 120px;
+    .invoice-info-header {
+      display: table-cell;
+      vertical-align: top;
+      text-align: right;
+      width: 50%;
     }
 
-    h1, h3 {
-      color: #2c3e50;
+    .invoice-info-header p {
+      margin: 0;
+      line-height: 1.6;
     }
 
     h2 {
-      font-size: 1rem;
-      font-weight: 900;
-      color: #000;
-      text-decoration-line: underline;
-      text-decoration-color: #111;
-      text-decoration-thickness: 2px;
-      text-underline-offset: 4px;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
     }
 
-    .section {
-      margin-bottom: 24px;
+    .border {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .border p {
+      margin: 0;
+    }
+
+    /* Make the first rows boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
+      margin: 0;
     }
 
     .label {
-      font-weight: 800;
-    }
-
-    .separator-label {
-      margin-left: 2rem;
+      font-weight: bold;
     }
 
     .text-center {
       text-align: center;
+    }
+
+    .text-right {
+      text-align: right;
     }
 
     table {
@@ -68,18 +151,46 @@
       margin-bottom: 24px;
     }
 
-    th, td {
+    table th, table td {
       padding: 8px;
       text-align: left;
       border-bottom: 1px solid #ddd;
     }
 
-    th {
+    table th {
       font-weight: 800;
       background-color: #f5f5f5;
     }
 
-    .text-right {
+    table .text-right {
+      text-align: right;
+    }
+
+    .charges-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .charges-table th {
+      font-weight: 800;
+      background-color: #f5f5f5;
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .charges-table th.text-right {
+      text-align: right;
+    }
+
+    .charges-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .charges-table td.text-right {
       text-align: right;
     }
 
@@ -91,6 +202,7 @@
 
     .totals table {
       margin-bottom: 0;
+      border: none;
     }
 
     .totals td {
@@ -103,78 +215,101 @@
       border-top: 2px solid #000;
       padding-top: 12px;
     }
+
   </style>
 </head>
 
 <body>
-  <!-- Logo Header -->
-  <div class="header">
-    <img
-      src="{{orgLogoBase64}}"
-      alt="Company Logo"
-      class="logo"
-    />
-  </div>
-
-  <!-- Content -->
-  <div class="content">
-    <!-- Invoice Header -->
-    <div class="text-center">
-      <h1>Guest Invoice</h1>
+<div class="page">
+  <!-- Header Row: Logo and Invoice Information -->
+  <div class="header-row">
+    <div class="logo-container">
+      <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo">
     </div>
-
-    <!-- Invoice Information -->
-    <div class="section">
+    <div class="invoice-info-header">
       <p><span class="label">Invoice #:</span> {{invoiceName}}</p>
       <p><span class="label">Invoice Date:</span> {{invoiceDate}}</p>
       <p><span class="label">Due Date:</span> {{dueDate}}</p>
     </div>
-
-    <!-- Guest Information -->
-    <div class="section">
-      <h2>Guest Information</h2>
-      <p><span class="label">Name:</span> {{tenantName}}</p>
-      <p><span class="label">Reservation Code:</span> {{reservationCode}}</p>
-      <p><span class="label">Property Address:</span> {{propertyAddress}}</p>
-      <p><span class="label">Office:</span> {{officeName}}</p>
-    </div>
-
-    <!-- Charges Table -->
-    <div class="section">
-      <h2>Charges</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th class="text-right">Quantity</th>
-            <th class="text-right">Rate</th>
-            <th class="text-right">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Invoice line items will be inserted here -->
-          <tr>
-            <td colspan="3" class="text-right"><span class="label">Subtotal:</span></td>
-            <td class="text-right">{{totalAmount}}</td>
-          </tr>
-          <tr>
-            <td colspan="3" class="text-right"><span class="label">Paid:</span></td>
-            <td class="text-right">{{paidAmount}}</td>
-          </tr>
-          <tr class="total-row">
-            <td colspan="3" class="text-right"><span class="label">Total Due:</span></td>
-            <td class="text-right">{{totalDue}}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Payment Information -->
-    <div class="section">
-      <h2>Payment Information</h2>
-      <p>Please remit payment by the due date indicated above.</p>
-      <p>Thank you for your business.</p>
-    </div>
   </div>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
+          <div class="border">
+            <h2 style="color: #000 !important;">Guest Information</h2>
+            <p>
+              <span class="label">Reservation #:</span> {{reservationCode}}<br>
+              <span class="label">Name(s):</span> {{responsibleParty}}<br>
+              <span class="label">Address:</span> {{contactAddress1}}, {{contactCity}}, {{contactState}} {{contactZip}}<br>
+              <span class="label">Occupant:</span> {{tenantName}}
+            </p>
+          </div>
+        </td>
+
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
+          <div class="border">
+            <h2 style="color: #000 !important;">Property Information</h2>
+            <p>
+              <span class="label">Property Code:</span> {{propertyCode}}<br>
+              <span class="label">Property Address:</span> {{propertyAddress}}
+            </p>
+          </div>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td colspan="2" style="padding: 5px;">
+          <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000 !important;">Charges</h2>
+          <table class="charges-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Quantity</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Invoice line items will be inserted here -->
+              <!-- Example line item structure (will be replaced by actual data):
+              <tr>
+                <td>Rent - March 2026</td>
+                <td class="text-right">1</td>
+                <td class="text-right">$2,500.00</td>
+                <td class="text-right">$2,500.00</td>
+              </tr>
+              -->
+              <tr>
+                <td colspan="3" class="text-right"><span class="label">Subtotal:</span></td>
+                <td class="text-right">{{totalAmount}}</td>
+              </tr>
+              <tr>
+                <td colspan="3" class="text-right"><span class="label">Paid:</span></td>
+                <td class="text-right">{{paidAmount}}</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="3" class="text-right"><span class="label">Total Due:</span></td>
+                <td class="text-right">{{totalDue}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td colspan="2" style="padding: 5px;">
+          <div class="border">
+            <h2 style="color: #000 !important;">Payment Information</h2>
+            <p>Please remit payment by the due date indicated above.</p>
+            <p>Thank you for your business.</p>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 </body>
 </html>

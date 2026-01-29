@@ -93,8 +93,10 @@ export class CompanyComponent implements OnInit, OnDestroy {
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
           this.hasNewFileUpload = false; // FileDetails from API, not a new upload
-        } else if (response.logoPath) {
-          // Fallback to logoPath if fileDetails not available
+        }
+        
+        // Always preserve logoPath from response if it exists (even if fileDetails also exists)
+        if (response.logoPath) {
           this.logoPath = response.logoPath;
           this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
@@ -136,10 +138,10 @@ export class CompanyComponent implements OnInit, OnDestroy {
       website: formValue.website || '',
       notes: formValue.notes || '',
       phone: phoneDigits,
-      // Only send fileDetails if a new file was uploaded (not from API response)
+      // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
-      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
-      logoPath: this.hasNewFileUpload ? undefined : this.logoPath
+      fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
+      logoPath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.logoPath
     };
 
     // Defensive guard: required fields must remain non-empty

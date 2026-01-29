@@ -80,17 +80,17 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
-    public override toastr: ToastrService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
-    documentExportService: DocumentExportService,
-    documentService: DocumentService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
     private http: HttpClient,
+    public override toastr: ToastrService,
+    documentExportService: DocumentExportService,
+    documentService: DocumentService,
     documentHtmlService: DocumentHtmlService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);

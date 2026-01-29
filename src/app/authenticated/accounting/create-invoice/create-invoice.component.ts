@@ -46,6 +46,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
 
   form: FormGroup;
+  organization: OrganizationResponse | null = null;
   contacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -61,7 +62,6 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
-  organization: OrganizationResponse | null = null;
   
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
@@ -97,6 +97,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.form = this.buildForm();
   }
 
+  //#region Invoice Methods
   ngOnInit(): void {
     this.loadOffices();
     this.loadReservations();
@@ -150,143 +151,10 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
   }
 
-  private applyOfficeSelection(officeId: number | null): void {
-    if (officeId === null) {
-      this.selectedOffice = null;
-      this.form.patchValue({ selectedOfficeId: null }, { emitEvent: false });
-      this.availableReservations = [];
-      this.availableInvoices = [];
-      this.selectedReservation = null;
-      this.selectedInvoice = null;
-      this.previewIframeHtml = '';
-      return;
-    }
-    
-    // Wait for offices to load if not already loaded
-    if (this.offices.length === 0) {
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
-          this.offices = offices || [];
-          this.applyOfficeSelection(officeId); // Retry after offices are loaded
-        });
-      });
-      return;
-    }
-    
-    const office = this.offices.find(o => o.officeId === officeId);
-    if (office) {
-      this.selectedOffice = office;
-      this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
-      this.filterReservations();
-    }
-  }
-
-  private applyReservationSelection(reservationId: string | null): void {
-    if (reservationId === null) {
-      this.selectedReservation = null;
-      this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
-      this.availableInvoices = [];
-      this.selectedInvoice = null;
-      this.previewIframeHtml = '';
-      return;
-    }
-    
-    // Wait for reservations to load if not already loaded
-    if (this.reservations.length === 0) {
-      this.reservationService.getReservationList().pipe(take(1)).subscribe({
-        next: (reservations) => {
-          this.reservations = reservations || [];
-          this.filterReservations();
-          this.applyReservationSelection(reservationId); // Retry after reservations are loaded
-        }
-      });
-      return;
-    }
-    
-    const reservation = this.reservations.find(r => r.reservationId === reservationId);
-    if (reservation) {
-      // Load full reservation details
-      this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
-        next: (fullReservation: ReservationResponse) => {
-          this.selectedReservation = fullReservation;
-          this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
-          if (this.selectedOffice) {
-            this.loadInvoicesForReservation(reservationId);
-            this.loadProperty(fullReservation.propertyId);
-          }
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
-          }
-        }
-      });
-    }
-  }
-
-  //#region Invoice Methods
-  getInvoice(): void {
-    if (this.debuggingHtml) {
-      // Load HTML from assets for faster testing
-      this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(
-        take(1),
-        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })
-      ).subscribe({
-        next: (html: string) => {
-          if (html) {
-            // Update form control with raw HTML
-            this.form.patchValue({ invoice: html });
-            if (this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
-              const processedHtml = this.replacePlaceholders(html);
-              this.processAndSetHtml(processedHtml);
-            }
-          }
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not load invoice from assets at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
-      });
-      return;
-    }
-
-    // Production mode: load from API
-    if (!this.property?.propertyId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
-      return;
-    }
-
-    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.property.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
-      next: (response: PropertyHtmlResponse) => {
-        if (response) {
-          this.propertyHtml = response;
-          // Update form control with raw HTML
-          if (response.invoice) {
-            this.form.patchValue({ invoice: response.invoice });
-          }
-          if (response.invoice && this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
-            const processedHtml = this.replacePlaceholders(response.invoice);
-            this.processAndSetHtml(processedHtml);
-          }
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load invoice at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
-    });
-  }
-
   reloadInvoice(): void {
-    // Reload property data to get latest information
     if (this.property?.propertyId) {
       this.loadProperty(this.property.propertyId);
-    }
-    // Reload invoice HTML
-    if (this.property?.propertyId) {
-      this.getInvoice();
+      this.loadPropertyHtml();
     }
   }
 
@@ -377,6 +245,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
+  //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       selectedOfficeId: new FormControl(null),
@@ -385,6 +254,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       invoice: new FormControl('')
     });
   }
+  //#endregion
 
   //#region Data Load Methods
   loadOffices(): void {
@@ -446,6 +316,23 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadInvoice(): void {
+    if (!this.selectedInvoice?.invoiceId) {
+      return;
+    }
+
+    this.accountingService.getInvoiceByGuid(this.selectedInvoice.invoiceId).pipe(take(1)).subscribe({
+      next: (response: InvoiceResponse) => {
+        this.selectedInvoice = response;
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load invoice.', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
   loadProperty(propertyId: string): void {
     if (!propertyId) {
       this.property = null;
@@ -467,6 +354,23 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadPropertyHtml(): void {
+    if (!this.property) {
+      return;
+    }
+
+    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.property.propertyId).pipe(take(1)).subscribe({
+      next: (response: PropertyHtmlResponse) => {
+        this.propertyHtml = response;
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property HTML.', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
   loadInvoiceHtml(): void {
     if (this.debuggingHtml) {
       // Load HTML from assets for faster testing
@@ -475,8 +379,10 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
           if (html) {
             // Update form control with raw HTML
             this.form.patchValue({ invoice: html });
-            const processedHtml = this.replacePlaceholders(html);
-            this.processAndSetHtml(processedHtml);
+            if (this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
+              const processedHtml = this.replacePlaceholders(html);
+              this.processAndSetHtml(processedHtml);
+            }
           } else {
             this.previewIframeHtml = '';
             this.toastr.warning('No invoice HTML template found in assets.', 'No Template');
@@ -595,13 +501,13 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
     
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
-    if (this.selectedInvoice && this.selectedOffice && this.selectedReservation) {
+    if (this.selectedInvoice && this.selectedOffice && this.selectedReservation && this.property) {
       // If HTML is already in the form control (from textarea editing), use it
       const formHtml = this.form.value.invoice;
       if (formHtml && formHtml.trim()) {
         const processedHtml = this.replacePlaceholders(formHtml);
         this.processAndSetHtml(processedHtml);
-      } else if (this.property) {
+      } else {
         // Otherwise load from API/assets
         this.loadInvoiceHtml();
       }
@@ -619,6 +525,80 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       value: r,
       label: this.utilityService.getReservationLabel(r)
     }));
+  }
+
+  applyOfficeSelection(officeId: number | null): void {
+    if (officeId === null) {
+      this.selectedOffice = null;
+      this.form.patchValue({ selectedOfficeId: null }, { emitEvent: false });
+      this.availableReservations = [];
+      this.availableInvoices = [];
+      this.selectedReservation = null;
+      this.selectedInvoice = null;
+      this.previewIframeHtml = '';
+      return;
+    }
+    
+    // Wait for offices to load if not already loaded
+    if (this.offices.length === 0) {
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.offices = offices || [];
+          this.applyOfficeSelection(officeId); // Retry after offices are loaded
+        });
+      });
+      return;
+    }
+    
+    const office = this.offices.find(o => o.officeId === officeId);
+    if (office) {
+      this.selectedOffice = office;
+      this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
+      this.filterReservations();
+    }
+  }
+
+  applyReservationSelection(reservationId: string | null): void {
+    if (reservationId === null) {
+      this.selectedReservation = null;
+      this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
+      this.availableInvoices = [];
+      this.selectedInvoice = null;
+      this.previewIframeHtml = '';
+      return;
+    }
+    
+    // Wait for reservations to load if not already loaded
+    if (this.reservations.length === 0) {
+      this.reservationService.getReservationList().pipe(take(1)).subscribe({
+        next: (reservations) => {
+          this.reservations = reservations || [];
+          this.filterReservations();
+          this.applyReservationSelection(reservationId); // Retry after reservations are loaded
+        }
+      });
+      return;
+    }
+    
+    const reservation = this.reservations.find(r => r.reservationId === reservationId);
+    if (reservation) {
+      // Load full reservation details
+      this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+        next: (fullReservation: ReservationResponse) => {
+          this.selectedReservation = fullReservation;
+          this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
+          if (this.selectedOffice) {
+            this.loadInvoicesForReservation(reservationId);
+            this.loadProperty(fullReservation.propertyId);
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status !== 400) {
+            this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
+          }
+        }
+      });
+    }
   }
   //#endregion
 
@@ -653,6 +633,37 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     // Replace office placeholders
     if (this.selectedOffice) {
       result = result.replace(/\{\{officeName\}\}/g, this.selectedOffice.name || '');
+      
+      // Replace office logo placeholder
+      let officeLogoDataUrl = '';
+      if (this.selectedOffice.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.selectedOffice.fileDetails.dataUrl;
+      } else if (this.selectedOffice.fileDetails?.file && this.selectedOffice.fileDetails?.contentType) {
+        officeLogoDataUrl = `data:${this.selectedOffice.fileDetails.contentType};base64,${this.selectedOffice.fileDetails.file}`;
+      }
+      
+      // Fallback to organization logo if office logo is not available
+      if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
+        officeLogoDataUrl = this.organization.fileDetails.dataUrl;
+      }
+      
+      if (officeLogoDataUrl) {
+        result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
+      }
+    }
+
+    // Replace organization logo placeholder
+    if (this.organization) {
+      const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
+      if (orgLogoDataUrl) {
+        result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
+      }
+    }
+    
+    // Remove img tags that contain logo placeholders if no logo is available
+    if ((!this.selectedOffice?.fileDetails?.dataUrl && !this.selectedOffice?.fileDetails?.file) && !this.organization?.fileDetails?.dataUrl) {
+      result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
+      result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
 
     // Replace any remaining placeholders with empty string
@@ -672,6 +683,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     ].filter(p => p);
     return parts.join(', ');
   }
+  //#endregion
 
   //#region Html Processing
   generatePreviewIframe(): void {
