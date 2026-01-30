@@ -23,7 +23,7 @@ import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
 import { EntityType } from '../../contact/models/contact-enum';
-import { ReservationType, ReservationStatus, BillingType, BillingMethod, Frequency, ReservationNotice, DepositType, getReservationTypes, getReservationStatuses, getBillingTypes, getBillingMethods, getFrequencies, getReservationNotices, getDepositTypes } from '../models/reservation-enum';
+import { ReservationType, ReservationStatus, BillingType, BillingMethod, Frequency, ReservationNotice, DepositType, ProrateType, getReservationTypes, getReservationStatuses, getBillingTypes, getBillingMethods, getFrequencies, getReservationNotices, getDepositTypes, getProrateTypes } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -67,6 +67,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   availableClientTypes: { value: number, label: string }[] = [];
   availableBillingTypes: { value: number, label: string }[] = [];
   availableBillingMethods: { value: number, label: string }[] = [];
+  availableProrateTypes: { value: number, label: string }[] = [];
   availableFrequencies: { value: number, label: string }[] = [];
   availableReservationNotices: { value: number, label: string }[] = [];
   availableDepositTypes: { value: number, label: string }[] = [];
@@ -233,6 +234,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingMethodId: formValue.billingMethodId ?? BillingMethod.Invoice,
+      prorateTypeId: formValue.prorateTypeId ?? null,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
       depositTypeId: formValue.depositType !== null && formValue.depositType !== undefined ? Number(formValue.depositType) : undefined,
@@ -315,6 +317,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingModelId: new FormControl(BillingMethod.Invoice, [Validators.required]),
+      prorateTypeId: new FormControl<number | null>(null),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
       pets: new FormControl(false, [Validators.required]),
@@ -381,6 +384,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkOutTimeId: this.reservation.checkOutTimeId,
       billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
       billingMethodId: this.reservation.billingMethodId ?? BillingMethod.Invoice,
+      prorateTypeId: this.reservation.prorateTypeId ?? null,
       billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
       numberOfPeople: this.reservation.numberOfPeople === 0 ? 1 : this.reservation.numberOfPeople,
       depositType: this.reservation.depositTypeId ?? DepositType.Deposit,
@@ -580,6 +584,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.checkOutTimes = getCheckOutTimes();
     this.availableBillingTypes = getBillingTypes();
     this.availableBillingMethods = getBillingMethods();
+    this.availableProrateTypes = getProrateTypes();
     this.availableFrequencies = getFrequencies();
     this.availableReservationNotices = getReservationNotices();
     this.availableDepositTypes = getDepositTypes();

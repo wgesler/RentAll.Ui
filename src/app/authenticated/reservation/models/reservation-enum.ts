@@ -96,6 +96,32 @@ export function getBillingMethods(): { value: number, label: string }[] {
 }
 //#endregion
 
+//#region ProrateType
+export enum ProrateType {
+  FirstMonth = 0,
+  SecondMonth = 1
+}
+
+export function getProrateType(prorateTypeId: number | undefined): string {
+  if (prorateTypeId === undefined || prorateTypeId === null) return '';
+  
+  const prorateMap: { [key: number]: string } = {
+    [ProrateType.FirstMonth]: 'First Month',
+    [ProrateType.SecondMonth]: 'Second Month'
+  };
+  
+  return prorateMap[prorateTypeId] || '';
+}
+
+// Gets the array of prorate type options for dropdowns
+export function getProrateTypes(): { value: number, label: string }[] {
+  return [
+    { value: ProrateType.FirstMonth, label: getProrateType(ProrateType.FirstMonth) },
+    { value: ProrateType.SecondMonth, label: getProrateType(ProrateType.SecondMonth) }
+  ];
+}
+//#endregion
+
 //#region BillingType
 export enum BillingType {
   Monthly = 0,

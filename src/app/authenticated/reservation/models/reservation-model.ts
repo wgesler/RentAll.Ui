@@ -18,6 +18,7 @@ export interface ReservationRequest {
   checkInTimeId: number;
   checkOutTimeId: number;
   billingMethodId: number;
+  prorateTypeId: number;
   billingTypeId: number;
   billingRate: number;
   deposit: number;
@@ -63,6 +64,7 @@ export interface ReservationResponse {
   checkInTimeId: number;
   checkOutTimeId: number;
   billingMethodId: number;
+  prorateTypeId: number;
   billingTypeId: number;
   billingRate: number;
   deposit: number;
