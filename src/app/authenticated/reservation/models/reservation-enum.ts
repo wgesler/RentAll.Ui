@@ -70,6 +70,32 @@ export function getReservationTypes(): { value: number, label: string }[] {
 }
 //#endregion
 
+//#region BillingMethod
+export enum BillingMethod {
+  Invoice = 0,
+  CreditCard = 1
+}
+
+export function getBillingMethod(billingMethodId: number | undefined): string {
+  if (billingMethodId === undefined || billingMethodId === null) return '';
+  
+  const billingMap: { [key: number]: string } = {
+    [BillingMethod.Invoice]: 'Invoice',
+    [BillingMethod.CreditCard]: 'Credit Card'
+  };
+  
+  return billingMap[billingMethodId] || '';
+}
+
+// Gets the array of billing type options for dropdowns
+export function getBillingMethods(): { value: number, label: string }[] {
+  return [
+    { value: BillingMethod.Invoice, label: getBillingMethod(BillingMethod.Invoice) },
+    { value: BillingMethod.CreditCard, label: getBillingMethod(BillingMethod.CreditCard) }
+  ];
+}
+//#endregion
+
 //#region BillingType
 export enum BillingType {
   Monthly = 0,

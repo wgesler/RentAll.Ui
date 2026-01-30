@@ -37,6 +37,7 @@ import { AccountingOfficeResponse } from '../../organization-configuration/accou
 import { EntityType } from '../../contact/models/contact-enum';
 import { CompanyResponse } from '../../company/models/company.model';
 import { CompanyService } from '../../company/services/company.service';
+import { getBillingMethod } from '../../reservation/models/reservation-enum';
 
 @Component({
   selector: 'app-create-invoice',
@@ -352,6 +353,16 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.accountingService.getInvoiceByGuid(this.selectedInvoice.invoiceId).pipe(take(1)).subscribe({
       next: (response: InvoiceResponse) => {
         this.selectedInvoice = response;
+        // Regenerate preview with ledger lines if all required data is available
+        if (this.selectedOffice && this.selectedReservation && this.property) {
+          const formHtml = this.form.value.invoice;
+          if (formHtml && formHtml.trim()) {
+            const processedHtml = this.replacePlaceholders(formHtml);
+            this.processAndSetHtml(processedHtml);
+          } else {
+            this.loadInvoiceHtml();
+          }
+        }
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
@@ -600,21 +611,16 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   onInvoiceSelected(invoiceId: string | null): void {
     if (!invoiceId) {
       this.selectedInvoice = null;
-      this.previewIframeHtml = '';
+      this.clearPreview();
       return;
     }
     
+    // Find invoice from list first
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
-    if (this.selectedInvoice && this.selectedOffice && this.selectedReservation && this.property) {
-      // If HTML is already in the form control (from textarea editing), use it
-      const formHtml = this.form.value.invoice;
-      if (formHtml && formHtml.trim()) {
-        const processedHtml = this.replacePlaceholders(formHtml);
-        this.processAndSetHtml(processedHtml);
-      } else {
-        // Otherwise load from API/assets
-        this.loadInvoiceHtml();
-      }
+    
+    // Load full invoice details including ledger lines
+    if (this.selectedInvoice) {
+      this.loadInvoice();
     }
   }
 
@@ -720,6 +726,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
     // Replace reservation placeholders
     if (this.selectedReservation) {
+      result = result.replace(/\{\{billingMethod\}\}/g, getBillingMethod(this.selectedReservation.billingMethodId) || '');
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.arrivalDate) || '');
@@ -793,12 +800,44 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.selectedAccountingOffice.address1 || '');
       result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, this.selectedAccountingOffice.city + ', ' + this.selectedAccountingOffice.state + ' ' + this.selectedAccountingOffice.zip|| '');
       result = result.replace(/\{\{accountingOfficeEmail\}\}/g, this.selectedAccountingOffice.email || '');
+      result = result.replace(/\{\{accountingOfficePhone\}\}/g, this.formatterService.phoneNumber(this.selectedAccountingOffice.phone) || '');
+      result = result.replace(/\{\{accountingOfficeWebsite\}\}/g, this.selectedAccountingOffice.website || '');
+      result = result.replace(/\{\{accountingOfficeBank\}\}/g, this.selectedAccountingOffice.bankName || '');
+      result = result.replace(/\{\{accountingOfficeBankRouting\}\}/g, this.selectedAccountingOffice.bankRouting || '');
+      result = result.replace(/\{\{accountingOfficeBankAccount\}\}/g, this.selectedAccountingOffice.bankAccount || '');
+      result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, this.selectedAccountingOffice.bankSwiftCode || '');
+      result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, this.selectedAccountingOffice.bankAddress || '');
+      result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(this.selectedAccountingOffice.bankPhone) || '');
     }
+
+    // Replace ledger lines placeholder
+    const ledgerLinesRows = this.generateLedgerLinesRows();
+    result = result.replace(/\{\{ledgerLinesRows\}\}/g, ledgerLinesRows);
 
     // Replace any remaining placeholders with empty string
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
+  }
+
+  generateLedgerLinesRows(): string {
+    if (!this.selectedInvoice?.ledgerLines || this.selectedInvoice.ledgerLines.length === 0) {
+      return '';
+    }
+
+    const rows = this.selectedInvoice.ledgerLines.map((line, index) => {
+      const date = this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '';
+      const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const amount = this.formatterService.currency(line.amount || 0);
+      
+      return `              <tr class="ledger-line-row">
+                <td>${date}</td>
+                <td>${description}</td>
+                <td class="text-right">${amount}</td>
+              </tr>`;
+      }).join('\n');
+
+    return rows;
   }
 
   getCompanyAddress(): string {

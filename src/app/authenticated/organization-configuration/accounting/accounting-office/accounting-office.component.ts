@@ -200,10 +200,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
-    // Validate that linkedOfficeId is provided for create mode
-    if (this.isAddMode && !formValue.linkedOfficeId) {
+    // Validate that officeId is provided for create mode
+    if (this.isAddMode && !formValue.officeId) {
       this.toastr.error('Please select an office', CommonMessage.Error);
-      this.form.get('linkedOfficeId')?.markAsTouched();
+      this.form.get('officeId')?.markAsTouched();
       return;
     }
 
@@ -212,9 +212,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
     const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
 
-    const linkedOfficeIdNum = formValue.linkedOfficeId ? Number(formValue.linkedOfficeId) : undefined;
+    const officeIdNum = formValue.officeId ? Number(formValue.officeId) : undefined;
     
-    if (this.isAddMode && (!linkedOfficeIdNum || linkedOfficeIdNum === 0)) {
+    if (this.isAddMode && (!officeIdNum || officeIdNum === 0)) {
       this.toastr.error('Please select a valid office', CommonMessage.Error);
       this.isSubmitting = false;
       return;
@@ -222,7 +222,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     
     const officeRequest: AccountingOfficeRequest = {
       organizationId: user.organizationId,
-      officeId: this.isAddMode ? linkedOfficeIdNum! : 0, // Will be set correctly in update mode below
+      officeId: this.isAddMode ? officeIdNum! : 0, // Will be set correctly in update mode below
       name: formValue.name,
       address1: (formValue.address1 || '').trim(),
       address2: formValue.address2?.trim() || undefined,
@@ -239,6 +239,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: formValue.bankAddress || '',
       bankPhone: bankPhoneDigits,
       email: formValue.email || '',
+      website: formValue.website || '',
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       logoPath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.logoPath,
       isActive: formValue.isActive
@@ -246,7 +247,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     console.log('=== Accounting Office Save Request ===');
     console.log('Is Add Mode:', this.isAddMode);
-    console.log('Linked Office ID:', linkedOfficeIdNum);
+    console.log('Linked Office ID:', officeIdNum);
     console.log('Organization ID:', user.organizationId);
     console.log('Request Object:', officeRequest);
     console.log('Request JSON:', JSON.stringify(officeRequest, null, 2));
@@ -355,6 +356,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
+      website: new FormControl(''),
       bankName: new FormControl('', [Validators.required]),
       bankRouting: new FormControl('', [Validators.required]),
       bankAccount: new FormControl('', [Validators.required]),
@@ -380,6 +382,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         phone: this.formatterService.phoneNumber(this.accountingOffice.phone),
         fax: this.accountingOffice.fax ? this.formatterService.phoneNumber(this.accountingOffice.fax) : '',
         email: this.accountingOffice.email || '',
+        website: this.accountingOffice.website || '',
         bankName: this.accountingOffice.bankName || '',
         bankRouting: this.accountingOffice.bankRouting || '',
         bankAccount: this.accountingOffice.bankAccount || '',
@@ -394,9 +397,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   setupOfficeSelectionHandler(): void {
     // Only populate from office selection in add mode
     if (this.isAddMode) {
-      this.form.get('linkedOfficeId')?.valueChanges.subscribe(linkedOfficeId => {
-        if (linkedOfficeId && this.offices.length > 0) {
-          const selectedOffice = this.offices.find(o => o.officeId === linkedOfficeId);
+      this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+        if (officeId && this.offices.length > 0) {
+          const selectedOffice = this.offices.find(o => o.officeId === officeId);
           if (selectedOffice) {
             // Populate form fields with office data (excluding bank fields)
             this.form.patchValue({

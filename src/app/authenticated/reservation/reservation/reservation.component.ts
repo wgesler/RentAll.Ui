@@ -23,7 +23,7 @@ import { CompanyResponse } from '../../company/models/company.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
 import { EntityType } from '../../contact/models/contact-enum';
-import { ReservationType, ReservationStatus, BillingType, Frequency, ReservationNotice, DepositType, getReservationTypes, getReservationStatuses, getBillingTypes, getFrequencies, getReservationNotices, getDepositTypes } from '../models/reservation-enum';
+import { ReservationType, ReservationStatus, BillingType, BillingMethod, Frequency, ReservationNotice, DepositType, getReservationTypes, getReservationStatuses, getBillingTypes, getBillingMethods, getFrequencies, getReservationNotices, getDepositTypes } from '../models/reservation-enum';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../property/models/property-enums';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -65,6 +65,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   checkOutTimes: { value: number, label: string }[] = [];
   availableClientTypes: { value: number, label: string }[] = [];
   availableBillingTypes: { value: number, label: string }[] = [];
+  availableBillingMethods: { value: number, label: string }[] = [];
   availableFrequencies: { value: number, label: string }[] = [];
   availableReservationNotices: { value: number, label: string }[] = [];
   availableDepositTypes: { value: number, label: string }[] = [];
@@ -230,6 +231,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkInTimeId: normalizeCheckInTimeId(formValue.checkInTimeId),
       checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
+      billingMethodId: formValue.billingMethodId ?? BillingMethod.Invoice,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
       deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
       depositTypeId: formValue.depositType !== null && formValue.depositType !== undefined ? Number(formValue.depositType) : undefined,
@@ -311,6 +313,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
+      billingModelId: new FormControl(BillingMethod.Invoice, [Validators.required]),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
       pets: new FormControl(false, [Validators.required]),
@@ -376,6 +379,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkInTimeId: this.reservation.checkInTimeId,
       checkOutTimeId: this.reservation.checkOutTimeId,
       billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
+      billingMethodId: this.reservation.billingMethodId ?? BillingMethod.Invoice,
       billingRate: (this.reservation.billingRate ?? 0).toFixed(2),
       numberOfPeople: this.reservation.numberOfPeople === 0 ? 1 : this.reservation.numberOfPeople,
       depositType: this.reservation.depositTypeId ?? DepositType.Deposit,
@@ -574,6 +578,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.checkInTimes = getCheckInTimes();
     this.checkOutTimes = getCheckOutTimes();
     this.availableBillingTypes = getBillingTypes();
+    this.availableBillingMethods = getBillingMethods();
     this.availableFrequencies = getFrequencies();
     this.availableReservationNotices = getReservationNotices();
     this.availableDepositTypes = getDepositTypes();
@@ -632,6 +637,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if (reservationTypeId === ReservationType.Owner) {
       // Make billing and fee fields readonly for Owner type
       this.disableFieldWithValidation('billingTypeId');
+      this.disableFieldWithValidation('billingModelId');
       this.disableFieldWithValidation('billingRate');
       this.disableFieldWithValidation('depositType');      
       this.disableFieldWithValidation('deposit');
@@ -651,6 +657,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
       this.enableFieldWithValidation('billingTypeId', [Validators.required]);
+      this.enableFieldWithValidation('billingModelId', [Validators.required]);
       this.enableFieldWithValidation('billingRate', [Validators.required]);
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);

@@ -305,7 +305,7 @@
                 <mat-expansion-panel-header>
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
-                <!-- Line 6: Billing Type, Billing Rate, Deposit, DepositType, Departure Fee, Taxes -->
+                <!-- Line 6: Billing Type, Billing Rate, DepositType, Deposit -->
                 <div class="flex gap-x-1.5 mb-1">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Type</mat-label>
@@ -347,6 +347,21 @@
                 }
                 @if (form.get('deposit')?.hasError('mustBeGreaterThanZero') && form.get('deposit')?.touched) {
                   <mat-error>Deposit must be greater than 0</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+                <!-- Line 7: Billing Method, Departure Fee, Taxes -->
+                <div class="flex gap-x-1.5 mb-1">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Client Billing Method</mat-label>
+                <mat-select formControlName="billingModelId" required>
+                  @for (billingMethod of availableBillingMethods; track billingMethod.value) {
+                    <mat-option [value]="billingMethod.value">{{ billingMethod.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('billingModelId')?.hasError('required') && form.get('billingModelId')?.touched) {
+                  <mat-error>Billing Method is required</mat-error>
                 }
               </mat-form-field>
 
