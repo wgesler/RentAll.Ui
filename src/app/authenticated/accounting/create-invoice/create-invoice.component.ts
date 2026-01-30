@@ -1,5 +1,6 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
 import { Component, OnInit, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -38,6 +39,7 @@ import { EntityType } from '../../contact/models/contact-enum';
 import { CompanyResponse } from '../../company/models/company.model';
 import { CompanyService } from '../../company/services/company.service';
 import { getBillingMethod } from '../../reservation/models/reservation-enum';
+import { RouterUrl } from '../../../app.routes';
 
 @Component({
   selector: 'app-create-invoice',
@@ -49,6 +51,7 @@ import { getBillingMethod } from '../../reservation/models/reservation-enum';
 export class CreateInvoiceComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Input() invoiceId: string | null = null; // Input to accept invoiceId from parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
 
@@ -90,7 +93,6 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
-
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -114,7 +116,9 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     documentExportService: DocumentExportService,
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService,
-    private accountingOfficeService: AccountingOfficeService
+    private accountingOfficeService: AccountingOfficeService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
@@ -123,16 +127,37 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
-    this.loadOffices();
-    this.loadAccountingOffices();
-    this.loadReservations();
-    this.loadOrganization();
-    this.loadContacts();
-    
-    // Wait for all items to load before proceeding
-    this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
-      // In debug mode, load HTML from assets immediately
-      if (this.debuggingHtml) {
+    // Read query params if component is used standalone (not via @Input)
+    // Use forkJoin to ensure query params are read before proceeding
+    forkJoin({
+      queryParams: this.route.queryParams.pipe(take(1))
+    }).subscribe(({ queryParams }) => {
+      if (queryParams['officeId'] && this.officeId === null) {
+        const officeId = parseInt(queryParams['officeId'], 10);
+        if (!isNaN(officeId)) {
+          this.officeId = officeId;
+        }
+      }
+      if (queryParams['reservationId'] && this.reservationId === null) {
+        this.reservationId = queryParams['reservationId'];
+      }
+      if (queryParams['invoiceId'] && this.invoiceId === null) {
+        this.invoiceId = queryParams['invoiceId'];
+      }
+      
+      this.loadOffices();
+      this.loadAccountingOffices();
+      this.loadReservations();
+      this.loadOrganization();
+      this.loadContacts();
+      
+      // Wait for all items to load before proceeding
+      this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
+      // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
+      // If we have officeId, reservationId, and invoiceId, skip loading HTML here
+      // as it will be loaded when the invoice is selected
+      const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
+      if (this.debuggingHtml && !hasAllParams) {
         this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
           next: (html: string) => {
             if (html) {
@@ -154,26 +179,45 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         if (this.reservationId !== null) {
           this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
             this.applyReservationSelection(this.reservationId);
+            // After reservation is selected, if invoiceId is provided, select it
+            if (this.invoiceId !== null) {
+              setTimeout(() => {
+                this.selectInvoiceAfterDataLoad(this.invoiceId);
+              }, 500);
+            }
           });
+        } else if (this.invoiceId !== null) {
+          // InvoiceId provided but no reservationId - need to get invoice first to find reservation
+          this.loadInvoiceByIdFirst(this.invoiceId);
         }
       });
+    });
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Handle officeId changes from parent
-    if (changes['officeId'] && !changes['officeId'].firstChange) {
+    // Handle officeId changes from parent (including first change for initial sync)
+    if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       if (newOfficeId !== (this.selectedOffice?.officeId ?? null)) {
         this.applyOfficeSelection(newOfficeId);
       }
     }
     
-    // Handle reservationId changes from parent
-    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
+    // Handle reservationId changes from parent (including first change for initial sync)
+    if (changes['reservationId']) {
       const newReservationId = changes['reservationId'].currentValue;
       if (newReservationId !== (this.selectedReservation?.reservationId ?? null)) {
         this.applyReservationSelection(newReservationId);
+      }
+    }
+    
+    // Handle invoiceId changes from parent (including first change for initial sync)
+    if (changes['invoiceId']) {
+      const newInvoiceId = changes['invoiceId'].currentValue;
+      if (newInvoiceId && newInvoiceId !== (this.selectedInvoice?.invoiceId ?? null)) {
+        // Ensure office and reservation are loaded first, then load invoices, then select invoice
+        this.selectInvoiceAfterDataLoad(newInvoiceId);
       }
     }
   }
@@ -232,7 +276,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.previewIframeHtml,
       this.previewIframeStyles
     );
-    const invoiceCode = this.selectedInvoice?.invoiceName?.replace(/[^a-zA-Z0-9]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
+    const invoiceCode = this.selectedInvoice?.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
     
     const generateDto: GenerateDocumentFromHtmlDto = {
@@ -242,7 +286,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       officeName: this.selectedOffice.name,
       propertyId: this.property?.propertyId || null,
       reservationId: this.selectedReservation?.reservationId || null,
-      documentType: DocumentType.Other,
+      documentType: DocumentType.Invoice,
       fileName: fileName
     };
 
@@ -319,17 +363,29 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    // Get all invoices and filter by office and reservation
-    this.accountingService.getInvoicesByOffice().pipe(take(1)).subscribe({
+    // Get invoices by office and filter by reservation
+    if (!this.selectedOffice?.officeId) {
+      this.availableInvoices = [];
+      return;
+    }
+    this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
-        // Filter invoices by the selected office and reservation
+        // Filter invoices by the selected reservation
         this.invoices = (invoices || []).filter(inv => 
-          inv.officeId === this.selectedOffice.officeId && inv.reservationId === reservationId
+          inv.reservationId === reservationId
         );
         this.availableInvoices = this.invoices.map(inv => ({
           value: inv,
           label: inv.invoiceName || `Invoice ${inv.invoiceId}`
         }));
+        
+        // After loading invoices, if invoiceId is provided, select it
+        if (this.invoiceId && this.invoices.length > 0) {
+          const invoiceToSelect = this.invoices.find(i => i.invoiceId === this.invoiceId);
+          if (invoiceToSelect) {
+            this.onInvoiceSelected(this.invoiceId);
+          }
+        }
         
         if (this.invoices.length === 0) {
           this.toastr.info('No invoices found for this reservation.', 'No Invoices');
@@ -340,6 +396,38 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         this.availableInvoices = [];
         if (err.status !== 404 && err.status !== 400) {
           this.toastr.error('Could not load invoices.', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  loadInvoiceByIdFirst(invoiceId: string): void {
+    // Load invoice first to get office and reservation info
+    this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1)).subscribe({
+      next: (invoice: InvoiceResponse) => {
+        // Set office and reservation from invoice
+        if (invoice.officeId && !this.selectedOffice) {
+          this.applyOfficeSelection(invoice.officeId);
+        }
+        if (invoice.reservationId && !this.selectedReservation) {
+          // Wait for reservations to load, then select
+          this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
+            this.applyReservationSelection(invoice.reservationId);
+            // After reservation is selected, select the invoice
+            setTimeout(() => {
+              this.selectInvoiceAfterDataLoad(invoiceId);
+            }, 500);
+          });
+        } else if (invoice.reservationId) {
+          // Reservation already selected, just select invoice
+          setTimeout(() => {
+            this.selectInvoiceAfterDataLoad(invoiceId);
+          }, 500);
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load invoice.', CommonMessage.ServiceError);
         }
       }
     });
@@ -555,7 +643,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.availableInvoices = [];
       this.selectedReservation = null;
       this.selectedInvoice = null;
-      this.form.patchValue({ selectedReservationId: null, selectedInvoiceId: null });
+      this.form.patchValue({ selectedOfficeId: null, selectedReservationId: null, selectedInvoiceId: null }, { emitEvent: false });
       this.form.get('selectedReservationId')?.disable();
       this.form.get('selectedInvoiceId')?.disable();
       this.clearPreview();
@@ -567,6 +655,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.updateOfficeLogo();
     this.selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === officeId) || null;
     this.updateAccountingOfficeLogo();
+    // Update form control to sync dropdown (emitEvent: false to avoid triggering selectionChange event)
+    this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
     this.filterReservations();
     this.availableInvoices = [];
     this.selectedInvoice = null;
@@ -575,6 +665,18 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     this.form.get('selectedInvoiceId')?.disable();
     this.previewIframeHtml = '';
     this.officeIdChange.emit(officeId);
+    
+    // After office is selected, if we have reservationId and invoiceId, ensure they're loaded
+    if (this.reservationId && this.invoiceId && this.selectedReservation) {
+      // Reservation is already selected, load invoices and select invoice
+      setTimeout(() => {
+        if (this.invoices.length === 0 && this.selectedReservation) {
+          this.loadInvoicesForReservation(this.selectedReservation.reservationId);
+        } else if (this.invoices.length > 0) {
+          this.onInvoiceSelected(this.invoiceId);
+        }
+      }, 300);
+    }
   }
 
   onReservationSelected(reservationId: string | null): void {
@@ -618,9 +720,56 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     // Find invoice from list first
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
     
+    // Update form control
+    if (this.selectedInvoice) {
+      this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
+      this.form.get('selectedInvoiceId')?.enable();
+    }
+    
     // Load full invoice details including ledger lines
     if (this.selectedInvoice) {
       this.loadInvoice();
+    }
+  }
+
+  selectInvoiceAfterDataLoad(invoiceId: string): void {
+    // If we have office and reservation, try to load invoices and select
+    if (this.selectedOffice && this.selectedReservation) {
+      // Check if invoices are already loaded
+      if (this.invoices.length > 0) {
+        this.onInvoiceSelected(invoiceId);
+      } else {
+        // Load invoices for this reservation, then select
+        this.loadInvoicesForReservation(this.selectedReservation.reservationId);
+        // Wait a moment for invoices to load, then select
+        setTimeout(() => {
+          if (this.invoices.length > 0) {
+            this.onInvoiceSelected(invoiceId);
+          } else {
+            // If still not loaded, try again after a longer delay
+            setTimeout(() => {
+              if (this.invoices.length > 0) {
+                this.onInvoiceSelected(invoiceId);
+              }
+            }, 1000);
+          }
+        }, 500);
+      }
+    } else if (this.selectedOffice && !this.selectedReservation) {
+      // Have office but not reservation - wait for reservation to be selected
+      // This will be handled by the reservation selection logic
+      setTimeout(() => {
+        if (this.selectedReservation) {
+          this.selectInvoiceAfterDataLoad(invoiceId);
+        }
+      }, 500);
+    } else {
+      // Don't have office yet - wait for it
+      setTimeout(() => {
+        if (this.selectedOffice) {
+          this.selectInvoiceAfterDataLoad(invoiceId);
+        }
+      }, 500);
     }
   }
 
@@ -638,28 +787,15 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
 
   applyOfficeSelection(officeId: number | null): void {
-    if (officeId === null) {
-      this.selectedOffice = null;
-      this.updateOfficeLogo();
-      this.selectedAccountingOffice = null;
-      this.updateAccountingOfficeLogo();
-      this.form.patchValue({ selectedOfficeId: null }, { emitEvent: false });
-      this.availableReservations = [];
-      this.availableInvoices = [];
-      this.selectedReservation = null;
-      this.selectedInvoice = null;
-      this.clearPreview();
-      return;
-    }
-    
-    const office = this.offices.find(o => o.officeId === officeId);
-    if (office) {
-      this.selectedOffice = office;
-      this.updateOfficeLogo();
-      this.selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === officeId) || null;
-      this.updateAccountingOfficeLogo();
-      this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
-      this.filterReservations();
+    // Call onOfficeSelected to ensure all logic runs (form control enable/disable, emissions, etc.)
+    // But only if offices are loaded, otherwise wait for them to load
+    if (this.offices.length > 0) {
+      this.onOfficeSelected(officeId);
+    } else {
+      // Offices not loaded yet, wait for them to load
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.onOfficeSelected(officeId);
+      });
     }
   }
 
@@ -997,7 +1133,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
-  // #region Abstract BaseDocumentComponent
+  //#region Abstract BaseDocumentComponent
   protected getDocumentConfig(): DocumentConfig {
     return {
       previewIframeHtml: this.previewIframeHtml,
@@ -1021,7 +1157,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    const invoiceCode = this.selectedInvoice.invoiceName?.replace(/[^a-zA-Z0-9]/g, '') || this.selectedInvoice.invoiceId;
+    const invoiceCode = this.selectedInvoice.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId;
     const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
     const downloadConfig: DownloadConfig = {
@@ -1048,6 +1184,10 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     await super.onEmail(emailConfig);
   }
   //#endregion
+
+  goBack(): void {
+    this.router.navigateByUrl(RouterUrl.AccountingList);
+  }
 
   //#region Utility Methods
   ngOnDestroy(): void {

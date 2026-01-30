@@ -1,15 +1,16 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
-import { CreateInvoiceComponent } from '../create-invoice/create-invoice.component';
+import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { filter, take, Subscription } from 'rxjs';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -24,16 +25,20 @@ import { CostCodesService } from '../services/cost-codes.service';
     InvoiceListComponent, 
     CostCodesListComponent, 
     CostCodesComponent,
-    CreateInvoiceComponent,
+    GeneralLedgerComponent,
     DocumentListComponent
   ],
   templateUrl: './accounting.component.html',
   styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
+  @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
+  
+  DocumentType = DocumentType; // Expose DocumentType enum to template
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   selectedOfficeId: number | null = null; // Shared office selection state
   selectedReservationId: string | null = null; // Shared reservation selection state
+  selectedInvoiceId: string | null = null; // Shared invoice selection state
   
   // Cost Codes controls
   showInactiveCostCodes: boolean = false;
@@ -48,11 +53,40 @@ export class AccountingComponent implements OnInit, OnDestroy {
   constructor(
     private officeService: OfficeService,
     private router: Router,
+    private route: ActivatedRoute,
     private costCodesService: CostCodesService
   ) { }
 
   ngOnInit(): void {
     this.loadOffices();
+    
+    // Check query params for tab selection and filters (subscribe to changes, not just initial)
+    this.route.queryParams.subscribe(params => {
+      if (params['tab']) {
+        const tabIndex = parseInt(params['tab'], 10);
+        if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3 && this.selectedTabIndex !== tabIndex) {
+          this.selectedTabIndex = tabIndex;
+        }
+      }
+      if (params['officeId']) {
+        const officeId = parseInt(params['officeId'], 10);
+        if (!isNaN(officeId) && this.selectedOfficeId !== officeId) {
+          this.selectedOfficeId = officeId;
+        }
+      }
+      if (params['reservationId']) {
+        const reservationId = params['reservationId'];
+        if (this.selectedReservationId !== reservationId) {
+          this.selectedReservationId = reservationId;
+        }
+      }
+      if (params['invoiceId']) {
+        const invoiceId = params['invoiceId'];
+        if (this.selectedInvoiceId !== invoiceId) {
+          this.selectedInvoiceId = invoiceId;
+        }
+      }
+    });
   }
 
 
@@ -69,6 +103,27 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
+    // Update URL query params when tab changes manually (user clicks tab)
+    const queryParams: any = { tab: event.index.toString() };
+    if (this.selectedOfficeId) {
+      queryParams.officeId = this.selectedOfficeId.toString();
+    }
+    if (this.selectedReservationId) {
+      queryParams.reservationId = this.selectedReservationId;
+    }
+    if (this.selectedInvoiceId) {
+      queryParams.invoiceId = this.selectedInvoiceId;
+    }
+    this.router.navigate([], { 
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge'
+    });
+    
+    // When Documents tab (index 3) is selected, reload the document list
+    if (event.index === 3 && this.accountingDocumentList) {
+      this.accountingDocumentList.reload();
+    }
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
@@ -80,15 +135,50 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onCostCodesOfficeChange(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
+    // Update shared state and notify other tabs
+    if (this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
+      // The ngModel binding will automatically update the dropdown
+      // Other tabs will receive the update via their @Input bindings
+    }
   }
 
-  onCreateInvoiceOfficeChange(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
+  onGeneralLedgerOfficeChange(officeId: number | null): void {
+    // Update shared state and notify other tabs
+    if (this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
+      // Other tabs will receive the update via their @Input bindings
+    }
   }
 
-  onCreateInvoiceReservationChange(reservationId: string | null): void {
-    this.selectedReservationId = reservationId;
+  onDocumentsOfficeChange(officeId: number | null): void {
+    // Update shared state and notify other tabs
+    if (this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
+      // Other tabs will receive the update via their @Input bindings
+    }
+  }
+
+  onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
+    // Navigate to Print Invoice page (standalone route)
+    // Always include officeId and invoiceId, and reservationId if available
+    const params: string[] = [];
+    
+    if (event.officeId !== null && event.officeId !== undefined) {
+      params.push(`officeId=${event.officeId}`);
+    }
+    if (event.reservationId !== null && event.reservationId !== undefined && event.reservationId !== '') {
+      params.push(`reservationId=${event.reservationId}`);
+    }
+    if (event.invoiceId) {
+      params.push(`invoiceId=${event.invoiceId}`);
+    }
+    
+    // Navigate to the Print Invoice route with all parameters
+    const url = params.length > 0 
+      ? `${RouterUrl.PrintInvoice}?${params.join('&')}`
+      : RouterUrl.PrintInvoice;
+    this.router.navigateByUrl(url);
   }
 
   toggleInactiveCostCodes(): void {

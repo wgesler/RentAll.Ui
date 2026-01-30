@@ -2,6 +2,18 @@
   @if (hideHeader) {
     <!-- Full-page layout when inside a tab -->
     <div class="document-list-tab-container">
+      <!-- Office dropdown row -->
+      <div class="flex gap-4 items-center mt-3 px-4">
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>All Offices</mat-label>
+          <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+            <mat-option [value]="null">All Offices</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
       <mat-card class="full-height-card">
         <div class="mat">
           <div class="tableDiv">
@@ -41,6 +53,18 @@
         </div>
         <mat-card>
           <div class="mat">
+            <!-- Office dropdown row -->
+            <div class="flex gap-4 items-center mt-4 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>All Offices</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
             <div class="tableDiv">
               <app-data-table
                 [data]="documentsDisplay"

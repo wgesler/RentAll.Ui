@@ -1,0 +1,29 @@
+<div class="general-ledger-container">
+  <!-- Action buttons row - First Row -->
+  <div class="flex gap-2 mt-4 px-4 justify-end">
+    <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+      Inactive
+    </mat-slide-toggle>
+    <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+      <mat-icon class="text-base">add</mat-icon>
+      <span>Add</span>
+    </button>
+  </div>
+  
+  <!-- Office dropdown row - Second Row -->
+  <div class="flex gap-4 items-center mt-3 px-4">
+    <mat-form-field appearance="outline" style="width: 300px;">
+      <mat-label>Office</mat-label>
+      <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
+        <mat-option [value]="null">All Offices</mat-option>
+        @for (office of offices; track office.officeId) {
+          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+  
+  <div class="mt-4 px-4">
+    <p>General Ledger content will go here.</p>
+  </div>
+</div>

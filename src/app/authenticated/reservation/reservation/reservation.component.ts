@@ -31,6 +31,7 @@ import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
@@ -42,7 +43,7 @@ import { UtilityService } from '../../../services/utility.service';
 @Component({
   selector: 'app-reservation',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent, InvoiceListComponent],
   templateUrl: './reservation.component.html',
   styleUrl: './reservation.component.scss'
 })

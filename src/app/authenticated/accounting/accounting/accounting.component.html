@@ -14,7 +14,8 @@
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             (officeIdChange)="onInvoiceOfficeChange($event)"
-            (reservationIdChange)="onInvoiceReservationChange($event)">
+            (reservationIdChange)="onInvoiceReservationChange($event)"
+            (printInvoiceEvent)="onPrintInvoice($event)">
           </app-invoice-list>
         </mat-tab>
         <mat-tab label="Cost Codes">
@@ -27,9 +28,19 @@
               (savedEvent)="onCostCodesSaved()">
             </app-cost-codes>
           } @else {
-            <!-- Office dropdown row -->
-            <div class="flex gap-4 items-center mt-4 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
+            <!-- Action buttons row - First Row -->
+            <div class="flex gap-2 mt-4 px-4 justify-end">
+              <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
+                Inactive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            </div>
+            <!-- Office dropdown row - Second Row -->
+            <div class="flex gap-3 items-center mt-3 px-4">
+              <mat-form-field appearance="outline" class="office-dropdown">
                 <mat-label>Office</mat-label>
                 <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onCostCodesOfficeChange(selectedOfficeId)">
                   <mat-option [value]="null">All Offices</mat-option>
@@ -38,16 +49,6 @@
                   }
                 </mat-select>
               </mat-form-field>
-            </div>
-            <!-- Action buttons row -->
-            <div class="flex justify-end items-center gap-5 mt-3 px-4">
-              <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
-                Inactive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
-                <mat-icon class="text-base">add</mat-icon>
-                <span>Add</span>
-              </button>
             </div>
             <app-cost-codes-list 
               [embeddedMode]="true"
@@ -59,16 +60,20 @@
             </app-cost-codes-list>
           }
         </mat-tab>
-        <mat-tab label="Print Invoice">
-          <app-create-invoice 
+        <mat-tab label="General Ledger">
+          <app-general-ledger 
             [officeId]="selectedOfficeId"
-            [reservationId]="selectedReservationId"
-            (officeIdChange)="onCreateInvoiceOfficeChange($event)"
-            (reservationIdChange)="onCreateInvoiceReservationChange($event)">
-          </app-create-invoice>
+            (officeIdChange)="onGeneralLedgerOfficeChange($event)">
+          </app-general-ledger>
         </mat-tab>
         <mat-tab label="Documents">
-          <app-document-list [hideHeader]="true"></app-document-list>
+          <app-document-list 
+            #accountingDocumentList
+            [documentTypeId]="DocumentType.Invoice"
+            [hideHeader]="true"
+            [officeId]="selectedOfficeId"
+            (officeIdChange)="onDocumentsOfficeChange($event)">
+          </app-document-list>
         </mat-tab>
       </mat-tab-group>
     </mat-card>

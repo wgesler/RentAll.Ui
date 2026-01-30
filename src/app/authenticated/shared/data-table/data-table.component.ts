@@ -48,6 +48,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
+  @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsRestore: boolean = false;
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
@@ -89,6 +90,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() editEvent = new EventEmitter<PurposefulAny>();
   @Output() lockEvent = new EventEmitter<PurposefulAny>();
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
+  @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
@@ -220,6 +222,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   emitPayableEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.payableEvent.emit(rowItem);
+  }
+
+  emitPrintEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.printEvent.emit(rowItem);
   }
 
   emitEditEvent(event: Event, rowItem: PurposefulAny): void {
@@ -371,9 +378,10 @@ export class DataTableComponent implements OnChanges, OnInit {
   private setActions(): void {
     this.buttons = [];
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
-    if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#2196F3', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
+    if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#4CAF50', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Payable', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
+    if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: '#E69138', tooltip: 'View / Download', tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});

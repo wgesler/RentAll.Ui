@@ -518,12 +518,12 @@
             }
           </mat-tab>
           
-          <mat-tab label="Information">
-            <app-lease-information 
-              [reservationId]="isAddMode ? null : reservationId"
-              [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null"
-              [contactId]="reservation?.contactId || form?.get('contactId')?.value || null">
-            </app-lease-information>
+          <mat-tab label="Invoices">
+            <app-invoice-list 
+              [embeddedMode]="true"
+              [officeId]="reservation?.officeId || selectedProperty?.officeId || null"
+              [reservationId]="isAddMode ? null : reservationId">
+            </app-invoice-list>
           </mat-tab>
           
           <mat-tab label="Lease">

@@ -17,9 +17,14 @@ export class AccountingService {
       private configService: ConfigService) {
   }
 
+  // GET: Get all invoices
+  getAllInvoices(): Observable<InvoiceResponse[]> {
+    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice');
+  }
+
   // GET: Get all invoice by office
-  getInvoicesByOffice(): Observable<InvoiceResponse[]> {
-    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice/office');
+  getInvoicesByOffice(officeId: number): Observable<InvoiceResponse[]> {
+    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice/office/' + officeId.toString());
   }
 
   // GET: Get invoice by ID

@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input } from '@angular/core';
+import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -14,6 +14,8 @@ import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MappingService } from '../../../services/mapping.service';
 import { DocumentType } from '../models/document.enum';
+import { OfficeService } from '../../organization-configuration/office/services/office.service';
+import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 
 @Component({
   selector: 'app-document-list',
@@ -27,18 +29,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId?: string;
   @Input() documentTypeId?: number;
   @Input() hideHeader: boolean = false;
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
+  
+  // Office selection for filtering
+  selectedOfficeId: number | null = null;
+  offices: OfficeResponse[] = [];
 
   // Column sets for different modes
   sidebarColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
-    'documentTypeName': { displayAs: 'Document Type', maxWidth: '30ch'},
+    'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
   };
 
@@ -64,13 +72,22 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public documentService: DocumentService,
     public toastr: ToastrService,
     public router: Router,
-    private mappingService: MappingService) {
+    private mappingService: MappingService,
+    private officeService: OfficeService) {
   }
 
   //#region Document-List
   ngOnInit(): void {
      if(this.isInAddReservationMode())
       return;
+    
+    // Initialize selectedOfficeId from input if provided
+    if (this.officeId !== null && this.officeId !== undefined) {
+      this.selectedOfficeId = this.officeId;
+    }
+    
+    // Load offices for filtering (both tab mode and standalone page)
+    this.loadOffices();
     
     this.getDocuments();
   }
@@ -79,7 +96,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     const hasPropertyId = this.propertyId && this.propertyId !== '';
     const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
     const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
-    const isInAddReservationMode = !isFiltered && !isUnfiltered;
+    const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined; // Filter by documentTypeId only
+    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered;
     
     if (isInAddReservationMode) {
       this.removeLoadItem('documents');
@@ -94,23 +112,39 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
+    // Handle officeId changes for client-side filtering
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      // Update selectedOfficeId if it changed
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        this.selectedOfficeId = newOfficeId;
+        this.applyFilters();
+      }
+    }
+    
     // Determine if we're in filtered mode (both propertyId and documentTypeId provided)
     const currentHasPropertyId = this.propertyId && this.propertyId !== '';
     const previousHasPropertyId = changes['propertyId']?.previousValue && changes['propertyId'].previousValue !== '';
     const wasFiltered = previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
     const isFiltered = currentHasPropertyId && this.documentTypeId !== undefined;
     
+    // Determine if we're in type-only filtered mode (only documentTypeId provided)
+    const wasTypeOnlyFiltered = !previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
+    const isTypeOnlyFiltered = !currentHasPropertyId && this.documentTypeId !== undefined;
+    
     // Determine if we're in unfiltered mode (neither provided)
     const wasUnfiltered = !previousHasPropertyId && changes['documentTypeId']?.previousValue === undefined;
     const isUnfiltered = !currentHasPropertyId && this.documentTypeId === undefined;
     
-    // Reload if switching between filtered/unfiltered modes or if inputs changed within same mode
+    // Reload if switching between filtered/unfiltered/type-only modes or if inputs changed within same mode
     const propertyIdChanged = changes['propertyId'] && 
       (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const documentTypeIdChanged = changes['documentTypeId'] && 
       (changes['documentTypeId'].previousValue !== changes['documentTypeId'].currentValue);
     
-    const modeChanged = (wasFiltered !== isFiltered) || (wasUnfiltered !== isUnfiltered);
+    const modeChanged = (wasFiltered !== isFiltered) || (wasUnfiltered !== isUnfiltered) || (wasTypeOnlyFiltered !== isTypeOnlyFiltered);
     
     if (propertyIdChanged || documentTypeIdChanged || modeChanged) {
       // Clear existing documents before loading new ones
@@ -141,11 +175,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.allDocuments = [];
     this.documentsDisplay = [];
     
-    // STRICT MODE CHECK: Only use filtered API when BOTH propertyId AND documentTypeId are provided
     const hasPropertyId = this.propertyId && this.propertyId !== '';
     const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
     const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
-    const isInAddReservationMode = !isFiltered && !isUnfiltered;
+    const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined; // Filter by documentTypeId only
+    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered;
     
     // If we're in add-reservation mode, stop spinner and return immediately
     if (isInAddReservationMode) {
@@ -160,7 +194,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             // Double-check filter: ensure they match the requested documentTypeId
             const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
             this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
-            this.documentsDisplay = this.allDocuments;
+            this.applyFilters(); // Apply office filter if needed
           },
           error: (err: HttpErrorResponse) => {
             this.isServiceError = true;
@@ -169,12 +203,28 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             }
           }
         });
+    } else if (isTypeOnlyFiltered) {
+      // TYPE-ONLY FILTERED MODE: Get all documents and filter by documentTypeId client-side (used in Accounting tab)
+      this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
+        next: (documents) => {
+          // Filter documents by documentTypeId
+          const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
+          this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
+          this.applyFilters(); // Apply office filter if needed
+        },
+        error: (err: HttpErrorResponse) => {
+          this.isServiceError = true;
+          if (err.status !== 400 && err.status !== 404) {
+            this.toastr.error('Could not load documents at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+          }
+        }
+      });
     } else if (isUnfiltered) {
       // UNFILTERED MODE: Get ALL documents (used in sidebar navigation)
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.removeLoadItem('documents'); })).subscribe({
         next: (documents) => {
           this.allDocuments = this.mappingService.mapDocuments(documents);
-          this.documentsDisplay = this.allDocuments;
+          this.applyFilters(); // Apply office filter if needed
         },
         error: (err: HttpErrorResponse) => {
           this.isServiceError = true;
@@ -292,6 +342,44 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         });
       }
     });
+  }
+  //#endregion
+
+  //#region Office Management
+  loadOffices(): void {
+    this.officeService.getOffices().subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.offices = offices;
+        // After offices load, set selectedOfficeId from officeId input if provided
+        if (this.officeId !== null && this.officeId !== undefined) {
+          this.selectedOfficeId = this.officeId;
+        } else {
+          this.selectedOfficeId = null;
+        }
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
+
+  onOfficeChange(): void {
+    // Emit office change to parent
+    this.officeIdChange.emit(this.selectedOfficeId);
+    // Apply filters to update displayed documents
+    this.applyFilters();
+  }
+
+  applyFilters(): void {
+    // Start with all documents
+    let filtered = [...this.allDocuments];
+    
+    // Filter by officeId if selected
+    if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+      filtered = filtered.filter(doc => doc.officeId === this.selectedOfficeId);
+    }
+    
+    this.documentsDisplay = filtered;
   }
   //#endregion
 

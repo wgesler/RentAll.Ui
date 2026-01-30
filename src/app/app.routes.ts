@@ -15,6 +15,7 @@ import { InvoiceListComponent } from './authenticated/accounting/invoice-list/in
 import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
 import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
 import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
+import { CreateInvoiceComponent } from './authenticated/accounting/create-invoice/create-invoice.component';
 import { ContactComponent } from './authenticated/contact/contact/contact.component';
 import { ContactListComponent } from './authenticated/contact/contact-list/contact-list.component';
 import { UserComponent } from './authenticated/user/user/user.component';
@@ -61,6 +62,7 @@ export enum RouterToken {
   DocumentView = RouterToken.DocumentList + '/:id/view',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
+  PrintInvoice = 'print-invoice',
   CostCodesList = 'cost-codes',
   CostCodes = RouterToken.CostCodesList + '/:id',
   ReservationList = 'reservations',
@@ -104,6 +106,7 @@ export enum RouterUrl {
   DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
+  PrintInvoice           = `${RouterToken.Auth}/${RouterToken.PrintInvoice}`,
   CostCodesList    = `${RouterToken.Auth}/${RouterToken.CostCodesList}`,
   CostCodes        = `${RouterToken.Auth}/${RouterToken.CostCodes}`,
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
@@ -154,6 +157,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.PrintInvoice, component: CreateInvoiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },

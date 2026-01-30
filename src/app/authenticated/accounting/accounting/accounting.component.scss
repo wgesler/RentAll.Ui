@@ -24,6 +24,27 @@
       overflow-x: hidden;
       max-width: 100%;
     }
+
+    // Remove slide animation for Print Invoice tab (index 3)
+    .mat-mdc-tab-body[aria-labelledby*="mat-tab-label-2-3"] {
+      .mat-mdc-tab-body-content {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  }
+}
+
+// Disable animation when switching to Print Invoice tab
+.accounting-tabs.no-animation {
+  ::ng-deep {
+    .mat-mdc-tab-body-wrapper {
+      transition: none !important;
+    }
+    .mat-mdc-tab-body-content {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 }
 
@@ -32,4 +53,16 @@ mat-card {
   overflow-x: hidden;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.office-dropdown {
+  min-width: 250px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.reservation-dropdown {
+  min-width: 300px;
+  width: 100%;
+  max-width: 400px;
 }

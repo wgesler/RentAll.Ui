@@ -1,19 +1,7 @@
-.create-invoice-container {
-  padding: 1.5rem;
-}
-
 .create-invoice-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-.top-controls {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0;
 }
 
 .office-dropdown {
@@ -29,24 +17,10 @@
   max-width: 400px;
 }
 
-.input-controls {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.input-controls > .flex {
-  margin-bottom: 0;
-}
-
-.input-controls mat-form-field {
-  margin-bottom: 0 !important;
-}
-
 .editor-section {
   width: 100%;
-  padding: 0 1rem;
+  padding: 1rem;
+  margin-top: 1rem;
 }
 
 .preview-section {
@@ -90,3 +64,4 @@ textarea {
     color: #666;
   }
 }
+

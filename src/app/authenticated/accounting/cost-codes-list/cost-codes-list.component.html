@@ -11,7 +11,7 @@
         <mat-card>
           <div class="mat">
             <!-- Office dropdown row -->
-            <div class="flex gap-4 items-center mt-4 px-4">
+            <div class="flex gap-4 items-center mt-3 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Office</mat-label>
                 <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
@@ -58,7 +58,7 @@
     <div class="mat">
       @if (showInactiveInput === undefined) {
         <!-- Office dropdown row - shown when parent doesn't provide controls -->
-        <div class="flex gap-4 items-center mt-4 px-4">
+        <div class="flex gap-4 items-center mt-3 px-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>Office</mat-label>
             <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
