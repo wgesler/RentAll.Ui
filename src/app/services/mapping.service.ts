@@ -180,7 +180,7 @@ export class MappingService {
         : '';
       
       // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
-      const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits ? '#E8F5E9' : undefined;
+      const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === 1 ? '#E8F5E9' : undefined;
       
       const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
         ledgerLineId: line.ledgerLineId,
