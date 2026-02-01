@@ -19,9 +19,8 @@ import { getPropertyStatusLetter } from '../authenticated/property/models/proper
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
-import { getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { getTransactionTypeLabel, TransactionType } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
-import { StartOfCredits } from '../authenticated/accounting/models/accounting-enum';
 import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organization-configuration/accounting/models/accounting-office.model';
 
 @Injectable({
@@ -125,7 +124,7 @@ export class MappingService {
       const office = offices?.find(o => o.officeId === costCode.officeId);
       const officeName = office?.name || '';
       // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
-      const rowColor = costCode.transactionTypeId >= StartOfCredits ? '#E8F5E9' : undefined;
+      const rowColor = costCode.transactionTypeId === TransactionType.Payment ? '#E8F5E9' : undefined;
       return {
         costCodeId: costCode.costCodeId,
         officeId: costCode.officeId,
@@ -180,7 +179,7 @@ export class MappingService {
         : '';
       
       // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
-      const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === 1 ? '#E8F5E9' : undefined;
+      const rowColor = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment ? '#E8F5E9' : undefined;
       
       const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
         ledgerLineId: line.ledgerLineId,

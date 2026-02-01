@@ -38,7 +38,18 @@
             </div>
             
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <!-- Invoice (Read-only) - First field -->
+              <!-- Invoice Date -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Invoice Date</mat-label>
+                <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
+                <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #invoiceDatePicker></mat-datepicker>
+                @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
+                  <mat-error>Invoice Date is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Invoice (Read-only) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Invoice</mat-label>
                 @if (isAddMode) {
@@ -67,7 +78,7 @@
               </mat-form-field>
 
               <!-- Reservation -->
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Reservation</mat-label>
                 @if (isAddMode) {
                   <mat-select formControlName="reservationId">
@@ -81,25 +92,31 @@
                 }
               </mat-form-field>
 
-              <!-- Invoice Date, Due Date, Invoiced Amount, Paid Amount, Total Due - All on one line -->
+              <!-- Start Date, End Date, Invoiced Amount, Paid Amount, Total Due - All on one line -->
               <div class="col-span-4 grid grid-cols-5 gap-x-1.5">
-                <!-- Invoice Date -->
+                <!-- Start Date -->
                 <mat-form-field appearance="outline">
-                  <mat-label>Invoice Date</mat-label>
-                  <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
-                  <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #invoiceDatePicker></mat-datepicker>
-                  @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
-                    <mat-error>Invoice Date is required</mat-error>
+                  <mat-label>Start Date</mat-label>
+                  <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #startDatePicker></mat-datepicker>
+                  @if (form.get('startDate')?.hasError('required') && form.get('startDate')?.touched) {
+                    <mat-error>Start Date is required</mat-error>
                   }
                 </mat-form-field>
 
-                <!-- Due Date -->
+                <!-- End Date -->
                 <mat-form-field appearance="outline">
-                  <mat-label>Due Date</mat-label>
-                  <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" [min]="form.get('invoiceDate')?.value">
-                  <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #dueDatePicker></mat-datepicker>
+                  <mat-label>End Date</mat-label>
+                  <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #endDatePicker></mat-datepicker>
+                  @if (form.get('endDate')?.hasError('required') && form.get('endDate')?.touched) {
+                    <mat-error>End Date is required</mat-error>
+                  }
+                  @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
+                    <mat-error>End Date must be equal to or greater than Start Date</mat-error>
+                  }
                 </mat-form-field>
 
                 <!-- Invoiced Amount -->
@@ -121,16 +138,22 @@
                 </mat-form-field>
               </div>
 
-
               <!-- Line Items Section -->
               <div class="col-span-4 mb-4">
-                <!-- Title Bar with Add Button -->
+                <!-- Title Bar with Generate and Add Buttons -->
                 <div class="flex justify-between items-center mb-2">
                   <span class="text-lg font-medium">Ledger Items</span>
-                  <button mat-icon-button type="button" color="primary" (click)="addLedgerLine()" 
-                    matTooltip="Add new ledger item">
-                    <mat-icon>add</mat-icon>
-                  </button>
+                  <div class="flex gap-2">
+                    <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
+                      class="scale-90 text-nowrap flex-shrink-0">
+                      Get Lines
+                    </button>
+                    <button mat-raised-button type="button" color="primary" (click)="addLedgerLine()" 
+                      class="whitespace-nowrap items-center flex gap-1">
+                      <mat-icon class="text-base">add</mat-icon>
+                      <span>Add</span>
+                    </button>
+                  </div>
                 </div>
                 
                 <!-- Table -->

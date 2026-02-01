@@ -854,7 +854,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     if (this.selectedInvoice) {
       result = result.replace(/\{\{invoiceName\}\}/g, this.selectedInvoice.invoiceName || '');
       result = result.replace(/\{\{invoiceDate\}\}/g, this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '');
-      result = result.replace(/\{\{dueDate\}\}/g, this.selectedInvoice.dueDate ? this.formatterService.formatDateString(this.selectedInvoice.dueDate) : '');
+      result = result.replace(/\{\{startDate\}\}/g, this.selectedInvoice.startDate ? this.formatterService.formatDateString(this.selectedInvoice.startDate) : '');
+      result = result.replace(/\{\{endDate\}\}/g, this.selectedInvoice.endDate ? this.formatterService.formatDateString(this.selectedInvoice.endDate) : '');
       result = result.replace(/\{\{totalAmount\}\}/g, this.formatterService.currency(this.selectedInvoice.totalAmount || 0));
       result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currency(this.selectedInvoice.paidAmount || 0));
       result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currency((this.selectedInvoice.totalAmount || 0) - (this.selectedInvoice.paidAmount || 0)));

@@ -8,7 +8,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, LedgerLineResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
+import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
@@ -18,7 +18,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionTypeLabels, StartOfCredits, TransactionType } from '../models/accounting-enum';
+import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 
@@ -85,74 +85,68 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
+    
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.invoiceId = paramMap.get('id');
         this.isAddMode = this.invoiceId === 'new';
+        
+        // In add mode, remove 'invoice' from itemsToLoad$ immediately since we don't need to load an invoice
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+        }
+        
+        // Wait for all data to load, then set up handlers and load invoice if needed
+        this.itemsToLoad$.pipe(filter(items => items.size === 0),  take(1)).subscribe(() => {
           this.buildForm();
-          // Wait for offices, reservations, and cost codes to load, then read query params
-          forkJoin({
-            officesLoaded: this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
-            reservationsLoaded: this.itemsToLoad$.pipe(filter(items => !items.has('reservations')), take(1)),
-            costCodesLoaded: this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1))
-          }).subscribe(() => {
-            // Wait a tick to ensure offices and reservations arrays are populated
-            setTimeout(() => {
-              this.route.queryParams.subscribe(queryParams => {
-                const officeIdParam = queryParams['officeId'];
-                const reservationIdParam = queryParams['reservationId'];
-                if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
-                  const parsedOfficeId = parseInt(officeIdParam, 10);
-                  if (parsedOfficeId) {
-                    this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-                    if (this.selectedOffice && this.form) {
-                      this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
-                      this.updateAvailableReservations();
-                      this.filterCostCodes();
-                      if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
-                        this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
-                        // Load ledger lines for the selected reservation
-                        this.loadMonthlyLedgerLines(reservationIdParam, true);
-                      }
-                    }
-                  }
-                }
-              });
-            }, 100);
-          });
-        } else {
-          this.getInvoice();
+          this.setupFormHandlers();
+          
+          if (!this.isAddMode) {
+            this.getInvoice();
+          } else {
+            this.handleAddModeQueryParams();
+          }
+        });
+      }
+    });
+  }
+
+  handleAddModeQueryParams(): void {
+    this.route.queryParams.subscribe(queryParams => {
+      const officeIdParam = queryParams['officeId'];
+      const reservationIdParam = queryParams['reservationId'];
+      if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
+        const parsedOfficeId = parseInt(officeIdParam, 10);
+        if (parsedOfficeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+          if (this.selectedOffice && this.form) {
+            this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
+            this.updateAvailableReservations();
+            this.filterCostCodes();
+            if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
+              this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+            }
+          }
         }
       }
     });
   }
 
-
   getInvoice(): void {
+    // Form is already built and handlers are set up before this is called
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
         this.invoice = response;
-        this.buildForm();
-        // Wait for cost codes to be loaded before populating form and loading ledger lines
-        this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-          // Populate form first to ensure selectedOffice is set for cost code filtering
-          this.populateForm();
-          // Load ledger lines from invoice after form is populated
-          this.loadLedgerLines(false); // Don't update totalAmount, it's already set from invoice
-          
-          // Check if we should add a ledger line (from payable action)
-          const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
-          if (addLedgerLineParam === 'true') {
-            // Set payment mode to use credit cost codes
-            this.isPaymentMode = true;
-            // Refresh cost codes to use credit cost codes
-            this.filterCostCodes();
-            // Add a new ledger line for payment
-            this.addLedgerLine();
-          }
-        });
+        this.populateForm();
+        this.loadLedgerLines(false); 
+        
+        // Check if we should add a ledger line (from payable action)
+        const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
+        if (addLedgerLineParam === 'true') {         
+          this.isPaymentMode = true;
+          this.filterCostCodes();
+          this.addLedgerLine();
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -168,7 +162,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Validate all ledger lines are complete
     if (this.ledgerLines.length === 0) {
       this.toastr.error('At least one ledger line is required', CommonMessage.Error);
       return;
@@ -196,20 +189,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-    
-    // Get officeName from availableOffices
-    const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
-    const officeName = selectedOffice?.name || '';
-    
-    // Get reservationCode from reservations array
-    const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
-    const reservationCode = selectedReservation?.reservationCode || null;
-    
-    // Get invoiceName from invoiceTotal field
-    const invoiceName = formValue.invoiceTotal || '';
-    
+         
     // Convert ledger lines from display format to request format
-    // All lines should be complete at this point due to validation above
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map(line => {
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.ledgerLineId || undefined,
@@ -223,7 +204,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         return ledgerLine;
       });
     
-    // Calculate amounts from ledger lines
+    // Capture the Invoice date
+    const invoiceName = formValue.invoiceName || '';
+    const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
+    const officeName = selectedOffice?.name || '';  
+    const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
+    const reservationCode = selectedReservation?.reservationCode || null;
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.calculatePaidAmount();
     
@@ -234,8 +220,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceName: invoiceName,
       reservationId: formValue.reservationId || null,
       reservationCode: reservationCode,
+      startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
+      endDate: formValue.endDate ? new Date(formValue.endDate).toISOString() : '',
       invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
-      dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : null,
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
       notes: formValue.notes || null,
@@ -276,7 +263,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
-          // Handle not found error if business logic requires
         }
       }
     });
@@ -295,8 +281,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
     // Filter cost codes for the selected office
     this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
-    this.debitCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId < StartOfCredits);
-    this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId >= StartOfCredits);
+    this.debitCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId !== TransactionType.Payment);
+    this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId === TransactionType.Payment);
     
     // Set availableCostCodes based on payment mode (for new lines)
     this.availableCostCodes = this.allCostCodes.filter(c => c.isActive).map(c => ({
@@ -325,11 +311,16 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }));
   }
 
+  getTransactionTypeLabel(transactionType: number): string {
+    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
+    return types[transactionType] || 'Unknown';
+  }
+
   isPaymentLine(line: LedgerLineListDisplay): boolean {
     // Check if transactionType is "Payment" or transactionTypeId is Payment (11)
     const transactionTypeId = (line as any).transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
-      return transactionTypeId === TransactionType.Payment || transactionTypeId >= StartOfCredits;
+      return transactionTypeId === TransactionType.Payment || transactionTypeId === TransactionType.Payment;
     }
     // Fallback to checking transactionType string
     return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
@@ -450,6 +441,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for consistency
     
+    // Calculate start date: first day of next month
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    nextMonth.setHours(0, 0, 0, 0);
+    
+    // Calculate end date: last day of next month
+    const lastDayOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    lastDayOfNextMonth.setHours(0, 0, 0, 0);
     
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
@@ -457,8 +455,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       officeName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
       reservationId: new FormControl(null),
       reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
+      startDate: new FormControl(nextMonth, [Validators.required]),
+      endDate: new FormControl(lastDayOfNextMonth, [Validators.required, this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
-      dueDate: new FormControl(today),
       invoiceTotal: new FormControl({ value: '', disabled: true }), // Read-only string field
       invoiceName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), // Read-only, calculated from debit ledger lines
@@ -468,36 +467,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       isActive: new FormControl(true)
     });
 
-    this.setupOfficeIdHandler();
-    this.setupReservationIdHandler();
-    
-    // Format initial invoicedAmount, paidAmount, and totalDue display
-    setTimeout(() => {
-      const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
-      if (invoicedInput && document.activeElement !== invoicedInput) {
-        const invoicedValue = parseFloat(this.form.get('invoicedAmount')?.value) || 0;
-        const formattedInvoiced = invoicedValue < 0 
-          ? '-$' + this.formatter.currency(Math.abs(invoicedValue))
-          : '$' + this.formatter.currency(invoicedValue);
-        invoicedInput.value = formattedInvoiced;
-      }
-      const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
-      if (paidInput && document.activeElement !== paidInput) {
-        const paidValue = parseFloat(this.form.get('paidAmount')?.value) || 0;
-        const formattedPaid = paidValue < 0 
-          ? '-$' + this.formatter.currency(Math.abs(paidValue))
-          : '$' + this.formatter.currency(paidValue);
-        paidInput.value = formattedPaid;
-      }
-      const totalDueInput = document.querySelector(`[formControlName="totalDue"]`) as HTMLInputElement;
-      if (totalDueInput && document.activeElement !== totalDueInput) {
-        const totalDueValue = parseFloat(this.form.get('totalDue')?.value) || 0;
-        const formattedTotalDue = totalDueValue < 0 
-          ? '-$' + this.formatter.currency(Math.abs(totalDueValue))
-          : '$' + this.formatter.currency(totalDueValue);
-        totalDueInput.value = formattedTotalDue;
-      }
-    }, 100);
+    // Set up startDate change handler to validate endDate
+    this.form.get('startDate')?.valueChanges.subscribe(() => {
+      this.form.get('endDate')?.updateValueAndValidity();
+    });
   }
 
   populateForm(): void {
@@ -508,8 +481,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         officeName: this.invoice.officeName || '',
         reservationId: this.invoice.reservationId || null,
         reservationCode: this.invoice.reservationCode || '',
+        startDate: this.invoice.startDate ? new Date(this.invoice.startDate) : null,
+        endDate: this.invoice.endDate ? new Date(this.invoice.endDate) : null,
         invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
-        dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : null,
         invoiceTotal: this.invoice.invoiceName || '', // Use invoiceName for invoiceTotal field
         invoiceName: this.invoice.invoiceName || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
@@ -563,6 +537,39 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Responders
+  setupFormHandlers(): void {
+    this.setupOfficeIdHandler();
+    this.setupReservationIdHandler();
+    
+    // Format initial invoicedAmount, paidAmount, and totalDue display
+    setTimeout(() => {
+      const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
+      if (invoicedInput && document.activeElement !== invoicedInput) {
+        const invoicedValue = parseFloat(this.form.get('invoicedAmount')?.value) || 0;
+        const formattedInvoiced = invoicedValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(invoicedValue))
+          : '$' + this.formatter.currency(invoicedValue);
+        invoicedInput.value = formattedInvoiced;
+      }
+      const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
+      if (paidInput && document.activeElement !== paidInput) {
+        const paidValue = parseFloat(this.form.get('paidAmount')?.value) || 0;
+        const formattedPaid = paidValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(paidValue))
+          : '$' + this.formatter.currency(paidValue);
+        paidInput.value = formattedPaid;
+      }
+      const totalDueInput = document.querySelector(`[formControlName="totalDue"]`) as HTMLInputElement;
+      if (totalDueInput && document.activeElement !== totalDueInput) {
+        const totalDueValue = parseFloat(this.form.get('totalDue')?.value) || 0;
+        const formattedTotalDue = totalDueValue < 0 
+          ? '-$' + this.formatter.currency(Math.abs(totalDueValue))
+          : '$' + this.formatter.currency(totalDueValue);
+        totalDueInput.value = formattedTotalDue;
+      }
+    }, 100);
+  }
+
   setupOfficeIdHandler(): void {
     // Subscribe to officeId changes - just set selectedOffice and trigger updates
     this.form.get('officeId')?.valueChanges.subscribe(officeId => {
@@ -676,10 +683,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         }
         
         // Check if we're switching between debit and credit types
-        const wasDebit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId < StartOfCredits;
-        const wasCredit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId >= StartOfCredits;
-        const isDebit = newTransactionTypeId < StartOfCredits;
-        const isCredit = newTransactionTypeId >= StartOfCredits;
+        const wasDebit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId !== TransactionType.Payment;
+        const wasCredit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId === TransactionType.Payment;
+        const isDebit = newTransactionTypeId !== TransactionType.Payment;
+        const isCredit = newTransactionTypeId === TransactionType.Payment;
         
         // If we have an amount and we're switching between debit and credit, flip the sign
         if (currentAmount !== 0 && currentAmount !== null && currentAmount !== undefined) {
@@ -727,7 +734,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     return this.ledgerLines.reduce((sum, line) => {
       const transactionTypeId = (line as any).transactionTypeId;
       // Only sum amounts with transactionTypeId < StartOfCredits (debit types)
-      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId < StartOfCredits) {
+      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId !== TransactionType.Payment) {
         const amount = line.amount || 0;
         return sum + amount;
       }
@@ -741,9 +748,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     return this.ledgerLines.reduce((sum, line) => {
       const transactionTypeId = (line as any).transactionTypeId;
-      // Only sum amounts with transactionTypeId >= StartOfCredits (credit types)
       // These amounts are stored as negative, so we sum the absolute values
-      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits) {
+      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
         const amount = Math.abs(line.amount || 0);
         return sum + amount;
       }
@@ -755,123 +761,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Legacy method - kept for compatibility, but should use calculateInvoicedAmount instead
     return this.calculateInvoicedAmount();
   }
-  //#endregion
-
-  //#region Ledger Lines
-  onLedgerAmountInput(event: Event, index: number): void {
-    const input = event.target as HTMLInputElement;
-    const line = this.ledgerLines[index];
-    let value = input.value;
-    
-    // Check if value starts with minus sign
-    const isNegative = value.startsWith('-');
-    
-    // Strip non-numeric characters except decimal point
-    value = value.replace(/[^0-9.]/g, '');
-    
-    // Check if this line has a credit transaction type (>= StartOfCredits)
-    const transactionTypeId = (line as any).transactionTypeId;
-    const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits;
-    
-    // For credit types, automatically add negative sign
-    if (isCreditType && !isNegative && value !== '') {
-      value = '-' + value;
-    } else if (!isCreditType && isNegative) {
-      // For debit types, remove negative sign if present
-      value = value.replace(/^-/, '');
-    } else if (isNegative) {
-      // Keep negative sign if it was there
-      value = '-' + value;
-    }
-    
-    // Allow only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
-    }
-  }
-
-  onLedgerAmountFocus(event: Event, index: number): void {
-    const input = event.target as HTMLInputElement;
-    const line = this.ledgerLines[index];
-    // Set initial value on focus - show raw number without formatting (same as Daily Rate)
-    if (line && line.amount != null && line.amount !== undefined) {
-      input.value = line.amount.toString();
-      input.select(); // Select all text (same as selectAllOnFocus)
-    } else {
-      input.value = '';
-    }
-  }
-
-  onLedgerAmountBlur(event: Event, index: number): void {
-    const input = event.target as HTMLInputElement;
-    const line = this.ledgerLines[index];
-    if (line) {
-      // Check if value is negative
-      const isNegative = input.value.startsWith('-');
-      // Parse and format exactly like formatDecimalControl, preserving negative sign
-      const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
-      let numValue: number;
-      let formattedValue: string;
-      
-      // Check if this line has a credit transaction type (>= StartOfCredits)
-      const transactionTypeId = (line as any).transactionTypeId;
-      const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId >= StartOfCredits;
-      
-      if (rawValue !== '' && rawValue !== null) {
-        const parsed = parseFloat(rawValue);
-        if (!isNaN(parsed)) {
-          // For credit types, always make it negative; for debit types, use sign from input
-          const finalValue = isCreditType ? -Math.abs(parsed) : (isNegative ? -parsed : parsed);
-          // Format to 2 decimal places (same as formatDecimalControl)
-          formattedValue = finalValue.toFixed(2);
-          numValue = parseFloat(formattedValue);
-        } else {
-          formattedValue = '0.00';
-          numValue = 0;
-        }
-      } else {
-        formattedValue = '0.00';
-        numValue = 0;
-      }
-      
-      // Update the input display value
-      input.value = formattedValue;
-      
-      // Update the model
-      line.amount = numValue;
-      
-      // Recalculate total
-      this.updateTotalAmount();
-    }
-  }
-
-  addLedgerLine(): void {
-    // Create a blank ledger item with all fields null/undefined/0/empty so they appear as editable inputs
-    const newLine: LedgerLineListDisplay = {
-      ledgerLineId: null, // Temporary ID, will be assigned when saved
-      costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
-      costCode: null, // Will be populated when costCodeId is selected
-      transactionType: '', // Empty string for display
-      description: '', // Empty string makes it editable per HTML template check
-      amount: undefined as any, // undefined makes it editable per HTML template check
-      isNew: true // Mark as new so it remains editable
-    };
-    // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
-    (newLine as any).transactionTypeId = undefined;
-    this.ledgerLines.push(newLine);
-    this.updateTotalAmount();
-  }
-
-  removeLedgerLine(index: number): void {
-    if (index >= 0 && index < this.ledgerLines.length) {
-      this.ledgerLines.splice(index, 1);
-      this.updateTotalAmount();
-    }
-  }
-
+   
   updateTotalAmount(): void {
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.calculatePaidAmount();
@@ -924,6 +814,130 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Ledger Lines
+  onLedgerAmountInput(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.ledgerLines[index];
+    let value = input.value;
+    
+    // Check if value starts with minus sign
+    const isNegative = value.startsWith('-');
+    
+    // Strip non-numeric characters except decimal point
+    value = value.replace(/[^0-9.]/g, '');
+    
+    // Check if this line has a credit transaction type 
+    const transactionTypeId = (line as any).transactionTypeId;
+    const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment;
+    
+    // For credit types, automatically add negative sign
+    if (isCreditType && !isNegative && value !== '') {
+      value = '-' + value;
+    } else if (!isCreditType && isNegative) {
+      // For debit types, remove negative sign if present
+      value = value.replace(/^-/, '');
+    } else if (isNegative) {
+      // Keep negative sign if it was there
+      value = '-' + value;
+    }
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      input.value = parts[0] + '.' + parts.slice(1).join('');
+    } else {
+      input.value = value;
+    }
+  }
+
+  onLedgerAmountFocus(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.ledgerLines[index];
+    // Set initial value on focus - show raw number without formatting (same as Daily Rate)
+    if (line && line.amount != null && line.amount !== undefined) {
+      input.value = line.amount.toString();
+      input.select(); // Select all text (same as selectAllOnFocus)
+    } else {
+      input.value = '';
+    }
+  }
+
+  onLedgerAmountBlur(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.ledgerLines[index];
+    if (line) {
+      // Check if value is negative
+      const isNegative = input.value.startsWith('-');
+      // Parse and format exactly like formatDecimalControl, preserving negative sign
+      const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+      let numValue: number;
+      let formattedValue: string;
+      
+      // Check if this line has a credit transaction type (>= StartOfCredits)
+      const transactionTypeId = (line as any).transactionTypeId;
+      const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment;
+      
+      if (rawValue !== '' && rawValue !== null) {
+        const parsed = parseFloat(rawValue);
+        if (!isNaN(parsed)) {
+          // For credit types, always make it negative; for debit types, use sign from input
+          const finalValue = isCreditType ? -Math.abs(parsed) : (isNegative ? -parsed : parsed);
+          // Format to 2 decimal places (same as formatDecimalControl)
+          formattedValue = finalValue.toFixed(2);
+          numValue = parseFloat(formattedValue);
+        } else {
+          formattedValue = '0.00';
+          numValue = 0;
+        }
+      } else {
+        formattedValue = '0.00';
+        numValue = 0;
+      }
+      
+      // Update the input display value
+      input.value = formattedValue;
+      
+      // Update the model
+      line.amount = numValue;
+      
+      // Recalculate total
+      this.updateTotalAmount();
+    }
+  }
+
+  generateLedgerLines(): void {
+    const reservationId = this.form.get('reservationId')?.value;
+    if (reservationId) {
+      this.loadMonthlyLedgerLines(reservationId, true);
+    } else {
+      this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
+    }
+  }
+
+  addLedgerLine(): void {
+    const newLine: LedgerLineListDisplay = {
+      ledgerLineId: null, // Temporary ID, will be assigned when saved
+      costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
+      costCode: null, // Will be populated when costCodeId is selected
+      transactionType: '', // Empty string for display
+      description: '', // Empty string makes it editable per HTML template check
+      amount: undefined as any, // undefined makes it editable per HTML template check
+      isNew: true // Mark as new so it remains editable
+    };
+    // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"
+    (newLine as any).transactionTypeId = undefined;
+    this.ledgerLines.push(newLine);
+    this.updateTotalAmount();
+  }
+
+  removeLedgerLine(index: number): void {
+    if (index >= 0 && index < this.ledgerLines.length) {
+      this.ledgerLines.splice(index, 1);
+      this.updateTotalAmount();
+    }
+  }
+  //#endregion
+
   //#region Formatting Methods
   onAmountInput(event: Event, fieldName: string): void {
     const control = this.form.get(fieldName);
@@ -967,9 +981,28 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     return isNaN(parsed) ? null : parsed;
   }
 
-  getTransactionTypeLabel(transactionType: number): string {
-    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
-    return types[transactionType] || 'Unknown';
+  endDateValidator(control: FormControl): { [key: string]: any } | null {
+    if (!control.value || !this.form) {
+      return null;
+    }
+    
+    const startDate = this.form.get('startDate')?.value;
+    if (!startDate) {
+      return null; // Don't validate if startDate is not set
+    }
+    
+    const endDate = new Date(control.value);
+    const start = new Date(startDate);
+    
+    // Set hours to 0 for accurate date comparison
+    endDate.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    
+    if (endDate < start) {
+      return { endDateBeforeStartDate: true };
+    }
+    
+    return null;
   }
   //#endregion
 
@@ -987,17 +1020,14 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const reservationId = queryParams['reservationId'];
     const params: string[] = [];
     
-    // If officeId not in query params but invoice has officeId, use that to preserve the filter
     if (!officeId && this.invoice && this.invoice.officeId) {
       officeId = this.invoice.officeId.toString();
     }
-    
-    // Always preserve officeId if it exists
+ 
     if (officeId) {
       params.push(`officeId=${officeId}`);
     }
-    
-    // Preserve reservationId if it exists
+
     if (reservationId) {
       params.push(`reservationId=${reservationId}`);
     }

@@ -447,8 +447,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       totalAmount: '$' + this.formatter.currency(totalAmount),
       paidAmount: '$' + this.formatter.currency(paidAmount),
       dueAmount: '$' + this.formatter.currency(dueAmount),
+      startDate: this.formatter.formatDateString(invoice.startDate),
+      endDate: this.formatter.formatDateString(invoice.endDate),
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
-      dueDate: invoice.dueDate ? this.formatter.formatDateString(invoice.dueDate) : null,
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
       LedgerLines: mappedLedgerLines, 

@@ -4,9 +4,8 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 import { FormsModule } from '@angular/forms';
 import { CostCodesResponse } from '../../../accounting/models/cost-codes.model';
-import { StartOfCredits } from '../../../accounting/models/accounting-enum';
-import { LedgerLineRequest } from '../../../accounting/models/invoice.model';
 import { ReservationListResponse } from '../../../reservation/models/reservation-model';
+import { TransactionType } from '../../../accounting/models/accounting-enum';
 
 export interface ApplyPaymentDialogData {
   costCodes: CostCodesResponse[];
@@ -43,7 +42,7 @@ export class ApplyPaymentDialogComponent implements OnInit {
   ngOnInit(): void {
     // Filter to only credit cost codes (transactionTypeId >= StartOfCredits)
     this.creditCostCodes = this.data.costCodes
-      .filter(c => c.isActive && c.transactionTypeId >= StartOfCredits)
+      .filter(c => c.isActive && c.transactionTypeId === TransactionType.Payment)
       .map(c => ({
         value: parseInt(c.costCodeId, 10),
         label: `${c.costCode}: ${c.description}`
@@ -87,7 +86,7 @@ export class ApplyPaymentDialogComponent implements OnInit {
     value = value.replace(/[^0-9.]/g, '');
     
     // For credit types, automatically add negative sign
-    if (this.selectedCostCode && this.selectedCostCode.transactionTypeId >= StartOfCredits && !isNegative && value !== '') {
+    if (this.selectedCostCode && this.selectedCostCode.transactionTypeId === TransactionType.Payment && !isNegative && value !== '') {
       value = '-' + value;
     } else if (isNegative) {
       value = '-' + value;
@@ -112,7 +111,7 @@ export class ApplyPaymentDialogComponent implements OnInit {
       const parsed = parseFloat(rawValue);
       if (!isNaN(parsed)) {
         // For credit types, always make it negative
-        const finalValue = (this.selectedCostCode && this.selectedCostCode.transactionTypeId >= StartOfCredits) 
+        const finalValue = (this.selectedCostCode && this.selectedCostCode.transactionTypeId === TransactionType.Payment) 
           ? -Math.abs(parsed) 
           : (isNegative ? -parsed : parsed);
         this.amount = finalValue;

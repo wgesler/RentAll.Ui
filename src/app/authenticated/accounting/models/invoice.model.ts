@@ -6,8 +6,9 @@ export interface InvoiceRequest {
   invoiceName?: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  startDate: string;
+  endDate: string;
   invoiceDate: string;
-  dueDate?: string | null;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
@@ -23,8 +24,9 @@ export interface InvoiceResponse {
   invoiceName: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  startDate: string;
+  endDate: string;
   invoiceDate: string;
-  dueDate?: string | null;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
@@ -44,8 +46,8 @@ export interface InvoiceListDisplay {
   invoiceName: string;
   reservationId?: string | null;
   reservationCode?: string | null;
-  invoiceDate: string;
-  dueDate?: string | null;
+  startDate: string;
+  endDate: string;
   totalAmount: number;
   paidAmount: number;
   dueAmount: number;

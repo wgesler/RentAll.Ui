@@ -59,7 +59,7 @@
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
                 Inactive
               </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation" class="whitespace-nowrap items-center flex gap-1">
+              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payment
               </button>
               <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
@@ -125,7 +125,7 @@
         <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
           Inactive
         </mat-slide-toggle>
-        <button mat-raised-button type="button" color="primary" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation" class="whitespace-nowrap items-center flex gap-1">
+        <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
           Apply Payment
         </button>
         <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
