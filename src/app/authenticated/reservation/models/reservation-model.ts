@@ -110,6 +110,7 @@ export interface ReservationListResponse {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
+  currentInvoiceNumber: number;
   creditDue: number;
   isActive: boolean;
   createdOn: string;

@@ -247,10 +247,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Form Building Methods
   buildForm(): FormGroup {
-    return this.fb.group({
+    const form = this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl(null)
+      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice })
     });
+    return form;
   }
   //#endregion
 
@@ -407,8 +408,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   filterReservations(): void {
     if (!this.selectedOffice) {
       this.availableReservations = [];
+      // Disable the reservation dropdown when no office is selected
+      this.form.get('selectedReservationId')?.disable();
       return;
     }
+    
+    // Enable the reservation dropdown when an office is selected
+    this.form.get('selectedReservationId')?.enable();
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
     this.availableReservations = filteredReservations.map(r => ({

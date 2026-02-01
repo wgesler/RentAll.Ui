@@ -55,9 +55,15 @@ export interface InvoiceListDisplay {
   ledgerLines: LedgerLineResponse[];
 }
 
+export interface InvoiceMonthlyDataRequest {
+  invoice: string;
+  reservationId: string;
+  startDate: string;
+  endDate: string;
+}
 export interface InvoiceMonthlyDataResponse {
   invoice: string;
-  ReservationId: string;
+  reservationId: string;
   ledgerLines: LedgerLineResponse[];
 }
 

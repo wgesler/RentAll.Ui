@@ -314,9 +314,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Form Methods
   buildForm(): FormGroup {
-    return this.fb.group({
+    const form = this.fb.group({
       lease: new FormControl(''),
-      selectedReservationId: new FormControl(null),
+      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
       selectedOfficeId: new FormControl({ value: null, disabled: true }), // Disabled since it's readonly
       includeLease: new FormControl(this.includeLease),
       includeLetterOfResponsibility: new FormControl(this.includeLetterOfResponsibility),
@@ -325,6 +325,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       includeBusinessCreditApplication: new FormControl(this.includeBusinessCreditApplication),
       includeRentalCreditApplication: new FormControl(this.includeRentalCreditApplication)
     });
+    return form;
   }
   //#endregion
 
@@ -360,8 +361,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   filterReservations(): void {
     if (!this.selectedOffice) {
       this.availableReservations = [];
+      // Disable the reservation dropdown when no office is selected
+      this.form.get('selectedReservationId')?.disable();
       return;
     }
+    
+    // Enable the reservation dropdown when an office is selected
+    this.form.get('selectedReservationId')?.enable();
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
     this.availableReservations = filteredReservations.map(r => ({

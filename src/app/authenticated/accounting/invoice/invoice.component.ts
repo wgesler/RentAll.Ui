@@ -8,12 +8,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
+import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, InvoiceMonthlyDataRequest, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
-import { ReservationListResponse } from '../../reservation/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../../reservation/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -46,6 +46,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: string, label: string }[] = [];
   reservationIdSubscription?: Subscription;
+  selectedReservation: ReservationListResponse | null = null;
   
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes:CostCodesResponse[] = [];
@@ -125,6 +126,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
             this.filterCostCodes();
             if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
               this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+              this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
+              if (this.selectedReservation) {
+                this.setInvoiceName(this.selectedReservation);
+              }
             }
           }
         }
@@ -399,34 +404,36 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadMonthlyLedgerLines(reservationId: string, updateTotalAmount: boolean = true): void {
-    this.accountingService.getMonthlyLedgerLines(reservationId).pipe(take(1)).subscribe({
+  loadMonthlyLedgerLines(reservationId: string): void {
+    const startDate = this.form.get('startDate')?.value;
+    const endDate = this.form.get('endDate')?.value;
+    const invoiceName = this.form.get('invoiceName')?.value || '';
+    
+    if (!startDate || !endDate) {
+      this.toastr.warning('Start Date and End Date are required to load ledger lines', 'Missing Dates');
+      return;
+    }
+    
+    const request: InvoiceMonthlyDataRequest = {
+      invoice: invoiceName,
+      reservationId: reservationId,
+      startDate: startDate ? new Date(startDate).toISOString() : '',
+      endDate: endDate ? new Date(endDate).toISOString() : ''
+    };
+    
+    this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
-        // Invoice is a string from the API
-        const invoiceString = response.invoice || '';
-        this.form.get('invoiceTotal')?.setValue(invoiceString, { emitEvent: false });
-        
-        if (!this.officeCostCodes || this.officeCostCodes.length === 0) {
-          this.filterCostCodes();
-        }
-
         const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
-
-   // Calculate total amount from ledger lines and update the form
-        if (updateTotalAmount) {
-          this.updateTotalAmount();
-        }
+        this.updateTotalAmount();
       },
       error: (err: HttpErrorResponse) => {
         // On error, reset to empty string for invoice (since it's a string)
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
         this.ledgerLines = [];
-        if (updateTotalAmount) {
-          this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
-          this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
-          this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
-        }
+        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
         if (err.status !== 404) {
           this.toastr.error('Could not load invoice data for reservation', CommonMessage.Error);
         }
@@ -441,34 +448,61 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for consistency
     
-    // Calculate start date: first day of next month
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    nextMonth.setHours(0, 0, 0, 0);
+    // Calculate start date: first day of current month
+    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    firstDayOfCurrentMonth.setHours(0, 0, 0, 0);
     
-    // Calculate end date: last day of next month
-    const lastDayOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-    lastDayOfNextMonth.setHours(0, 0, 0, 0);
+    // Calculate end date: last day of current month
+    const lastDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    lastDayOfCurrentMonth.setHours(0, 0, 0, 0);
     
     this.form = this.fb.group({
       organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
       officeId: new FormControl(null, [Validators.required]),
-      officeName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
+      officeName: new FormControl({ value: '', disabled: true }), 
       reservationId: new FormControl(null),
-      reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
-      startDate: new FormControl(nextMonth, [Validators.required]),
-      endDate: new FormControl(lastDayOfNextMonth, [Validators.required, this.endDateValidator.bind(this)]),
+      reservationCode: new FormControl({ value: '', disabled: true }), 
+      startDate: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
+      endDate: new FormControl(lastDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
-      invoiceTotal: new FormControl({ value: '', disabled: true }), // Read-only string field
-      invoiceName: new FormControl({ value: '', disabled: true }), // Read-only, only populated in edit mode
-      invoicedAmount: new FormControl({ value: '0.00', disabled: true }), // Read-only, calculated from debit ledger lines
-      paidAmount: new FormControl({ value: '0.00', disabled: true }), // Read-only, calculated from credit ledger lines
-      totalDue: new FormControl({ value: '0.00', disabled: true }), // Read-only, invoicedAmount - paidAmount
+      invoiceTotal: new FormControl({ value: '', disabled: true }),
+      invoiceName: new FormControl({ value: '', disabled: true }), 
+      invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
+      paidAmount: new FormControl({ value: '0.00', disabled: true }),
+      totalDue: new FormControl({ value: '0.00', disabled: true }), 
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
 
-    // Set up startDate change handler to validate endDate
-    this.form.get('startDate')?.valueChanges.subscribe(() => {
+    // Set up startDate change handler to validate endDate and auto-update endDate if month changes
+    this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
+      if (startDateValue) {
+        const startDate = new Date(startDateValue);
+        const endDate = this.form.get('endDate')?.value;
+        
+        // Check if endDate exists and if it's in a different month/year than startDate
+        if (endDate) {
+          const currentEndDate = new Date(endDate);
+          const startMonth = startDate.getMonth();
+          const startYear = startDate.getFullYear();
+          const endMonth = currentEndDate.getMonth();
+          const endYear = currentEndDate.getFullYear();
+          
+          // If the month or year changed, update endDate to last day of startDate's month
+          if (startMonth !== endMonth || startYear !== endYear) {
+            const lastDayOfStartMonth = new Date(startYear, startMonth + 1, 0);
+            lastDayOfStartMonth.setHours(0, 0, 0, 0);
+            this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+          }
+        } else {
+          // If no endDate, set it to last day of startDate's month
+          const lastDayOfStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+          lastDayOfStartMonth.setHours(0, 0, 0, 0);
+          this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+        }
+      }
+      
+      // Always validate endDate when startDate changes
       this.form.get('endDate')?.updateValueAndValidity();
     });
   }
@@ -484,7 +518,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         startDate: this.invoice.startDate ? new Date(this.invoice.startDate) : null,
         endDate: this.invoice.endDate ? new Date(this.invoice.endDate) : null,
         invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
-        invoiceTotal: this.invoice.invoiceName || '', // Use invoiceName for invoiceTotal field
+        invoiceTotal: this.invoice.totalAmount || '',
         invoiceName: this.invoice.invoiceName || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
         paidAmount: (this.invoice.paidAmount || 0).toFixed(2),
@@ -497,8 +531,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const officeId = this.form.get('officeId')?.value;
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
       
+      // Set selectedReservation from the populated reservationId
+      const reservationId = this.form.get('reservationId')?.value;
+      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
+      
       this.updateAvailableReservations();
       this.filterCostCodes();
+      this.setInvoiceName(this.selectedReservation);
       
       // Format invoicedAmount, paidAmount, and totalDue display
       setTimeout(() => {
@@ -592,19 +631,20 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   setupReservationIdHandler(): void {
-    // Subscribe to reservationId changes
+    // Subscribe to reservationId changes - set selectedReservation and trigger updates
     this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
-      if (reservationId) {
-        this.loadMonthlyLedgerLines(reservationId, true); // Update totalAmount when user selects reservation
-      } else {
-        // Clear invoice total if reservation is cleared (invoice is a string, so use empty string)
-        this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
-        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
-        this.ledgerLines = [];
+      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
+      if (this.selectedReservation) {
+        this.setInvoiceName(this.selectedReservation);
       }
     });
+  }
+
+  setInvoiceName(reservation: ReservationListResponse): void {
+    if (reservation && this.form) {
+      const invoiceName = reservation.reservationCode + '-' + (reservation.currentInvoiceNumber + 1).toString().padStart(3, '0');
+      this.form.get('invoiceName')?.setValue(invoiceName, { emitEvent: false });
+    }
   }
 
   updateAvailableReservations(): void {
@@ -908,7 +948,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   generateLedgerLines(): void {
     const reservationId = this.form.get('reservationId')?.value;
     if (reservationId) {
-      this.loadMonthlyLedgerLines(reservationId, true);
+      this.loadMonthlyLedgerLines(reservationId);
     } else {
       this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
     }

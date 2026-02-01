@@ -52,7 +52,7 @@
           <!-- Reservation Dropdown -->
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Reservation</mat-label>
-            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)" [disabled]="!selectedOffice">
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
               <mat-option [value]="null">Select Reservation</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">

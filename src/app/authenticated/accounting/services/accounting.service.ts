@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { InvoiceRequest, InvoiceResponse, InvoiceMonthlyDataResponse } from '../models/invoice.model';
+import { InvoiceRequest, InvoiceResponse, InvoiceMonthlyDataResponse, InvoiceMonthlyDataRequest } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'
@@ -58,8 +58,8 @@ export class AccountingService {
     return this.http.delete<void>(this.controller  + 'invoice/' +  invoiceId);
   }
 
-  // GET: Get monthly ledger lines for a reservation
-  getMonthlyLedgerLines(reservationId: string): Observable<InvoiceMonthlyDataResponse> {
-    return this.http.get<InvoiceMonthlyDataResponse>(this.controller + 'ledgerline/reservation/' + reservationId);
+  // POST: Get monthly ledger lines for a reservation
+  getMonthlyLedgerLines(request: InvoiceMonthlyDataRequest): Observable<InvoiceMonthlyDataResponse> {
+    return this.http.post<InvoiceMonthlyDataResponse>(this.controller + 'ledger-line/reservation', request);
   }
 }

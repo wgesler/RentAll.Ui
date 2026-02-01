@@ -148,10 +148,9 @@
                       class="scale-90 text-nowrap flex-shrink-0">
                       Get Lines
                     </button>
-                    <button mat-raised-button type="button" color="primary" (click)="addLedgerLine()" 
-                      class="whitespace-nowrap items-center flex gap-1">
-                      <mat-icon class="text-base">add</mat-icon>
-                      <span>Add</span>
+                    <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
+                      class="scale-90 text-nowrap flex-shrink-0">
+                      Add Line
                     </button>
                   </div>
                 </div>
@@ -188,12 +187,12 @@
                               {{ line.transactionType || '' }}
                             </td>
                             <td class="p-2">
-                              <input type="text" class="w-full p-1 border rounded" 
+                              <input type="text" class="w-full p-1 border-0" 
                                 [value]="line.description || ''"
                                 (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                             </td>
                             <td class="p-2" style="width: 120px;">
-                              <input type="text" class="w-full p-1 border rounded" 
+                              <input type="text" class="w-full p-1 border-0" 
                                 [attr.data-field]="'amount'"
                                 [attr.data-index]="i"
                                 [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"

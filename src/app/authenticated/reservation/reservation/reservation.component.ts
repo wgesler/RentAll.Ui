@@ -828,7 +828,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
       maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
       this.enableFieldWithValidation('maidServiceFee', [Validators.required]);
 
-      frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
+      // Only set frequency to OneTime if it's currently NA (don't override existing values from API)
+      const currentFrequency = frequencyControl.value;
+      if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
+        frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
+      }
       this.enableFieldWithValidation('frequencyId', [Validators.required]);
 
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);

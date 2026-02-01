@@ -406,7 +406,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     // Should return a full month's worth of characters
-    let availableForblanks = daysInMonth - fullName.length;
+    // Use totalDaysInMonth (full month) instead of daysInMonth (which might be partial)
+    let availableForblanks = totalDaysInMonth - fullName.length;
     let blanks = Math.floor(availableForblanks / 2);
     let remainder = availableForblanks % 2;
     let total = ' '.repeat(blanks) + fullName + ' '.repeat(blanks) + ' '.repeat(remainder);
