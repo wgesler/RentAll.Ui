@@ -161,19 +161,19 @@
                     <table class="line-items-table">
                       <thead>
                         <tr class="border-b">
-                          <th class="text-left p-2" style="width: 50px;">No</th>
-                          <th class="text-left p-2" style="width: 350px;">Cost Center</th>
-                          <th class="text-left p-2" style="width: 150px;">Type</th>
-                          <th class="text-left p-2">Description</th>
-                          <th class="text-left p-2" style="width: 120px;">Amount</th>
-                          <th class="text-right p-2" style="width: 50px;"></th>
+                          <th class="text-left" style="width: 50px;">No</th>
+                          <th class="text-left" style="width: 350px;">Cost Center</th>
+                          <th class="text-left" style="width: 150px;">Type</th>
+                          <th class="text-left">Description</th>
+                          <th class="text-left" style="width: 120px;">Amount</th>
+                          <th class="text-right" style="width: 50px;"></th>
                         </tr>
                       </thead>
                       <tbody>
                         @for (line of ledgerLines; track line.ledgerLineId; let i = $index) {
                           <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
-                            <td class="p-2" style="width: 50px;">{{ i + 1 }}</td>
-                            <td class="p-2 cost-center-cell" style="width: 350px;">
+                            <td style="width: 50px;">{{ i + 1 }}</td>
+                            <td class="cost-center-cell" style="width: 350px;">
                               <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 
                                 (selectionChange)="onCostCodeChange(i, $event.value)"
                                 class="w-full cost-code-select">
@@ -183,16 +183,16 @@
                                 }
                               </mat-select>
                             </td>
-                            <td class="p-2 type-cell" style="width: 150px;">
+                            <td class="type-cell" style="width: 150px;">
                               {{ line.transactionType || '' }}
                             </td>
-                            <td class="p-2">
-                              <input type="text" class="w-full p-1 border-0" 
+                            <td>
+                              <input type="text" class="w-full border-0" 
                                 [value]="line.description || ''"
                                 (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                             </td>
-                            <td class="p-2" style="width: 120px;">
-                              <input type="text" class="w-full p-1 border-0" 
+                            <td style="width: 120px;">
+                              <input type="text" class="w-full border-0" 
                                 [attr.data-field]="'amount'"
                                 [attr.data-index]="i"
                                 [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
@@ -200,7 +200,7 @@
                                 (focus)="onLedgerAmountFocus($event, i)"
                                 (blur)="onLedgerAmountBlur($event, i)">
                             </td>
-                            <td class="p-2 text-right" style="width: 50px;">
+                            <td class="text-right" style="width: 50px;">
                               <button mat-icon-button type="button" (click)="removeLedgerLine(i)" 
                                 class="delete-ledger-line-btn" 
                                 style="color: #ae1f66;"
