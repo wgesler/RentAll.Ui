@@ -113,28 +113,37 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   handleAddModeQueryParams(): void {
+    // Process initial query params immediately from snapshot
+    const snapshotParams = this.route.snapshot.queryParams;
+    this.processQueryParams(snapshotParams);
+    
+    // Subscribe to future query param changes
     this.route.queryParams.subscribe(queryParams => {
-      const officeIdParam = queryParams['officeId'];
-      const reservationIdParam = queryParams['reservationId'];
-      if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
-        const parsedOfficeId = parseInt(officeIdParam, 10);
-        if (parsedOfficeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-          if (this.selectedOffice && this.form) {
-            this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
-            this.updateAvailableReservations();
-            this.filterCostCodes();
-            if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
-              this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
-              this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
-              if (this.selectedReservation) {
-                this.setInvoiceName(this.selectedReservation);
-              }
+      this.processQueryParams(queryParams);
+    });
+  }
+
+  private processQueryParams(queryParams: any): void {
+    const officeIdParam = queryParams['officeId'];
+    const reservationIdParam = queryParams['reservationId'];
+    if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
+      const parsedOfficeId = parseInt(officeIdParam, 10);
+      if (parsedOfficeId) {
+        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+        if (this.selectedOffice && this.form) {
+          this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
+          this.updateAvailableReservations();
+          this.filterCostCodes();
+          if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
+            this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
+            this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
+            if (this.selectedReservation) {
+              this.setInvoiceName(this.selectedReservation);
             }
           }
         }
       }
-    });
+    }
   }
 
   getInvoice(): void {

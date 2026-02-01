@@ -544,6 +544,7 @@
               #reservationDocumentList
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null" 
               [documentTypeId]="DocumentType.ReservationLease"
+              [officeId]="reservation?.officeId || selectedProperty?.officeId || null"
               [hideHeader]="true">
             </app-document-list>
           </mat-tab>

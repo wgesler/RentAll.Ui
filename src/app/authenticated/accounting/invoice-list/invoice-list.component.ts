@@ -246,11 +246,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   addInvoice(): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Accounting, ['new']);
     const params: string[] = [];
-    if (this.selectedOffice) {
-      params.push(`officeId=${this.selectedOffice.officeId}`);
+    
+    // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
+    const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+    const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    
+    if (officeIdToUse !== null) {
+      params.push(`officeId=${officeIdToUse}`);
     }
-    if (this.selectedReservation) {
-      params.push(`reservationId=${this.selectedReservation.reservationId}`);
+    if (reservationIdToUse !== null) {
+      params.push(`reservationId=${reservationIdToUse}`);
     }
     if (params.length > 0) {
       this.router.navigateByUrl(url + `?${params.join('&')}`);
