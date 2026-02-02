@@ -52,11 +52,7 @@
               <!-- Invoice (Read-only) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Invoice</mat-label>
-                @if (isAddMode) {
-                  <input matInput formControlName="invoiceTotal" readonly>
-                } @else {
-                  <input matInput formControlName="invoiceName" readonly>
-                }
+                <input matInput formControlName="invoiceName" readonly>
               </mat-form-field>
 
               <!-- Office -->
