@@ -202,6 +202,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       // Update if the value changed (including initial load when previousReservationId is undefined)
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
+        // Always try to set reservation, even if reservations haven't loaded yet
+        // filterReservations() will handle it when reservations are loaded
         if (this.reservations.length > 0 && this.selectedOffice) {
           this.selectedReservation = newReservationId 
             ? this.reservations.find(r => r.reservationId === newReservationId && r.officeId === this.selectedOffice?.officeId) || null
@@ -256,6 +258,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (reservationIdToUse !== null) {
       params.push(`reservationId=${reservationIdToUse}`);
+    }
+    // Add context parameter when in embedded mode to indicate we came from reservation page
+    if (this.embeddedMode && reservationIdToUse !== null) {
+      params.push(`fromReservation=true`);
     }
     if (params.length > 0) {
       this.router.navigateByUrl(url + `?${params.join('&')}`);
@@ -317,11 +323,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   goToInvoice(event: InvoiceResponse): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
     const params: string[] = [];
-    if (this.selectedOffice) {
-      params.push(`officeId=${this.selectedOffice.officeId}`);
+    
+    // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
+    const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+    const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    
+    if (officeIdToUse !== null) {
+      params.push(`officeId=${officeIdToUse}`);
     }
-    if (this.selectedReservation) {
-      params.push(`reservationId=${this.selectedReservation.reservationId}`);
+    if (reservationIdToUse !== null) {
+      params.push(`reservationId=${reservationIdToUse}`);
+    }
+    // Add context parameter when in embedded mode to indicate we came from reservation page
+    if (this.embeddedMode && reservationIdToUse !== null) {
+      params.push(`fromReservation=true`);
     }
     if (params.length > 0) {
       this.router.navigateByUrl(url + `?${params.join('&')}`);
@@ -356,13 +371,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       // Navigate to invoice component and add a ledger line
       const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
       const params: string[] = [];
-      if (this.selectedOffice) {
-        params.push(`officeId=${this.selectedOffice.officeId}`);
+      
+      // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
+      const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+      const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+      
+      if (officeIdToUse !== null) {
+        params.push(`officeId=${officeIdToUse}`);
       }
-      if (this.selectedReservation) {
-        params.push(`reservationId=${this.selectedReservation.reservationId}`);
+      if (reservationIdToUse !== null) {
+        params.push(`reservationId=${reservationIdToUse}`);
       }
       params.push('addLedgerLine=true');
+      // Add context parameter when in embedded mode to indicate we came from reservation page
+      if (this.embeddedMode && reservationIdToUse !== null) {
+        params.push(`fromReservation=true`);
+      }
       if (params.length > 0) {
         this.router.navigateByUrl(url + `?${params.join('&')}`);
       } else {
@@ -612,6 +636,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
       this.selectedReservation = null;
       this.applyFilters();
+    }
+    
+    // In embedded mode, ensure reservationId from @Input is set after filtering
+    if (this.embeddedMode && this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
+      const matchingReservation = this.reservations.find(r => 
+        r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
+      ) || null;
+      if (matchingReservation && matchingReservation !== this.selectedReservation) {
+        this.selectedReservation = matchingReservation;
+        this.applyFilters();
+      }
     }
   }
 

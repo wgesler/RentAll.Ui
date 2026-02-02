@@ -147,6 +147,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
         this.selectedTabIndex = 3; // Documents tab
+      } else if (queryParams['tab'] === 'invoices') {
+        this.selectedTabIndex = 1; // Invoices tab
       }
     });
     
