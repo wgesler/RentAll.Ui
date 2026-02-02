@@ -87,11 +87,12 @@
   }
 
   .content-card {
-    width: 80%;
+    width: 85%;
     margin-top: 24px;
     margin-bottom: 2px;
     height: fit-content;
     padding: 0 !important;
+    transition: width 0.3s ease;
 
 		mat-card {
 			padding:20px 44px;
@@ -112,6 +113,7 @@
     }
   }
 }
+
 
 .no-data {
   display:flex;

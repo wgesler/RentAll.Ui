@@ -47,7 +47,6 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '15ch' },
     'departureDate': { displayAs: 'Departure', maxWidth: '15ch' },
-    'credit': { displayAs: 'Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'left' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
