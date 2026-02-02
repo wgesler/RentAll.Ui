@@ -56,11 +56,9 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
   return authService.logout();
 }
 
-// 400 BadRequest: Show API message only, no TryAgain suffix
+// 400 BadRequest: Let components handle error messages (they're more specific)
 function handle400Error(error: HttpErrorResponse, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error) {
-    showErrorToast(error, toastrService, CommonMessage.Error, false);
-  } else if (authService.getIsLoggedIn() && error.status === 400) {
+  if (authService.getIsLoggedIn() && error.status === 400) {
     return logoutUser(authService);
   }
   return throwError(() => error);
@@ -149,29 +147,18 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
   }
 }
 
-// 409 Conflict: Show API message only, no TryAgain suffix
+// 409 Conflict: Let components handle error messages (they're more specific)
 function handle409Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error) {
-    // 409 Conflict: Show API message only, no TryAgain suffix
-    showErrorToast(error, toastrService, CommonMessage.Error, false);
-  }
-  return throwError(() => error);
+   return throwError(() => error);
 }
 
-// 404 NotFound: Skip showing error message - let components handle it
+// 404 NotFound: Let components handle error messages (they're more specific)
 function handle404Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
-  // Don't show toast for 404 - components handle these errors
-  return throwError(() => error);
+   return throwError(() => error);
 }
 
-// 500+ ServerError: Show API message with TryAgain suffix
-function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (error?.error) {
-    showErrorToast(error, toastrService, CommonMessage.ServiceError, true);
-  } else {
-    // No API message, show generic error with TryAgain
-    toastrService.error(CommonMessage.Unexpected + CommonMessage.TryAgain, CommonMessage.ServiceError);
-  }
+// 500+ ServerError: Let components handle error messages (they're more specific)
+function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {  // Don't show generic error - let components show specific error messages
   return throwError(() => error);
 }
 
