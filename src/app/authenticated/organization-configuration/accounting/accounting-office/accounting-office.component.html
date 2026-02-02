@@ -69,10 +69,10 @@
                   <div class="col-span-4 flex gap-x-1.5">
                     <mat-form-field appearance="outline" class="flex-[0.5]">
                       <mat-label>Office</mat-label>
-                      <mat-select formControlName="linkedOfficeId">
+                      <mat-select formControlName="officeId">
                         <mat-option [value]="null">Select Office</mat-option>
-                        @for (office of offices; track office.officeId) {
-                          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                        @for (office of availableOffices; track office.value) {
+                          <mat-option [value]="office.value">{{ office.name }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
