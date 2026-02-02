@@ -13,6 +13,7 @@
             [embeddedMode]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
+            [source]="'accounting'"
             (officeIdChange)="onInvoiceOfficeChange($event)"
             (reservationIdChange)="onInvoiceReservationChange($event)"
             (printInvoiceEvent)="onPrintInvoice($event)">

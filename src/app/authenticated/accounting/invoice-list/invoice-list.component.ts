@@ -41,6 +41,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() embeddedMode: boolean = false; // If true, hide header
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() printInvoiceEvent = new EventEmitter<{ officeId: number | null, reservationId: string | null, invoiceId: string }>(); // Emit print invoice event to parent
@@ -259,9 +260,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (reservationIdToUse !== null) {
       params.push(`reservationId=${reservationIdToUse}`);
     }
-    // Add context parameter when in embedded mode to indicate we came from reservation page
-    if (this.embeddedMode && reservationIdToUse !== null) {
+    // Add returnTo parameter based on source input (explicit tracking)
+    if (this.source === 'reservation') {
+      params.push(`returnTo=reservation`);
+      params.push(`fromReservation=true`); // Keep for backward compatibility
+    } else if (this.source === 'accounting') {
+      params.push(`returnTo=accounting`);
+    } else if (this.embeddedMode && reservationIdToUse !== null) {
+      // Fallback: if source not set but embedded with reservation, assume reservation
+      params.push(`returnTo=reservation`);
       params.push(`fromReservation=true`);
+    } else {
+      // Default to accounting
+      params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
       this.router.navigateByUrl(url + `?${params.join('&')}`);
@@ -334,9 +345,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (reservationIdToUse !== null) {
       params.push(`reservationId=${reservationIdToUse}`);
     }
-    // Add context parameter when in embedded mode to indicate we came from reservation page
-    if (this.embeddedMode && reservationIdToUse !== null) {
+    // Add returnTo parameter based on source input (explicit tracking)
+    if (this.source === 'reservation') {
+      params.push(`returnTo=reservation`);
+      params.push(`fromReservation=true`); // Keep for backward compatibility
+    } else if (this.source === 'accounting') {
+      params.push(`returnTo=accounting`);
+    } else if (this.embeddedMode && reservationIdToUse !== null) {
+      // Fallback: if source not set but embedded with reservation, assume reservation
+      params.push(`returnTo=reservation`);
       params.push(`fromReservation=true`);
+    } else {
+      // Default to accounting
+      params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
       this.router.navigateByUrl(url + `?${params.join('&')}`);
@@ -383,9 +404,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         params.push(`reservationId=${reservationIdToUse}`);
       }
       params.push('addLedgerLine=true');
-      // Add context parameter when in embedded mode to indicate we came from reservation page
-      if (this.embeddedMode && reservationIdToUse !== null) {
+      // Add returnTo parameter based on source input (explicit tracking)
+      if (this.source === 'reservation') {
+        params.push(`returnTo=reservation`);
+        params.push(`fromReservation=true`); // Keep for backward compatibility
+      } else if (this.source === 'accounting') {
+        params.push(`returnTo=accounting`);
+      } else if (this.embeddedMode && reservationIdToUse !== null) {
+        // Fallback: if source not set but embedded with reservation, assume reservation
+        params.push(`returnTo=reservation`);
         params.push(`fromReservation=true`);
+      } else {
+        // Default to accounting
+        params.push(`returnTo=accounting`);
       }
       if (params.length > 0) {
         this.router.navigateByUrl(url + `?${params.join('&')}`);

@@ -1066,6 +1066,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
+    const returnTo = queryParams['returnTo'];
     let officeId = queryParams['officeId'];
     const reservationId = queryParams['reservationId'];
     const params: string[] = [];
@@ -1082,11 +1083,27 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       params.push(`reservationId=${reservationId}`);
     }
     
-    // Navigate back with query params (always include officeId if available)
-    if (params.length > 0) {
-      this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
+    // Navigate back based on where we came from
+    if (returnTo === 'reservation' && reservationId) {
+      // Return to reservation page
+      const reservationUrl = params.length > 0 
+        ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
+        : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
+      this.router.navigateByUrl(reservationUrl);
+    } else if (returnTo === 'accounting' || !returnTo) {
+      // Return to accounting invoices-list (default behavior)
+      if (params.length > 0) {
+        this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(RouterUrl.AccountingList);
+      }
     } else {
-      this.router.navigateByUrl(RouterUrl.AccountingList);
+      // Fallback to accounting list if returnTo is unknown
+      if (params.length > 0) {
+        this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(RouterUrl.AccountingList);
+      }
     }
   }
   //#endregion
