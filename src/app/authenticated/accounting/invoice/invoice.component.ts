@@ -123,7 +123,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     });
   }
 
-  private processQueryParams(queryParams: any): void {
+  processQueryParams(queryParams: any): void {
     const officeIdParam = queryParams['officeId'];
     const reservationIdParam = queryParams['reservationId'];
     if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
@@ -782,7 +782,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     return this.ledgerLines.reduce((sum, line) => {
       const transactionTypeId = (line as any).transactionTypeId;
-      // Only sum amounts with transactionTypeId < StartOfCredits (debit types)
       if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId !== TransactionType.Payment) {
         const amount = line.amount || 0;
         return sum + amount;
