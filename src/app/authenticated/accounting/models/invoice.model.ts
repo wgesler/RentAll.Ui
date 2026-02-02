@@ -9,6 +9,7 @@ export interface InvoiceRequest {
   startDate: string;
   endDate: string;
   invoiceDate: string;
+  dueDate?: string;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
@@ -27,6 +28,7 @@ export interface InvoiceResponse {
   startDate: string;
   endDate: string;
   invoiceDate: string;
+  dueDate?: string;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;

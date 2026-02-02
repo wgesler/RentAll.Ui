@@ -60,7 +60,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   ledgerLines: LedgerLineListDisplay[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'offices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -92,10 +92,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.invoiceId = paramMap.get('id');
         this.isAddMode = this.invoiceId === 'new';
         
-        // In add mode, remove 'invoice' from itemsToLoad$ immediately since we don't need to load an invoice
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
-        }
         
         // Wait for all data to load, then set up handlers and load invoice if needed
         this.itemsToLoad$.pipe(filter(items => items.size === 0),  take(1)).subscribe(() => {
@@ -148,6 +144,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   getInvoice(): void {
     // Form is already built and handlers are set up before this is called
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
         this.invoice = response;
@@ -237,6 +234,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
       endDate: formValue.endDate ? new Date(formValue.endDate).toISOString() : '',
       invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
+      dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : '',
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
       notes: formValue.notes || null,
@@ -443,8 +441,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
         this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
         this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
-        if (err.status !== 404) {
-          this.toastr.error('Could not load invoice data for reservation', CommonMessage.Error);
+        // Interceptor already shows error messages for 400, 401, 409, 500+ errors
+        // Only handle 404 here (which interceptor skips)
+        if (err.status === 404) {
+          // Component-specific handling for 404 if needed
         }
       }
     });
@@ -474,6 +474,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       startDate: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
       endDate: new FormControl(lastDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
+      dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
       invoiceName: new FormControl({ value: '', disabled: true }), 
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
@@ -527,6 +528,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         startDate: this.invoice.startDate ? new Date(this.invoice.startDate) : null,
         endDate: this.invoice.endDate ? new Date(this.invoice.endDate) : null,
         invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
+        dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : (this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceName: this.invoice.invoiceName || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
