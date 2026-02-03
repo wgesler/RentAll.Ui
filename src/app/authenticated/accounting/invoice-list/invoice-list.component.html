@@ -59,7 +59,7 @@
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
                 Inactive
               </mat-slide-toggle>
-              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
+              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="(!selectedReservation && !selectedCompany) || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payment
               </button>
               <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
@@ -67,7 +67,7 @@
                 <span>Add</span>
               </button>
             </div>
-            <!-- Office and Reservation dropdowns row - Second Row -->
+            <!-- Office, Company, and Reservation dropdowns row - Second Row -->
             <div class="flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" class="office-dropdown">
                 <mat-label>All Offices</mat-label>
@@ -78,6 +78,17 @@
                   }
                 </mat-select>
               </mat-form-field>
+              @if (source === 'accounting') {
+                <mat-form-field appearance="outline" class="company-dropdown">
+                  <mat-label>All Companies</mat-label>
+                  <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()" [disabled]="!selectedOffice">
+                    <mat-option [value]="null">All Companies</mat-option>
+                    @for (company of availableCompanies; track company.value.companyId) {
+                      <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
               <mat-form-field appearance="outline" class="reservation-dropdown">
                 <mat-label>All Reservations</mat-label>
                 <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">
@@ -125,7 +136,7 @@
         <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
           Inactive
         </mat-slide-toggle>
-        <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="!selectedReservation || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
+        <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="(!selectedReservation && !selectedCompany) || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
           Apply Payment
         </button>
         <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
@@ -133,7 +144,7 @@
           <span>Add</span>
         </button>
       </div>
-      <!-- Office and Reservation dropdowns row - Second Row -->
+      <!-- Office, Company, and Reservation dropdowns row - Second Row -->
       <div class="flex gap-3 items-center mt-3 px-4">
         <mat-form-field appearance="outline" class="office-dropdown">
           <mat-label>All Offices</mat-label>
@@ -144,6 +155,17 @@
             }
           </mat-select>
         </mat-form-field>
+        @if (source === 'accounting') {
+          <mat-form-field appearance="outline" class="company-dropdown">
+            <mat-label>All Companies</mat-label>
+            <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()" [disabled]="!selectedOffice">
+              <mat-option [value]="null">All Companies</mat-option>
+              @for (company of availableCompanies; track company.value.companyId) {
+                <mat-option [value]="company.value">{{ company.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
         <mat-form-field appearance="outline" class="reservation-dropdown">
           <mat-label>All Reservations</mat-label>
           <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">

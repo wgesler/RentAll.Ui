@@ -99,6 +99,18 @@
     }
   }
   
+  /* Editable inputs with borders - override border: none */
+  input[type="text"].editable-input {
+    border: 1px solid #ccc !important;
+    border-radius: 4px;
+    background-color: white;
+    
+    &:focus {
+      border-color: #1976d2 !important;
+      outline: none;
+    }
+  }
+  
   /* Remove extra spacing from icon buttons */
   .mat-mdc-icon-button {
     width: 32px;
@@ -123,6 +135,29 @@
     width: 100%;
     font-size: 14px !important;
     line-height: 1.25 !important;
+    
+    // Add border for editable dropdowns
+    &.editable-select {
+      ::ng-deep {
+        .mat-mdc-text-field-wrapper {
+          border: 1px solid #ccc !important;
+          border-radius: 4px;
+          background-color: white;
+        }
+        
+        .mat-mdc-form-field-focus-overlay {
+          opacity: 0;
+        }
+      }
+      
+      &:focus-within {
+        ::ng-deep {
+          .mat-mdc-text-field-wrapper {
+            border-color: #1976d2 !important;
+          }
+        }
+      }
+    }
     
     ::ng-deep {
       * {
@@ -232,4 +267,36 @@
   background-color: #f5f5f5;
   color: #666;
   cursor: not-allowed;
+}
+
+// Grey out readonly cells in payment mode - match Material disabled/readonly field styling
+.line-items-table {
+  .readonly-cell {
+    // Don't apply grey color to the cell itself - only to inputs within it
+    // This preserves visibility of text content like Type column
+    
+    .readonly-input {
+      color: rgba(0, 0, 0, 0.38);
+      background-color: transparent;
+      cursor: default;
+    }
+  }
+  
+  // Apply grey color specifically to Type column text when readonly
+  .type-cell.readonly-cell {
+    color: rgba(0, 0, 0, 0.38);
+  }
+  
+  // Grey out disabled mat-select in payment mode - match Material disabled styling
+  mat-select[disabled] {
+    ::ng-deep {
+      .mat-mdc-select-value {
+        color: rgba(0, 0, 0, 0.38) !important;
+      }
+      
+      .mat-mdc-select-trigger {
+        color: rgba(0, 0, 0, 0.38) !important;
+      }
+    }
+  }
 }

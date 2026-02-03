@@ -166,6 +166,8 @@
                             <td class="cost-center-cell" style="width: 350px;">
                               <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 
                                 (selectionChange)="onCostCodeChange(i, $event.value)"
+                                [disabled]="isPaymentMode && !line.isNew"
+                                [class.editable-select]="!isPaymentMode || line.isNew"
                                 class="w-full cost-code-select">
                                 <mat-option [value]="null">Select Cost Code</mat-option>
                                 @for (costCode of getCostCodesForLine(line); track costCode.value) {
@@ -173,30 +175,42 @@
                                 }
                               </mat-select>
                             </td>
-                            <td class="type-cell" style="width: 150px;">
+                            <td class="type-cell" [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 150px;">
                               {{ line.transactionType || '' }}
                             </td>
-                            <td>
-                              <input type="text" class="w-full border-0" 
-                                [value]="line.description || ''"
-                                (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
+                            <td [class.readonly-cell]="isPaymentMode && !line.isNew">
+                              @if (isPaymentMode && !line.isNew) {
+                                <input type="text" class="w-full border-0 readonly-input" [value]="line.description || ''" readonly>
+                              } @else {
+                                <input type="text" class="w-full editable-input" 
+                                  [value]="line.description || ''"
+                                  (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
+                              }
                             </td>
-                            <td style="width: 120px;">
-                              <input type="text" class="w-full border-0" 
-                                [attr.data-field]="'amount'"
-                                [attr.data-index]="i"
-                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
-                                (input)="onLedgerAmountInput($event, i)"
-                                (focus)="onLedgerAmountFocus($event, i)"
-                                (blur)="onLedgerAmountBlur($event, i)">
+                            <td [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 120px;">
+                              @if (isPaymentMode && !line.isNew) {
+                                <input type="text" class="w-full border-0 readonly-input" 
+                                  [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''" 
+                                  readonly>
+                              } @else {
+                                <input type="text" class="w-full editable-input" 
+                                  [attr.data-field]="'amount'"
+                                  [attr.data-index]="i"
+                                  [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                                  (input)="onLedgerAmountInput($event, i)"
+                                  (focus)="onLedgerAmountFocus($event, i)"
+                                  (blur)="onLedgerAmountBlur($event, i)">
+                              }
                             </td>
                             <td class="text-right" style="width: 50px;">
-                              <button mat-icon-button type="button" (click)="removeLedgerLine(i)" 
-                                class="delete-ledger-line-btn" 
-                                style="color: #ae1f66;"
-                                matTooltip="Remove this line item">
-                                <mat-icon style="color: #ae1f66;">close</mat-icon>
-                              </button>
+                              @if (!isPaymentMode || line.isNew) {
+                                <button mat-icon-button type="button" (click)="removeLedgerLine(i)" 
+                                  class="delete-ledger-line-btn" 
+                                  style="color: #ae1f66;"
+                                  matTooltip="Remove this line item">
+                                  <mat-icon style="color: #ae1f66;">close</mat-icon>
+                                </button>
+                              }
                             </td>
                           </tr>
                         }

@@ -21,6 +21,8 @@ import { OfficeService } from '../../organization-configuration/office/services/
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse } from '../../reservation/models/reservation-model';
+import { CompanyService } from '../../company/services/company.service';
+import { CompanyResponse } from '../../company/models/company.model';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
@@ -44,6 +46,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
+  @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
   @Output() printInvoiceEvent = new EventEmitter<{ officeId: number | null, reservationId: string | null, invoiceId: string }>(); // Emit print invoice event to parent
   
   panelOpenState: boolean = true;
@@ -64,6 +67,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   reservationsSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
+
+  companies: CompanyResponse[] = [];
+  availableCompanies: { value: CompanyResponse, label: string }[] = [];
+  selectedCompany: CompanyResponse | null = null;
  
   costCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
@@ -101,6 +108,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
+    private companyService: CompanyService,
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
@@ -113,6 +121,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     this.loadReservations();
+    this.loadCompanies();
     this.loadCostCodes();
     
     // Load all invoices on startup
@@ -146,17 +155,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
             // Find office from already loaded offices
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              // Emit office change to parent if in embedded mode
-              if (this.embeddedMode) {
-                this.officeIdChange.emit(this.selectedOffice.officeId);
-              }
-              this.filterCostCodes();
-              this.filterReservations();
-              // Filter invoices client-side by office
-              this.applyFilters();
+          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+          if (this.selectedOffice) {
+            // Emit office change to parent if in embedded mode
+            if (this.embeddedMode) {
+              this.officeIdChange.emit(this.selectedOffice.officeId);
             }
+            this.filterCostCodes();
+            this.filterCompanies();
+            this.filterReservations();
+            // Filter invoices client-side by office
+            this.applyFilters();
+          }
           }
         } else {
           if (!this.embeddedMode || this.officeId === null || this.officeId === undefined) {
@@ -181,11 +191,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
           if (this.selectedOffice) {
             this.filterCostCodes();
+            this.filterCompanies();
             this.filterReservations();
             // Filter invoices client-side by office
             this.applyFilters();
           } else {
             this.selectedReservation = null;
+            this.selectedCompany = null;
             // Show all invoices when no office is selected
             this.applyFilters();
           }
@@ -494,6 +506,28 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
     }
 
+    // Filter by company if selected (only when source is 'accounting')
+    // Match company name with reservation's contactName
+    if (this.selectedCompany && this.source === 'accounting') {
+      filtered = filtered.filter(invoice => {
+        // If invoice has no reservationId, exclude it
+        if (!invoice.reservationId) {
+          return false;
+        }
+        
+        // Find the reservation for this invoice
+        const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
+        
+        // If reservation not found, exclude the invoice
+        if (!reservation) {
+          return false;
+        }
+        
+        // Compare reservation's contactName with selected company's name
+        return reservation.contactName === this.selectedCompany.name;
+      });
+    }
+
     // Filter by reservation if selected
     if (this.selectedReservation) {
       filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation.reservationId);
@@ -597,11 +631,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.selectedOffice = matchingOffice;
             if (this.selectedOffice) {
               this.filterCostCodes();
+              this.filterCompanies();
               this.filterReservations();
               // Filter invoices client-side by office
               this.applyFilters();
             } else {
               this.selectedReservation = null;
+              this.selectedCompany = null;
               // Show all invoices when no office is selected
               this.applyFilters();
             }
@@ -620,6 +656,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Filter invoices client-side by office
         if (this.selectedOffice) {
           this.filterCostCodes();
+          this.filterCompanies();
           this.applyFilters();
         } else {
           // Show all invoices when no office is selected
@@ -695,6 +732,43 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
+
+  loadCompanies(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'companies');
+    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
+      next: (companies) => {
+        this.companies = companies || [];
+        this.filterCompanies();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.companies = [];
+        this.availableCompanies = [];
+        if (err.status !== 400 && err.status !== 401) {
+          this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  filterCompanies(): void {
+    if (!this.selectedOffice) {
+      this.availableCompanies = [];
+      this.selectedCompany = null;
+      return;
+    }
+    
+    const filteredCompanies = this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive);
+    this.availableCompanies = filteredCompanies.map(c => ({
+      value: c,
+      label: `${c.companyCode || ''} - ${c.name}`.trim()
+    }));
+    
+    // Clear selected company if it doesn't belong to the selected office
+    if (this.selectedCompany && this.selectedCompany.officeId !== this.selectedOffice.officeId) {
+      this.selectedCompany = null;
+      this.applyFilters();
+    }
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -707,6 +781,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     } else if (this.embeddedMode && !this.selectedOffice) {
       this.officeIdChange.emit(null);
     }
+    
+    // Filter companies by selected office
+    this.filterCompanies();
     
     // Filter reservations by selected office
     this.filterReservations();
@@ -721,8 +798,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.allInvoices = [];
       this.invoicesDisplay = [];
       this.selectedReservation = null;
+      this.selectedCompany = null;
       this.applyFilters();
     }
+  }
+
+  onCompanyChange(): void {
+    // Emit company change to parent if in embedded mode
+    if (this.embeddedMode) {
+      this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+    }
+    
+    // Filter invoices client-side by selected company
+    this.applyFilters();
   }
 
   onReservationChange(): void {
