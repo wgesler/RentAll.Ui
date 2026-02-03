@@ -59,13 +59,72 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
   ledgerLines: LedgerLineListDisplay[] = [];
+  originalLedgerLines: LedgerLineListDisplay[] = []; // Store original state for comparison
+  originalNotes: string | null = null; // Store original notes for comparison
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
-  // Create button is disabled when submitting or when there are no ledger lines
   get isSaveDisabled(): boolean {
-    return this.isSubmitting || this.ledgerLines.length === 0;
+    if (this.isSubmitting || this.ledgerLines.length === 0) {
+      return true;
+    }
+    
+    if (this.isAddMode) {
+      return false;
+    }
+    
+    return !this.hasChanges();
+  }
+
+  hasChanges(): boolean {
+    if (this.hasLedgerLinesChanged()) {
+      return true;
+    }
+    
+    // Check if notes have changed
+    const currentNotes = this.form.get('notes')?.value || null;
+    const normalizedCurrentNotes = currentNotes === '' ? null : currentNotes;
+    const normalizedOriginalNotes = this.originalNotes === '' ? null : this.originalNotes;
+    
+    if (normalizedCurrentNotes !== normalizedOriginalNotes) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  hasLedgerLinesChanged(): boolean {
+    // In add mode, if there are no original lines, any lines are considered a change
+    if (this.isAddMode && this.originalLedgerLines.length === 0) {
+      return this.ledgerLines.length > 0;
+    }
+    
+    // Compare current ledger lines with original
+    if (this.ledgerLines.length !== this.originalLedgerLines.length) {
+      return true; // Lines added or removed
+    }
+    
+    // Deep comparison of each line
+    for (let i = 0; i < this.ledgerLines.length; i++) {
+      const current = this.ledgerLines[i];
+      const original = this.originalLedgerLines[i];
+      
+      if (!original) {
+        return true; // New line added
+      }
+      
+      // Compare key fields
+      if (current.ledgerLineId !== original.ledgerLineId ||
+          current.costCodeId !== original.costCodeId ||
+          (current as any).transactionTypeId !== (original as any).transactionTypeId ||
+          current.description !== original.description ||
+          current.amount !== original.amount) {
+        return true; // Line modified
+      }
+    }
+    
+    return false; // No changes detected
   }
 
   constructor(
@@ -86,7 +145,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   //#region Invoice
   ngOnInit(): void {
-    // Reset payment mode on init
     this.isPaymentMode = false;
     this.loadOffices();
     this.loadReservations();
@@ -409,6 +467,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const rawLedgerLines = this.invoice?.ledgerLines || [];
     if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
       this.ledgerLines = [];
+      this.originalLedgerLines = []; // Reset original state
       if (updateTotalAmount) {
         this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
         this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
@@ -428,6 +487,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         (line as any).isNew = false;
       }
     });
+    
+    // Store original state for change detection (deep clone)
+    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
     
     // Calculate total amount from ledger lines and update the form
     if (updateTotalAmount) {
@@ -456,6 +518,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
+        // Store original state for change detection (deep clone)
+        this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
       },
       error: (err: HttpErrorResponse) => {
@@ -566,6 +630,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         isActive: this.invoice.isActive
       }, { emitEvent: false });
       
+      // Store original notes for change detection
+      this.originalNotes = this.invoice.notes || null;
+      
       // Set selectedOffice from the populated officeId
       const officeId = this.form.get('officeId')?.value;
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
@@ -577,6 +644,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       this.updateAvailableReservations();
       this.filterCostCodes();
       this.setInvoiceName(this.selectedReservation);
+    } else {
+      // In add mode, reset original notes
+      this.originalNotes = null;
       
       // Format invoicedAmount, paidAmount, and totalDue display
       setTimeout(() => {
@@ -988,6 +1058,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const reservationId = this.form.get('reservationId')?.value;
     if (reservationId) {
       this.loadMonthlyLedgerLines(reservationId);
+      // After loading new lines, update original state for change detection
+      // This will be done in loadMonthlyLedgerLines after lines are loaded
     } else {
       this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
     }
@@ -1132,20 +1204,21 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
     // Navigate back based on where we came from
     if (returnTo === 'reservation' && reservationId) {
-      // Return to reservation page
+      // Return to reservation page, invoices tab
+      params.push(`tab=invoices`);
       const reservationUrl = params.length > 0 
         ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
         : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
       this.router.navigateByUrl(reservationUrl);
     } else if (returnTo === 'accounting' || !returnTo) {
-      // Return to accounting invoices-list (default behavior)
+      // Return to accounting page (defaults to invoices tab at index 0)
       if (params.length > 0) {
         this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
       } else {
         this.router.navigateByUrl(RouterUrl.AccountingList);
       }
     } else {
-      // Fallback to accounting list if returnTo is unknown
+      // Fallback to accounting list (defaults to invoices tab)
       if (params.length > 0) {
         this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
       } else {

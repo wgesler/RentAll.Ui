@@ -1,5 +1,5 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -9,9 +9,7 @@ import { ReservationService } from '../../reservation/services/reservation.servi
 import { ReservationResponse, ReservationListResponse } from '../../reservation/models/reservation-model';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
-import { PropertyHtmlService } from '../services/property-html.service';
-import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-html.model';
-import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyHtmlService } from '../services/property-html.service';import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { OrganizationResponse } from '../../organization/models/organization.model';
 import { CommonService } from '../../../services/common.service';
@@ -36,6 +34,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { PropertyHtmlResponse } from '../models/property-html.model';
 
 @Component({
   selector: 'app-property-welcome-letter',
@@ -44,8 +43,10 @@ import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } fr
   templateUrl: './property-welcome-letter.component.html',
   styleUrls: ['./property-welcome-letter.component.scss']
 })
-export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
+export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string;
+  @Input() externalReservationId: string | null = null; // Input to accept reservationId from parent
+  @Output() reservationSelected = new EventEmitter<string | null>();
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -121,17 +122,36 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     });
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    // Handle external reservationId changes from Documents tab
+    if (changes['externalReservationId']) {
+      const newReservationId = changes['externalReservationId'].currentValue;
+      const previousReservationId = changes['externalReservationId'].previousValue;
+      
+      // Only update if the value actually changed
+      if (previousReservationId === undefined || newReservationId !== previousReservationId) {
+        // Update the form control and trigger selection logic
+        if (newReservationId) {
+          // Set the form control value without triggering the selection change event
+          // to avoid circular updates
+          this.form.get('selectedReservationId')?.setValue(newReservationId, { emitEvent: false });
+          // Call onReservationSelected to load the full reservation details
+          // Pass skipEmit=true to prevent emitting back to Documents (avoid circular update)
+          this.onReservationSelected(newReservationId, true);
+        } else {
+          // Clear the selection
+          this.form.get('selectedReservationId')?.setValue(null, { emitEvent: false });
+          this.selectedReservation = null;
+          this.generatePreviewIframe();
+        }
+      }
+    }
+  }
+
   reloadWelcomeLetter(): void {
-    // Reload property data to get latest information
     if (this.propertyId) {
       this.loadProperty();
-    }
-    // Reload property letter information to get latest data
-    if (this.propertyId) {
       this.loadPropertyLetterInformation();
-    }
-    // Reload welcome letter HTML
-    if (this.propertyId) {
       this.getWelcomeLetter();
     }
   }
@@ -340,10 +360,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   //#endregion
 
   //#region Form Response Functions
-  onReservationSelected(reservationId: string | null): void {
+  onReservationSelected(reservationId: string | null, skipEmit: boolean = false): void {
     if (!reservationId) {
       this.selectedReservation = null;
       this.generatePreviewIframe();
+      // Emit null to clear reservation in Documents tab (unless this is an external update)
+      if (!skipEmit) {
+        this.reservationSelected.emit(null);
+      }
       return;
     }
     
@@ -355,6 +379,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
         }
         this.generatePreviewIframe();
+        // Emit reservationId to update Documents tab (unless this is an external update)
+        if (!skipEmit) {
+          this.reservationSelected.emit(reservationId);
+        }
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {

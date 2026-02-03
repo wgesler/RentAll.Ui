@@ -71,7 +71,7 @@
             <div class="flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" class="office-dropdown">
                 <mat-label>All Offices</mat-label>
-                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
                   <mat-option [value]="null">All Offices</mat-option>
                   @for (office of offices; track office.officeId) {
                     <mat-option [value]="office">{{ office.name }}</mat-option>
@@ -80,7 +80,7 @@
               </mat-form-field>
               <mat-form-field appearance="outline" class="reservation-dropdown">
                 <mat-label>All Reservations</mat-label>
-                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">
                   <mat-option [value]="null">All Reservations</mat-option>
                   @for (reservation of availableReservations; track reservation.value.reservationId) {
                     <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
@@ -137,7 +137,7 @@
       <div class="flex gap-3 items-center mt-3 px-4">
         <mat-form-field appearance="outline" class="office-dropdown">
           <mat-label>All Offices</mat-label>
-          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
             <mat-option [value]="null">All Offices</mat-option>
             @for (office of offices; track office.officeId) {
               <mat-option [value]="office">{{ office.name }}</mat-option>
@@ -146,7 +146,7 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="reservation-dropdown">
           <mat-label>All Reservations</mat-label>
-          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice">
+          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">
             <mat-option [value]="null">All Reservations</mat-option>
             @for (reservation of availableReservations; track reservation.value.reservationId) {
               <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>

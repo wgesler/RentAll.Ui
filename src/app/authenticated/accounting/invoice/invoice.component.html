@@ -32,7 +32,7 @@
               </mat-checkbox>
               <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
                 class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
-                Create
+                {{ isAddMode ? 'Create' : 'Modify' }}
               </button>
             </div>
             

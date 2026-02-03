@@ -37,16 +37,16 @@
       <!-- Input Fields Section -->
       <div class="input-controls">
         <div class="flex gap-3 items-center">
-          <!-- Property Code (readonly) -->
+          <!-- Property Code (disabled when coming from reservation) -->
           <mat-form-field appearance="outline" class="property-code-field">
             <mat-label>Property Code</mat-label>
-            <input matInput [value]="property?.propertyCode || ''" readonly>
+            <input matInput [value]="property?.propertyCode || ''" [disabled]="!!reservationId">
           </mat-form-field>
 
-          <!-- Office Name (readonly) -->
+          <!-- Office Name (disabled when coming from reservation) -->
           <mat-form-field appearance="outline" class="office-dropdown">
             <mat-label>Office</mat-label>
-            <input matInput [value]="selectedReservation?.officeName || ''" readonly>
+            <input matInput [value]="selectedReservation?.officeName || ''" [disabled]="!!reservationId">
           </mat-form-field>
 
           <!-- Reservation Dropdown -->

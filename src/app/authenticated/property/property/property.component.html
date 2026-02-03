@@ -643,7 +643,11 @@
           </mat-tab>
           
           <mat-tab label="Welcome Letter">
-            <app-property-welcome-letter [propertyId]="isAddMode ? null : propertyId"></app-property-welcome-letter>
+            <app-property-welcome-letter 
+              [propertyId]="isAddMode ? null : propertyId"
+              [externalReservationId]="selectedReservationId"
+              (reservationSelected)="onWelcomeLetterReservationSelected($event)">
+            </app-property-welcome-letter>
           </mat-tab>
           
           <mat-tab label="Documents">
@@ -652,6 +656,9 @@
               [propertyId]="isAddMode ? null : propertyId" 
               [documentTypeId]="DocumentType.PropertyLetter"
               [officeId]="property?.officeId || form?.get('officeId')?.value || null"
+              [reservationId]="selectedReservationId"
+              [source]="'property'"
+              (reservationIdChange)="onDocumentsReservationSelected($event)"
               [hideHeader]="true">
             </app-document-list>
           </mat-tab>

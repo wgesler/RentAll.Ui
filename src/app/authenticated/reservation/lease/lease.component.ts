@@ -177,6 +177,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
             if (reservation.officeId && this.offices.length > 0) {
               this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
               this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+              this.filterReservations(); // This will filter to only show the selected reservation
             }
             this.loadContact();
             return { type: 'reservation', data: reservation };
@@ -327,7 +328,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // Enable the reservation dropdown when an office is selected
     this.form.get('selectedReservationId')?.enable();
     
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    // Filter reservations by office
+    let filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    
+    // If reservationId is provided (coming from reservation), only show that reservation
+    if (this.reservationId && this.reservationId !== '') {
+      filteredReservations = filteredReservations.filter(r => r.reservationId === this.reservationId);
+    }
+    
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
       label: this.utilityService.getReservationLabel(r)
@@ -454,7 +462,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-          this.filterReservations();
+          this.filterReservations(); // This will filter to only show the selected reservation
         }
         this.loadContact();
         this.generatePreviewIframe();

@@ -61,6 +61,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  selectedReservationId: string | null = null; 
   states: string[] = [];
   contacts: ContactResponse[] = [];
   contactsSubscription?: Subscription;
@@ -77,7 +78,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
   // Accordion expansion states - will be initialized based on isAddMode
@@ -126,6 +127,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Property
   ngOnInit(): void {
+    // Add items to loading set before loading
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'locationLookups');
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'contacts');
+    
     this.loadStates();
     this.loadContacts();
     this.loadLocationLookups();
@@ -138,7 +143,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.initializeBedSizeTypes();
     this.initializeTimeTypes();
     
-    // Build form first so template can access it
     this.buildForm();
   
     // Set isAddMode from route params and load property if needed
@@ -179,10 +183,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
         codeControl?.updateValueAndValidity();
 
         if (!this.isAddMode) {
-          const currentSet = this.itemsToLoad$.value;
-          const newSet = new Set(currentSet);
-          newSet.add('property');
-          this.itemsToLoad$.next(newSet);
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
           this.getProperty();
         }
       }
@@ -744,7 +745,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load location lookups. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('locationLookups');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups');
       }
     });
   }
@@ -768,20 +769,25 @@ export class PropertyComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+   onTabChange(event: any): void {
+     if (event.index === 3 && this.propertyDocumentList) {
+      this.propertyDocumentList.reload();
+    }
+  }
+  
+  onWelcomeLetterReservationSelected(reservationId: string | null): void {
+     this.selectedReservationId = reservationId;
+  }
+  
+  onDocumentsReservationSelected(reservationId: string | null): void {
+    this.selectedReservationId = reservationId;
+  }
+  
   onCodeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const upperValue = input.value.toUpperCase();
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
   }
 
   ngOnDestroy(): void {
@@ -791,13 +797,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.TenantList);
-  }
-
-  onTabChange(event: any): void {
-    // When Documents tab (index 3) is selected, reload the document list
-    if (event.index === 3 && this.propertyDocumentList) {
-      this.propertyDocumentList.reload();
-    }
   }
   //#endregion
 }

@@ -32,7 +32,6 @@ import { LeaseInformationComponent } from '../lease-information/lease-informatio
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
-import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { MatDialog } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -113,7 +112,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
-    private documentReloadService: DocumentReloadService,
     private utilityService: UtilityService
   ) {
   }

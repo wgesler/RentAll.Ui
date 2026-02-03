@@ -546,6 +546,8 @@
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null" 
               [documentTypeId]="DocumentType.ReservationLease"
               [officeId]="reservation?.officeId || selectedProperty?.officeId || null"
+              [reservationId]="isAddMode ? null : reservationId"
+              [source]="'reservation'"
               [hideHeader]="true">
             </app-document-list>
           </mat-tab>

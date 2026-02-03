@@ -127,41 +127,57 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
-  }
-
-  onInvoiceReservationChange(reservationId: string | null): void {
-    this.selectedReservationId = reservationId;
-  }
-
-  onCostCodesOfficeChange(officeId: number | null): void {
-    // Update shared state and notify other tabs
-    if (this.selectedOfficeId !== officeId) {
+   if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
-      // The ngModel binding will automatically update the dropdown
-      // Other tabs will receive the update via their @Input bindings
+      if (this.accountingDocumentList) {
+        this.accountingDocumentList.reload();
+      }
     }
   }
 
-  onGeneralLedgerOfficeChange(officeId: number | null): void {
-    // Update shared state and notify other tabs
+  onInvoiceReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+      if (this.accountingDocumentList) {
+        this.accountingDocumentList.reload();
+      }
+    }
+  }
+
+  onCostCodesOfficeChange(officeId: number | null): void {
     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
-      // Other tabs will receive the update via their @Input bindings
+     }
+  }
+
+  onGeneralLedgerOfficeChange(officeId: number | null): void {
+     if (this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
     }
   }
 
   onDocumentsOfficeChange(officeId: number | null): void {
-    // Update shared state and notify other tabs
-    if (this.selectedOfficeId !== officeId) {
+     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
-      // Other tabs will receive the update via their @Input bindings
+       this.selectedReservationId = null;
+       if (this.accountingDocumentList) {
+        this.accountingDocumentList.reload();
+      }
+    }
+  }
+  
+  onDocumentsReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+       if (this.accountingDocumentList) {
+        this.accountingDocumentList.reload();
+      }
     }
   }
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
     // Navigate to Create Invoice page (standalone route)
-    // Always include officeId and invoiceId, and reservationId if available
+    // Always include officeId, invoiceId, and reservationId if available
     const params: string[] = [];
     
     // Add returnTo parameter to track where we came from
@@ -211,8 +227,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onCostCodesSaved(): void {
-    // Refresh cost codes list after save (for embedded mode)
-    // The form will be cleared by the component itself, we just need to refresh the list
     if (this.selectedOfficeId) {
       this.costCodesService.refreshCostCodesForOffice(this.selectedOfficeId);
     }

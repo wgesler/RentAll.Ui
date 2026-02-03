@@ -73,7 +73,10 @@
             [documentTypeId]="DocumentType.Invoice"
             [hideHeader]="true"
             [officeId]="selectedOfficeId"
-            (officeIdChange)="onDocumentsOfficeChange($event)">
+            [reservationId]="selectedReservationId"
+            [source]="'invoice'"
+            (officeIdChange)="onDocumentsOfficeChange($event)"
+            (reservationIdChange)="onDocumentsReservationChange($event)">
           </app-document-list>
         </mat-tab>
       </mat-tab-group>

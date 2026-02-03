@@ -289,10 +289,67 @@
 
 // Property tabs styling - make all tabs equal width
 ::ng-deep .property-tabs {
+  width: 100%;
+  
   .mat-mdc-tab-header {
     .mdc-tab {
       flex: 1;
       min-width: 0;
     }
+  }
+  
+  // Ensure tab body content doesn't affect container width
+  .mat-mdc-tab-body-wrapper {
+    width: 100%;
+  }
+  
+  .mat-mdc-tab-body {
+    width: 100%;
+  }
+  
+  .mat-mdc-tab-body-content {
+    width: 100%;
+    overflow: visible;
+  }
+}
+
+// Ensure mat-card maintains consistent width and prevents width jumping
+section.content-card {
+  width: 85% !important;
+  min-width: 0;
+  max-width: 85%;
+  box-sizing: border-box;
+  transition: none !important; // Remove width transition to prevent jumping
+  
+  mat-card {
+    width: 100% !important;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+  
+  // Ensure tab group doesn't resize
+  .property-tabs {
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+  }
+  
+  // Ensure all tab content respects container width
+  ::ng-deep .mat-mdc-tab-body-wrapper {
+    width: 100% !important;
+    max-width: 100%;
+  }
+  
+  ::ng-deep .mat-mdc-tab-body {
+    width: 100% !important;
+    max-width: 100%;
+  }
+  
+  ::ng-deep .mat-mdc-tab-body-content {
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden; // Prevent horizontal overflow from affecting width
   }
 }
