@@ -164,6 +164,9 @@ export class AccountingComponent implements OnInit, OnDestroy {
     // Always include officeId and invoiceId, and reservationId if available
     const params: string[] = [];
     
+    // Add returnTo parameter to track where we came from
+    params.push(`returnTo=accounting`);
+    
     if (event.officeId !== null && event.officeId !== undefined) {
       params.push(`officeId=${event.officeId}`);
     }

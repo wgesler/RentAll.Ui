@@ -310,8 +310,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     } else {
       // Not in embedded mode, navigate to Create Invoice page
-      // Always include officeId and invoiceId, and reservationId if available
+      // Determine returnTo based on source
       const params: string[] = [];
+      
+      // Add returnTo parameter based on source
+      if (this.source === 'reservation') {
+        params.push(`returnTo=reservation`);
+      } else {
+        params.push(`returnTo=accounting`);
+      }
       
       if (officeId !== null && officeId !== undefined) {
         params.push(`officeId=${officeId}`);
