@@ -228,49 +228,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   saveLease(): void {
-    if (!this.propertyId) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formValue = this.form.getRawValue();
-
-    // Create and initialize PropertyHtmlRequest
-    // Preserve welcomeLetter from original response, use form lease for defaultLease
-    const propertyHtmlRequest: PropertyHtmlRequest = {
-      propertyId: this.propertyId,
-      organizationId: this.authService.getUser()?.organizationId || '',
-      welcomeLetter: this.propertyHtml?.welcomeLetter || '',
-      inspectionChecklist: this.propertyHtml?.inspectionChecklist || '',
-      lease: formValue.lease || '',
-      letterOfResponsibility: formValue.lease || '',
-      noticeToVacate: formValue.lease || '',
-      creditAuthorization: formValue.lease || '',
-      creditApplicationBusiness: formValue.lease || '',
-      creditApplicationIndividual: formValue.lease || '',
-      invoice: this.propertyHtml?.invoice || ''
-    };
-
-    // Save the HTML using upsert
-    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
-      next: (response) => {
-        this.propertyHtml = response;
-        this.toastr.success('Lease saved successfully', 'Success');
-        this.isSubmitting = false;
-        this.generatePreviewIframe();
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not save lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.isSubmitting = false;
-      }
-    });
-  }
-
-  saveLeaseAsDocument(): void {
-    if (!this.selectedOffice) {
+    if (!this.selectedOffice || !this.selectedReservation) {
+      this.toastr.warning('Please select an office and reservation to generate the lease', 'Missing Selection');
       this.isSubmitting = false;
       return;
     }
@@ -283,9 +242,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.previewIframeStyles,
       { fontSize: '10pt', includeLeaseStyles: true }
     );
-    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
-    const fileName = `Lease_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-    
+
+    const fileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization!.organizationId,
@@ -293,7 +251,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       officeName: this.selectedOffice!.name,
       propertyId: this.propertyId || null,
       reservationId: this.selectedReservation?.reservationId || null,
-      documentType: DocumentType.ReservationLease,
+      documentTypeId: DocumentType.ReservationLease,
       fileName: fileName
     };
 
@@ -1281,9 +1239,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   override async onDownload(): Promise<void> {
-    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
-    const fileName = `Lease_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-
+    const fileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
       documentType: DocumentType.ReservationLease,

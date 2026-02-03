@@ -31,7 +31,7 @@
                 Is Active
               </mat-checkbox>
               <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
-                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
                 <mat-icon>save</mat-icon>
                 Save
               </button>
@@ -93,23 +93,17 @@
                 <!-- Start Date -->
                 <mat-form-field appearance="outline">
                   <mat-label>Start Date</mat-label>
-                  <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" required>
+                  <input matInput [matDatepicker]="startDatePicker" formControlName="startDate">
                   <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #startDatePicker></mat-datepicker>
-                  @if (form.get('startDate')?.hasError('required') && form.get('startDate')?.touched) {
-                    <mat-error>Start Date is required</mat-error>
-                  }
                 </mat-form-field>
 
                 <!-- End Date -->
                 <mat-form-field appearance="outline">
                   <mat-label>End Date</mat-label>
-                  <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value" required>
+                  <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value">
                   <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #endDatePicker></mat-datepicker>
-                  @if (form.get('endDate')?.hasError('required') && form.get('endDate')?.touched) {
-                    <mat-error>End Date is required</mat-error>
-                  }
                   @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
                     <mat-error>End Date must be equal to or greater than Start Date</mat-error>
                   }
@@ -141,7 +135,8 @@
                   <span class="text-lg font-medium">Ledger Items</span>
                   <div class="flex gap-2">
                     <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
-                      class="scale-90 text-nowrap flex-shrink-0">
+                      class="scale-90 text-nowrap flex-shrink-0"
+                      [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">
                       {{ isAddMode ? 'Get Charges' : 'Get Lines' }}
                     </button>
                     <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 

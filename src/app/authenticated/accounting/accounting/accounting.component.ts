@@ -160,7 +160,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
-    // Navigate to Print Invoice page (standalone route)
+    // Navigate to Create Invoice page (standalone route)
     // Always include officeId and invoiceId, and reservationId if available
     const params: string[] = [];
     
@@ -174,10 +174,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
       params.push(`invoiceId=${event.invoiceId}`);
     }
     
-    // Navigate to the Print Invoice route with all parameters
+    // Navigate to the Create Invoice route with all parameters
     const url = params.length > 0 
-      ? `${RouterUrl.PrintInvoice}?${params.join('&')}`
-      : RouterUrl.PrintInvoice;
+      ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
+      : RouterUrl.CreateInvoice;
     this.router.navigateByUrl(url);
   }
 

@@ -309,7 +309,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.printInvoiceEvent.emit({ officeId, reservationId, invoiceId });
       }
     } else {
-      // Not in embedded mode, navigate to Print Invoice page
+      // Not in embedded mode, navigate to Create Invoice page
       // Always include officeId and invoiceId, and reservationId if available
       const params: string[] = [];
       
@@ -323,10 +323,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         params.push(`invoiceId=${invoiceId}`);
       }
       
-      // Navigate to Print Invoice route with all parameters
+      // Navigate to Create Invoice route with all parameters
       const url = params.length > 0 
-        ? `${RouterUrl.PrintInvoice}?${params.join('&')}`
-        : RouterUrl.PrintInvoice;
+        ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
+        : RouterUrl.CreateInvoice;
       this.router.navigateByUrl(url);
     }
   }

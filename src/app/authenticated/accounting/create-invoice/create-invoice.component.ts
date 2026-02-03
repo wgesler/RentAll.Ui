@@ -40,6 +40,7 @@ import { CompanyResponse } from '../../company/models/company.model';
 import { CompanyService } from '../../company/services/company.service';
 import { getBillingMethod } from '../../reservation/models/reservation-enum';
 import { RouterUrl } from '../../../app.routes';
+import { InvoiceDocumentService } from '../services/invoice-document.service';
 
 @Component({
   selector: 'app-create-invoice',
@@ -118,7 +119,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     documentHtmlService: DocumentHtmlService,
     private accountingOfficeService: AccountingOfficeService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private invoiceDocumentService: InvoiceDocumentService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
@@ -223,88 +225,41 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
 
   saveInvoice(): void {
-    if (!this.property?.propertyId) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formValue = this.form.value;
-
-    // Create and initialize PropertyHtmlRequest
-    const propertyHtmlRequest: PropertyHtmlRequest = {
-      propertyId: this.property.propertyId,
-      organizationId: this.authService.getUser()?.organizationId || '',
-      welcomeLetter: this.propertyHtml?.welcomeLetter || '',
-      inspectionChecklist: this.propertyHtml?.inspectionChecklist || '',
-      lease: this.propertyHtml?.lease || '',
-      letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
-      noticeToVacate: this.propertyHtml?.noticeToVacate || '',
-      creditAuthorization: this.propertyHtml?.creditAuthorization || '',
-      creditApplicationBusiness: this.propertyHtml?.creditApplicationBusiness || '',
-      creditApplicationIndividual: this.propertyHtml?.creditApplicationIndividual || '',
-      invoice: formValue.invoice || '',
-    };
-
-    // Save the HTML using upsert
-    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
-      next: (response) => {
-        this.propertyHtml = response;
-        this.toastr.success('Invoice saved successfully', 'Success');
-        this.isSubmitting = false;
-        this.iframeKey++; // Force iframe refresh
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not save invoice at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.isSubmitting = false;
-      }
-    });
-  }
-
-  saveInvoiceAsDocument(): void {
-    if (!this.selectedOffice) {
+    if (!this.selectedOffice || !this.selectedReservation || !this.selectedInvoice) {
+      this.toastr.warning('Please select an office, reservation, and invoice to generate the invoice', 'Missing Selection');
       this.isSubmitting = false;
       return;
     }
 
     this.isSubmitting = true;
 
-    // Generate HTML with styles for PDF
-    const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
-      this.previewIframeHtml,
-      this.previewIframeStyles
-    );
-    const invoiceCode = this.selectedInvoice?.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
-    const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-    
-    const generateDto: GenerateDocumentFromHtmlDto = {
-      htmlContent: htmlWithStyles,
-      organizationId: this.organization?.organizationId || '',
-      officeId: this.selectedOffice.officeId,
-      officeName: this.selectedOffice.name,
-      propertyId: this.property?.propertyId || null,
-      reservationId: this.selectedReservation?.reservationId || null,
-      documentType: DocumentType.Invoice,
-      fileName: fileName
-    };
-
-    this.documentService.generate(generateDto).pipe(take(1)).subscribe({
-      next: (documentResponse: DocumentResponse) => {
-        this.toastr.success('Document generated successfully', 'Success');
-        this.isSubmitting = false;
-        this.iframeKey++; // Force iframe refresh
-        
-        // Trigger document list reload
-        this.documentReloadService.triggerReload();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        console.error('Document save error:', err);
-        this.isSubmitting = false;
-        this.iframeKey++; // Force iframe refresh
-      }
+    // Use the shared invoice document service to generate the document
+    // This ensures consistent logic between create-invoice and invoice components
+    this.invoiceDocumentService.generateInvoiceDocument({
+      invoice: this.selectedInvoice,
+      office: this.selectedOffice,
+      reservation: this.selectedReservation,
+      property: this.property || undefined,
+      contact: this.contact || undefined,
+      company: this.company || undefined,
+      accountingOffice: this.selectedAccountingOffice || undefined,
+      organization: this.organization || undefined,
+      propertyHtml: this.propertyHtml || undefined,
+      officeLogo: this.officeLogo || undefined,
+      accountingOfficeLogo: this.accountingOfficeLogo || undefined,
+      orgLogo: this.orgLogo || undefined
+    }).then((documentResponse: DocumentResponse) => {
+      this.toastr.success('Document generated successfully', 'Success');
+      this.isSubmitting = false;
+      this.iframeKey++; // Force iframe refresh
+      
+      // Trigger document list reload
+      this.documentReloadService.triggerReload();
+    }).catch((err: HttpErrorResponse) => {
+      this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      console.error('Document save error:', err);
+      this.isSubmitting = false;
+      this.iframeKey++; // Force iframe refresh
     });
   }
   //#endregion

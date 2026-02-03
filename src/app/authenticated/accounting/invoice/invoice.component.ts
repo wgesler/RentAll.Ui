@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription, forkJoin } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription, forkJoin, firstValueFrom } from 'rxjs';
 import { AccountingService } from '../services/accounting.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -21,6 +21,7 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
+import { InvoiceDocumentService } from '../services/invoice-document.service';
 
 @Component({
   selector: 'app-invoice',
@@ -62,6 +63,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  
+  // Use a property instead of getter to avoid change detection issues
+  // Save button should always be active (only disabled when submitting)
+  isSaveDisabled: boolean = false;
 
   constructor(
     public accountingService: AccountingService,
@@ -75,7 +80,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private invoiceDocumentService: InvoiceDocumentService
   ) {
   }
 
@@ -168,8 +174,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   saveInvoice(): void {
+    this.isSubmitting = true;
+    this.isSaveDisabled = true;
+    
     if (!this.form.valid) {
       this.form.markAllAsTouched();
+      this.isSubmitting = false;
+      this.isSaveDisabled = false; // Always allow save attempts
       return;
     }
 
@@ -193,10 +204,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     if (incompleteLines.length > 0) {
       this.toastr.error(`Ledger lines ${incompleteLines.join(', ')} are incomplete. All fields (Cost Code, Transaction Type, Description, and Amount) are required.`, CommonMessage.Error);
+      this.isSubmitting = false;
+      this.isSaveDisabled = false; // Always allow save attempts
       return;
     }
-
-    this.isSubmitting = true;
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
@@ -253,25 +264,29 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       ? this.accountingService.createInvoice(invoiceRequest)
       : this.accountingService.updateInvoice(invoiceRequest);
 
-    save$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-      next: () => {
+    save$.pipe(take(1), finalize(() => {
+      this.isSubmitting = false;
+      this.isSaveDisabled = false; // Always allow save attempts
+    })).subscribe({
+      next: (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        // Navigate back to accounting list with officeId and reservationId query parameters
-        const queryParams = this.route.snapshot.queryParams;
-        const officeId = queryParams['officeId'] || formValue.officeId;
-        const reservationId = queryParams['reservationId'];
-        const params: string[] = [];
-        if (officeId) {
-          params.push(`officeId=${officeId}`);
+        
+        // Generate document after successful save
+        const invoiceToUse = savedInvoice || this.invoice;
+        if (invoiceToUse && this.selectedOffice && this.selectedReservation) {
+          // TypeScript narrowing: we've checked these are not null above
+          this.generateInvoiceDocument(invoiceToUse, this.selectedOffice!, this.selectedReservation!).then(() => {
+            // Navigate back after document generation
+            this.navigateBack(formValue);
+          }).catch(() => {
+            // Still navigate even if document generation fails
+            this.navigateBack(formValue);
+          });
+        } else {
+          // Navigate back if we don't have required data for document generation
+          this.navigateBack(formValue);
         }
-        if (reservationId) {
-          params.push(`reservationId=${reservationId}`);
-        }
-        const navigationUrl = params.length > 0 
-          ? `${RouterUrl.AccountingList}?${params.join('&')}`
-          : RouterUrl.AccountingList;
-        this.router.navigateByUrl(navigationUrl);
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -471,8 +486,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       officeName: new FormControl({ value: '', disabled: true }), 
       reservationId: new FormControl(null),
       reservationCode: new FormControl({ value: '', disabled: true }), 
-      startDate: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
-      endDate: new FormControl(lastDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
+      startDate: new FormControl(firstDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
+      endDate: new FormControl(lastDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
@@ -483,6 +498,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
+    
+    // Initialize isSaveDisabled - always allow save attempts
+    this.isSaveDisabled = false;
 
     // Set up startDate change handler to validate endDate and auto-update endDate if month changes
     this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
@@ -502,18 +520,21 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           if (startMonth !== endMonth || startYear !== endYear) {
             const lastDayOfStartMonth = new Date(startYear, startMonth + 1, 0);
             lastDayOfStartMonth.setHours(0, 0, 0, 0);
-            this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+            // Defer the update to avoid change detection errors
+            setTimeout(() => {
+              this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+            }, 0);
           }
         } else {
           // If no endDate, set it to last day of startDate's month
           const lastDayOfStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
           lastDayOfStartMonth.setHours(0, 0, 0, 0);
-          this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+          // Defer the update to avoid change detection errors
+          setTimeout(() => {
+            this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+          }, 0);
         }
       }
-      
-      // Always validate endDate when startDate changes
-      this.form.get('endDate')?.updateValueAndValidity();
     });
   }
 
@@ -590,6 +611,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   setupFormHandlers(): void {
     this.setupOfficeIdHandler();
     this.setupReservationIdHandler();
+    
+    // Update isSaveDisabled - only disable when submitting
+    this.form.statusChanges.subscribe(() => {
+      this.isSaveDisabled = this.isSubmitting;
+    });
     
     // Format initial invoicedAmount, paidAmount, and totalDue display
     setTimeout(() => {
@@ -1053,6 +1079,42 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     
     return null;
+  }
+
+  navigateBack(formValue: any): void {
+    const queryParams = this.route.snapshot.queryParams;
+    const officeId = queryParams['officeId'] || formValue.officeId;
+    const reservationId = queryParams['reservationId'];
+    const params: string[] = [];
+    if (officeId) {
+      params.push(`officeId=${officeId}`);
+    }
+    if (reservationId) {
+      params.push(`reservationId=${reservationId}`);
+    }
+    const navigationUrl = params.length > 0 
+      ? `${RouterUrl.AccountingList}?${params.join('&')}`
+      : RouterUrl.AccountingList;
+    this.router.navigateByUrl(navigationUrl);
+  }
+
+  async generateInvoiceDocument(invoice: InvoiceResponse, office: OfficeResponse, reservation: ReservationListResponse): Promise<void> {
+    if (!invoice || !office || !reservation) {
+      return Promise.reject('Missing required data for document generation');
+    }
+
+    try {
+      // Use the shared invoice document service to generate the document
+      // This uses the same logic as create-invoice component
+      await this.invoiceDocumentService.generateInvoiceDocument({
+        invoice: invoice,
+        office: office,
+        reservation: reservation
+      });
+    } catch (err: any) {
+      this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      return Promise.reject(err);
+    }
   }
   //#endregion
 

@@ -159,48 +159,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   saveWelcomeLetter(): void {
-    if (!this.propertyId) {
-      this.isSubmitting = false;
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formValue = this.form.getRawValue();
-
-    // Create and initialize PropertyHtmlRequest
-    const propertyHtmlRequest: PropertyHtmlRequest = {
-      propertyId: this.propertyId,
-      organizationId: this.authService.getUser()?.organizationId || '',
-      welcomeLetter: formValue.welcomeLetter || '',
-      inspectionChecklist: formValue.inspectionChecklist || '',
-      lease: this.propertyHtml?.lease || '',
-      letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
-      noticeToVacate: this.propertyHtml?.noticeToVacate || '',
-      creditAuthorization: this.propertyHtml?.creditAuthorization || '',
-      creditApplicationBusiness: this.propertyHtml?.creditApplicationBusiness || '',      
-      creditApplicationIndividual: this.propertyHtml?.creditApplicationIndividual || '',
-      invoice: this.propertyHtml?.invoice || '',
-    };
-
-    // Save the HTML using upsert
-    this.propertyHtmlService.upsertPropertyHtml(propertyHtmlRequest).pipe(take(1)).subscribe({
-      next: (response) => {
-        this.propertyHtml = response;
-        this.toastr.success('Welcome letter saved successfully', 'Success');
-        this.isSubmitting = false;
-        this.generatePreviewIframe();
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not save welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-        this.isSubmitting = false;
-      }
-    });
-  }
-
-  saveWelcomeLetterAsDocument(): void {
-    if (!this.selectedOffice) {
+    if (!this.selectedOffice || !this.selectedReservation) {
+      this.toastr.warning('Please select an office and reservation to generate the welcome letter', 'Missing Selection');
       this.isSubmitting = false;
       return;
     }
@@ -212,9 +172,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.previewIframeHtml,
       this.previewIframeStyles
     );
-    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
-    const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-    
+
+    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization.organizationId,
@@ -222,7 +181,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       officeName: this.selectedOffice.name,
       propertyId: this.propertyId || null,
       reservationId: this.selectedReservation?.reservationId || null,
-      documentType: DocumentType.PropertyLetter,
+      documentTypeId: Number(DocumentType.PropertyLetter),
       fileName: fileName
     };
 
@@ -751,8 +710,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onDownload(): Promise<void> {
-    const reservationCode = this.selectedReservation?.reservationCode?.replace(/-/g, '') || '';
-    const fileName = `Letter_${reservationCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,

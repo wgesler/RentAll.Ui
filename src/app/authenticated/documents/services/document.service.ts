@@ -28,9 +28,9 @@ export class DocumentService {
   }
 
   // GET: Get documents by office ID
-  getDocumentsByOffice(officeId: number): Observable<DocumentResponse[]> {
-    return this.http.get<DocumentResponse[]>(this.controller + 'office/' + officeId);
-  }
+  // getDocumentsByOffice(officeId: number): Observable<DocumentResponse[]> {
+  //   return this.http.get<DocumentResponse[]>(this.controller + 'office/' + officeId);
+  // }
 
   // GET: Get documents by property ID and type
   getByPropertyType(propertyId: string, id: number): Observable<DocumentResponse[]> {
@@ -64,35 +64,12 @@ export class DocumentService {
 
   // POST: Generate and download PDF from HTML (server-side) - returns Blob for download
   generateDownload(dto: GenerateDocumentFromHtmlDto): Observable<Blob> {
-    // Convert DocumentType enum to DocumentTypeId (number) for API
-    const requestBody = {
-      htmlContent: dto.htmlContent,
-      organizationId: dto.organizationId,
-      officeId: dto.officeId,
-      officeName: dto.officeName,
-      propertyId: dto.propertyId || null,
-      reservationId: dto.reservationId || null,
-      documentTypeId: Number(dto.documentType), // Explicitly convert enum to number
-      fileName: dto.fileName
-    };
-    return this.http.post(this.controller + 'generate-download', requestBody, { responseType: 'blob' });
+    return this.http.post(this.controller + 'generate-download', dto, { responseType: 'blob' });
   }
 
   // POST: Generate document from HTML and save to server (server-side) - returns DocumentResponse
   generate(dto: GenerateDocumentFromHtmlDto): Observable<DocumentResponse> {
-    // Convert DocumentType enum to DocumentTypeId (number) for API
-    const requestBody = {
-      htmlContent: dto.htmlContent,
-      organizationId: dto.organizationId,
-      officeId: dto.officeId,
-      officeName: dto.officeName,
-      propertyId: dto.propertyId || null,
-      reservationId: dto.reservationId || null,
-      documentTypeId: Number(dto.documentType), // Explicitly convert enum to number
-      fileName: dto.fileName
-    };
-    return this.http.post<DocumentResponse>(this.controller + 'generate', requestBody);
+    return this.http.post<DocumentResponse>(this.controller + 'generate', dto);
   }
-
 }
 

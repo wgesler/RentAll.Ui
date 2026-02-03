@@ -79,7 +79,7 @@ export abstract class BaseDocumentComponent {
       officeName: config.selectedOffice.name,
       propertyId: config.propertyId || null,
       reservationId: config.selectedReservation?.reservationId || null,
-      documentType: downloadConfig.documentType,
+      documentTypeId: Number(downloadConfig.documentType), 
       fileName: downloadConfig.fileName
     };
 

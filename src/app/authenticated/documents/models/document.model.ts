@@ -69,7 +69,6 @@ export interface DocumentListDisplay {
   modifiedBy: string;
   documentTypeName?: string;
   canView?: boolean; // Whether document can be viewed in browser
-  office?: string; // Office name for display
 }
 
 export interface GenerateDocumentFromHtmlDto {
@@ -79,7 +78,8 @@ export interface GenerateDocumentFromHtmlDto {
   officeName: string;
   propertyId?: string | null;
   reservationId?: string | null;
-  documentType: DocumentType;
+  documentTypeId: DocumentType;
   fileName: string;
 }
+
 
