@@ -158,8 +158,9 @@ export enum Frequency {
   Weekly = 2,
   EOW = 3,
   Monthly = 4,
-  BiAnnually = 5,
-  Annually = 6
+  Quarterly = 5,
+  BiAnnually = 6,
+  Annually = 7
 }
 
 export function getFrequency(frequencyId: number | undefined): string {
@@ -171,6 +172,7 @@ export function getFrequency(frequencyId: number | undefined): string {
     [Frequency.Weekly]: 'Weekly',
     [Frequency.EOW]: 'EOW',
     [Frequency.Monthly]: 'Monthly',
+    [Frequency.Quarterly]: 'Quarterly',
     [Frequency.BiAnnually]: 'Bi-Annually',
     [Frequency.Annually]: 'Annually'
   };
@@ -186,6 +188,7 @@ export function getFrequencies(): { value: number, label: string }[] {
     { value: Frequency.Weekly, label: getFrequency(Frequency.Weekly) },
     { value: Frequency.EOW, label: getFrequency(Frequency.EOW) },
     { value: Frequency.Monthly, label: getFrequency(Frequency.Monthly) },
+    { value: Frequency.Quarterly, label: getFrequency(Frequency.Quarterly) },
     { value: Frequency.BiAnnually, label: getFrequency(Frequency.BiAnnually) },
     { value: Frequency.Annually, label: getFrequency(Frequency.Annually) }
   ];

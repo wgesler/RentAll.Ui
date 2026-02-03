@@ -142,11 +142,11 @@
                   <div class="flex gap-2">
                     <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
                       class="scale-90 text-nowrap flex-shrink-0">
-                      Get Lines
+                      {{ isAddMode ? 'Get Charges' : 'Get Lines' }}
                     </button>
                     <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
                       class="scale-90 text-nowrap flex-shrink-0">
-                      Add Line
+                      {{ isAddMode ? 'Add Charge' : 'Add Line' }}
                     </button>
                   </div>
                 </div>
