@@ -21,7 +21,6 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
-import { InvoiceDocumentService } from '../services/invoice-document.service';
 
 @Component({
   selector: 'app-invoice',
@@ -81,8 +80,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
-    private utilityService: UtilityService,
-    private invoiceDocumentService: InvoiceDocumentService
+    private utilityService: UtilityService
   ) {
   }
 
@@ -1103,24 +1101,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(navigationUrl);
   }
 
-  async generateInvoiceDocument(invoice: InvoiceResponse, office: OfficeResponse, reservation: ReservationListResponse): Promise<void> {
-    if (!invoice || !office || !reservation) {
-      return Promise.reject('Missing required data for document generation');
-    }
-
-    try {
-      // Use the shared invoice document service to generate the document
-      // This uses the same logic as create-invoice component
-      await this.invoiceDocumentService.generateInvoiceDocument({
-        invoice: invoice,
-        office: office,
-        reservation: reservation
-      });
-    } catch (err: any) {
-      this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-      return Promise.reject(err);
-    }
-  }
   //#endregion
 
    //#region Utility Methods

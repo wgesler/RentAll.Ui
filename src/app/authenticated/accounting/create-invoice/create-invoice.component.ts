@@ -14,7 +14,7 @@ import { AccountingService } from '../services/accounting.service';
 import { InvoiceResponse } from '../models/invoice.model';
 import { PropertyService } from '../../property/services/property.service';
 import { PropertyResponse } from '../../property/models/property.model';
-import { BehaviorSubject, Observable, map, finalize, take, filter, Subscription, forkJoin, of } from 'rxjs';
+import { BehaviorSubject, Observable, map, finalize, take, filter, Subscription, forkJoin, of, firstValueFrom } from 'rxjs';
 import { HttpErrorResponse, HttpClient } from '@angular/common/http';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ToastrService } from 'ngx-toastr';
@@ -40,7 +40,6 @@ import { CompanyResponse } from '../../company/models/company.model';
 import { CompanyService } from '../../company/services/company.service';
 import { getBillingMethod } from '../../reservation/models/reservation-enum';
 import { RouterUrl } from '../../../app.routes';
-import { InvoiceDocumentService } from '../services/invoice-document.service';
 
 @Component({
   selector: 'app-create-invoice',
@@ -119,8 +118,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     documentHtmlService: DocumentHtmlService,
     private accountingOfficeService: AccountingOfficeService,
     private route: ActivatedRoute,
-    private router: Router,
-    private invoiceDocumentService: InvoiceDocumentService
+    private router: Router
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr);
     this.form = this.buildForm();
@@ -156,8 +154,6 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       // Wait for all items to load before proceeding
       this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
       // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
-      // If we have officeId, reservationId, and invoiceId, skip loading HTML here
-      // as it will be loaded when the invoice is selected
       const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
       if (this.debuggingHtml && !hasAllParams) {
         this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
@@ -224,7 +220,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
   }
 
-  saveInvoice(): void {
+  async saveInvoice(): Promise<void> {
     if (!this.selectedOffice || !this.selectedReservation || !this.selectedInvoice) {
       this.toastr.warning('Please select an office, reservation, and invoice to generate the invoice', 'Missing Selection');
       this.isSubmitting = false;
@@ -232,35 +228,109 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     }
 
     this.isSubmitting = true;
+    try {
+      // Ensure we have all required data
+      await this.ensureAllDataLoaded();
 
-    // Use the shared invoice document service to generate the document
-    // This ensures consistent logic between create-invoice and invoice components
-    this.invoiceDocumentService.generateInvoiceDocument({
-      invoice: this.selectedInvoice,
-      office: this.selectedOffice,
-      reservation: this.selectedReservation,
-      property: this.property || undefined,
-      contact: this.contact || undefined,
-      company: this.company || undefined,
-      accountingOffice: this.selectedAccountingOffice || undefined,
-      organization: this.organization || undefined,
-      propertyHtml: this.propertyHtml || undefined,
-      officeLogo: this.officeLogo || undefined,
-      accountingOfficeLogo: this.accountingOfficeLogo || undefined,
-      orgLogo: this.orgLogo || undefined
-    }).then((documentResponse: DocumentResponse) => {
+      // Check if we have property HTML template
+      if (!this.propertyHtml?.invoice) {
+        throw new Error('Property does not have invoice template');
+      }
+
+      // Process HTML and replace placeholders
+      const processedHtml = this.replacePlaceholders(this.propertyHtml.invoice);
+      const processed = this.documentHtmlService.processHtml(processedHtml, true);
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(processed.processedHtml, processed.extractedStyles);
+
+      // Generate file name
+      const invoiceCode = this.selectedInvoice.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
+      const fileName = this.utilityService.generateDocumentFileName('invoice', invoiceCode);
+
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: this.organization?.organizationId || '',
+        officeId: this.selectedOffice.officeId,
+        officeName: this.selectedOffice.name,
+        propertyId: this.property?.propertyId || null,
+        reservationId: this.selectedReservation.reservationId || null,
+        documentTypeId: Number(DocumentType.Invoice),
+        fileName: fileName
+      };
+
+      const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');
       this.isSubmitting = false;
       this.iframeKey++; // Force iframe refresh
       
       // Trigger document list reload
       this.documentReloadService.triggerReload();
-    }).catch((err: HttpErrorResponse) => {
+    } catch (err: any) {
       this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       console.error('Document save error:', err);
       this.isSubmitting = false;
       this.iframeKey++; // Force iframe refresh
-    });
+    }
+  }
+
+  async ensureAllDataLoaded(): Promise<void> {
+    // Load full reservation if we only have list response
+    if (!('propertyId' in this.selectedReservation!) || !this.selectedReservation.propertyId) {
+      const fullReservation = await firstValueFrom(
+        this.reservationService.getReservationByGuid(this.selectedReservation!.reservationId).pipe(take(1))
+      );
+      this.selectedReservation = fullReservation;
+    }
+
+    const reservation = this.selectedReservation as ReservationResponse;
+
+    // Load property if not provided
+    if (!this.property && reservation.propertyId) {
+      this.property = await firstValueFrom(
+        this.propertyService.getPropertyByGuid(reservation.propertyId).pipe(take(1))
+      );
+    }
+
+    // Load property HTML if not provided
+    if (!this.propertyHtml && reservation.propertyId) {
+      this.propertyHtml = await firstValueFrom(
+        this.propertyHtmlService.getPropertyHtmlByPropertyId(reservation.propertyId).pipe(take(1))
+      );
+    }
+
+    // Load contact if not provided
+    if (!this.contact && reservation.contactId) {
+      const contacts = await firstValueFrom(this.contactService.getAllContacts().pipe(take(1)));
+      this.contact = contacts.find(c => c.contactId === reservation.contactId) || null;
+    }
+
+    // Load company if contact is a company
+    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId && !this.company) {
+      this.company = await firstValueFrom(this.companyService.getCompanyByGuid(this.contact.entityId).pipe(take(1)));
+    }
+
+    // Load accounting office if not provided
+    if (!this.selectedAccountingOffice) {
+      const accountingOffices = await firstValueFrom(this.accountingOfficeService.getAllAccountingOffices().pipe(take(1)));
+      this.selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === this.selectedOffice!.officeId) || null;
+      this.updateAccountingOfficeLogo();
+    }
+
+    // Load organization if not provided
+    if (!this.organization) {
+      this.organization = await firstValueFrom(this.commonService.getOrganization().pipe(take(1)));
+      this.updateOrgLogo();
+    }
+
+    // Ensure logos are updated
+    if (!this.officeLogo) {
+      this.updateOfficeLogo();
+    }
+    if (!this.accountingOfficeLogo && this.selectedAccountingOffice) {
+      this.updateAccountingOfficeLogo();
+    }
+    if (!this.orgLogo && this.organization) {
+      this.updateOrgLogo();
+    }
   }
   //#endregion
 
@@ -1141,6 +1211,12 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+
   goBack(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
@@ -1186,11 +1262,5 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       this.router.navigateByUrl(accountingUrl);
     }
   }
-
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-  //#endregion
+ //#endregion
 }
