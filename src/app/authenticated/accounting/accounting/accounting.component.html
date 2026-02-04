@@ -13,9 +13,11 @@
             [embeddedMode]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
+            [companyId]="selectedCompanyId"
             [source]="'accounting'"
             (officeIdChange)="onInvoiceOfficeChange($event)"
             (reservationIdChange)="onInvoiceReservationChange($event)"
+            (companyIdChange)="onInvoiceCompanyChange($event)"
             (printInvoiceEvent)="onPrintInvoice($event)">
           </app-invoice-list>
         </mat-tab>

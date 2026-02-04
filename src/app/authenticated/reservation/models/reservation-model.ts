@@ -134,16 +134,9 @@ export interface ReservationListDisplay {
   departureDate: string;
   reservationStatusId: number;
   creditDue: number;
-  credit?: boolean;
+  hasCredit?: boolean;
   isActive: boolean;
   createdOn: string;
-}
-
-export interface ReservationPaymentRequest {
-  reservationId: string;
-  costCodeId: number;
-  description: string;
-  amount: number;
 }
 
 

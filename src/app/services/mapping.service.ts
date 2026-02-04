@@ -335,7 +335,7 @@ export class MappingService {
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
         creditDue: o.creditDue,
-        credit: o.creditDue > 0,
+        hasCredit: o.creditDue > 0,
         reservationStatusId: o.reservationStatusId,
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)

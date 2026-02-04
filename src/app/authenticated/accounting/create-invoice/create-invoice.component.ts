@@ -85,6 +85,8 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
   
+  companyId: string | null = null; // Store companyId from query params
+
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   safePreviewIframeHtml: SafeHtml = '';
@@ -137,6 +139,10 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         if (!isNaN(officeId)) {
           this.officeId = officeId;
         }
+      }
+
+      if (queryParams['companyId']) {
+        this.companyId = queryParams['companyId'];
       }
       if (queryParams['reservationId'] && this.reservationId === null) {
         this.reservationId = queryParams['reservationId'];
@@ -1232,30 +1238,32 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
     if (officeId !== null && officeId !== undefined) {
       params.push(`officeId=${officeId}`);
     }
-    if (reservationId !== null && reservationId !== undefined && reservationId !== '') {
-      params.push(`reservationId=${reservationId}`);
-    }
     if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '') {
       params.push(`invoiceId=${invoiceId}`);
     }
     
     // Navigate back based on where we came from
     if (returnTo === 'reservation' && reservationId) {
-      // Return to reservation page, invoices tab (tab=invoices) with all parameters
-      params.push(`tab=invoices`);
+      if (reservationId !== null && reservationId !== undefined && reservationId !== '') 
+        params.push(`reservationId=${reservationId}`);
+     params.push(`tab=invoices`);
       const reservationUrl = params.length > 0 
         ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
         : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
       this.router.navigateByUrl(reservationUrl);
     } else if (returnTo === 'accounting' || !returnTo) {
-      // Return to accounting page, invoices tab (selectedTabIndex=0 is invoices tab) with all parameters
-      // Note: Accounting component uses selectedTabIndex internally, but we can ensure it defaults to invoices tab
+      if (this.companyId) {
+        params.push(`companyId=${this.companyId}`);
+      }
       const accountingUrl = params.length > 0 
         ? `${RouterUrl.AccountingList}?${params.join('&')}`
         : RouterUrl.AccountingList;
       this.router.navigateByUrl(accountingUrl);
     } else {
       // Fallback to accounting list with all parameters
+      if (this.companyId) {
+        params.push(`companyId=${this.companyId}`);
+      }
       const accountingUrl = params.length > 0 
         ? `${RouterUrl.AccountingList}?${params.join('&')}`
         : RouterUrl.AccountingList;

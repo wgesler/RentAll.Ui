@@ -199,7 +199,9 @@
                                     </button>
                                 </span>
                             } @else if (column.isCheckbox) {
-                                <mat-checkbox [checked]="item[column.name]" [class.credit-checked]="column.name === 'credit' && item[column.name]" disabled/>
+                                <mat-checkbox [checked]="item[column.name]" 
+                                  [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]" 
+                                  disabled/>
                             } @else if (column.options?.length) {
                                 @if (item[column.name]?.isOverridable) {
                                     <mat-select [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"

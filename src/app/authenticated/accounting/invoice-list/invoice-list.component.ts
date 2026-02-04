@@ -2,7 +2,7 @@ import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, Ev
 import { CommonModule, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { InvoiceResponse } from '../models/invoice.model';
+import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
 import { AccountingService } from '../services/accounting.service';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
@@ -24,10 +24,10 @@ import { ReservationListResponse } from '../../reservation/models/reservation-mo
 import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { TransactionTypeLabels } from '../models/accounting-enum';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
-import { ReservationPaymentRequest } from '../../reservation/models/reservation-model';
+import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -43,6 +43,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() embeddedMode: boolean = false; // If true, hide header
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
@@ -151,6 +152,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       this.route.queryParams.subscribe(params => {
         const officeIdParam = params['officeId'];
+        const companyIdParam = params['companyId'];
+        
         if (officeIdParam) {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
@@ -164,6 +167,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.filterCostCodes();
             this.filterCompanies();
             this.filterReservations();
+            
+            // Apply companyId from query params if available
+            if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
+              const matchingCompany = this.companies.find(c => 
+                c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+              );
+              if (matchingCompany) {
+                this.selectedCompany = matchingCompany;
+              }
+            }
+            
             // Filter invoices client-side by office
             this.applyFilters();
           }
@@ -172,6 +186,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           if (!this.embeddedMode || this.officeId === null || this.officeId === undefined) {
             this.selectedOffice = null;
             // Show all invoices when no office is selected
+            this.applyFilters();
+          }
+        }
+        
+        // Handle companyId even if officeId is not in params (might be from @Input in embedded mode)
+        if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
+          const matchingCompany = this.companies.find(c => 
+            c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+          );
+          if (matchingCompany && matchingCompany !== this.selectedCompany) {
+            this.selectedCompany = matchingCompany;
             this.applyFilters();
           }
         }
@@ -225,21 +250,28 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+    
+    // Watch for changes to companyId input from parent (including initial load)
+    if (changes['companyId'] && this.embeddedMode) {
+      const newCompanyId = changes['companyId'].currentValue;
+      const previousCompanyId = changes['companyId'].previousValue;
+      
+      // Update if the value changed (including initial load when previousCompanyId is undefined)
+      if (previousCompanyId === undefined || newCompanyId !== previousCompanyId) {
+        // If companies are already loaded, apply immediately; otherwise filterCompanies() will handle it
+        if (this.companies.length > 0 && this.selectedOffice && newCompanyId) {
+          const matchingCompany = this.companies.find(c => 
+            c.companyId === newCompanyId && c.officeId === this.selectedOffice?.officeId
+          ) || null;
+          if (matchingCompany && matchingCompany !== this.selectedCompany) {
+            this.selectedCompany = matchingCompany;
+            this.applyFilters();
+          }
+        }
+      }
+    }
   }
 
-  loadAllInvoices(): void {
-    this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
-      next: (invoices) => {
-        this.allInvoices = invoices || [];
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status === 404) {
-         }
-      }
-    });
-  }
 
   getInvoices(): void {
     if (!this.selectedOffice?.officeId) {
@@ -287,9 +319,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
+      this.zone.run(() => {
+        this.router.navigateByUrl(url + `?${params.join('&')}`);
+      });
     } else {
-      this.router.navigateByUrl(url);
+      this.zone.run(() => {
+        this.router.navigateByUrl(url);
+      });
     }
   }
 
@@ -341,12 +377,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (invoiceId) {
         params.push(`invoiceId=${invoiceId}`);
       }
+      // Include companyId if available
+      const companyIdToUse = this.selectedCompany?.companyId || null;
+      if (companyIdToUse) {
+        params.push(`companyId=${companyIdToUse}`);
+      }
       
       // Navigate to Create Invoice route with all parameters
       const url = params.length > 0 
         ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
         : RouterUrl.CreateInvoice;
-      this.router.navigateByUrl(url);
+      this.zone.run(() => {
+        this.router.navigateByUrl(url);
+      });
     }
   }
 
@@ -357,12 +400,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    const companyIdToUse = this.selectedCompany?.companyId || null;
     
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
     }
     if (reservationIdToUse !== null) {
       params.push(`reservationId=${reservationIdToUse}`);
+    }
+    if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
+      params.push(`companyId=${companyIdToUse}`);
     }
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {
@@ -379,9 +426,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
+      this.zone.run(() => {
+        this.router.navigateByUrl(url + `?${params.join('&')}`);
+      });
     } else {
-      this.router.navigateByUrl(url);
+      this.zone.run(() => {
+        this.router.navigateByUrl(url);
+      });
     }
   }
 
@@ -393,7 +444,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     if (remainingAmount <= 0) {
       // Show dialog that invoice is paid in full
+      const genericDialogConfig: MatDialogConfig = {
+        autoFocus: true,
+        restoreFocus: true,
+        disableClose: false
+      };
       this.dialog.open(GenericModalComponent, {
+        ...genericDialogConfig,
         data: {
           title: 'Invoice Paid in Full',
           message: 'No more payments can be applied to this invoice, it is paid in full.',
@@ -408,85 +465,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       });
     } else {
-      // Navigate to invoice component and add a ledger line
-      const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
-      const params: string[] = [];
-      
-      // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
-      const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-      const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
-      
-      if (officeIdToUse !== null) {
-        params.push(`officeId=${officeIdToUse}`);
-      }
-      if (reservationIdToUse !== null) {
-        params.push(`reservationId=${reservationIdToUse}`);
-      }
-      params.push('addLedgerLine=true');
-      // Add returnTo parameter based on source input (explicit tracking)
-      if (this.source === 'reservation') {
-        params.push(`returnTo=reservation`);
-        params.push(`fromReservation=true`); // Keep for backward compatibility
-      } else if (this.source === 'accounting') {
-        params.push(`returnTo=accounting`);
-      } else if (this.embeddedMode && reservationIdToUse !== null) {
-        // Fallback: if source not set but embedded with reservation, assume reservation
-        params.push(`returnTo=reservation`);
-        params.push(`fromReservation=true`);
-      } else {
-        // Default to accounting
-        params.push(`returnTo=accounting`);
-      }
-      if (params.length > 0) {
-        this.router.navigateByUrl(url + `?${params.join('&')}`);
-      } else {
-        this.router.navigateByUrl(url);
-      }
+      // Open Apply Payment dialog with single invoice GUID
+      this.openApplyPaymentDialogForInvoice(event.invoiceId);
     }
-  }
-
-  openApplyPaymentDialog(): void {
-    if (!this.selectedOffice) {
-      this.toastr.warning('Please select an office first');
-      return;
-    }
-
-    const dialogData: ApplyPaymentDialogData = {
-      costCodes: this.costCodes,
-      transactionTypes: this.transactionTypes,
-      officeId: this.selectedOffice.officeId,
-      reservations: this.availableReservations,
-      selectedReservation: this.selectedReservation
-    };
-
-    const dialogRef = this.dialog.open(ApplyPaymentDialogComponent, {
-      width: '700px',
-      data: dialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: { reservationId: string | null, costCodeId: number | null, description: string, amount: number } | undefined) => {
-      if (result && result.reservationId && result.costCodeId !== null) {
-        const paymentRequest: ReservationPaymentRequest = {
-          reservationId: result.reservationId,
-          costCodeId: result.costCodeId,
-          description: result.description || '',
-          amount: Math.abs(result.amount) // Payment should be positive
-        };
-
-        this.reservationService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
-          next: () => {
-            this.toastr.success(`Payment of $${paymentRequest.amount.toFixed(2)} applied`, CommonMessage.Success);
-            // Refresh invoices to show updated payment amounts
-            if (this.selectedOffice) {
-              this.getInvoices();
-            }
-          },
-          error: (err: HttpErrorResponse) => {
-            this.toastr.error('Failed to apply payment', CommonMessage.Error);
-          }
-        });
-      }
-    });
   }
   //#endregion
 
@@ -567,6 +548,76 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
     // Update isAllExpanded state after filtering
     this.updateIsAllExpanded();
+  }
+
+  filterReservations(): void {
+    if (!this.selectedOffice) {
+      this.availableReservations = [];
+      this.selectedReservation = null;
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
+    
+    // Clear selected reservation if it doesn't belong to the selected office
+    if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
+      this.selectedReservation = null;
+      this.applyFilters();
+    }
+    
+    // In embedded mode, ensure reservationId from @Input is set after filtering
+    if (this.embeddedMode && this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
+      const matchingReservation = this.reservations.find(r => 
+        r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
+      ) || null;
+      if (matchingReservation && matchingReservation !== this.selectedReservation) {
+        this.selectedReservation = matchingReservation;
+        this.applyFilters();
+      }
+    }
+  }
+
+  filterCompanies(): void {
+    if (!this.selectedOffice) {
+      this.availableCompanies = [];
+      this.selectedCompany = null;
+      return;
+    }
+    
+    // Filter companies by office (this doesn't change - always filters by selectedOffice)
+    const filteredCompanies = this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive);
+    this.availableCompanies = filteredCompanies.map(c => ({
+      value: c,
+      label: `${c.companyCode || ''} - ${c.name}`.trim()
+    }));
+    
+    // Clear selected company if it doesn't belong to the selected office
+    if (this.selectedCompany && this.selectedCompany.officeId !== this.selectedOffice.officeId) {
+      this.selectedCompany = null;
+      this.applyFilters();
+    }
+    
+    // After filtering by office, check if there's a companyId to select in the dropdown
+    // This only sets selectedCompany - it doesn't change the filtered list
+    if (this.companies.length > 0 && this.selectedOffice) {
+      const companyIdToApply = this.embeddedMode && this.companyId !== null 
+        ? this.companyId 
+        : this.route.snapshot.queryParams['companyId'];
+      
+      if (companyIdToApply) {
+        const matchingCompany = this.companies.find(c => 
+          c.companyId === companyIdToApply && c.officeId === this.selectedOffice?.officeId
+        );
+        if (matchingCompany && matchingCompany !== this.selectedCompany) {
+          this.selectedCompany = matchingCompany;
+          this.applyFilters();
+        }
+      }
+    }
   }
 
   toggleExpandAll(expanded: boolean): void {
@@ -683,6 +734,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.applyFilters();
           }
         }
+        
+        // If a company is selected, re-apply filters now that reservations are loaded
+        // This ensures company filtering works correctly (it depends on reservations to match contactName)
+        if (this.selectedCompany && this.source === 'accounting') {
+          this.applyFilters();
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.reservations = [];
@@ -694,35 +751,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  filterReservations(): void {
-    if (!this.selectedOffice) {
-      this.availableReservations = [];
-      this.selectedReservation = null;
-      return;
-    }
-    
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: this.utilityService.getReservationLabel(r)
-    }));
-    
-    // Clear selected reservation if it doesn't belong to the selected office
-    if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
-      this.selectedReservation = null;
-      this.applyFilters();
-    }
-    
-    // In embedded mode, ensure reservationId from @Input is set after filtering
-    if (this.embeddedMode && this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
-      const matchingReservation = this.reservations.find(r => 
-        r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
-      ) || null;
-      if (matchingReservation && matchingReservation !== this.selectedReservation) {
-        this.selectedReservation = matchingReservation;
+  loadAllInvoices(): void {
+    this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
+      next: (invoices) => {
+        this.allInvoices = invoices || [];
         this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status === 404) {
+         }
       }
-    }
+    });
   }
 
   loadCostCodes(): void {
@@ -750,25 +790,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  filterCompanies(): void {
-    if (!this.selectedOffice) {
-      this.availableCompanies = [];
-      this.selectedCompany = null;
-      return;
-    }
-    
-    const filteredCompanies = this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive);
-    this.availableCompanies = filteredCompanies.map(c => ({
-      value: c,
-      label: `${c.companyCode || ''} - ${c.name}`.trim()
-    }));
-    
-    // Clear selected company if it doesn't belong to the selected office
-    if (this.selectedCompany && this.selectedCompany.officeId !== this.selectedOffice.officeId) {
-      this.selectedCompany = null;
-      this.applyFilters();
-    }
-  }
   //#endregion
 
   //#region Form Response Methods
@@ -884,6 +905,144 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ledgerLinesDisplayedColumns: this.ledgerLinesDisplayedColumns,
       ledgerLineColumnNames: Object.keys(this.ledgerLinesDisplayedColumns)
     };
+  }
+  //#endregion
+
+  //#region Payment Dialog Methods
+  openApplyPaymentDialogForInvoice(invoiceId: string): void {
+    if (!this.selectedOffice) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    if (!invoiceId) {
+      this.toastr.warning('Invalid invoice ID');
+      return;
+    }
+
+    this.openApplyPaymentDialogInternal([invoiceId]);
+  }
+
+  openApplyPaymentDialog(): void {
+    if (!this.selectedOffice) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    // Get list of visible invoice IDs from invoicesDisplay
+    const visibleInvoiceIds: string[] = this.invoicesDisplay
+      .map(invoice => invoice.invoiceId)
+      .filter((id): id is string => id !== null && id !== undefined && id !== '');
+
+    if (visibleInvoiceIds.length === 0) {
+      this.toastr.warning('No invoices available to apply payment to');
+      return;
+    }
+
+    this.openApplyPaymentDialogInternal(visibleInvoiceIds);
+  }
+
+  openApplyPaymentDialogInternal(invoiceIds: string[]): void {
+    const dialogData: ApplyPaymentDialogData = {
+      costCodes: this.costCodes,
+      transactionTypes: this.transactionTypes,
+      officeId: this.selectedOffice.officeId,
+    };
+
+    const dialogConfig: MatDialogConfig = {
+      width: '700px',
+      data: dialogData,
+      autoFocus: true,
+      restoreFocus: true,
+      disableClose: false
+    };
+    const dialogRef = this.dialog.open(ApplyPaymentDialogComponent, dialogConfig);
+
+    dialogRef.afterClosed().subscribe((result: { costCodeId: number | null, description: string, amount: number } | undefined) => {
+      if (result && result.costCodeId !== null) {
+        this.handlePaymentDialogResult(result, invoiceIds);
+      }
+    });
+  }
+
+  handlePaymentDialogResult(result: { costCodeId: number | null, description: string, amount: number }, invoiceIds: string[]): void {
+    const paymentRequest: InvoicePaymentRequest = {
+      costCodeId: result.costCodeId,
+      description: result.description || '',
+      amount: Math.abs(result.amount), // Payment should be positive
+      invoices: invoiceIds
+    };
+
+    this.accountingService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
+      next: (response: InvoicePaymentResponse) => {
+        this.handlePaymentResponse(response, paymentRequest);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error('Failed to apply payment', CommonMessage.Error);
+      }
+    });
+  }
+
+  handlePaymentResponse(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
+    this.toastr.success(`Payment of $${this.formatter.currency(paymentRequest.amount)} applied`, CommonMessage.Success);
+    response.invoices.forEach(i => {
+      const invoice = this.allInvoices.find(r => r.invoiceId === i.invoiceId);
+      if (invoice) {
+        invoice.paidAmount = i.paidAmount;
+      }
+    });
+    
+    // Check if there's a credit amount remaining
+    if (response.creditRemaining > 0) {
+      this.openCreditDialog(response, paymentRequest);
+    }
+    
+    // Refresh the display to show updated paid amounts
+    this.applyFilters();
+  }
+
+  openCreditDialog(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
+    // Get unique reservationIds from the invoices in the response
+    const reservationIds = [...new Set(response.invoices
+      .map(inv => inv.reservationId)
+      .filter((id): id is string => id !== null && id !== undefined && id !== ''))];
+    
+    // Filter reservations to only include those from the response invoices
+    const availableReservationsForCredit = this.reservations
+      .filter(r => reservationIds.includes(r.reservationId))
+      .map(r => ({
+        value: r,
+        label: this.utilityService.getReservationLabel(r)
+      }));
+    
+    // Get the invoice ID from the response (use first invoice that has the credit)
+    const invoiceIdWithCredit = response.invoices.length > 0 ? response.invoices[0].invoiceId : null;
+    
+    if (availableReservationsForCredit.length > 0 && invoiceIdWithCredit) {
+      const creditDialogData: ApplyCreditDialogData = {
+        creditAmount: response.creditRemaining,
+        reservations: availableReservationsForCredit,
+        invoiceId: invoiceIdWithCredit,
+        costCodeId: paymentRequest.costCodeId,
+        description: paymentRequest.description
+      };
+      
+      const creditDialogConfig: MatDialogConfig = {
+        width: '500px',
+        data: creditDialogData,
+        autoFocus: true,
+        restoreFocus: true,
+        disableClose: false
+      };
+      const creditDialogRef = this.dialog.open(ApplyCreditDialogComponent, creditDialogConfig);
+      
+      creditDialogRef.afterClosed().subscribe((creditResult: { success: boolean } | undefined) => {
+        if (creditResult?.success) {
+          // Refresh invoices to show updated paid amounts
+          this.applyFilters();
+        }
+      });
+    }
   }
   //#endregion
 

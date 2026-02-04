@@ -63,10 +63,24 @@ export interface InvoiceMonthlyDataRequest {
   startDate: string;
   endDate: string;
 }
+
 export interface InvoiceMonthlyDataResponse {
   invoice: string;
   reservationId: string;
   ledgerLines: LedgerLineResponse[];
+}
+
+
+export interface InvoicePaymentRequest {
+  costCodeId: number;
+  description: string;
+  amount: number;
+  invoices: string[];
+}
+
+export interface InvoicePaymentResponse {
+  invoices: InvoiceResponse[];
+  creditRemaining: number;
 }
 
 // LedgerLine models

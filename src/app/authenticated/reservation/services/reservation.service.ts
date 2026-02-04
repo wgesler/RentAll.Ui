@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { ReservationRequest, ReservationResponse, ReservationListResponse, ReservationPaymentRequest } from '../models/reservation-model';
+import { ReservationRequest, ReservationResponse, ReservationListResponse } from '../models/reservation-model';
 
 @Injectable({
   providedIn: 'root'
@@ -49,11 +49,6 @@ export class ReservationService {
   // DELETE: Delete reservation
   deleteReservation(reservationId: string): Observable<void> {
     return this.http.delete<void>(this.controller + reservationId);
-  }
-
-  // PUT: Apply payment to reservation
-  applyPayment(payment: ReservationPaymentRequest): Observable<void> {
-    return this.http.put<void>(this.controller + 'payment', payment);
   }
 }
 

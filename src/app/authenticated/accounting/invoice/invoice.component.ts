@@ -48,6 +48,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   reservationIdSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
   
+  companyId: string | null = null; // Store companyId from query params
+  
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes:CostCodesResponse[] = [];
   debitCostCodes: CostCodesResponse[] = [];
@@ -65,67 +67,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
-  get isSaveDisabled(): boolean {
-    if (this.isSubmitting || this.ledgerLines.length === 0) {
-      return true;
-    }
-    
-    if (this.isAddMode) {
-      return false;
-    }
-    
-    return !this.hasChanges();
-  }
 
-  hasChanges(): boolean {
-    if (this.hasLedgerLinesChanged()) {
-      return true;
-    }
-    
-    // Check if notes have changed
-    const currentNotes = this.form.get('notes')?.value || null;
-    const normalizedCurrentNotes = currentNotes === '' ? null : currentNotes;
-    const normalizedOriginalNotes = this.originalNotes === '' ? null : this.originalNotes;
-    
-    if (normalizedCurrentNotes !== normalizedOriginalNotes) {
-      return true;
-    }
-    
-    return false;
-  }
-
-  hasLedgerLinesChanged(): boolean {
-    // In add mode, if there are no original lines, any lines are considered a change
-    if (this.isAddMode && this.originalLedgerLines.length === 0) {
-      return this.ledgerLines.length > 0;
-    }
-    
-    // Compare current ledger lines with original
-    if (this.ledgerLines.length !== this.originalLedgerLines.length) {
-      return true; // Lines added or removed
-    }
-    
-    // Deep comparison of each line
-    for (let i = 0; i < this.ledgerLines.length; i++) {
-      const current = this.ledgerLines[i];
-      const original = this.originalLedgerLines[i];
-      
-      if (!original) {
-        return true; // New line added
-      }
-      
-      // Compare key fields
-      if (current.ledgerLineId !== original.ledgerLineId ||
-          current.costCodeId !== original.costCodeId ||
-          (current as any).transactionTypeId !== (original as any).transactionTypeId ||
-          current.description !== original.description ||
-          current.amount !== original.amount) {
-        return true; // Line modified
-      }
-    }
-    
-    return false; // No changes detected
-  }
 
   constructor(
     public accountingService: AccountingService,
@@ -185,6 +127,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   processQueryParams(queryParams: any): void {
     const officeIdParam = queryParams['officeId'];
     const reservationIdParam = queryParams['reservationId'];
+    const companyIdParam = queryParams['companyId'];
+    
+    // Store companyId from query params
+    if (companyIdParam) {
+      this.companyId = companyIdParam;
+    }
+    
     if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
       const parsedOfficeId = parseInt(officeIdParam, 10);
       if (parsedOfficeId) {
@@ -207,6 +156,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   getInvoice(): void {
     // Form is already built and handlers are set up before this is called
+    // Read companyId from query params for edit mode
+    const companyIdParam = this.route.snapshot.queryParams['companyId'];
+    if (companyIdParam) {
+      this.companyId = companyIdParam;
+    }
+    
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
@@ -343,6 +298,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           }
           if (invoiceToUse.invoiceId) {
             params.push(`invoiceId=${invoiceToUse.invoiceId}`);
+          }
+          // Include companyId if it was passed in (from accounting-list)
+          if (this.companyId) {
+            params.push(`companyId=${this.companyId}`);
           }
           
           // Navigate to create-invoice component
@@ -961,6 +920,68 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       }
     }, 0);
   }
+
+  get isSaveDisabled(): boolean {
+    if (this.isSubmitting || this.ledgerLines.length === 0) {
+      return true;
+    }
+    
+    if (this.isAddMode) {
+      return false;
+    }
+    
+    return !this.hasChanges();
+  }
+
+  hasChanges(): boolean {
+    if (this.hasLedgerLinesChanged()) {
+      return true;
+    }
+    
+    // Check if notes have changed
+    const currentNotes = this.form.get('notes')?.value || null;
+    const normalizedCurrentNotes = currentNotes === '' ? null : currentNotes;
+    const normalizedOriginalNotes = this.originalNotes === '' ? null : this.originalNotes;
+    
+    if (normalizedCurrentNotes !== normalizedOriginalNotes) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  hasLedgerLinesChanged(): boolean {
+    // In add mode, if there are no original lines, any lines are considered a change
+    if (this.isAddMode && this.originalLedgerLines.length === 0) {
+      return this.ledgerLines.length > 0;
+    }
+    
+    // Compare current ledger lines with original
+    if (this.ledgerLines.length !== this.originalLedgerLines.length) {
+      return true; // Lines added or removed
+    }
+    
+    // Deep comparison of each line
+    for (let i = 0; i < this.ledgerLines.length; i++) {
+      const current = this.ledgerLines[i];
+      const original = this.originalLedgerLines[i];
+      
+      if (!original) {
+        return true; // New line added
+      }
+      
+      // Compare key fields
+      if (current.ledgerLineId !== original.ledgerLineId ||
+          current.costCodeId !== original.costCodeId ||
+          (current as any).transactionTypeId !== (original as any).transactionTypeId ||
+          current.description !== original.description ||
+          current.amount !== original.amount) {
+        return true; // Line modified
+      }
+    }
+    
+    return false; // No changes detected
+  }
   //#endregion
 
   //#region Ledger Lines
@@ -1159,14 +1180,14 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   navigateBack(formValue: any): void {
     const queryParams = this.route.snapshot.queryParams;
     const officeId = queryParams['officeId'] || formValue.officeId;
-    const reservationId = queryParams['reservationId'];
     const params: string[] = [];
     if (officeId) {
       params.push(`officeId=${officeId}`);
     }
-    if (reservationId) {
-      params.push(`reservationId=${reservationId}`);
+    if (this.companyId) {
+      params.push(`companyId=${this.companyId}`);
     }
+    
     const navigationUrl = params.length > 0 
       ? `${RouterUrl.AccountingList}?${params.join('&')}`
       : RouterUrl.AccountingList;
@@ -1192,26 +1213,25 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
     if (!officeId && this.invoice && this.invoice.officeId) {
       officeId = this.invoice.officeId.toString();
-    }
- 
+    } 
     if (officeId) {
       params.push(`officeId=${officeId}`);
     }
 
-    if (reservationId) {
-      params.push(`reservationId=${reservationId}`);
-    }
-    
     // Navigate back based on where we came from
     if (returnTo === 'reservation' && reservationId) {
-      // Return to reservation page, invoices tab
+      if (reservationId) {
+        params.push(`reservationId=${reservationId}`);
+      }      
       params.push(`tab=invoices`);
       const reservationUrl = params.length > 0 
         ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
         : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
       this.router.navigateByUrl(reservationUrl);
     } else if (returnTo === 'accounting' || !returnTo) {
-      // Return to accounting page (defaults to invoices tab at index 0)
+      if (this.companyId) {
+        params.push(`companyId=${this.companyId}`);
+      }
       if (params.length > 0) {
         this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
       } else {

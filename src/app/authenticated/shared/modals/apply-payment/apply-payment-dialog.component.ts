@@ -4,15 +4,12 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 import { FormsModule } from '@angular/forms';
 import { CostCodesResponse } from '../../../accounting/models/cost-codes.model';
-import { ReservationListResponse } from '../../../reservation/models/reservation-model';
 import { TransactionType } from '../../../accounting/models/accounting-enum';
 
 export interface ApplyPaymentDialogData {
   costCodes: CostCodesResponse[];
   transactionTypes: { value: number, label: string }[];
   officeId: number;
-  reservations: { value: ReservationListResponse, label: string }[];
-  selectedReservation?: ReservationListResponse | null;
 }
 
 @Component({
@@ -29,8 +26,6 @@ export class ApplyPaymentDialogComponent implements OnInit {
   description: string = '';
   amount: number = 0;
   amountDisplay: string = '0.00';
-  selectedReservation: ReservationListResponse | null = null;
-  availableReservations: { value: ReservationListResponse, label: string }[] = [];
   
   creditCostCodes: { value: number, label: string }[] = [];
   
@@ -47,16 +42,6 @@ export class ApplyPaymentDialogComponent implements OnInit {
         value: parseInt(c.costCodeId, 10),
         label: `${c.costCode}: ${c.description}`
       }));
-    
-    // Set available reservations from dialog data
-    this.availableReservations = this.data.reservations || [];
-    
-    // Set selected reservation if provided
-    this.selectedReservation = this.data.selectedReservation || null;
-  }
-  
-  onReservationChange(reservation: ReservationListResponse | null): void {
-    this.selectedReservation = reservation;
   }
   
   onCostCodeChange(costCodeId: number | null): void {
@@ -144,13 +129,8 @@ export class ApplyPaymentDialogComponent implements OnInit {
       return; // Should show validation error
     }
     
-    if (!this.selectedReservation?.reservationId) {
-      return; // Should show validation error - reservation is required
-    }
-    
     // Return the payment data for the network call
     this.dialogRef.close({
-      reservationId: this.selectedReservation.reservationId,
       costCodeId: this.selectedCostCodeId,
       description: this.description || '',
       amount: this.amount

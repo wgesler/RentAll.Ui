@@ -1,0 +1,50 @@
+<div class="flex flex-col">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      Apply Credit
+    </span>
+    <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  
+  <mat-dialog-content class="flex-shrink-0 w-full p-6">
+    <div class="grid grid-cols-1 gap-4">
+      <!-- Message -->
+      <div class="mb-2">
+        <p class="text-base">There is a credit remaining from the payment, to which reservation should it be applied?</p>
+      </div>
+      
+      <!-- Credit Amount (Read-only) -->
+      <mat-form-field appearance="outline">
+        <mat-label>Credit Amount</mat-label>
+        <input matInput [value]="creditAmount.toFixed(2)" readonly>
+      </mat-form-field>
+      
+      <!-- Reservation -->
+      <mat-form-field appearance="outline">
+        <mat-label>Reservation</mat-label>
+        <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange($event.value)" required>
+          <mat-option [value]="null">Select Reservation</mat-option>
+          @for (reservation of availableReservations; track reservation.value.reservationId) {
+            <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </mat-dialog-content>
+  
+  <mat-divider class="flex-shrink-0 w-full"/>
+  
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button color="accent" (click)="cancel()" [disabled]="isSubmitting" id="cancel">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" (click)="apply()" [disabled]="!isFormValid" id="apply" [attr.cdkFocusInitial]="isFormValid ? '' : null">
+      @if (isSubmitting) {
+        <mat-spinner diameter="20" class="inline-block mr-2"></mat-spinner>
+      }
+      Apply
+    </button>
+  </div>
+</div>

@@ -39,6 +39,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null; // Shared office selection state
   selectedReservationId: string | null = null; // Shared reservation selection state
   selectedInvoiceId: string | null = null; // Shared invoice selection state
+  selectedCompanyId: string | null = null; // Shared company selection state
   
   // Cost Codes controls
   showInactiveCostCodes: boolean = false;
@@ -59,6 +60,30 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadOffices();
+    
+    // Read initial query params immediately (before subscription) so invoice-list gets companyId on first render
+    const initialParams = this.route.snapshot.queryParams;
+    if (initialParams['officeId']) {
+      const officeId = parseInt(initialParams['officeId'], 10);
+      if (!isNaN(officeId)) {
+        this.selectedOfficeId = officeId;
+      }
+    }
+    if (initialParams['companyId']) {
+      this.selectedCompanyId = initialParams['companyId'];
+    }
+    if (initialParams['reservationId']) {
+      this.selectedReservationId = initialParams['reservationId'];
+    }
+    if (initialParams['invoiceId']) {
+      this.selectedInvoiceId = initialParams['invoiceId'];
+    }
+    if (initialParams['tab']) {
+      const tabIndex = parseInt(initialParams['tab'], 10);
+      if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3) {
+        this.selectedTabIndex = tabIndex;
+      }
+    }
     
     // Check query params for tab selection and filters (subscribe to changes, not just initial)
     this.route.queryParams.subscribe(params => {
@@ -84,6 +109,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
         const invoiceId = params['invoiceId'];
         if (this.selectedInvoiceId !== invoiceId) {
           this.selectedInvoiceId = invoiceId;
+        }
+      }
+      if (params['companyId']) {
+        const companyId = params['companyId'];
+        if (this.selectedCompanyId !== companyId) {
+          this.selectedCompanyId = companyId;
         }
       }
     });
@@ -114,6 +145,9 @@ export class AccountingComponent implements OnInit, OnDestroy {
     if (this.selectedInvoiceId) {
       queryParams.invoiceId = this.selectedInvoiceId;
     }
+    if (this.selectedCompanyId) {
+      queryParams.companyId = this.selectedCompanyId;
+    }
     this.router.navigate([], { 
       relativeTo: this.route,
       queryParams,
@@ -141,6 +175,31 @@ export class AccountingComponent implements OnInit, OnDestroy {
       if (this.accountingDocumentList) {
         this.accountingDocumentList.reload();
       }
+    }
+  }
+
+  onInvoiceCompanyChange(companyId: string | null): void {
+    if (this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
+      // Update URL query params to include companyId
+      const queryParams: any = { tab: this.selectedTabIndex.toString() };
+      if (this.selectedOfficeId) {
+        queryParams.officeId = this.selectedOfficeId.toString();
+      }
+      if (this.selectedReservationId) {
+        queryParams.reservationId = this.selectedReservationId;
+      }
+      if (this.selectedInvoiceId) {
+        queryParams.invoiceId = this.selectedInvoiceId;
+      }
+      if (this.selectedCompanyId) {
+        queryParams.companyId = this.selectedCompanyId;
+      }
+      this.router.navigate([], { 
+        relativeTo: this.route,
+        queryParams,
+        queryParamsHandling: 'merge'
+      });
     }
   }
 
@@ -177,7 +236,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
     // Navigate to Create Invoice page (standalone route)
-    // Always include officeId, invoiceId, and reservationId if available
+    // Always include officeId, invoiceId, reservationId, and companyId if available
     const params: string[] = [];
     
     // Add returnTo parameter to track where we came from
@@ -191,6 +250,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     if (event.invoiceId) {
       params.push(`invoiceId=${event.invoiceId}`);
+    }
+    // Include companyId if available
+    if (this.selectedCompanyId) {
+      params.push(`companyId=${this.selectedCompanyId}`);
     }
     
     // Navigate to the Create Invoice route with all parameters
