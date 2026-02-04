@@ -21,6 +21,9 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
+import { InvoicePaymentRequest } from '../models/invoice.model';
 
 @Component({
   selector: 'app-invoice',
@@ -81,7 +84,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private dialog: MatDialog
   ) {
   }
 
@@ -194,6 +198,145 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Check for credit before saving (only in add mode)
+    if (this.isAddMode && this.selectedReservation && this.selectedReservation.creditDue > 0) {
+      this.isSubmitting = false;
+      this.checkAndApplyCredit();
+      return;
+    }
+
+    this.performSave();
+  }
+
+  async checkAndApplyCredit(): Promise<void> {
+    if (!this.selectedReservation || !this.selectedOffice) {
+      this.performSave();
+      return;
+    }
+
+    const creditAmount = this.selectedReservation.creditDue || 0;
+    if (creditAmount <= 0) {
+      this.performSave();
+      return;
+    }
+
+    // Blur any focused element to prevent aria-hidden warning
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Load cost codes for the office
+    try {
+      await firstValueFrom(
+        this.costCodesService.areCostCodesLoaded().pipe(
+          filter(loaded => loaded === true),
+          take(1)
+        )
+      );
+    } catch (err: any) {
+      this.toastr.error('Failed to load cost codes', CommonMessage.Error);
+      this.performSave();
+      return;
+    }
+
+    // Show ApplyCreditDialogComponent with the reservation pre-selected
+    const dialogConfig: MatDialogConfig = {
+      width: '500px',
+      autoFocus: true,
+      restoreFocus: true,
+      disableClose: false,
+      hasBackdrop: true
+    };
+
+    // Get cost code for payment
+    const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+    const paymentCostCode = costCodes.find(
+      c => c.isActive && c.transactionTypeId === TransactionType.Payment
+    );
+
+    if (!paymentCostCode) {
+      this.toastr.warning('No payment cost code found for this office. Cannot apply credit.', 'Missing Cost Code');
+      this.performSave();
+      return;
+    }
+
+    const costCodeId = parseInt(paymentCostCode.costCodeId, 10);
+    if (isNaN(costCodeId)) {
+      this.toastr.warning('Invalid cost code. Cannot apply credit.', 'Invalid Cost Code');
+      this.performSave();
+      return;
+    }
+
+    // Create dialog data - use temporary invoice ID that will be replaced after creation
+    const creditDialogData: ApplyCreditDialogData = {
+      creditAmount: creditAmount,
+      reservations: [{
+        value: this.selectedReservation,
+        label: this.utilityService.getReservationLabel(this.selectedReservation)
+      }],
+      invoiceId: '', // Will be set after invoice creation
+      costCodeId: costCodeId,
+      description: 'Credit applied from reservation'
+    };
+
+    const dialogRef = this.dialog.open(ApplyCreditDialogComponent, {
+      ...dialogConfig,
+      data: creditDialogData
+    });
+
+    // Pre-select the reservation in the dialog
+    setTimeout(() => {
+      // The dialog will have the reservation pre-selected since it's the only one in the list
+    }, 0);
+
+    dialogRef.afterClosed().subscribe(async (result: { success: boolean } | undefined) => {
+      if (result?.success) {
+        // User clicked Apply - store credit info to apply after invoice creation
+        (this as any).pendingCredit = {
+          costCodeId: costCodeId,
+          amount: creditAmount,
+          description: 'Credit applied from reservation'
+        };
+      }
+      // Continue with save after dialog closes
+      this.performSave();
+    });
+  }
+
+  async applyPendingCredit(invoiceId: string): Promise<void> {
+    const pendingCredit = (this as any).pendingCredit;
+    if (!pendingCredit || !invoiceId) {
+      return;
+    }
+
+    try {
+      const paymentRequest: InvoicePaymentRequest = {
+        costCodeId: pendingCredit.costCodeId,
+        description: pendingCredit.description,
+        amount: Math.abs(pendingCredit.amount),
+        invoices: [invoiceId]
+      };
+
+      await firstValueFrom(
+        this.accountingService.applyPayment(paymentRequest).pipe(take(1))
+      );
+
+      this.toastr.success(`Credit of $${this.formatter.currency(pendingCredit.amount)} applied`, CommonMessage.Success);
+      
+      // Clear pending credit
+      (this as any).pendingCredit = null;
+    } catch (err: any) {
+      if (err.status !== 400) {
+        this.toastr.error('Failed to apply credit', CommonMessage.Error);
+      }
+      // Clear pending credit even on error
+      (this as any).pendingCredit = null;
+    }
+  }
+
+  performSave(): void {
+    this.isSubmitting = true;
+
     if (this.ledgerLines.length === 0) {
       this.toastr.error('At least one ledger line is required', CommonMessage.Error);
       return;
@@ -276,9 +419,14 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     save$.pipe(take(1), finalize(() => {
       this.isSubmitting = false;
     })).subscribe({
-      next: (savedInvoice: InvoiceResponse) => {
+      next: async (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        
+        // Apply pending credit if it exists (only for newly created invoices)
+        if (isCreating && savedInvoice?.invoiceId) {
+          await this.applyPendingCredit(savedInvoice.invoiceId);
+        }
         
         // Navigate to create-invoice component to generate the document
         const invoiceToUse = savedInvoice || this.invoice;

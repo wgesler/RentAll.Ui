@@ -33,6 +33,7 @@ export class ApplyCreditDialogComponent implements OnInit {
   selectedReservation: ReservationListResponse | null = null;
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   isSubmitting: boolean = false;
+  message: string = '';
   
   constructor(
     public dialogRef: MatDialogRef<ApplyCreditDialogComponent>,
@@ -46,6 +47,18 @@ export class ApplyCreditDialogComponent implements OnInit {
   ngOnInit(): void {
     this.creditAmount = this.data.creditAmount || 0;
     this.availableReservations = this.data.reservations || [];
+    
+    // If only one reservation, pre-select it
+    if (this.availableReservations.length === 1) {
+      this.selectedReservation = this.availableReservations[0].value;
+    }
+    
+    // Set message based on whether invoiceId exists
+    if (!this.data.invoiceId || this.data.invoiceId === '') {
+      this.message = `There is a credit on this reservation of $${this.formatter.currency(this.creditAmount)}. Should we apply it?`;
+    } else {
+      this.message = 'There is a credit remaining from the payment, to which reservation should it be applied?';
+    }
   }
   
   onReservationChange(reservation: ReservationListResponse | null): void {
@@ -58,6 +71,12 @@ export class ApplyCreditDialogComponent implements OnInit {
   
   apply(): void {
     if (!this.selectedReservation?.reservationId) {
+      return;
+    }
+    
+    // If invoiceId is empty, just return success (invoice will be created first, then credit applied)
+    if (!this.data.invoiceId || this.data.invoiceId === '') {
+      this.dialogRef.close({ success: true });
       return;
     }
     

@@ -319,13 +319,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
-      this.zone.run(() => {
-        this.router.navigateByUrl(url + `?${params.join('&')}`);
-      });
+      this.router.navigateByUrl(url + `?${params.join('&')}`);
     } else {
-      this.zone.run(() => {
-        this.router.navigateByUrl(url);
-      });
+      this.router.navigateByUrl(url);
     }
   }
 
@@ -387,9 +383,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const url = params.length > 0 
         ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
         : RouterUrl.CreateInvoice;
-      this.zone.run(() => {
-        this.router.navigateByUrl(url);
-      });
+      this.router.navigateByUrl(url);
     }
   }
 
@@ -426,13 +420,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`returnTo=accounting`);
     }
     if (params.length > 0) {
-      this.zone.run(() => {
-        this.router.navigateByUrl(url + `?${params.join('&')}`);
-      });
+      this.router.navigateByUrl(url + `?${params.join('&')}`);
     } else {
-      this.zone.run(() => {
-        this.router.navigateByUrl(url);
-      });
+      this.router.navigateByUrl(url);
     }
   }
 
