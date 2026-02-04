@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, NgZone } from '@angular/core';
+import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -61,8 +61,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     public mappingService: MappingService,
     private companyService: CompanyService,
     private propertyService: PropertyService,
-    private utilityService: UtilityService,
-    private zone: NgZone) {
+    private utilityService: UtilityService) {
   }
 
   //#region Reservation List
@@ -71,9 +70,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   addReservation(): void {
-    this.zone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']));
-    });
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']));
   }
 
   getReservations(): void {
@@ -123,16 +120,12 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   goToReservation(event: ReservationListDisplay): void {
-    this.zone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
-    });
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
   }
 
   goToContact(event: ReservationListDisplay): void {
     if (event.contactId) {
-      this.zone.run(() => {
-        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
-      });
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
     }
   }
   //#endregion
