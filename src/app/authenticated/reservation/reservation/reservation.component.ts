@@ -8,7 +8,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
-import { ReservationResponse, ReservationRequest } from '../models/reservation-model';
+import { ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../models/reservation-model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { ContactService } from '../../contact/services/contact.service';
 import { ContactResponse } from '../../contact/models/contact.model';
@@ -38,6 +38,15 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+
+// Display interface for ExtraFeeLine in the UI
+interface ExtraFeeLineDisplay {
+  extraFeeLineId: string | null;
+  feeDescription: string | null;
+  feeAmount: number | undefined;
+  feeFrequencyId: number | undefined;
+  isNew?: boolean; // Track if this is a new line
+}
 
 @Component({
   selector: 'app-reservation',
@@ -90,8 +99,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
-  updatingExtraFeeFields: boolean = false;
- 
+  
+  // ExtraFeeLines management
+  extraFeeLines: ExtraFeeLineDisplay[] = [];
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
@@ -137,7 +148,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.billingPanelOpen = false;
         this.updatePetFields();
         this.updateMaidServiceFields();
-        this.updateExtraFeeFields();
+        this.extraFeeLines = [];
       }
     });
     
@@ -207,6 +218,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Validate ExtraFeeLines before saving
+    if (!this.validateExtraFeeLines()) {
+      return;
+    }
+
     // Check for date overlaps before saving
     this.validateDates('save');
   }
@@ -216,15 +232,30 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
+    // Ensure required non-nullable fields have values
+    const officeId = this.selectedProperty?.officeId;
+    if (!officeId) {
+      this.toastr.error('Office ID is required', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+
+    const agentId = formValue.agentId;
+    if (!agentId || agentId === '' || agentId === 'null' || agentId === null) {
+      this.toastr.error('Agent is required', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
-      officeId: this.selectedProperty?.officeId || null,
+      officeId: officeId,
       propertyId: formValue.propertyId,
-      agentId: formValue.agentId || null,
+      agentId: agentId,
       contactId: formValue.contactId,
       reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Private,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
-      reservationNoticeId: formValue.reservationNoticeId ?? null,
+      reservationNoticeId: formValue.reservationNoticeId !== null && formValue.reservationNoticeId !== undefined ? Number(formValue.reservationNoticeId) : ReservationNotice.ThirtyDays,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
       hasPets: formValue.pets ?? false,
       tenantName: formValue.tenantName || '',
@@ -234,23 +265,20 @@ export class ReservationComponent implements OnInit, OnDestroy {
       checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingMethodId: formValue.billingMethodId ?? BillingMethod.Invoice,
-      prorateTypeId: formValue.prorateTypeId ?? null,
+      prorateTypeId: formValue.prorateTypeId !== null && formValue.prorateTypeId !== undefined ? Number(formValue.prorateTypeId) : ProrateType.FirstMonth,
       billingRate: formValue.billingRate ? parseFloat(formValue.billingRate.toString()) : 0,
-      deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : null,
-      depositTypeId: formValue.depositType !== null && formValue.depositType !== undefined ? Number(formValue.depositType) : undefined,
+      deposit: formValue.deposit ? parseFloat(formValue.deposit.toString()) : 0,
+      depositTypeId: formValue.depositType !== null && formValue.depositType !== undefined ? Number(formValue.depositType) : DepositType.Deposit,
       departureFee: formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0,
       maidService: formValue.maidService ?? false,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
       frequencyId: formValue.frequencyId ?? Frequency.NA,
       maidStartDate: formValue.maidStartDate ? (formValue.maidStartDate as Date).toISOString() : new Date().toISOString(),
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
-      numberOfPets: formValue.numberOfPets ? Number(formValue.numberOfPets) : undefined,
+      numberOfPets: formValue.numberOfPets ? Number(formValue.numberOfPets) : 0,
       petDescription: formValue.petDescription || undefined,
-      extraFee: formValue.extraFee ? parseFloat(formValue.extraFee.toString()) : 0,
-      extraFeeName: formValue.extraFeeName || '',
-      extraFee2: formValue.extraFee2 ? parseFloat(formValue.extraFee2.toString()) : 0,
-      extraFee2Name: formValue.extraFee2Name || '',
       taxes: formValue.taxes ? parseFloat(formValue.taxes.toString()) : 0,
+      extraFeeLines: this.mapExtraFeeLinesToRequest(),
       notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
       allowExtensions: formValue.allowExtensions ?? false,
       currentInvoiceNumber: formValue.currentInvoiceNumber ?? 0,
@@ -263,6 +291,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
       reservationRequest.organizationId = this.reservation?.organizationId || user?.organizationId || '';
       reservationRequest.reservationCode = this.reservation?.reservationCode || formValue.reservationCode || '';
     }
+
+    // Debug: Log the request payload to see what's being sent
+    console.log('Reservation Request Payload:', JSON.stringify(reservationRequest, null, 2));
+    console.log('ExtraFeeLines:', reservationRequest.extraFeeLines);
 
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
@@ -286,7 +318,37 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.leaseReloadService.triggerReload();
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
+        if (err.status === 400) {
+          // Show API validation error message if available
+          const errorData = err?.error;
+          console.error('400 Validation Error Response:', errorData);
+          
+          if (errorData && typeof errorData === 'object') {
+            // Check for ASP.NET Core ProblemDetails format
+            const problemDetails = errorData as any;
+            
+            // Show title/message
+            let message = problemDetails.title || problemDetails.message || problemDetails.Message || 'Validation failed.';
+            
+            // If there are specific field errors, append them
+            if (problemDetails.errors && typeof problemDetails.errors === 'object') {
+              const fieldErrors: string[] = [];
+              Object.keys(problemDetails.errors).forEach(key => {
+                const errors = problemDetails.errors[key];
+                if (Array.isArray(errors) && errors.length > 0) {
+                  fieldErrors.push(`${key}: ${errors.join(', ')}`);
+                }
+              });
+              if (fieldErrors.length > 0) {
+                message += '\n' + fieldErrors.join('\n');
+              }
+            }
+            
+            this.toastr.error(message, CommonMessage.Error, { timeOut: 10000 });
+          } else {
+            this.toastr.error('Validation failed. Please check your input.', CommonMessage.Error);
+          }
+        } else {
           const failMessage = this.isAddMode ? 'Create reservation request has failed. ' : 'Update reservation request has failed. ';
           this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
@@ -333,10 +395,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00'),
       frequencyId: new FormControl(Frequency.NA),
-      extraFee: new FormControl<string>('0.00'),
-      extraFeeName: new FormControl(''),
-      extraFee2: new FormControl<string>('0.00'),
-      extraFee2Name: new FormControl(''),
       taxes: new FormControl(null),
       notes: new FormControl(''),
       currentInvoiceNumber: new FormControl(0),
@@ -398,10 +456,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       maidStartDate: this.reservation.maidStartDate ? new Date(this.reservation.maidStartDate) : null,
       maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
       frequencyId: this.reservation.frequencyId ?? Frequency.NA,
-      extraFee: (this.reservation.extraFee ?? 0).toFixed(2),
-      extraFeeName: this.reservation.extraFeeName || '',
-      extraFee2: (this.reservation.extraFee2 ?? 0).toFixed(2),
-      extraFee2Name: this.reservation.extraFee2Name || '',     
       taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
       notes: this.reservation.notes || ''
     }, { emitEvent: false });
@@ -413,7 +467,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     // Update pet and maid service fields after patching
     this.updatePetFields();
     this.updateMaidServiceFields();
-    this.updateExtraFeeFields();
+    this.loadExtraFeeLines();
     this.updateMaidStartDate();
   }
     
@@ -433,7 +487,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.setupMaidServiceHandler();
     this.setupMaidStartDateHandler();
     this.setupDepartureDateStartAtHandler();
-    this.setupExtraFeeHandler();
     
     this.handlersSetup = true;
   }
@@ -563,17 +616,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
-  setupExtraFeeHandler(): void {
-    // Update fields when extraFee changes
-    this.form.get('extraFee')?.valueChanges.subscribe(() => {
-      this.updateExtraFeeFields();
-    });
-    
-    // Update fields when extraFee2 changes
-    this.form.get('extraFee2')?.valueChanges.subscribe(() => {
-      this.updateExtraFeeFields();
-    });
-  }
 
   initializeEnums(): void {
     this.availableClientTypes = getReservationTypes();
@@ -655,10 +697,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.disableFieldWithValidation('maidService');
       this.disableFieldWithValidation('maidServiceFee');
       this.disableFieldWithValidation('frequencyId');
-      this.disableFieldWithValidation('extraFee');
-      this.disableFieldWithValidation('extraFeeName');
-      this.disableFieldWithValidation('extraFee2');
-      this.disableFieldWithValidation('extraFee2Name');
       this.disableFieldWithValidation('taxes');
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
@@ -673,7 +711,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.enableFieldWithValidation('maidService', [Validators.required]);      
       this.updatePetFields();
       this.updateMaidServiceFields();
-      this.updateExtraFeeFields();
       
       // Set departureDateStartAt if arrival date is set and departure date is unset
       const arrivalDate = this.form.get('arrivalDate')?.value;
@@ -839,40 +876,115 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
   }
  
-  updateExtraFeeFields(): void {
-    if (this.updatingExtraFeeFields) {
-      return; // Prevent infinite recursion
+  //#endregion
+
+  //#region ExtraFeeLines Management
+  getExtraFeeFrequencyValue(frequencyId: number | undefined | null): number | null {
+    if (frequencyId === undefined || frequencyId === null) {
+      return null;
+    }
+    // Ensure it's a number and matches one of the available frequencies (Frequency enum)
+    const numValue = Number(frequencyId);
+    const isValidFrequency = this.availableFrequencies.some(f => f.value === numValue);
+    return isValidFrequency ? numValue : null;
+  }
+
+  loadExtraFeeLines(): void {
+    if (!this.reservation || !this.reservation.extraFeeLines) {
+      this.extraFeeLines = [];
+      return;
     }
     
-    this.updatingExtraFeeFields = true;
+    console.log('Raw ExtraFeeLines from API:', this.reservation.extraFeeLines);
+    console.log('Available Frequencies:', this.availableFrequencies);
     
-    try {
-      let extraFee = parseFloat(this.form.get('extraFee')?.value || '0');
-      let extraFee2 = parseFloat(this.form.get('extraFee2')?.value || '0');
-       
-      if (extraFee > 0) {
-      // ExtraFee has a value > 0: enable extraFeeName and extraFee2
-      this.enableFieldWithValidation('extraFeeName', [Validators.required]);
-      this.enableFieldWithValidation('extraFee2');
-      
-      // Only enable extraFee2Name if extraFee2 also has a value > 0
-      if (extraFee2 > 0) {
-        this.enableFieldWithValidation('extraFee2Name', [Validators.required]);
-      } else {
-        this.disableFieldWithValidation('extraFee2Name');
-      }
-    } else {
-      // ExtraFee is 0: disable all related fields
-      this.form.get('extraFee')!.setValue('0.00', { emitEvent: false });
-      this.form.get('extraFee2')!.setValue('0.00', { emitEvent: false });
-      
-      this.disableFieldWithValidation('extraFeeName');
-      this.disableFieldWithValidation('extraFee2');
-      this.disableFieldWithValidation('extraFee2Name');
-      }
-    } finally {
-      this.updatingExtraFeeFields = false;
+    this.extraFeeLines = this.reservation.extraFeeLines.map(line => {
+      const mappedLine = {
+        extraFeeLineId: line.extraFeeLineId,
+        feeDescription: line.feeDescription,
+        feeAmount: line.feeAmount,
+        feeFrequencyId: line.feeFrequencyId !== null && line.feeFrequencyId !== undefined ? Number(line.feeFrequencyId) : undefined,
+        isNew: false
+      };
+      console.log('Mapped ExtraFeeLine:', {
+        original: line,
+        mapped: mappedLine,
+        frequencyId: line.feeFrequencyId,
+        frequencyIdType: typeof line.feeFrequencyId,
+        mappedFrequencyId: mappedLine.feeFrequencyId,
+        mappedFrequencyIdType: typeof mappedLine.feeFrequencyId
+      });
+      return mappedLine;
+    });
+    
+    console.log('Final extraFeeLines array:', this.extraFeeLines);
+  }
+
+  addExtraFeeLine(): void {
+    const newLine: ExtraFeeLineDisplay = {
+      extraFeeLineId: null,
+      feeDescription: null,
+      feeAmount: undefined,
+      feeFrequencyId: undefined,
+      isNew: true
+    };
+    this.extraFeeLines.push(newLine);
+  }
+
+  removeExtraFeeLine(index: number): void {
+    if (index >= 0 && index < this.extraFeeLines.length) {
+      this.extraFeeLines.splice(index, 1);
     }
+  }
+
+  updateExtraFeeLineField(index: number, field: keyof ExtraFeeLineDisplay, value: any): void {
+    if (index >= 0 && index < this.extraFeeLines.length) {
+      (this.extraFeeLines[index] as any)[field] = value;
+    }
+  }
+
+  validateExtraFeeLines(): boolean {
+    if (!this.extraFeeLines || this.extraFeeLines.length === 0) {
+      return true; // Empty list is valid
+    }
+
+    for (let i = 0; i < this.extraFeeLines.length; i++) {
+      const line = this.extraFeeLines[i];
+      
+      // Check if feeDescription is provided
+      if (!line.feeDescription || line.feeDescription.trim() === '') {
+        this.toastr.error(`Extra Fee Line ${i + 1}: Fee Description is required`, CommonMessage.Error);
+        return false;
+      }
+
+      // Check if feeAmount is provided and greater than 0
+      if (line.feeAmount === undefined || line.feeAmount === null || line.feeAmount <= 0) {
+        this.toastr.error(`Extra Fee Line ${i + 1}: Fee Amount must be greater than 0`, CommonMessage.Error);
+        return false;
+      }
+
+      // Check if feeFrequencyId is provided (must be a valid Frequency enum value)
+      if (line.feeFrequencyId === undefined || line.feeFrequencyId === null) {
+        this.toastr.error(`Extra Fee Line ${i + 1}: Frequency is required`, CommonMessage.Error);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  mapExtraFeeLinesToRequest(): ExtraFeeLineRequest[] {
+    if (!this.extraFeeLines || this.extraFeeLines.length === 0) {
+      return [];
+    }
+
+    return this.extraFeeLines.map(line => ({
+      extraFeeLineId: line.extraFeeLineId || undefined,
+      reservationId: this.isAddMode ? undefined : (this.reservationId || undefined),
+      feeDescription: line.feeDescription || null,
+      feeAmount: line.feeAmount || 0,
+      feeFrequencyId: line.feeFrequencyId !== undefined && line.feeFrequencyId !== null ? Number(line.feeFrequencyId) : Frequency.OneTime
+    }));
   }
   //#endregion
 
@@ -1114,6 +1226,87 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
+  }
+
+  onExtraFeeAmountInput(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.extraFeeLines[index];
+    let value = input.value;
+    
+    // Check if value starts with minus sign
+    const isNegative = value.startsWith('-');
+    
+    // Strip non-numeric characters except decimal point
+    value = value.replace(/[^0-9.]/g, '');
+    
+    // Allow negative sign if present
+    if (isNegative) {
+      value = '-' + value;
+    }
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      input.value = parts[0] + '.' + parts.slice(1).join('');
+    } else {
+      input.value = value;
+    }
+  }
+
+  onExtraFeeAmountFocus(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.extraFeeLines[index];
+    // Set initial value on focus - show raw number without formatting (same as ledger line)
+    if (line && line.feeAmount != null && line.feeAmount !== undefined) {
+      input.value = line.feeAmount.toString();
+      input.select(); // Select all text (same as selectAllOnFocus)
+    } else {
+      input.value = '';
+    }
+  }
+
+  onExtraFeeAmountBlur(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const line = this.extraFeeLines[index];
+    if (line) {
+      // Check if value is negative
+      const isNegative = input.value.startsWith('-');
+      // Parse and format exactly like ledger line amount
+      const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+      let numValue: number;
+      let formattedValue: string;
+      
+      if (rawValue !== '' && rawValue !== null) {
+        const parsed = parseFloat(rawValue);
+        if (!isNaN(parsed)) {
+          // Use sign from input (allow negative amounts)
+          const finalValue = isNegative ? -parsed : parsed;
+          // Format to 2 decimal places (same as ledger line)
+          formattedValue = finalValue.toFixed(2);
+          numValue = parseFloat(formattedValue);
+        } else {
+          formattedValue = '0.00';
+          numValue = 0;
+        }
+      } else {
+        formattedValue = '0.00';
+        numValue = 0;
+      }
+      
+      // Update the input display value
+      input.value = formattedValue;
+      
+      // Update the model
+      this.updateExtraFeeLineField(index, 'feeAmount', numValue);
+    }
+  }
+
+  onExtraFeeAmountEnter(event: Event, index: number): void {
+    // Prevent default form submission behavior
+    event.preventDefault();
+    // Blur the input to complete the edit (same as pressing Tab)
+    const input = event.target as HTMLInputElement;
+    input.blur();
   }
   //#endregion
 

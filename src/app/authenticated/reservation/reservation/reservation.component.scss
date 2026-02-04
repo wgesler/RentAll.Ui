@@ -138,3 +138,91 @@
     margin: 0 0 16px 0 !important;
   }
 }
+
+// Extra Fee Lines table styling (similar to invoice ledger lines)
+.line-items-table {
+  font-size: 14px;
+  line-height: 1.25;
+  border-collapse: collapse;
+  width: 100%;
+  
+  th, td {
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  th {
+    background-color: #f5f5f5;
+    font-weight: 500;
+    font-size: 14px !important;
+  }
+  
+  th,
+  td {
+    padding: 8px 12px !important;
+    vertical-align: middle;
+    line-height: 1.25;
+  }
+  
+  tbody td {
+    font-size: 14px !important;
+  }
+  
+  tr:hover {
+    background-color: #fafafa;
+  }
+  
+  mat-select {
+    min-height: 32px;
+    height: 32px;
+    font-size: 14px !important;
+  }
+  
+  .mat-mdc-select-trigger {
+    height: 32px;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    font-size: 14px !important;
+  }
+  
+  input[type="text"] {
+    height: 28px;
+    line-height: 28px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 14px !important;
+    
+    &:focus {
+      outline: none;
+    }
+  }
+  
+  input[type="text"].editable-input {
+    border: 1px solid #ccc !important;
+    border-radius: 4px;
+    background-color: white;
+    
+    &:focus {
+      border-color: #1976d2 !important;
+      outline: none;
+    }
+  }
+  
+  .mat-mdc-icon-button {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+  }
+  
+  .delete-ledger-line-btn {
+    .mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}

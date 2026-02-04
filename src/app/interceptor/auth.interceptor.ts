@@ -57,10 +57,7 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
 }
 
 // 400 BadRequest: Let components handle error messages (they're more specific)
-function handle400Error(error: HttpErrorResponse, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  if (authService.getIsLoggedIn() && error.status === 400) {
-    return logoutUser(authService);
-  }
+function handle400Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
   return throwError(() => error);
 }
 
@@ -184,7 +181,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (error instanceof HttpErrorResponse) {
         switch ((error as HttpErrorResponse).status) {
           case 400:
-            return handle400Error(error, authService, toastrService);
+            return handle400Error(error);
           case 401:
             return handle401Error(req, error, next, loadingBarService, authService, toastrService);
           case 404:

@@ -478,34 +478,78 @@
               </mat-form-field>
             </div>
 
-            <!-- Line 9: Extra Fee 1, Extra Fee 1 Name, Extra Fee 2, Extra Fee 2 Name (4 fields on one line) -->
-            <div class="flex gap-x-1.5 mb-1">
-              <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Extra Fee 1</mat-label>
-                <input matInput type="text" formControlName="extraFee" placeholder="0.00" (blur)="formatDecimal('extraFee')" (input)="onDecimalInput($event, 'extraFee')" (focus)="selectAllOnFocus($event)">
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Extra Fee 1 Name</mat-label>
-                <input matInput formControlName="extraFeeName" placeholder="Enter extra fee description">
-                @if (form.get('extraFeeName')?.hasError('required') && form.get('extraFeeName')?.touched) {
-                  <mat-error>Extra Fee 1 Name is required</mat-error>
-                }
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Extra Fee 2</mat-label>
-                <input matInput type="text" formControlName="extraFee2" placeholder="0.00" (blur)="formatDecimal('extraFee2')" (input)="onDecimalInput($event, 'extraFee2')" (focus)="selectAllOnFocus($event)">
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="flex-1">
-                <mat-label>Extra Fee 2 Name</mat-label>
-                <input matInput formControlName="extraFee2Name" placeholder="Enter extra fee description">
-                @if (form.get('extraFee2Name')?.hasError('required') && form.get('extraFee2Name')?.touched) {
-                  <mat-error>Extra Fee 2 Name is required</mat-error>
-                }
-              </mat-form-field>
+            <!-- Extra Fee Lines Section -->
+            <div class="mb-4">
+              <!-- Title Bar with Add Button -->
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-lg font-medium">Extra Fee Lines</span>
+                <button mat-raised-button type="button" color="accent" (click)="addExtraFeeLine()" 
+                  class="scale-90 text-nowrap flex-shrink-0">
+                  Add Extra Fee Line
+                </button>
+              </div>
+              
+              <!-- Table -->
+              @if (extraFeeLines && extraFeeLines.length > 0) {
+                <div class="overflow-x-auto">
+                  <table class="line-items-table">
+                    <thead>
+                      <tr class="border-b">
+                        <th class="text-left" style="width: 50px;">No</th>
+                        <th class="text-left" style="min-width: 150px;">Fee Description</th>
+                        <th class="text-left" style="width: 250px;">Frequency</th>
+                        <th class="text-left" style="width: 120px;">Amount</th>
+                        <th class="text-right" style="width: 50px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (line of extraFeeLines; track line; let i = $index) {
+                        <tr class="border-b">
+                          <td style="width: 50px;">{{ i + 1 }}</td>
+                          <td style="min-width: 150px;">
+                            <input type="text" class="w-full editable-input" 
+                              [value]="line.feeDescription || ''"
+                              (input)="updateExtraFeeLineField(i, 'feeDescription', $any($event.target).value || '')"
+                              placeholder="Enter fee description">
+                          </td>
+                          <td style="width: 250px;">
+                            <mat-select [value]="getExtraFeeFrequencyValue(line.feeFrequencyId)" 
+                              (selectionChange)="updateExtraFeeLineField(i, 'feeFrequencyId', $event.value)"
+                              class="w-full">
+                              <mat-option [value]="null">Select Frequency</mat-option>
+                              @for (frequency of availableFrequencies; track frequency.value) {
+                                <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </td>
+                          <td style="width: 120px;">
+                            <input type="text" class="w-full editable-input" 
+                              [attr.data-field]="'amount'"
+                              [attr.data-index]="i"
+                              [value]="line.feeAmount != null && line.feeAmount !== undefined ? line.feeAmount.toFixed(2) : ''"
+                              (input)="onExtraFeeAmountInput($event, i)"
+                              (focus)="onExtraFeeAmountFocus($event, i)"
+                              (blur)="onExtraFeeAmountBlur($event, i)"
+                              (keydown.enter)="onExtraFeeAmountEnter($event, i)"
+                              placeholder="0.00">
+                          </td>
+                          <td class="text-right" style="width: 50px;">
+                            <button mat-icon-button type="button" (click)="removeExtraFeeLine(i)" 
+                              class="delete-ledger-line-btn" 
+                              style="color: #ae1f66;"
+                              matTooltip="Remove this extra fee line">
+                              <mat-icon style="color: #ae1f66;">close</mat-icon>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
                 </div>
+              } @else {
+                <p class="text-gray-500 italic">No extra fee lines added. Click "Add Extra Fee Line" to add one.</p>
+              }
+            </div>
               </mat-expansion-panel>
             </mat-accordion>
 
