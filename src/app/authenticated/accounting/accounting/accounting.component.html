@@ -25,37 +25,12 @@
             <app-cost-codes 
               [id]="costCodesId" 
               [officeId]="costCodesOfficeId"
-              [embeddedMode]="true" 
               (backEvent)="onCostCodesBack()"
               (savedEvent)="onCostCodesSaved()">
             </app-cost-codes>
           } @else {
-            <!-- Action buttons row - First Row -->
-            <div class="flex gap-2 mt-4 px-4 justify-end">
-              <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
-                Inactive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
-                <mat-icon class="text-base">add</mat-icon>
-                <span>Add</span>
-              </button>
-            </div>
-            <!-- Office dropdown row - Second Row -->
-            <div class="flex gap-3 items-center mt-3 px-4">
-              <mat-form-field appearance="outline" class="office-dropdown">
-                <mat-label>Office</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onCostCodesOfficeChange(selectedOfficeId)">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of costCodesOffices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
             <app-cost-codes-list 
-              [embeddedMode]="true"
               [officeId]="selectedOfficeId"
-              [showInactiveInput]="showInactiveCostCodes"
               (officeIdChange)="onCostCodesOfficeChange($event)"
               (addCostCodeEvent)="onCostCodesAdd()"
               (editCostCodeEvent)="onCostCodesEdit($event)">

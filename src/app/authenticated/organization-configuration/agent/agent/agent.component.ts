@@ -27,7 +27,6 @@ import { MappingService } from '../../../../services/mapping.service';
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
-  @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -66,40 +65,21 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
-    // If not in embedded mode, get agent ID from route
-    if (!this.embeddedMode) {
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.routeAgentId = paramMap.get('id');
-          this.isAddMode = this.routeAgentId === 'new';
-          if (this.isAddMode) {
-            this.removeLoadItem('agent');
-            this.buildForm();
-          } else {
-            this.getAgent(this.routeAgentId);
-          }
-        }
-      });
-      if (!this.isAddMode) {
+    // Use the input agentId
+    if (this.agentId) {
+      this.isAddMode = this.agentId === 'new' || this.agentId === 'new';
+      if (this.isAddMode) {
+        this.removeLoadItem('agent');
         this.buildForm();
-      }
-    } else {
-      // In embedded mode, use the input agentId
-      if (this.agentId) {
-        this.isAddMode = this.agentId === 'new' || this.agentId === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('agent');
-          this.buildForm();
-        } else {
-          this.getAgent(this.agentId.toString());
-        }
+      } else {
+        this.getAgent(this.agentId.toString());
       }
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If in embedded mode and agentId changes, reload agent
-    if (this.embeddedMode && changes['agentId'] && !changes['agentId'].firstChange) {
+    // If agentId changes, reload agent
+    if (changes['agentId'] && !changes['agentId'].firstChange) {
       const newId = changes['agentId'].currentValue;
       if (newId && newId !== 'new') {
         this.getAgent(newId.toString());
@@ -154,14 +134,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.agentService.createAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AgentList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -177,14 +150,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.agentService.updateAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AgentList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -251,14 +217,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   back(): void {
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-    } else if (this.returnToSettings) {
-      this.navigationContext.setCurrentAgentId(null);
-      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-    } else {
-      this.router.navigateByUrl(RouterUrl.AgentList);
-    }
+    this.backEvent.emit();
   }
   //#endregion
 }

@@ -27,7 +27,6 @@ import { MappingService } from '../../../../services/mapping.service';
 
 export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -66,40 +65,21 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
-    // If not in embedded mode, get area ID from route
-    if (!this.embeddedMode) {
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.routeAreaId = paramMap.get('id');
-          this.isAddMode = this.routeAreaId === 'new';
-          if (this.isAddMode) {
-            this.removeLoadItem('area');
-            this.buildForm();
-          } else {
-            this.getArea(this.routeAreaId);
-          }
-        }
-      });
-      if (!this.isAddMode) {
+    // Use the input id
+    if (this.id) {
+      this.isAddMode = this.id === 'new' || this.id === 'new';
+      if (this.isAddMode) {
+        this.removeLoadItem('area');
         this.buildForm();
-      }
-    } else {
-      // In embedded mode, use the input id
-      if (this.id) {
-        this.isAddMode = this.id === 'new' || this.id === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('area');
-          this.buildForm();
-        } else {
-          this.getArea(this.id.toString());
-        }
+      } else {
+        this.getArea(this.id.toString());
       }
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If in embedded mode and id changes, reload area
-    if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
+    // If id changes, reload area
+    if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
       if (newId && newId !== 'new') {
         this.getArea(newId.toString());
@@ -160,14 +140,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.areaService.createArea(areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AreaResponse) => {
           this.toastr.success('Area created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AreaList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -187,14 +160,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.areaService.updateArea(areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AreaResponse) => {
           this.toastr.success('Area updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AreaList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -263,14 +229,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   back(): void {
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-    } else if (this.returnToSettings) {
-      this.navigationContext.setCurrentAgentId(null);
-      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-    } else {
-      this.router.navigateByUrl(RouterUrl.AreaList);
-    }
+    this.backEvent.emit();
   }
   //#endregion
 }

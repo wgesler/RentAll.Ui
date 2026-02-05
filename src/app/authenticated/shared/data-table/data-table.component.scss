@@ -92,6 +92,10 @@ img {
 
     .mat-column-actions {
         text-align: left;
+        width: auto;
+        min-width: auto;
+        max-width: fit-content;
+        white-space: nowrap;
         
         .flex {
             display: flex;

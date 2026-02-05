@@ -24,7 +24,6 @@ import { ReservationStatus } from '../../../reservation/models/reservation-enum'
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -65,43 +64,24 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
-    // If not in embedded mode, get color ID from route
-    if (!this.embeddedMode) {
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.routeColorId = paramMap.get('id');
-          this.isAddMode = this.routeColorId === 'new';
-          if (this.isAddMode) {
-            this.removeLoadItem('color');
-            this.buildForm();
-          } else {
-            this.getColor(this.routeColorId);
-          }
-        }
-      });
-      if (!this.isAddMode) {
+    // Use the input id
+    if (this.id) {
+      this.isAddMode = this.id === 'new';
+      if (this.isAddMode) {
+        this.removeLoadItem('color');
         this.buildForm();
+      } else {
+        this.getColor(this.id);
       }
     } else {
-      // In embedded mode, use the input id
-      if (this.id) {
-        this.isAddMode = this.id === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('color');
-          this.buildForm();
-        } else {
-          this.getColor(this.id);
-        }
-      } else {
-        // Build form even if no ID initially (ID will come via ngOnChanges)
-        this.buildForm();
-      }
+      // Build form even if no ID initially (ID will come via ngOnChanges)
+      this.buildForm();
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If in embedded mode and id changes, reload color
-    if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
+    // If id changes, reload color
+    if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
       if (newId && newId !== 'new') {
         this.isAddMode = false;
@@ -165,14 +145,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.colorService.createColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.ColorList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -193,14 +166,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.colorService.updateColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.ColorList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -251,14 +217,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   back(): void {
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-    } else if (this.returnToSettings) {
-      this.navigationContext.setCurrentAgentId(null);
-      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-    } else {
-      this.router.navigateByUrl(RouterUrl.ColorList);
-    }
+    this.backEvent.emit();
   }
   //#endregion
 }

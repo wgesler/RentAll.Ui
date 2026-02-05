@@ -27,7 +27,6 @@ import { MappingService } from '../../../../services/mapping.service';
 
 export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -66,40 +65,21 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
-    // If not in embedded mode, get region ID from route
-    if (!this.embeddedMode) {
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.routeRegionId = paramMap.get('id');
-          this.isAddMode = this.routeRegionId === 'new';
-          if (this.isAddMode) {
-            this.removeLoadItem('region');
-            this.buildForm();
-          } else {
-            this.getRegion(this.routeRegionId);
-          }
-        }
-      });
-      if (!this.isAddMode) {
+    // Use the input id
+    if (this.id) {
+      this.isAddMode = this.id === 'new' || this.id === 'new';
+      if (this.isAddMode) {
+        this.removeLoadItem('region');
         this.buildForm();
-      }
-    } else {
-      // In embedded mode, use the input id
-      if (this.id) {
-        this.isAddMode = this.id === 'new' || this.id === 'new';
-        if (this.isAddMode) {
-          this.removeLoadItem('region');
-          this.buildForm();
-        } else {
-          this.getRegion(this.id.toString());
-        }
+      } else {
+        this.getRegion(this.id.toString());
       }
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If in embedded mode and id changes, reload region
-    if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
+    // If id changes, reload region
+    if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
       if (newId && newId !== 'new') {
         this.getRegion(newId.toString());
@@ -159,14 +139,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.regionService.createRegion(regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: RegionResponse) => {
           this.toastr.success('Region created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.RegionList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -186,14 +159,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.regionService.updateRegion(regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: RegionResponse) => {
           this.toastr.success('Region updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.RegionList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -261,14 +227,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   back(): void {
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-    } else if (this.returnToSettings) {
-      this.navigationContext.setCurrentAgentId(null);
-      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-    } else {
-      this.router.navigateByUrl(RouterUrl.RegionList);
-    }
+    this.backEvent.emit();
   }
   //#endregion
 }

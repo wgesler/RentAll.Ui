@@ -4,13 +4,12 @@
     <p>Loading office...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" [class.embedded-mode]="embeddedMode" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
-      @if (!embeddedMode) {
-        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
+      <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
+        <span class="flex flex-column items-center gap-2">
           <mat-icon class="flex-shrink-0">store</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
+          <span class="flex-shrink-0 text-lg font-medium">
             {{ isAddMode ? 'Add Office' : 'Edit Office' }}
           </span>
         </span>
@@ -26,30 +25,7 @@
             Save
           </button>
         </div>
-        </div>
-      }
-      @if (embeddedMode) {
-        <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
-          <span class="flex flex-column items-center gap-2">
-            <mat-icon class="flex-shrink-0">store</mat-icon>
-            <span class="flex-shrink-0 text-lg font-medium">
-              {{ isAddMode ? 'Add Office' : 'Edit Office' }}
-            </span>
-          </span>
-          <div class="flex gap-2">
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="scale-90 text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
-              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-              <mat-icon>save</mat-icon>
-              Save
-            </button>
-          </div>
-        </div>
-      }
+      </div>
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveOffice()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end" style="padding-right: 5px;">

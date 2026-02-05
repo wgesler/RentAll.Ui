@@ -32,7 +32,6 @@ import { UtilityService } from '../../../../services/utility.service';
 
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedMode: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -84,42 +83,23 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     // Wait for offices to be loaded before loading accounting office data
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (!this.embeddedMode) {
-        this.route.paramMap.subscribe((paramMap: ParamMap) => {
-          if (paramMap.has('id')) {
-            this.routeOfficeId = paramMap.get('id');
-            this.isAddMode = this.routeOfficeId === 'new';
-            if (this.isAddMode) {
-              this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-              this.buildForm();
-              this.setupOfficeSelectionHandler();
-            } else {
-              this.getAccountingOffice(this.routeOfficeId);
-            }
-          }
-        });
-        if (!this.isAddMode) {
+      // Use the input id
+      if (this.id) {
+        this.isAddMode = this.id === 'new' || this.id === 'new';
+        if (this.isAddMode) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
           this.buildForm();
-        }
-      } else {
-        // In embedded mode, use the input id
-        if (this.id) {
-          this.isAddMode = this.id === 'new' || this.id === 'new';
-          if (this.isAddMode) {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-            this.buildForm();
-            this.setupOfficeSelectionHandler();
-          } else {
-            this.getAccountingOffice(this.id.toString());
-          }
+          this.setupOfficeSelectionHandler();
+        } else {
+          this.getAccountingOffice(this.id.toString());
         }
       }
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If in embedded mode and id changes, reload office
-    if (this.embeddedMode && changes['id'] && !changes['id'].firstChange) {
+    // If id changes, reload office
+    if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
       // Wait for offices to be loaded before getting accounting office
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
@@ -257,14 +237,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -293,14 +266,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.backEvent.emit();
-          } else if (this.returnToSettings) {
-            this.navigationContext.setCurrentAgentId(null);
-            this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-          } else {
-            this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
-          }
+          this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status !== 400) {
@@ -514,14 +480,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   back(): void {
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-    } else if (this.returnToSettings) {
-      this.navigationContext.setCurrentAgentId(null);
-      this.router.navigateByUrl(RouterUrl.OrganizationConfiguration);
-    } else {
-      this.router.navigateByUrl(RouterUrl.AccountingOfficeList);
-    }
+    this.backEvent.emit();
   }
 
 //#endregion

@@ -22,7 +22,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingOffice && officeId) {
-                <app-office [id]="officeId" [embeddedMode]="true" (backEvent)="onOfficeBack()"></app-office>
+                <app-office [id]="officeId" (backEvent)="onOfficeBack()"></app-office>
               } @else {
                 <app-office-list [embeddedInSettings]="true" (officeSelected)="onOfficeSelected($event)"></app-office-list>
               }
@@ -39,7 +39,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingAgent && agentId) {
-                <app-agent [agentId]="agentId" [embeddedMode]="true" (backEvent)="onAgentBack()"></app-agent>
+                <app-agent [agentId]="agentId" (backEvent)="onAgentBack()"></app-agent>
               } @else {
                 <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
               }
@@ -56,7 +56,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingRegion && regionId) {
-                <app-region [id]="regionId" [embeddedMode]="true" (backEvent)="onRegionBack()"></app-region>
+                <app-region [id]="regionId" (backEvent)="onRegionBack()"></app-region>
               } @else {
                 <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
               }
@@ -73,7 +73,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingArea && areaId) {
-                <app-area [id]="areaId" [embeddedMode]="true" (backEvent)="onAreaBack()"></app-area>
+                <app-area [id]="areaId" (backEvent)="onAreaBack()"></app-area>
               } @else {
                 <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
               }
@@ -90,7 +90,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingBuilding && buildingId) {
-                <app-building [id]="buildingId" [embeddedMode]="true" (backEvent)="onBuildingBack()"></app-building>
+                <app-building [id]="buildingId" (backEvent)="onBuildingBack()"></app-building>
               } @else {
                 <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
               }
@@ -107,7 +107,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingAccountingOffice && accountingOfficeId) {
-                <app-accounting-office [id]="accountingOfficeId" [embeddedMode]="true" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                <app-accounting-office [id]="accountingOfficeId" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
               } @else {
                 <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)"></app-accounting-office-list>
               }
@@ -127,37 +127,14 @@
                 <app-cost-codes 
                   [id]="costCodesId" 
                   [officeId]="costCodesOfficeId"
-                  [embeddedMode]="true" 
                   (backEvent)="onCostCodesBack()">
                 </app-cost-codes>
               } @else {
-                <!-- Office dropdown and controls -->
-                <div class="flex justify-between gap-8 items-center mt-4 px-4">
-                  <mat-form-field appearance="outline" style="width: 300px;">
-                    <mat-label>Office</mat-label>
-                    <mat-select [(ngModel)]="selectedCostCodesOfficeId" (selectionChange)="onCostCodesOfficeChange()">
-                      <mat-option [value]="null">Select Office</mat-option>
-                      @for (office of costCodesOffices; track office.officeId) {
-                        <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <div class="flex justify-end items-center gap-5">
-                    <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactiveCostCodes" color="primary" (change)="toggleInactiveCostCodes()" class="whitespace-nowrap">
-                      Inactive
-                    </mat-slide-toggle>
-                    <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="onCostCodesAdd()" class="whitespace-nowrap items-center flex gap-1">
-                      <mat-icon class="text-base">add</mat-icon>
-                      <span>Add</span>
-                    </button>
-                  </div>
-                </div>
                 <app-cost-codes-list 
                   [officeId]="selectedCostCodesOfficeId"
-                  [embeddedMode]="true"
-                  [showInactiveInput]="showInactiveCostCodes"
                   (addCostCodeEvent)="onCostCodesAdd()"
-                  (editCostCodeEvent)="onCostCodesEdit($event)">
+                  (editCostCodeEvent)="onCostCodesEdit($event)"
+                  (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
                 </app-cost-codes-list>
               }
             </div>
@@ -173,7 +150,7 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingColor && colorId) {
-                <app-color [id]="colorId" [embeddedMode]="true" (backEvent)="onColorBack()"></app-color>
+                <app-color [id]="colorId" (backEvent)="onColorBack()"></app-color>
               } @else {
                 <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
               }

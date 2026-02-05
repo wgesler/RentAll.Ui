@@ -28,9 +28,7 @@ import { TransactionTypeLabels } from '../models/accounting-enum';
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() embeddedMode: boolean = false; // If true, hide header and office selector
-  @Input() hideHeader: boolean = false; // If true, hide the header/sub-heading
-  @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent (for embedded mode). If provided, parent manages controls.
+  @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: string, officeId: number | null }>();
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
@@ -56,7 +54,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' },
+    isActive: { displayAs: 'Is Active', isCheckbox: true, maxWidth: '20ch', sort: false, wrap: false, alignment: 'left' },
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
@@ -78,7 +76,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadCostCodes();
     
-    // Handle query params for office selection changes (works in both embedded and non-embedded modes)
+    // Handle query params for office selection changes
     // Wait for offices to load before processing query params
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.subscribe(params => {
@@ -89,16 +87,13 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
             // Find office from already loaded offices
             this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
             if (this.selectedOffice) {
-              // Emit office change to parent if in embedded mode
-              if (this.embeddedMode) {
-                this.officeIdChange.emit(this.selectedOffice.officeId);
-              }
+              this.officeIdChange.emit(this.selectedOffice.officeId);
               this.filterCostCodes();
             }
             this.applyFilters();
           }
         } else {
-          if (!this.embeddedMode || this.officeId === null || this.officeId === undefined) {
+          if (this.officeId === null || this.officeId === undefined) {
             this.selectedOffice = null;
             this.allCostCodes = [];
             this.costCodesDisplay = [];
@@ -111,7 +106,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     // Watch for changes to officeId input from parent
-    if (changes['officeId'] && this.embeddedMode) {
+    if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       if (this.offices.length > 0) {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
@@ -134,11 +129,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addCostCode(): void {
-    // If in embedded mode, emit event instead of navigating
-    if (this.embeddedMode) {
-      this.addCostCodeEvent.emit();
-      return;
-    }
+    // Always emit event - parent can handle navigation if needed
+    this.addCostCodeEvent.emit();
+    
+    // Also navigate if no parent is handling it (for standalone usage)
     const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, ['new']);
     const params: string[] = [];
     if (this.selectedOffice) {
@@ -176,14 +170,13 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToCostCode(event: CostCodesResponse): void {
-    // If in embedded mode, emit event instead of navigating
-    if (this.embeddedMode) {
-      this.editCostCodeEvent.emit({ 
-        costCodeId: event.costCodeId, 
-        officeId: event.officeId || this.selectedOffice?.officeId || null
-      });
-      return;
-    }
+    // Always emit event - parent can handle navigation if needed
+    this.editCostCodeEvent.emit({ 
+      costCodeId: event.costCodeId, 
+      officeId: event.officeId || this.selectedOffice?.officeId || null
+    });
+    
+    // Also navigate if no parent is handling it (for standalone usage)
     const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, [event.costCodeId.toString()]);
     const params: string[] = [];
     // Use officeId from the response, fallback to selectedOffice
@@ -208,10 +201,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Set selectedOffice from input (embedded mode) or query params (standalone mode)
-        if (this.embeddedMode && this.officeId !== null && this.officeId !== undefined) {
+        // Set selectedOffice from input or query params (input takes precedence)
+        if (this.officeId !== null && this.officeId !== undefined) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        } else if (!this.embeddedMode) {
+        } else {
           const snapshotParams = this.route.snapshot.queryParams;
           const officeIdParam = snapshotParams['officeId'];
           if (officeIdParam) {
@@ -248,10 +241,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Filter Methods
   onOfficeChange(): void {
-    // Emit office change to parent if in embedded mode
-    if (this.embeddedMode && this.selectedOffice) {
+    // Emit office change to parent
+    if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
-    } else if (this.embeddedMode && !this.selectedOffice) {
+    } else {
       this.officeIdChange.emit(null);
     }
     
@@ -269,8 +262,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   applyFilters(): void {
     let filtered = this.allCostCodes;
     // Filter by inactive if needed
-    // In embedded mode, use the @Input() showInactiveInput value if provided; otherwise use internal property
-    const shouldShowInactive = this.embeddedMode && this.showInactiveInput !== undefined 
+    // Use the @Input() showInactiveInput value if provided; otherwise use internal property
+    const shouldShowInactive = this.showInactiveInput !== undefined 
       ? this.showInactiveInput 
       : this.showInactive;
     if (!shouldShowInactive) {
@@ -299,8 +292,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }  
 
   toggleInactive(): void {
-    // Only toggle if not in embedded mode (parent controls it)
-    if (!this.embeddedMode) {
+    // Toggle if showInactiveInput is undefined (component manages its own state)
+    if (this.showInactiveInput === undefined) {
       this.showInactive = !this.showInactive;
       this.applyFilters();
     }

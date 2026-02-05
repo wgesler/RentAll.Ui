@@ -21,9 +21,6 @@ import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.compo
 import { ColorListComponent } from '../color/color-list/color-list.component';
 import { ColorComponent } from '../color/color/color.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
-import { OfficeService } from '../office/services/office.service';
-import { OfficeResponse } from '../office/models/office.model';
-import { take, finalize } from 'rxjs';
 
 @Component({
   selector: 'app-configuration',
@@ -79,46 +76,26 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingCostCodes: boolean = false;
   costCodesId: string | number | null = null;
   costCodesOfficeId: number | null = null;
-  costCodesOffices: OfficeResponse[] = [];
   selectedCostCodesOfficeId: number | null = null;
-  showInactiveCostCodes: boolean = false;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private navigationContext: NavigationContextService,
-    private officeService: OfficeService
+    private navigationContext: NavigationContextService
   ) {
   }
 
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
-    // Load offices for Cost Codes dropdown
-    this.loadCostCodesOffices();
   }
 
-  loadCostCodesOffices(): void {
-    this.officeService.getOffices().pipe(take(1)).subscribe({
-      next: (offices) => {
-        this.costCodesOffices = offices || [];
-      },
-      error: (err) => {
-        console.error('Error loading offices for Cost Codes:', err);
-      }
-    });
-  }
-
-  onCostCodesOfficeChange(): void {
-    // When office changes, update the officeId for cost codes
-    // The cost-codes-list component will detect the change via ngOnChanges and make the API call
-    this.costCodesOfficeId = this.selectedCostCodesOfficeId;
-  }
-
-  toggleInactiveCostCodes(): void {
-    this.showInactiveCostCodes = !this.showInactiveCostCodes;
+  onCostCodesOfficeChangeFromList(officeId: number | null): void {
+    // Handle office change from cost-codes-list component
+    this.selectedCostCodesOfficeId = officeId;
+    this.costCodesOfficeId = officeId;
   }
 
   // Event handlers for child components
