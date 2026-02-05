@@ -585,7 +585,6 @@
           
           <mat-tab label="Invoices">
             <app-invoice-list 
-              [embeddedMode]="true"
               [officeId]="reservation?.officeId || selectedProperty?.officeId || null"
               [reservationId]="isAddMode ? null : reservationId"
               [source]="'reservation'">

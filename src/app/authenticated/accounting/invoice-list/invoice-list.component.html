@@ -1,4 +1,4 @@
-<!-- Ledger lines template - shared between embedded and non-embedded modes -->
+<!-- Ledger lines template -->
 <ng-template #ledgerLinesTemplate let-invoice>
   <div class="detail-lines-wrapper">
     @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
@@ -43,154 +43,7 @@
 </ng-template>
 
 @if (!(isLoading$ | async)) {
-  @if (!embeddedMode) {
-    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-      <section class="content-card">
-        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-          <div class="flex items-baseline">
-            <mat-icon mat-list-icon class="mr-5">account_balance</mat-icon>
-            <h2 class="m-0">Accounting</h2>
-          </div>
-        </div>
-        <mat-card>
-          <div class="mat">
-            <!-- Office, Company, and Reservation dropdowns row - First Row -->
-            <div class="flex gap-3 items-center mt-4 px-4">
-              <mat-form-field appearance="outline" class="office-dropdown">
-                <mat-label>All Offices</mat-label>
-                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              @if (source === 'accounting') {
-                <mat-form-field appearance="outline" class="company-dropdown">
-                  <mat-label>All Companies</mat-label>
-                  <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()" [disabled]="!selectedOffice">
-                    <mat-option [value]="null">All Companies</mat-option>
-                    @for (company of availableCompanies; track company.value.companyId) {
-                      <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
-              <mat-form-field appearance="outline" class="reservation-dropdown">
-                <mat-label>All Reservations</mat-label>
-                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">
-                  <mat-option [value]="null">All Reservations</mat-option>
-                  @for (reservation of availableReservations; track reservation.value.reservationId) {
-                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-            <!-- Action buttons row - Second Row (right justified) -->
-            @if (!showPaymentForm) {
-              <div class="flex gap-2 mt-3 px-4 justify-end">
-                <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-                  Inactive
-                </mat-slide-toggle>
-                <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="(!selectedReservation && !selectedCompany) || invoicesDisplay.length === 0" class="whitespace-nowrap items-center flex gap-1">
-                  Apply Payment
-                </button>
-                <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-                  <mat-icon class="text-base">add</mat-icon>
-                  <span>Add</span>
-                </button>
-              </div>
-            } @else {
-              <!-- Payment form fields - Second Row (right justified) -->
-              <div class="flex justify-end mt-3 px-4">
-                <div class="payment-form-box" style="font-size: 11px !important;">
-                  <div class="flex gap-2 items-center">
-                    <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
-                      <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
-                        <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
-                        @for (costCode of creditCostCodes; track costCode.value) {
-                          <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Type</mat-label>
-                      <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Description</mat-label>
-                      <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Amount</mat-label>
-                      <input matInput 
-                        type="text"
-                        [value]="paymentAmountDisplay"
-                        (input)="onPaymentAmountInput($event)"
-                        (focus)="onPaymentAmountFocus($event)"
-                        (blur)="onPaymentAmountBlur($event)"
-                        (keydown.enter)="onPaymentAmountEnter($event)"
-                        placeholder="0.00"
-                        style="font-size: 11px !important;">
-                    </mat-form-field>
-                    @if (isManualApplyMode) {
-                      <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
-                        <mat-label style="font-size: 11px !important;">Remaining</mat-label>
-                        <input matInput [value]="remainingAmountDisplay" readonly style="font-size: 11px !important; text-align: right;">
-                      </mat-form-field>
-                    }
-                    <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
-                      Submit
-                    </button>
-                    <button mat-raised-button type="button" color="accent" (click)="applyManually()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
-                      Apply Manually
-                    </button>
-                    <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            }
-            <!-- Filter and data table below -->
-            <div class="tableDiv">
-              <app-data-table
-                [data]="invoicesDisplay"
-                [columns]="invoicesDisplayedColumns"
-                [hasColumnIndex]="false"
-                [hasFilter]="true"
-                [hasToggleTop]="false"
-                [hasButtonTop]="false"
-                [hasActionsRowClick]="!showPaymentForm"
-                [hasActionsEdit]="true"
-                [hasActionsDelete]="true"
-                [hasActionsPayable]="true"
-                [hasActionsPrint]="true"
-                [hasDetailRow]="true"
-                [detailRowTemplate]="ledgerLinesTemplate"
-                [includeDetailRowHeader]="true"
-                [expandAllCallback]="toggleExpandAll.bind(this)"
-                [isAllExpanded]="isAllExpanded"
-                [isManualApplyMode]="isManualApplyMode"
-                [applyAmountChangeCallback]="onApplyAmountChange.bind(this)"
-                [applyAmountInputCallback]="onApplyAmountInput.bind(this)"
-                [applyAmountBlurCallback]="onApplyAmountBlur.bind(this)"
-                [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
-                [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
-                [itemsPerPage]="100"
-                (editEvent)="goToInvoice($event, true)"
-                (rowClickEvent)="goToInvoice($event, false)"
-                (deleteEvent)="deleteInvoice($event)"
-                (payableEvent)="onPayable($event)"
-                (printEvent)="printInvoice($event)"/>
-            </div>
-          </div>
-        </mat-card>
-      </section>
-    </div>
-  } @else {
-    <div class="mat">
+  <div class="mat">
       <!-- Office, Company, and Reservation dropdowns row - First Row -->
       <div class="flex gap-3 items-center mt-4 px-4">
         <mat-form-field appearance="outline" class="office-dropdown">
@@ -299,7 +152,7 @@
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-          [hasActionsRowClick]="true"
+                [hasActionsRowClick]="!showPaymentForm"
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
           [hasActionsPayable]="true"
@@ -323,7 +176,6 @@
           (printEvent)="printInvoice($event)"/>
       </div>
     </div>
-  }
 } @else {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>

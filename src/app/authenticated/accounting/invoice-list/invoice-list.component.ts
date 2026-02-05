@@ -40,7 +40,6 @@ import { AuthService } from '../../../services/auth.service';
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
-  @Input() embeddedMode: boolean = false; // If true, hide header
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
@@ -104,8 +103,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   get invoicesDisplayedColumns(): ColumnSet {
-    // Only show applyAmount column when payment form is active
-    if (this.showPaymentForm || this.isManualApplyMode) {
+    // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
+    if (this.isManualApplyMode) {
       return this.baseInvoicesDisplayedColumns;
     } else {
       // Return columns without applyAmount
@@ -122,7 +121,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -149,16 +148,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadReservations();
     this.loadCompanies();
     this.loadCostCodes();
-    
-    // Load all invoices on startup
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
     this.loadAllInvoices();
     
     // Handle query params for office selection changes (works in both embedded and non-embedded modes)
     // Wait for offices to load before processing query params
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      // Apply initial officeId from @Input if in embedded mode
-      if (this.embeddedMode && this.officeId !== null && this.offices.length > 0) {
+      // Apply initial officeId from @Input
+      if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         if (this.selectedOffice) {
           this.filterCostCodes();
@@ -185,10 +181,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             // Find office from already loaded offices
           this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
           if (this.selectedOffice) {
-            // Emit office change to parent if in embedded mode
-            if (this.embeddedMode) {
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-            }
+            // Emit office change to parent
+            this.officeIdChange.emit(this.selectedOffice.officeId);
             this.filterCostCodes();
             this.filterCompanies();
             this.filterReservations();
@@ -208,9 +202,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
           }
         } else {
-          if (!this.embeddedMode || this.officeId === null || this.officeId === undefined) {
+          if (this.officeId === null || this.officeId === undefined) {
             this.selectedOffice = null;
-            // Show all invoices when no office is selected
             this.applyFilters();
           }
         }
@@ -231,7 +224,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     // Watch for changes to officeId input from parent (including initial load)
-    if (changes['officeId'] && this.embeddedMode) {
+    if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
       
@@ -259,7 +252,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Watch for changes to reservationId input from parent (including initial load)
-    if (changes['reservationId'] && this.embeddedMode) {
+    if (changes['reservationId']) {
       const newReservationId = changes['reservationId'].currentValue;
       const previousReservationId = changes['reservationId'].previousValue;
       
@@ -277,7 +270,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Watch for changes to companyId input from parent (including initial load)
-    if (changes['companyId'] && this.embeddedMode) {
+    if (changes['companyId']) {
       const newCompanyId = changes['companyId'].currentValue;
       const previousCompanyId = changes['companyId'].previousValue;
       
@@ -319,9 +312,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const url = RouterUrl.replaceTokens(RouterUrl.Accounting, ['new']);
     const params: string[] = [];
     
-    // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
-    const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-    const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
+    const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+    const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
     
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
@@ -335,8 +328,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`fromReservation=true`); // Keep for backward compatibility
     } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
-    } else if (this.embeddedMode && reservationIdToUse !== null) {
-      // Fallback: if source not set but embedded with reservation, assume reservation
+    } else if (reservationIdToUse !== null) {
+      // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
       params.push(`fromReservation=true`);
     } else {
@@ -373,43 +366,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const reservationId = invoice?.reservationId ?? null;
     const invoiceId = invoice?.invoiceId ?? null;
     
-    if (this.embeddedMode) {
-      // In embedded mode, emit event to parent to switch tabs without navigation
-      if (invoiceId) {
-        this.printInvoiceEvent.emit({ officeId, reservationId, invoiceId });
-      }
-    } else {
-      // Not in embedded mode, navigate to Create Invoice page
-      // Determine returnTo based on source
-      const params: string[] = [];
-      
-      // Add returnTo parameter based on source
-      if (this.source === 'reservation') {
-        params.push(`returnTo=reservation`);
-      } else {
-        params.push(`returnTo=accounting`);
-      }
-      
-      if (officeId !== null && officeId !== undefined) {
-        params.push(`officeId=${officeId}`);
-      }
-      if (reservationId !== null && reservationId !== undefined && reservationId !== '') {
-        params.push(`reservationId=${reservationId}`);
-      }
-      if (invoiceId) {
-        params.push(`invoiceId=${invoiceId}`);
-      }
-      // Include companyId if available
-      const companyIdToUse = this.selectedCompany?.companyId || null;
-      if (companyIdToUse) {
-        params.push(`companyId=${companyIdToUse}`);
-      }
-      
-      // Navigate to Create Invoice route with all parameters
-      const url = params.length > 0 
-        ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
-        : RouterUrl.CreateInvoice;
-      this.router.navigateByUrl(url);
+    // Emit event to parent to switch tabs without navigation
+    if (invoiceId) {
+      this.printInvoiceEvent.emit({ officeId, reservationId, invoiceId });
     }
   }
 
@@ -422,9 +381,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
     const params: string[] = [];
     
-    // In embedded mode, prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
-    const officeIdToUse = (this.embeddedMode && this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-    const reservationIdToUse = (this.embeddedMode && this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
+    const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
+    const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
     const companyIdToUse = this.selectedCompany?.companyId || null;
     
     if (officeIdToUse !== null) {
@@ -442,8 +401,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`fromReservation=true`); // Keep for backward compatibility
     } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
-    } else if (this.embeddedMode && reservationIdToUse !== null) {
-      // Fallback: if source not set but embedded with reservation, assume reservation
+    } else if (reservationIdToUse !== null) {
+      // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
       params.push(`fromReservation=true`);
     } else {
@@ -602,8 +561,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
     
-    // In embedded mode, ensure reservationId from @Input is set after filtering
-    if (this.embeddedMode && this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
+    // Ensure reservationId from @Input is set after filtering
+    if (this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
       const matchingReservation = this.reservations.find(r => 
         r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
       ) || null;
@@ -637,7 +596,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // After filtering by office, check if there's a companyId to select in the dropdown
     // This only sets selectedCompany - it doesn't change the filtered list
     if (this.companies.length > 0 && this.selectedOffice) {
-      const companyIdToApply = this.embeddedMode && this.companyId !== null 
+      const companyIdToApply = this.companyId !== null 
         ? this.companyId 
         : this.route.snapshot.queryParams['companyId'];
       
@@ -716,9 +675,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Set selectedOffice from input (embedded mode) or query params (standalone mode)
+        // Set selectedOffice from input
         // Always check current officeId input value to sync with other tabs
-        if (this.embeddedMode && this.officeId !== null && this.officeId !== undefined) {
+        if (this.officeId !== null && this.officeId !== undefined) {
           const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
           if (matchingOffice !== this.selectedOffice) {
             this.selectedOffice = matchingOffice;
@@ -733,15 +692,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               this.selectedCompany = null;
               // Show all invoices when no office is selected
               this.applyFilters();
-            }
-          }
-        } else if (!this.embeddedMode) {
-          const snapshotParams = this.route.snapshot.queryParams;
-          const officeIdParam = snapshotParams['officeId'];
-          if (officeIdParam) {
-            const parsedOfficeId = parseInt(officeIdParam, 10);
-            if (parsedOfficeId) {
-              this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
             }
           }
         }
@@ -766,8 +716,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.reservations = reservations || [];
         this.filterReservations();
         
-        // Sync selectedReservation from input if in embedded mode
-        if (this.embeddedMode && this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice) {
+        // Sync selectedReservation from input
+        if (this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice) {
           const matchingReservation = this.reservations.find(r => 
             r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
           ) || null;
@@ -838,10 +788,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   onOfficeChange(): void {
     // Filter invoices client-side by selected office
     this.applyFilters();
-    // Emit office change to parent if in embedded mode
-    if (this.embeddedMode && this.selectedOffice) {
+    // Emit office change to parent
+    if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
-    } else if (this.embeddedMode && !this.selectedOffice) {
+    } else {
       this.officeIdChange.emit(null);
     }
     
@@ -867,20 +817,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onCompanyChange(): void {
-    // Emit company change to parent if in embedded mode
-    if (this.embeddedMode) {
-      this.companyIdChange.emit(this.selectedCompany?.companyId || null);
-    }
+    // Emit company change to parent
+    this.companyIdChange.emit(this.selectedCompany?.companyId || null);
     
     // Filter invoices client-side by selected company
     this.applyFilters();
   }
 
   onReservationChange(): void {
-    // Emit reservation change to parent if in embedded mode
-    if (this.embeddedMode) {
-      this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);
-    }
+    // Emit reservation change to parent
+    this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);
     
     // Preserve scroll position before filtering to prevent page jump
     const scrollContainer = document.querySelector('.tableDiv') || document.querySelector('.mat');
@@ -1174,7 +1120,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           CommonMessage.Success
         );
 
-        // Check if there's a credit amount remaining (shouldn't happen in manual mode, but handle it)
+        // Check if there's a credit amount remaining from the InvoicePaymentResponse
         if (response.creditRemaining > 0) {
           this.openCreditDialog(response, paymentRequest);
         }
@@ -1341,7 +1287,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
     
-    // Check if there's a credit amount remaining
+    // Check if there's a credit amount remaining from the InvoicePaymentResponse
     if (response.creditRemaining > 0) {
       this.openCreditDialog(response, paymentRequest);
     }

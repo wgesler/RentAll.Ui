@@ -10,7 +10,6 @@
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
           <app-invoice-list 
-            [embeddedMode]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
