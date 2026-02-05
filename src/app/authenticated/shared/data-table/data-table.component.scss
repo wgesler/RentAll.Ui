@@ -91,11 +91,20 @@ img {
     }
 
     .mat-column-actions {
-        text-align: center;
+        text-align: left;
+        
+        .flex {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
         
         button {
-            margin-left: -4px;
-            margin-right: -4px;
+            margin-right: -8px;
+            
+            &:last-child {
+                margin-right: 0;
+            }
         }
     }
 

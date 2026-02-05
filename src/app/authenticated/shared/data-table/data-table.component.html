@@ -105,28 +105,30 @@
                         } @case ('no') {
                             {{dataSource.filteredData.indexOf(item)+1}}
                         } @case ('actions') {
-                            @for (button of buttons; track buttons) {
-                                @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
-                                    <button mat-icon-button type="button"
-                                        id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
-                                        (click)="button.callback($event, item)"
-                                        [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false)"
-                                        [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) ? button.color : ''"
-                                        [color]="button.color">
-                                        @if (button.suspendOnUpdate && item?.updating) {
-                                            <div class="datatable-{{button.name}}-loader-wrap">
-                                                <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
-                                            </div>
-                                        } @else {
-                                            <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" 
-                                                [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip)" 
-                                                [matTooltipPosition]="button.tooltipPosition">
-                                                {{button.icon}}
-                                            </mat-icon>
-                                        }
-                                    </button>
+                            <div class="flex items-center justify-start">
+                                @for (button of buttons; track buttons) {
+                                    @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
+                                        <button mat-icon-button type="button"
+                                            id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
+                                            (click)="button.callback($event, item)"
+                                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false)"
+                                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) ? button.color : ''"
+                                            [color]="button.color">
+                                            @if (button.suspendOnUpdate && item?.updating) {
+                                                <div class="datatable-{{button.name}}-loader-wrap">
+                                                    <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
+                                                </div>
+                                            } @else {
+                                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" 
+                                                    [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip)" 
+                                                    [matTooltipPosition]="button.tooltipPosition">
+                                                    {{button.icon}}
+                                                </mat-icon>
+                                            }
+                                        </button>
+                                    }
                                 }
-                            }
+                            </div>
                         } @case ('status') {
                             <mat-chip-listbox>
                                 <mat-chip class="whitespace-nowrap" [class]="item?.statusChipType">{{ item?.status }}</mat-chip>
