@@ -256,6 +256,24 @@ td.mat-mdc-cell.align-center {
     text-align:center;
 }
 
+// Ensure footer cells respect alignment - force right alignment for numeric columns
+td.mat-footer-cell[data-text-align="right"],
+td.mat-mdc-footer-cell[data-text-align="right"] {
+    text-align: right !important;
+}
+
+td.mat-footer-cell[data-text-align="center"],
+td.mat-mdc-footer-cell[data-text-align="center"] {
+    text-align: center !important;
+}
+
+td.mat-footer-cell[data-text-align="left"],
+td.mat-mdc-footer-cell[data-text-align="left"] {
+    text-align: left !important;
+}
+
+
+
 .datatable-hidden {
     visibility: hidden;
 }

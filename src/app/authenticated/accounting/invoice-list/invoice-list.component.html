@@ -169,6 +169,8 @@
           [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
           [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
           [itemsPerPage]="100"
+          [totalsRow]="totalsRow"
+          [totalsLabel]="'Totals:'"
           (editEvent)="goToInvoice($event, true)"
           (rowClickEvent)="goToInvoice($event, false)"
           (deleteEvent)="deleteInvoice($event)"

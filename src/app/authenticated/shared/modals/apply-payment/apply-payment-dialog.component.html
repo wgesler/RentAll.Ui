@@ -30,23 +30,32 @@
         </mat-form-field>
       </div>
       
-      <!-- Description and Amount on one line -->
+      <!-- Description on its own line -->
+      <mat-form-field appearance="outline">
+        <mat-label>Description</mat-label>
+        <input matInput [(ngModel)]="description" placeholder="Enter description">
+      </mat-form-field>
+      
+      <!-- Due Amount and Payment Amount on one line -->
       <div class="grid grid-cols-2 gap-4">
-        <!-- Description -->
-        <mat-form-field appearance="outline">
-          <mat-label>Description</mat-label>
-          <input matInput [(ngModel)]="description" placeholder="Enter description">
-        </mat-form-field>
+        <!-- Due Amount (Read-only) -->
+        @if (dueAmountDisplay) {
+          <mat-form-field appearance="outline">
+            <mat-label>Due Amount</mat-label>
+            <input matInput [value]="dueAmountDisplay" readonly>
+          </mat-form-field>
+        }
         
-        <!-- Amount -->
+        <!-- Payment Amount -->
         <mat-form-field appearance="outline">
-          <mat-label>Amount</mat-label>
+          <mat-label>Payment Amount</mat-label>
           <input matInput 
             type="text"
             [value]="amountDisplay"
             (input)="onAmountInput($event)"
             (focus)="onAmountFocus($event)"
             (blur)="onAmountBlur($event)"
+            (keydown.enter)="onAmountEnter($event)"
             placeholder="0.00"
             required>
         </mat-form-field>

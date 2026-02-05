@@ -10,6 +10,8 @@ export interface ApplyPaymentDialogData {
   costCodes: CostCodesResponse[];
   transactionTypes: { value: number, label: string }[];
   officeId: number;
+  invoiceId?: string; // Optional invoice ID for single invoice payment
+  dueAmountDisplay?: string; // Optional formatted due amount to display
 }
 
 @Component({
@@ -26,6 +28,7 @@ export class ApplyPaymentDialogComponent implements OnInit {
   description: string = '';
   amount: number = 0;
   amountDisplay: string = '0.00';
+  dueAmountDisplay: string = '';
   
   creditCostCodes: { value: number, label: string }[] = [];
   
@@ -42,6 +45,11 @@ export class ApplyPaymentDialogComponent implements OnInit {
         value: parseInt(c.costCodeId, 10),
         label: `${c.costCode}: ${c.description}`
       }));
+    
+    // Set due amount display if provided (already formatted from parent)
+    if (this.data.dueAmountDisplay) {
+      this.dueAmountDisplay = this.data.dueAmountDisplay;
+    }
   }
   
   onCostCodeChange(costCodeId: number | null): void {
@@ -85,9 +93,44 @@ export class ApplyPaymentDialogComponent implements OnInit {
     }
     
     this.amountDisplay = input.value;
+    
+    // Acknowledge the amount in real-time for form validation
+    this.acknowledgeAmountFromInput(input);
+  }
+  
+  private acknowledgeAmountFromInput(input: HTMLInputElement): void {
+    const isNegative = input.value.startsWith('-');
+    const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+    
+    if (rawValue !== '' && rawValue !== null) {
+      const parsed = parseFloat(rawValue);
+      if (!isNaN(parsed)) {
+        // For credit types, always make it negative
+        const finalValue = (this.selectedCostCode && this.selectedCostCode.transactionTypeId === TransactionType.Payment) 
+          ? -Math.abs(parsed) 
+          : (isNegative ? -parsed : parsed);
+        this.amount = finalValue;
+      } else {
+        this.amount = 0;
+      }
+    } else {
+      this.amount = 0;
+    }
   }
   
   onAmountBlur(event: Event): void {
+    this.formatAmount(event);
+  }
+  
+  onAmountEnter(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === 'Enter') {
+      this.formatAmount(event);
+      keyboardEvent.preventDefault();
+    }
+  }
+  
+  private formatAmount(event: Event): void {
     const input = event.target as HTMLInputElement;
     const isNegative = input.value.startsWith('-');
     const rawValue = input.value.replace(/[^0-9.]/g, '').trim();

@@ -244,6 +244,45 @@
                         }
                     }
                 </td>
+                <!-- Footer cell for totals row -->
+                <td mat-footer-cell *matFooterCellDef
+                    class="align-middle"
+                    [style.max-width]="column.maxWidth"
+                    [style.width]="column.maxWidth"
+                    [style.min-width]="column.maxWidth"
+                    [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : '10px'"
+                    [style.padding-right]="'10px'"
+                    [style.padding-top]="'0'"
+                    [style.padding-bottom]="'0'"
+                    [style.border-bottom]="'none'"
+                    [style.font-weight]="totalsRow && data.length > 0 ? '600' : '400'"
+                    [style.color]="totalsRow && data.length > 0 ? '#333' : null"
+                    [style.font-size]="'12px'"
+                    [style.white-space]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'nowrap' : null"
+                    [style.text-overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'clip' : null"
+                    [style.overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'visible' : null"
+                    [attr.data-text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
+                    [style.text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
+                    [ngClass]="{
+                        'no-wrap': !column.wrap || (totalsRow && data.length > 0 && totalsRow[column.name]),
+                        'datatable-truncated': !!column.maxWidth && !(totalsRow && data.length > 0 && totalsRow[column.name]),
+                        '!text-left': column.alignment === 'left',
+                        '!text-justify': column.alignment === 'justify',
+                        '!text-center': column.alignment === 'center',
+                        '!text-right': column.alignment === 'right' || !column.alignment
+                    }">
+                    @if (totalsRow && data.length > 0) {
+                        @if (column.name === 'expand') {
+                            <!-- Empty for expand column -->
+                        } @else if (column.name === 'actions') {
+                            <!-- Empty for actions column -->
+                        } @else if (column.name === 'officeName') {
+                            {{ totalsLabel }}
+                        } @else if (totalsRow[column.name]) {
+                            {{ totalsRow[column.name] }}
+                        }
+                    }
+                </td>
             </ng-container>
         }
 
@@ -266,9 +305,13 @@
                 class="datatable-detail-row" 
                 [class.hide-detail-header]="!includeDetailRowHeader"></tr>
         }
+        
+        <!-- Totals footer row -->
+        <tr mat-footer-row *matFooterRowDef="displayedColumns" 
+            [style.border-top]="totalsRow && data.length > 0 ? '2px solid #333' : 'none'"
+            [style.display]="totalsRow && data.length > 0 ? 'table-row' : 'none'"></tr>
     </table>
 </div>
-
 
 <mat-paginator
     [ngClass]="{'datatable-hidden' : data.length < itemsPerPage}"

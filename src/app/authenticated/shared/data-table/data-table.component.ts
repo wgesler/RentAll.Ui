@@ -92,6 +92,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() applyAmountBlurCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount blur
   @Input() applyAmountFocusCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount focus
   @Input() applyAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount enter key
+  @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
+  @Input() totalsLabel?: string = 'Total'; // Label for the totals row
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -122,6 +124,10 @@ export class DataTableComponent implements OnChanges, OnInit {
   
   getHeaderAlignment(column: ColumnData): string {
     return column.headerAlignment || column.alignment || 'left';
+  }
+
+  getColumnByName(colName: string): ColumnData | undefined {
+    return this.tableColumns.find(col => col.name === colName);
   }
   
   isLastColumnBeforeActionsRightAligned(): boolean {

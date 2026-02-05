@@ -416,14 +416,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  onPayable(event: InvoiceResponse): void {
-    // Calculate remaining amount (totalAmount - paidAmount)
-    const totalAmount = event.totalAmount || 0;
-    const paidAmount = event.paidAmount || 0;
-    const remainingAmount = totalAmount - paidAmount;
+  onPayable(event: InvoiceResponse | any): void {
+    // Check DueAmount from the row data (dueAmountValue) or calculate it
+    const eventAny = event as any;
+    const dueAmount = eventAny.dueAmountValue !== undefined 
+      ? eventAny.dueAmountValue 
+      : (event.totalAmount || 0) - Math.abs(event.paidAmount || 0);
     
-    if (remainingAmount <= 0) {
-      // Show dialog that invoice is paid in full
+    if (dueAmount <= 0) {
+      // Show dialog that invoice is already paid
       const dialogConfig: MatDialogConfig = {
         width: '500px',
         autoFocus: true,
@@ -433,7 +434,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       };
       this.dialog.open(InvoicePaidFullDialogComponent, dialogConfig);
     } else {
-      // Open Apply Payment dialog with single invoice GUID
+      // Open Apply Payment dialog
       this.openApplyPaymentDialogForInvoice(event.invoiceId);
     }
   }
@@ -1006,7 +1007,45 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.applyPayment([invoiceId]);
+    // Find the invoice in the display data to get the due amount
+    const invoiceDisplay = this.invoicesDisplay.find(inv => inv.invoiceId === invoiceId);
+    const dueAmount = invoiceDisplay?.dueAmountValue !== undefined 
+      ? invoiceDisplay.dueAmountValue 
+      : (invoiceDisplay ? ((invoiceDisplay.totalAmountValue || 0) - Math.abs(invoiceDisplay.paidAmountValue || 0)) : undefined);
+    
+    // Format due amount for display
+    const dueAmountDisplay = dueAmount !== undefined && dueAmount !== null 
+      ? '$' + this.formatter.currency(dueAmount) 
+      : undefined;
+
+    // Wait for cost codes to be loaded before opening dialog
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      const dialogData: ApplyPaymentDialogData = {
+        costCodes: this.costCodes,
+        transactionTypes: this.transactionTypes,
+        officeId: this.selectedOffice!.officeId,
+        invoiceId: invoiceId,
+        dueAmountDisplay: dueAmountDisplay
+      };
+
+      const dialogConfig: MatDialogConfig<ApplyPaymentDialogData> = {
+        width: '600px',
+        autoFocus: true,
+        restoreFocus: true,
+        disableClose: false,
+        hasBackdrop: true,
+        data: dialogData
+      };
+
+      const dialogRef = this.dialog.open(ApplyPaymentDialogComponent, dialogConfig);
+
+      dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+        if (result) {
+          // Apply payment to the invoice
+          this.applyPaymentFromDialog(result, invoiceId);
+        }
+      });
+    });
   }
 
   openApplyPaymentDialog(): void {
@@ -1145,6 +1184,31 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Only clear payment form if there's no credit remaining (credit dialog will handle clearing if needed)
         if (response.creditRemaining <= 0) {
           this.clearPaymentForm();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toastr.error('Failed to apply payment', CommonMessage.Error);
+      }
+    });
+  }
+
+  applyPaymentFromDialog(paymentData: { costCodeId: number, description: string, amount: number }, invoiceId: string): void {
+    const paymentRequest: InvoicePaymentRequest = {
+      costCodeId: paymentData.costCodeId,
+      description: paymentData.description || '',
+      amount: Math.abs(paymentData.amount), // Payment should be positive
+      invoices: [invoiceId]
+    };
+
+    this.accountingService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
+      next: (response: InvoicePaymentResponse) => {
+        this.handlePaymentResponse(response, paymentRequest);
+        // Check if there's a credit amount remaining from the InvoicePaymentResponse
+        if (response.creditRemaining > 0) {
+          this.openCreditDialog(response, paymentRequest);
+        } else {
+          // Reload invoices after successful payment
+          this.loadAllInvoices();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -1350,6 +1414,42 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodesSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
+  }
+
+  // Calculate totals from displayed invoices
+  get totalAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.totalAmountValue || 0), 0);
+  }
+
+  get totalPaidAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + Math.abs(inv.paidAmountValue || 0), 0);
+  }
+
+  get totalDueAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.dueAmountValue || 0), 0);
+  }
+
+  get formattedTotalAmount(): string {
+    return '$' + this.formatter.currency(this.totalAmountSum);
+  }
+
+  get formattedTotalPaidAmount(): string {
+    return '$' + this.formatter.currency(this.totalPaidAmountSum);
+  }
+
+  get formattedTotalDueAmount(): string {
+    return '$' + this.formatter.currency(this.totalDueAmountSum);
+  }
+
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.invoicesDisplay.length === 0) {
+      return undefined;
+    }
+    return {
+      totalAmount: this.formattedTotalAmount,
+      paidAmount: this.formattedTotalPaidAmount,
+      dueAmount: this.formattedTotalDueAmount
+    };
   }
   //#endregion
 }
