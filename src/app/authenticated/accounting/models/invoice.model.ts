@@ -3,7 +3,7 @@ export interface InvoiceRequest {
   organizationId: string;
   officeId: number;
   officeName?: string;
-  invoiceName?: string;
+  invoiceCode?: string;
   reservationId?: string | null;
   reservationCode?: string | null;
   startDate: string;
@@ -22,7 +22,7 @@ export interface InvoiceResponse {
   organizationId: string;
   officeId: number;
   officeName: string;
-  invoiceName: string;
+  invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
   startDate: string;
@@ -45,7 +45,7 @@ export interface InvoiceListDisplay {
   organizationId: string;
   officeId: number;
   officeName: string;
-  invoiceName: string;
+  invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
   startDate: string;
@@ -58,14 +58,14 @@ export interface InvoiceListDisplay {
 }
 
 export interface InvoiceMonthlyDataRequest {
-  invoice: string;
+  invoiceCode: string;
   reservationId: string;
   startDate: string;
   endDate: string;
 }
 
 export interface InvoiceMonthlyDataResponse {
-  invoice: string;
+  invoiceCode: string;
   reservationId: string;
   ledgerLines: LedgerLineResponse[];
 }

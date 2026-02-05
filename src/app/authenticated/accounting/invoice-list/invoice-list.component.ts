@@ -515,7 +515,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       return {
       ...invoice,
-      invoiceNumber: invoice.invoiceName || '',
+      invoiceNumber: invoice.invoiceCode || '',
       totalAmount: '$' + this.formatter.currency(totalAmount),
       paidAmount: '$' + this.formatter.currency(paidAmount),
       dueAmount: '$' + this.formatter.currency(dueAmount),

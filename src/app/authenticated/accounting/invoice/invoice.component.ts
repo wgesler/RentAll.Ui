@@ -150,7 +150,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
             this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
             this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
             if (this.selectedReservation) {
-              this.setInvoiceName(this.selectedReservation);
+              this.setInvoiceCode(this.selectedReservation);
             }
           }
         }
@@ -379,7 +379,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       });
     
     // Capture the Invoice date
-    const invoiceName = formValue.invoiceName || '';
+    const invoiceCode = formValue.invoiceCode || '';
     const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
     const officeName = selectedOffice?.name || '';  
     const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
@@ -391,7 +391,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       organizationId: user?.organizationId || '',
       officeId: formValue.officeId,
       officeName: officeName,
-      invoiceName: invoiceName,
+      invoiceCode: invoiceCode,
       reservationId: formValue.reservationId || null,
       reservationCode: reservationCode,
       startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
@@ -607,7 +607,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   loadMonthlyLedgerLines(reservationId: string): void {
     const startDate = this.form.get('startDate')?.value;
     const endDate = this.form.get('endDate')?.value;
-    const invoiceName = this.form.get('invoiceName')?.value || '';
+    const invoiceCode = this.form.get('invoiceCode')?.value || '';
     
     if (!startDate || !endDate) {
       this.toastr.warning('Start Date and End Date are required to load ledger lines', 'Missing Dates');
@@ -615,7 +615,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     
     const request: InvoiceMonthlyDataRequest = {
-      invoice: invoiceName,
+      invoiceCode: invoiceCode,
       reservationId: reservationId,
       startDate: startDate ? new Date(startDate).toISOString() : '',
       endDate: endDate ? new Date(endDate).toISOString() : ''
@@ -671,7 +671,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
-      invoiceName: new FormControl({ value: '', disabled: true }), 
+      invoiceCode: new FormControl({ value: '', disabled: true }), 
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
       paidAmount: new FormControl({ value: '0.00', disabled: true }),
       totalDue: new FormControl({ value: '0.00', disabled: true }), 
@@ -729,7 +729,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
         dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : (this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null),
         invoiceTotal: this.invoice.totalAmount || '',
-        invoiceName: this.invoice.invoiceName || '',
+        invoiceCode: this.invoice.invoiceCode || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
         paidAmount: (this.invoice.paidAmount || 0).toFixed(2),
         totalDue: ((this.invoice.totalAmount || 0) - (this.invoice.paidAmount || 0)).toFixed(2),
@@ -750,7 +750,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       
       this.updateAvailableReservations();
       this.filterCostCodes();
-      this.setInvoiceName(this.selectedReservation);
+      this.setInvoiceCode(this.selectedReservation);
     } else {
       // In add mode, reset original notes
       this.originalNotes = null;
@@ -852,15 +852,15 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
       this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
       if (this.selectedReservation) {
-        this.setInvoiceName(this.selectedReservation);
+        this.setInvoiceCode(this.selectedReservation);
       }
     });
   }
 
-  setInvoiceName(reservation: ReservationListResponse): void {
+  setInvoiceCode(reservation: ReservationListResponse): void {
     if (reservation && this.form) {
-      const invoiceName = reservation.reservationCode + '-' + (reservation.currentInvoiceNumber + 1).toString().padStart(3, '0');
-      this.form.get('invoiceName')?.setValue(invoiceName, { emitEvent: false });
+      const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNumber + 1).toString().padStart(3, '0');
+      this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
     }
   }
 

@@ -41,7 +41,7 @@
               <!-- Invoice (Read-only) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Invoice</mat-label>
-                <input matInput formControlName="invoiceName" readonly>
+                <input matInput formControlName="invoiceCode" readonly>
               </mat-form-field>
 
               <!-- Office -->
@@ -80,7 +80,26 @@
               <!-- Empty column for spacing -->
               <div class="col-span-1"></div>
 
-              <!-- Second Row: Invoice Date, Due Date, Start Date, End Date -->
+              <!-- Second Row: Start Date, End Date, Invoice Date, Due Date -->
+              <!-- Start Date -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Start Date</mat-label>
+                <input matInput [matDatepicker]="startDatePicker" formControlName="startDate">
+                <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #startDatePicker></mat-datepicker>
+              </mat-form-field>
+
+              <!-- End Date -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>End Date</mat-label>
+                <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value">
+                <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #endDatePicker></mat-datepicker>
+                @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
+                  <mat-error>End Date must be equal to or greater than Start Date</mat-error>
+                }
+              </mat-form-field>
+
               <!-- Invoice Date -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Invoice Date</mat-label>
@@ -100,25 +119,6 @@
                 <mat-datepicker #dueDatePicker></mat-datepicker>
                 @if (form.get('dueDate')?.hasError('required') && form.get('dueDate')?.touched) {
                   <mat-error>Due Date is required</mat-error>
-                }
-              </mat-form-field>
-
-              <!-- Start Date -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Start Date</mat-label>
-                <input matInput [matDatepicker]="startDatePicker" formControlName="startDate">
-                <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #startDatePicker></mat-datepicker>
-              </mat-form-field>
-
-              <!-- End Date -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>End Date</mat-label>
-                <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value">
-                <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #endDatePicker></mat-datepicker>
-                @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
-                  <mat-error>End Date must be equal to or greater than Start Date</mat-error>
                 }
               </mat-form-field>
 

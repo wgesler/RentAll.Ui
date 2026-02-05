@@ -249,7 +249,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(processed.processedHtml, processed.extractedStyles);
 
       // Generate file name
-      const invoiceCode = this.selectedInvoice.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
+      const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
       const fileName = this.utilityService.generateDocumentFileName('invoice', invoiceCode);
 
       const generateDto: GenerateDocumentFromHtmlDto = {
@@ -407,7 +407,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
         );
         this.availableInvoices = this.invoices.map(inv => ({
           value: inv,
-          label: inv.invoiceName || `Invoice ${inv.invoiceId}`
+          label: inv.invoiceCode || `Invoice ${inv.invoiceId}`
         }));
         
         // After loading invoices, if invoiceId is provided, select it
@@ -883,7 +883,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
     // Replace invoice placeholders
     if (this.selectedInvoice) {
-      result = result.replace(/\{\{invoiceName\}\}/g, this.selectedInvoice.invoiceName || '');
+      result = result.replace(/\{\{invoiceName\}\}/g, this.selectedInvoice.invoiceCode || '');
       result = result.replace(/\{\{invoiceDate\}\}/g, this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '');
       result = result.replace(/\{\{startDate\}\}/g, this.selectedInvoice.startDate ? this.formatterService.formatDateString(this.selectedInvoice.startDate) : '');
       result = result.replace(/\{\{endDate\}\}/g, this.selectedInvoice.endDate ? this.formatterService.formatDateString(this.selectedInvoice.endDate) : '');
@@ -1189,7 +1189,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    const invoiceCode = this.selectedInvoice.invoiceName?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId;
+    const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId;
     const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
     const downloadConfig: DownloadConfig = {
@@ -1208,7 +1208,7 @@ export class CreateInvoiceComponent extends BaseDocumentComponent implements OnI
 
   override async onEmail(): Promise<void> {
     const emailConfig: EmailConfig = {
-      subject: `Invoice: ${this.selectedInvoice?.invoiceName || 'Invoice'}`,
+      subject: `Invoice: ${this.selectedInvoice?.invoiceCode || 'Invoice'}`,
       noPreviewMessage: 'Please select an Office, Reservation, and Invoice to generate the invoice',
       noEmailMessage: 'No email address found for this reservation'
     };
