@@ -227,12 +227,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     // Load cost codes for the office
     try {
-      await firstValueFrom(
-        this.costCodesService.areCostCodesLoaded().pipe(
-          filter(loaded => loaded === true),
-          take(1)
-        )
-      );
+      await firstValueFrom(this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1)));
     } catch (err: any) {
       this.toastr.error('Failed to load cost codes', CommonMessage.Error);
       this.performSave();
@@ -250,9 +245,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     // Get cost code for payment
     const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
-    const paymentCostCode = costCodes.find(
-      c => c.isActive && c.transactionTypeId === TransactionType.Payment
-    );
+    const paymentCostCode = costCodes.find(c => c.isActive && c.transactionTypeId === TransactionType.Payment);
 
     if (!paymentCostCode) {
       this.toastr.warning('No payment cost code found for this office. Cannot apply credit.', 'Missing Cost Code');

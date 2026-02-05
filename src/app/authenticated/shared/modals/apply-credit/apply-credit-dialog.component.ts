@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
 import { FormsModule } from '@angular/forms';
-import { ReservationListResponse, ReservationResponse, ReservationRequest } from '../../../reservation/models/reservation-model';
+import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../../reservation/models/reservation-model';
 import { ReservationService } from '../../../reservation/services/reservation.service';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -82,30 +82,98 @@ export class ApplyCreditDialogComponent implements OnInit {
     
     this.isSubmitting = true;
     
-    // Call applyPayment with the invoice GUID (same as Apply Payment button)
-    const paymentRequest: InvoicePaymentRequest = {
-      costCodeId: this.data.costCodeId,
-      description: this.data.description || '',
-      amount: Math.abs(this.creditAmount), // Credit amount should be positive
-      invoices: [this.data.invoiceId] // List containing one GUID
-    };
-    
-    this.accountingService.applyPayment(paymentRequest)
-      .pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      )
-      .subscribe({
-        next: (response) => {
-          this.toastr.success(`Credit of $${this.formatter.currency(this.creditAmount)} applied`, CommonMessage.Success);
-          this.dialogRef.close({ success: true });
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Failed to apply credit', CommonMessage.Error);
+    // First, get the reservation and update its creditDue
+    this.reservationService.getReservationByGuid(this.selectedReservation.reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        // Convert ReservationResponse to ReservationRequest and update creditDue
+        const reservationRequest: ReservationRequest = {
+          reservationId: reservation.reservationId,
+          organizationId: reservation.organizationId,
+          officeId: reservation.officeId,
+          agentId: reservation.agentId || '', // Required field, use empty string if null
+          propertyId: reservation.propertyId,
+          contactId: reservation.contactId,
+          reservationCode: reservation.reservationCode,
+          reservationTypeId: reservation.reservationTypeId,
+          reservationStatusId: reservation.reservationStatusId,
+          reservationNoticeId: reservation.reservationNoticeId ?? 0, // Required field, default to 0 if undefined
+          numberOfPeople: reservation.numberOfPeople,
+          tenantName: reservation.tenantName,
+          arrivalDate: reservation.arrivalDate,
+          departureDate: reservation.departureDate,
+          checkInTimeId: reservation.checkInTimeId,
+          checkOutTimeId: reservation.checkOutTimeId,
+          billingMethodId: reservation.billingMethodId,
+          prorateTypeId: reservation.prorateTypeId,
+          billingTypeId: reservation.billingTypeId,
+          billingRate: reservation.billingRate,
+          deposit: reservation.deposit,
+          depositTypeId: reservation.depositTypeId ?? 0, // Required field, default to 0 if undefined
+          departureFee: reservation.departureFee,
+          taxes: reservation.taxes,
+          hasPets: reservation.hasPets,
+          petFee: reservation.petFee,
+          numberOfPets: reservation.numberOfPets,
+          petDescription: reservation.petDescription,
+          maidService: reservation.maidService,
+          maidServiceFee: reservation.maidServiceFee,
+          frequencyId: reservation.frequencyId,
+          maidStartDate: reservation.maidStartDate,
+          extraFeeLines: (reservation.extraFeeLines || []).map((line: ExtraFeeLineResponse): ExtraFeeLineRequest => ({
+            extraFeeLineId: line.extraFeeLineId,
+            reservationId: line.reservationId,
+            feeDescription: line.feeDescription,
+            feeAmount: line.feeAmount,
+            feeFrequencyId: line.feeFrequencyId
+          })),
+          notes: reservation.notes,
+          allowExtensions: reservation.allowExtensions,
+          currentInvoiceNumber: reservation.currentInvoiceNumber,
+          creditDue: (reservation.creditDue || 0) + this.creditAmount, // Add the credit amount to existing creditDue
+          isActive: reservation.isActive
+        };
+
+        // Update the reservation
+        this.reservationService.updateReservation(reservationRequest).pipe(take(1)).subscribe({
+          next: () => {
+            // Now apply the payment to the invoice
+            const paymentRequest: InvoicePaymentRequest = {
+              costCodeId: this.data.costCodeId,
+              description: this.data.description || '',
+              amount: Math.abs(this.creditAmount), // Credit amount should be positive
+              invoices: [this.data.invoiceId] // List containing one GUID
+            };
+            
+            this.accountingService.applyPayment(paymentRequest).pipe(
+              take(1),
+              finalize(() => this.isSubmitting = false)
+            ).subscribe({
+              next: (response) => {
+                this.toastr.success(`Credit of $${this.formatter.currency(this.creditAmount)} applied`, CommonMessage.Success);
+                this.dialogRef.close({ success: true });
+              },
+              error: (err: HttpErrorResponse) => {
+                if (err.status !== 400) {
+                  this.toastr.error('Failed to apply credit', CommonMessage.Error);
+                }
+              }
+            });
+          },
+          error: (err: HttpErrorResponse) => {
+            this.isSubmitting = false;
+            if (err.status !== 400) {
+              this.toastr.error('Failed to update reservation credit', CommonMessage.Error);
+            }
           }
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isSubmitting = false;
+        if (err.status !== 400) {
+          this.toastr.error('Failed to load reservation', CommonMessage.Error);
         }
-      });
+      }
+    });
   }
   
   get isFormValid(): boolean {

@@ -81,6 +81,12 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() defaultRowColor: string = '#fafafa'; // Default row color (light grey)
   @Input() expandAllCallback?: (expanded: boolean) => void; // Callback for expand/collapse all
   @Input() isAllExpanded?: boolean = false; // Track if all rows are expanded
+  @Input() isManualApplyMode?: boolean = false; // For manual payment application mode
+  @Input() paidAmountChangeCallback?: (item: PurposefulAny, newValue: string) => void; // Callback for paid amount changes
+  @Input() paidAmountInputCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount input
+  @Input() paidAmountBlurCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount blur
+  @Input() paidAmountFocusCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount focus
+  @Input() paidAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount enter key
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
@@ -262,7 +268,10 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   emitRowClickEvent(rowItem: PurposefulAny): void {
-    this.rowClickEvent.emit(rowItem);
+    // Only emit if row clicks are enabled
+    if (this.hasActionsRowClick) {
+      this.rowClickEvent.emit(rowItem);
+    }
   }
 
   onEmailClick(event: Event, rowItem: PurposefulAny): void {

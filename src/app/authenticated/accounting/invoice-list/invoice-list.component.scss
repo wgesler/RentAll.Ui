@@ -69,6 +69,317 @@
   max-width: 400px;
 }
 
+.payment-form-box {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 11px !important;
+  margin-bottom: 16px !important;
+  
+  ::ng-deep {
+    * {
+      font-size: 11px !important;
+    }
+    
+    mat-form-field {
+      font-size: 11px !important;
+      margin-bottom: 0 !important;
+      
+      * {
+        font-size: 11px !important;
+      }
+      
+      .mat-mdc-text-field-wrapper {
+        font-size: 11px !important;
+        padding-bottom: 0 !important;
+        height: auto !important;
+      }
+      
+      .mat-mdc-form-field-label {
+        font-size: 11px !important;
+      }
+      
+      .mat-mdc-form-field-label-wrapper {
+        font-size: 11px !important;
+        top: 0 !important;
+      }
+      
+      .mat-mdc-select-value {
+        font-size: 11px !important;
+      }
+      
+      .mat-mdc-select-value-text {
+        font-size: 11px !important;
+      }
+      
+      .mat-mdc-input-element {
+        font-size: 11px !important;
+      }
+      
+      .mdc-text-field__input {
+        font-size: 11px !important;
+      }
+      
+      .mdc-floating-label {
+        font-size: 11px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+      }
+      
+      .mdc-floating-label--float-above {
+        top: -8px !important;
+        transform: scale(0.75) translateY(0) !important;
+      }
+      
+      .mat-mdc-select-trigger {
+        font-size: 11px !important;
+      }
+      
+      input {
+        font-size: 11px !important;
+      }
+      
+      // Target actual input content
+      input.mat-mdc-input-element,
+      input.mdc-text-field__input {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+        padding-right: 12px !important;
+      }
+      
+      // Target select displayed value
+      .mat-mdc-select-value-text,
+      .mdc-select__selected-text {
+        font-size: 11px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        padding-right: 24px !important;
+      }
+      
+      // More aggressive targeting
+      .mdc-text-field {
+        font-size: 11px !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        
+        input {
+          font-size: 11px !important;
+        }
+      }
+      
+      .mdc-select {
+        font-size: 11px !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        
+        .mdc-select__selected-text {
+          font-size: 11px !important;
+        }
+      }
+      
+      // Remove extra spacing
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none !important;
+        height: 0 !important;
+      }
+      
+      .mat-mdc-form-field-infix {
+        padding: 0 !important;
+        min-height: 28px !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      
+      // Ensure label is positioned correctly inside the field
+      .mdc-floating-label--float-above {
+        background-color: #fafafa !important;
+        padding: 0 4px !important;
+      }
+    }
+    
+    // Target select options in dropdown (global panel)
+    .mat-mdc-select-panel {
+      .mat-mdc-option {
+        font-size: 11px !important;
+        
+        .mdc-list-item__primary-text {
+          font-size: 11px !important;
+        }
+      }
+    }
+    
+    button {
+      font-size: 11px !important;
+      padding: 0 10px !important;
+      height: 28px !important;
+      line-height: 28px !important;
+      min-height: 28px !important;
+      
+      * {
+        font-size: 11px !important;
+      }
+      
+      .mat-button-wrapper {
+        font-size: 11px !important;
+      }
+      
+      .mdc-button__label {
+        font-size: 11px !important;
+      }
+    }
+  }
+}
+
+.payment-cost-code-dropdown {
+  min-width: 220px;
+  width: 220px;
+  max-width: 220px;
+  
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+    
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+    
+    .mdc-text-field__input {
+      padding: 4px 12px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+    }
+    
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+    
+    .mdc-select__selected-text {
+      padding-right: 24px !important;
+    }
+  }
+}
+
+.payment-type-field {
+  min-width: 120px;
+  width: 120px;
+  max-width: 120px;
+  
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+    
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+    
+    .mdc-text-field__input {
+      padding: 4px 12px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+    }
+    
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
+.payment-description-field {
+  min-width: 200px;
+  width: 200px;
+  max-width: 200px;
+  
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+    
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+    
+    .mdc-text-field__input {
+      padding: 4px 12px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+    }
+    
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
+.payment-amount-field {
+  min-width: 120px;
+  width: 120px;
+  max-width: 120px;
+  
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+    
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+    
+    .mdc-text-field__input {
+      padding: 4px 12px 4px 12px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+      text-align: right !important;
+    }
+    
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
+.payment-remaining-field {
+  min-width: 120px;
+  width: 120px;
+  max-width: 120px;
+  
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+    
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+    
+    .mdc-text-field__input {
+      padding: 4px 12px 4px 12px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+      text-align: right !important;
+    }
+    
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
 .detail-lines-wrapper {
   padding: 12px 0 12px 24px;
   background-color: #f9f9f9;

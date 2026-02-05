@@ -198,6 +198,17 @@
                                         </mat-icon>
                                     </button>
                                 </span>
+                            } @else if (column.name === 'paidAmount' && isManualApplyMode) {
+                                <input type="text"
+                                  [value]="item.paidAmountDisplay || item.paidAmount"
+                                  (input)="paidAmountInputCallback && paidAmountInputCallback(item, $event); paidAmountChangeCallback && paidAmountChangeCallback(item, ($any($event.target)).value)"
+                                  (blur)="paidAmountBlurCallback && paidAmountBlurCallback(item, $event)"
+                                  (focus)="paidAmountFocusCallback && paidAmountFocusCallback(item, $event)"
+                                  (keydown.enter)="paidAmountEnterCallback && paidAmountEnterCallback(item, $event)"
+                                  (click)="$event.stopPropagation()"
+                                  (mousedown)="$event.stopPropagation()"
+                                  class="editable-paid-amount"
+                                  style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                             } @else if (column.isCheckbox) {
                                 <mat-checkbox [checked]="item[column.name]" 
                                   [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]" 
