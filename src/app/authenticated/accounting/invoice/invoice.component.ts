@@ -365,10 +365,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
          
     // Convert ledger lines from display format to request format
-    const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map(line => {
+    const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.ledgerLineId || undefined,
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
+          lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: line.costCodeId || undefined,
           transactionTypeId: (line as any).transactionTypeId,
           reservationId: formValue.reservationId || null,
@@ -1237,6 +1238,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   addLedgerLine(): void {
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null, // Temporary ID, will be assigned when saved
+      lineNumber: this.ledgerLines.length + 1, // Assign line number based on current array length
       costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
       costCode: null, // Will be populated when costCodeId is selected
       transactionType: '', // Empty string for display

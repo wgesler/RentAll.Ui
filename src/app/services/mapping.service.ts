@@ -183,6 +183,7 @@ export class MappingService {
       
       const mapped: LedgerLineListDisplay & { transactionTypeId?: number } = {
         ledgerLineId: line.ledgerLineId,
+        lineNumber: line.lineNumber,
         costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
         costCode: matchingCostCode 
           ? `${matchingCostCode.costCode}: ${matchingCostCode.description}` 

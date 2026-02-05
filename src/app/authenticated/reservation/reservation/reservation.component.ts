@@ -292,9 +292,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       reservationRequest.reservationCode = this.reservation?.reservationCode || formValue.reservationCode || '';
     }
 
-    // Debug: Log the request payload to see what's being sent
-    console.log('Reservation Request Payload:', JSON.stringify(reservationRequest, null, 2));
-    console.log('ExtraFeeLines:', reservationRequest.extraFeeLines);
 
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
@@ -895,29 +892,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log('Raw ExtraFeeLines from API:', this.reservation.extraFeeLines);
-    console.log('Available Frequencies:', this.availableFrequencies);
-    
-    this.extraFeeLines = this.reservation.extraFeeLines.map(line => {
-      const mappedLine = {
-        extraFeeLineId: line.extraFeeLineId,
-        feeDescription: line.feeDescription,
-        feeAmount: line.feeAmount,
-        feeFrequencyId: line.feeFrequencyId !== null && line.feeFrequencyId !== undefined ? Number(line.feeFrequencyId) : undefined,
-        isNew: false
-      };
-      console.log('Mapped ExtraFeeLine:', {
-        original: line,
-        mapped: mappedLine,
-        frequencyId: line.feeFrequencyId,
-        frequencyIdType: typeof line.feeFrequencyId,
-        mappedFrequencyId: mappedLine.feeFrequencyId,
-        mappedFrequencyIdType: typeof mappedLine.feeFrequencyId
-      });
-      return mappedLine;
-    });
-    
-    console.log('Final extraFeeLines array:', this.extraFeeLines);
+    this.extraFeeLines = this.reservation.extraFeeLines.map(line => ({
+      extraFeeLineId: line.extraFeeLineId,
+      feeDescription: line.feeDescription,
+      feeAmount: line.feeAmount,
+      feeFrequencyId: line.feeFrequencyId !== null && line.feeFrequencyId !== undefined ? Number(line.feeFrequencyId) : undefined,
+      isNew: false
+    }));
   }
 
   addExtraFeeLine(): void {
