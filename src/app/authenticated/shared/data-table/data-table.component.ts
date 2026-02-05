@@ -87,6 +87,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() paidAmountBlurCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount blur
   @Input() paidAmountFocusCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount focus
   @Input() paidAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for paid amount enter key
+  @Input() applyAmountChangeCallback?: (item: PurposefulAny, newValue: string) => void; // Callback for apply amount changes
+  @Input() applyAmountInputCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount input
+  @Input() applyAmountBlurCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount blur
+  @Input() applyAmountFocusCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount focus
+  @Input() applyAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount enter key
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();

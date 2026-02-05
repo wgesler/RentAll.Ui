@@ -13,7 +13,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, 
 import { OfficeService } from '../../organization-configuration/office/services/office.service';
 import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
-import { ReservationListResponse, ReservationResponse } from '../../reservation/models/reservation-model';
+import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../reservation/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -24,6 +24,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { InvoicePaymentRequest } from '../models/invoice.model';
+import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
 
 @Component({
   selector: 'app-invoice',
@@ -198,13 +199,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check for credit before saving (only in add mode)
-    if (this.isAddMode && this.selectedReservation && this.selectedReservation.creditDue > 0) {
-      this.isSubmitting = false;
-      this.checkAndApplyCredit();
-      return;
-    }
-
+    // Create invoice directly without checking for credit dialog
     this.performSave();
   }
 
@@ -243,22 +238,18 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       hasBackdrop: true
     };
 
-    // Get cost code for payment
+    // Get debit cost codes (not payment/credit codes)
     const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
-    const paymentCostCode = costCodes.find(c => c.isActive && c.transactionTypeId === TransactionType.Payment);
+    const debitCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
 
-    if (!paymentCostCode) {
-      this.toastr.warning('No payment cost code found for this office. Cannot apply credit.', 'Missing Cost Code');
+    if (!debitCostCodes || debitCostCodes.length === 0) {
+      this.toastr.warning('No debit cost codes found for this office. Cannot apply credit.', 'Missing Cost Code');
       this.performSave();
       return;
     }
 
-    const costCodeId = parseInt(paymentCostCode.costCodeId, 10);
-    if (isNaN(costCodeId)) {
-      this.toastr.warning('Invalid cost code. Cannot apply credit.', 'Invalid Cost Code');
-      this.performSave();
-      return;
-    }
+    // Use the first available debit cost code
+    const debitCostCode = debitCostCodes[0];
 
     // Create dialog data - use temporary invoice ID that will be replaced after creation
     const creditDialogData: ApplyCreditDialogData = {
@@ -267,8 +258,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         value: this.selectedReservation,
         label: this.utilityService.getReservationLabel(this.selectedReservation)
       }],
-      invoiceId: '', // Will be set after invoice creation
-      costCodeId: costCodeId,
+      invoiceId: '', // Empty means invoice doesn't exist yet
+      costCodeId: parseInt(debitCostCode.costCodeId, 10),
       description: 'Credit applied from reservation'
     };
 
@@ -277,53 +268,115 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       data: creditDialogData
     });
 
-    // Pre-select the reservation in the dialog
-    setTimeout(() => {
-      // The dialog will have the reservation pre-selected since it's the only one in the list
-    }, 0);
-
     dialogRef.afterClosed().subscribe(async (result: { success: boolean } | undefined) => {
       if (result?.success) {
-        // User clicked Apply - store credit info to apply after invoice creation
-        (this as any).pendingCredit = {
-          costCodeId: costCodeId,
-          amount: creditAmount,
-          description: 'Credit applied from reservation'
-        };
+        // User clicked Apply - add a debit ledger line to the invoice
+        this.addCreditDebitLine(creditAmount, debitCostCode);
+        // Store credit amount to update reservation after save
+        (this as any).appliedCreditAmount = creditAmount;
       }
       // Continue with save after dialog closes
       this.performSave();
     });
   }
 
-  async applyPendingCredit(invoiceId: string): Promise<void> {
-    const pendingCredit = (this as any).pendingCredit;
-    if (!pendingCredit || !invoiceId) {
+  addCreditDebitLine(creditAmount: number, debitCostCode: CostCodesResponse): void {
+    // Create a debit ledger line with the credit amount (positive because it's a debit)
+    const debitLine: LedgerLineListDisplay = {
+      ledgerLineId: null,
+      lineNumber: this.ledgerLines.length + 1,
+      costCodeId: debitCostCode.costCodeId,
+      costCode: debitCostCode.costCode,
+      transactionType: this.transactionTypes.find(t => t.value === debitCostCode.transactionTypeId)?.label || 'Debit',
+      description: 'Credit applied from reservation',
+      amount: Math.abs(creditAmount), // Positive because it's a debit
+      isNew: true
+    };
+    
+    // Set transactionTypeId from the cost code
+    (debitLine as any).transactionTypeId = debitCostCode.transactionTypeId;
+    
+    // Add the debit line
+    this.ledgerLines.push(debitLine);
+    
+    // Update totals
+    this.updateTotalAmount();
+    
+    // Store updated original state for change detection
+    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
+  }
+
+  async updateReservationCreditAfterSave(creditAmount: number): Promise<void> {
+    if (!this.selectedReservation?.reservationId) {
       return;
     }
 
     try {
-      const paymentRequest: InvoicePaymentRequest = {
-        costCodeId: pendingCredit.costCodeId,
-        description: pendingCredit.description,
-        amount: Math.abs(pendingCredit.amount),
-        invoices: [invoiceId]
-      };
-
-      await firstValueFrom(
-        this.accountingService.applyPayment(paymentRequest).pipe(take(1))
+      // Get the full reservation
+      const reservation = await firstValueFrom(
+        this.reservationService.getReservationByGuid(this.selectedReservation.reservationId).pipe(take(1))
       );
 
-      this.toastr.success(`Credit of $${this.formatter.currency(pendingCredit.amount)} applied`, CommonMessage.Success);
-      
-      // Clear pending credit
-      (this as any).pendingCredit = null;
+      // Calculate new creditDue (reduce by the amount applied)
+      const newCreditDue = Math.max(0, (reservation.creditDue || 0) - creditAmount);
+
+      // Convert ReservationResponse to ReservationRequest
+      const reservationRequest: ReservationRequest = {
+        reservationId: reservation.reservationId,
+        organizationId: reservation.organizationId,
+        officeId: reservation.officeId,
+        agentId: reservation.agentId || '',
+        propertyId: reservation.propertyId,
+        contactId: reservation.contactId,
+        reservationCode: reservation.reservationCode,
+        reservationTypeId: reservation.reservationTypeId,
+        reservationStatusId: reservation.reservationStatusId,
+        reservationNoticeId: reservation.reservationNoticeId ?? 0,
+        numberOfPeople: reservation.numberOfPeople,
+        tenantName: reservation.tenantName,
+        arrivalDate: reservation.arrivalDate,
+        departureDate: reservation.departureDate,
+        checkInTimeId: reservation.checkInTimeId,
+        checkOutTimeId: reservation.checkOutTimeId,
+        billingMethodId: reservation.billingMethodId,
+        prorateTypeId: reservation.prorateTypeId,
+        billingTypeId: reservation.billingTypeId,
+        billingRate: reservation.billingRate,
+        deposit: reservation.deposit,
+        depositTypeId: reservation.depositTypeId ?? 0,
+        departureFee: reservation.departureFee,
+        taxes: reservation.taxes,
+        hasPets: reservation.hasPets,
+        petFee: reservation.petFee,
+        numberOfPets: reservation.numberOfPets,
+        petDescription: reservation.petDescription,
+        maidService: reservation.maidService,
+        maidServiceFee: reservation.maidServiceFee,
+        frequencyId: reservation.frequencyId,
+        maidStartDate: reservation.maidStartDate,
+        extraFeeLines: (reservation.extraFeeLines || []).map((line: ExtraFeeLineResponse): ExtraFeeLineRequest => ({
+          extraFeeLineId: line.extraFeeLineId,
+          reservationId: line.reservationId,
+          feeDescription: line.feeDescription,
+          feeAmount: line.feeAmount,
+          feeFrequencyId: line.feeFrequencyId,
+          costCodeId: line.costCodeId
+        })),
+        notes: reservation.notes,
+        allowExtensions: reservation.allowExtensions,
+        currentInvoiceNumber: reservation.currentInvoiceNumber,
+        creditDue: newCreditDue, // Reduce credit by the amount applied
+        isActive: reservation.isActive
+      };
+
+      // Update the reservation
+      await firstValueFrom(
+        this.reservationService.updateReservation(reservationRequest).pipe(take(1))
+      );
     } catch (err: any) {
       if (err.status !== 400) {
-        this.toastr.error('Failed to apply credit', CommonMessage.Error);
+        this.toastr.error('Failed to update reservation credit', CommonMessage.Error);
       }
-      // Clear pending credit even on error
-      (this as any).pendingCredit = null;
     }
   }
 
@@ -417,9 +470,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         
-        // Apply pending credit if it exists (only for newly created invoices)
-        if (isCreating && savedInvoice?.invoiceId) {
-          await this.applyPendingCredit(savedInvoice.invoiceId);
+        // Update reservation's creditDue if credit was applied as a debit line (only for newly created invoices)
+        if (isCreating && savedInvoice?.invoiceId && (this as any).appliedCreditAmount) {
+          await this.updateReservationCreditAfterSave((this as any).appliedCreditAmount);
+          // Clear applied credit amount
+          (this as any).appliedCreditAmount = null;
         }
         
         // Navigate to create-invoice component to generate the document
@@ -498,9 +553,20 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return this.officeAvailableCostCodes; // full officeCostCodes
     }
     
-    // New lines use filtered cost codes based on mode
-    const sourceCodes = this.isPaymentMode ? this.creditCostCodes : this.debitCostCodes;
-    return sourceCodes.filter(c => c.isActive).map(c => ({
+    // For new lines, determine cost codes based on the line's transaction type
+    const transactionTypeId = (line as any).transactionTypeId;
+    
+    // If transaction type is Payment, show payment cost codes (creditCostCodes)
+    if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
+      return this.creditCostCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+    }
+    
+    // Otherwise, show charge/debit cost codes (debitCostCodes) - this includes charges, debits, etc.
+    // This is the default for new lines without a transaction type set
+    return this.debitCostCodes.filter(c => c.isActive).map(c => ({
       value: c.costCodeId,
       label: `${c.costCode}: ${c.description}`
     }));
@@ -622,6 +688,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         // Store original state for change detection (deep clone)
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
+        
+        // Check if reservation has credit and ask if it should be applied
+        if (this.isAddMode && this.selectedReservation && this.selectedReservation.creditDue > 0) {
+          this.checkAndOfferCreditApplication();
+        }
       },
       error: (err: HttpErrorResponse) => {
         // On error, reset to empty string for invoice (since it's a string)
@@ -1226,6 +1297,80 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     } else {
       this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
     }
+  }
+
+  checkAndOfferCreditApplication(): void {
+    if (!this.selectedReservation || !this.selectedOffice || this.selectedReservation.creditDue <= 0) {
+      return;
+    }
+
+    const creditAmount = this.selectedReservation.creditDue;
+    
+    // Find a payment cost code for this office
+    const paymentCostCode = this.creditCostCodes.find(c => c.isActive);
+    if (!paymentCostCode) {
+      // No payment cost code available, skip credit application
+      return;
+    }
+
+    // Blur any focused element to prevent aria-hidden warning
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Open dialog asking if credit should be applied
+    const dialogConfig: MatDialogConfig = {
+      width: '500px',
+      autoFocus: true,
+      restoreFocus: true,
+      disableClose: false,
+      hasBackdrop: true
+    };
+
+    const dialogData: ApplyCreditToInvoiceDialogData = {
+      creditAmount: creditAmount
+    };
+
+    const dialogRef = this.dialog.open(ApplyCreditToInvoiceDialogComponent, {
+      ...dialogConfig,
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((result: boolean | undefined) => {
+      if (result === true) {
+        // User clicked Yes - add payment line
+        this.addCreditPaymentLine(creditAmount, paymentCostCode);
+      }
+    });
+  }
+
+  addCreditPaymentLine(creditAmount: number, paymentCostCode: CostCodesResponse): void {
+    // Create a payment line with the credit amount (negative because it's a payment)
+    const paymentLine: LedgerLineListDisplay = {
+      ledgerLineId: null,
+      lineNumber: this.ledgerLines.length + 1,
+      costCodeId: paymentCostCode.costCodeId,
+      costCode: paymentCostCode.costCode,
+      transactionType: 'Payment',
+      description: `Credit applied from reservation`,
+      amount: -Math.abs(creditAmount), // Negative because it's a payment/credit
+      isNew: true
+    };
+    
+    // Set transactionTypeId to Payment
+    (paymentLine as any).transactionTypeId = TransactionType.Payment;
+    
+    // Add the payment line
+    this.ledgerLines.push(paymentLine);
+    
+    // Store credit amount to update reservation after save
+    (this as any).appliedCreditAmount = creditAmount;
+    
+    // Update totals
+    this.updateTotalAmount();
+    
+    // Store updated original state for change detection
+    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
   }
 
   addLedgerLine(): void {

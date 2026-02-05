@@ -496,7 +496,8 @@
                     <thead>
                       <tr class="border-b">
                         <th class="text-left" style="width: 50px;">No</th>
-                        <th class="text-left" style="min-width: 150px;">Fee Description</th>
+                        <th class="text-left" style="min-width: 100px;">Fee Description</th>
+                        <th class="text-left" style="width: 350px;">Cost Code</th>
                         <th class="text-left" style="width: 250px;">Frequency</th>
                         <th class="text-left" style="width: 120px;">Amount</th>
                         <th class="text-right" style="width: 50px;"></th>
@@ -506,11 +507,22 @@
                       @for (line of extraFeeLines; track line; let i = $index) {
                         <tr class="border-b">
                           <td style="width: 50px;">{{ i + 1 }}</td>
-                          <td style="min-width: 150px;">
+                          <td style="min-width: 100px;">
                             <input type="text" class="w-full editable-input" 
                               [value]="line.feeDescription || ''"
                               (input)="updateExtraFeeLineField(i, 'feeDescription', $any($event.target).value || '')"
                               placeholder="Enter fee description">
+                          </td>
+                          <td style="width: 350px;">
+                            <mat-select [value]="line.costCodeId || null" 
+                              (selectionChange)="updateExtraFeeLineField(i, 'costCodeId', $event.value)"
+                              class="w-full"
+                              [disabled]="!selectedOffice">
+                              <mat-option [value]="null">Select Cost Code</mat-option>
+                              @for (costCode of availableChargeCostCodes; track costCode.value) {
+                                <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                              }
+                            </mat-select>
                           </td>
                           <td style="width: 250px;">
                             <mat-select [value]="getExtraFeeFrequencyValue(line.feeFrequencyId)" 

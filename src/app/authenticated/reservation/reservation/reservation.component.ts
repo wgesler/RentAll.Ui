@@ -38,6 +38,9 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
+import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
+import { TransactionType } from '../../accounting/models/accounting-enum';
 
 // Display interface for ExtraFeeLine in the UI
 interface ExtraFeeLineDisplay {
@@ -45,6 +48,7 @@ interface ExtraFeeLineDisplay {
   feeDescription: string | null;
   feeAmount: number | undefined;
   feeFrequencyId: number | undefined;
+  costCodeId: number | undefined;
   isNew?: boolean; // Track if this is a new line
 }
 
@@ -102,6 +106,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
   
   // ExtraFeeLines management
   extraFeeLines: ExtraFeeLineDisplay[] = [];
+  
+  // Cost codes for ExtraFeeLines (charge types only)
+  chargeCostCodes: CostCodesResponse[] = [];
+  availableChargeCostCodes: { value: number, label: string }[] = [];
+  costCodesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -123,7 +132,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private costCodesService: CostCodesService
   ) {
   }
 
@@ -411,6 +421,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
     this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
     this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+    // Load cost codes when office is set
+    if (this.selectedOffice) {
+      this.loadCostCodes();
+    }
 
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
@@ -494,7 +508,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
       this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
-      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;     
+      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
+      // Load cost codes when office is set
+      if (this.selectedOffice) {
+        this.loadCostCodes();
+      }
       if(this.reservation?.contactId)
         this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
 
@@ -897,6 +915,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       feeDescription: line.feeDescription,
       feeAmount: line.feeAmount,
       feeFrequencyId: line.feeFrequencyId !== null && line.feeFrequencyId !== undefined ? Number(line.feeFrequencyId) : undefined,
+      costCodeId: line.costCodeId !== null && line.costCodeId !== undefined ? Number(line.costCodeId) : undefined,
       isNew: false
     }));
   }
@@ -907,6 +926,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       feeDescription: null,
       feeAmount: undefined,
       feeFrequencyId: undefined,
+      costCodeId: undefined,
       isNew: true
     };
     this.extraFeeLines.push(newLine);
@@ -949,6 +969,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.toastr.error(`Extra Fee Line ${i + 1}: Frequency is required`, CommonMessage.Error);
         return false;
       }
+
+      // Check if costCodeId is provided
+      if (line.costCodeId === undefined || line.costCodeId === null) {
+        this.toastr.error(`Extra Fee Line ${i + 1}: Cost Code is required`, CommonMessage.Error);
+        return false;
+      }
     }
 
     return true;
@@ -964,7 +990,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       reservationId: this.isAddMode ? undefined : (this.reservationId || undefined),
       feeDescription: line.feeDescription || null,
       feeAmount: line.feeAmount || 0,
-      feeFrequencyId: line.feeFrequencyId !== undefined && line.feeFrequencyId !== null ? Number(line.feeFrequencyId) : Frequency.OneTime
+      feeFrequencyId: line.feeFrequencyId !== undefined && line.feeFrequencyId !== null ? Number(line.feeFrequencyId) : Frequency.OneTime,
+      costCodeId: line.costCodeId !== undefined && line.costCodeId !== null ? Number(line.costCodeId) : 0
     }));
   }
   //#endregion
@@ -1042,6 +1069,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
+          // Load cost codes when office is selected
+          if (this.selectedOffice) {
+            this.loadCostCodes();
+          }
         });
       },
       error: (err: HttpErrorResponse) => {
@@ -1292,9 +1323,37 @@ export class ReservationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  loadCostCodes(): void {
+    if (!this.selectedOffice) {
+      this.chargeCostCodes = [];
+      this.availableChargeCostCodes = [];
+      return;
+    }
+
+    // Wait for cost codes to be loaded, then filter for charge types
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+      next: () => {
+        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
+          // Get cost codes for the selected office and filter for charge types (non-payment)
+          const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
+          this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
+          this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
+            value: parseInt(c.costCodeId, 10),
+            label: `${c.costCode}: ${c.description}`
+          }));
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.chargeCostCodes = [];
+        this.availableChargeCostCodes = [];
+      }
+    });
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();
+    this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

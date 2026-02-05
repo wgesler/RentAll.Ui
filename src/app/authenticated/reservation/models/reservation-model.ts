@@ -140,6 +140,7 @@ export interface ExtraFeeLineRequest {
   feeDescription: string | null;
   feeAmount: number;
   feeFrequencyId: number;
+  costCodeId: number;
 }
 
 export interface ExtraFeeLineResponse {
@@ -148,6 +149,7 @@ export interface ExtraFeeLineResponse {
   feeDescription: string | null;
   feeAmount: number;
   feeFrequencyId: number;
+  costCodeId: number;
 }
 
 

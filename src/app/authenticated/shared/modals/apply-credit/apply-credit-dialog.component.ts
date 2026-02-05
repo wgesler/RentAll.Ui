@@ -124,7 +124,8 @@ export class ApplyCreditDialogComponent implements OnInit {
             reservationId: line.reservationId,
             feeDescription: line.feeDescription,
             feeAmount: line.feeAmount,
-            feeFrequencyId: line.feeFrequencyId
+            feeFrequencyId: line.feeFrequencyId,
+            costCodeId: line.costCodeId
           })),
           notes: reservation.notes,
           allowExtensions: reservation.allowExtensions,

@@ -25,7 +25,7 @@ import { CompanyService } from '../../company/services/company.service';
 import { CompanyResponse } from '../../company/models/company.model';
 import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
-import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
 import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { AuthService } from '../../../services/auth.service';
@@ -91,7 +91,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
   creditCostCodes: { value: number, label: string }[] = [];
-  invoicesDisplayedColumns: ColumnSet = {
+  private baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
@@ -99,8 +99,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    applyAmount: { displayAs: 'Apply', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
+
+  get invoicesDisplayedColumns(): ColumnSet {
+    // Only show applyAmount column when payment form is active
+    if (this.showPaymentForm || this.isManualApplyMode) {
+      return this.baseInvoicesDisplayedColumns;
+    } else {
+      // Return columns without applyAmount
+      const { applyAmount, ...columnsWithoutApply } = this.baseInvoicesDisplayedColumns;
+      return columnsWithoutApply;
+    }
+  }
 
   ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
@@ -343,7 +355,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
-          this.getInvoices(); // Refresh the list
+          // Refresh the invoice list
+          this.loadAllInvoices();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -452,26 +465,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     if (remainingAmount <= 0) {
       // Show dialog that invoice is paid in full
-      const genericDialogConfig: MatDialogConfig = {
+      const dialogConfig: MatDialogConfig = {
+        width: '500px',
         autoFocus: true,
         restoreFocus: true,
-        disableClose: false
+        disableClose: false,
+        hasBackdrop: true
       };
-      this.dialog.open(GenericModalComponent, {
-        ...genericDialogConfig,
-        data: {
-          title: 'Invoice Paid in Full',
-          message: 'No more payments can be applied to this invoice, it is paid in full.',
-          icon: 'info',
-          iconColor: 'primary',
-          no: '',
-          yes: 'OK',
-          callback: (dialogRef, result) => {
-            dialogRef.close();
-          },
-          useHTML: false
-        }
-      });
+      this.dialog.open(InvoicePaidFullDialogComponent, dialogConfig);
     } else {
       // Open Apply Payment dialog with single invoice GUID
       this.openApplyPaymentDialogForInvoice(event.invoiceId);
@@ -528,25 +529,38 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const rawLedgerLines = invoice['ledgerLines'] ?? [];
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
-      let paidAmount = invoice.paidAmount || 0;
+      const paidAmount = invoice.paidAmount || 0;
       
-      // In manual mode, convert paid amount to negative if it's positive
-      if (this.isManualApplyMode && paidAmount > 0) {
-        paidAmount = -paidAmount;
-      }
+      // Calculate due amount: Total - Paid
+      const dueAmount = totalAmount - Math.abs(paidAmount);
+      const dueAmountValue = dueAmount; // Store raw value for validation
       
-      // Calculate due amount: Total + Paid (where Paid is negative in manual mode)
-      const dueAmount = this.isManualApplyMode ? (totalAmount + paidAmount) : (totalAmount - Math.abs(paidAmount));
+      // Store original due amount value when entering manual mode (for editability check)
+      // If already in manual mode and originalDueAmountValue exists, preserve it
+      const invoiceAny = invoice as any; // Type assertion for display object properties
+      const originalDueAmountValue = this.isManualApplyMode && invoiceAny.originalDueAmountValue !== undefined 
+        ? invoiceAny.originalDueAmountValue 
+        : dueAmountValue;
+      
+      // Initialize applyAmount for manual mode (preserve existing value if already set)
+      const applyAmountValue = this.isManualApplyMode 
+        ? (invoiceAny.applyAmountValue !== undefined ? invoiceAny.applyAmountValue : 0)
+        : 0;
       
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceCode || '',
       totalAmount: '$' + this.formatter.currency(totalAmount),
       totalAmountValue: totalAmount, // Store raw value for validation
-      paidAmount: this.isManualApplyMode ? paidAmount : '$' + this.formatter.currency(paidAmount), // Store raw value in manual mode (negative)
-      paidAmountValue: paidAmount, // Store raw value for calculations (negative in manual mode)
-      paidAmountDisplay: '$' + this.formatter.currency(paidAmount), // Display value (negative in manual mode)
+      paidAmount: '$' + this.formatter.currency(paidAmount), // Always display as formatted (read-only)
+      paidAmountValue: paidAmount, // Store raw value (read-only, never changes during manual entry)
+      paidAmountDisplay: '$' + this.formatter.currency(paidAmount), // Display value (read-only)
       dueAmount: '$' + this.formatter.currency(dueAmount),
+      dueAmountValue: dueAmountValue, // Store raw value for validation (current due amount)
+      originalDueAmountValue: originalDueAmountValue, // Store original due amount (for editability check)
+      applyAmount: this.isManualApplyMode ? '$' + this.formatter.currency(applyAmountValue) : '', // Display value for apply column
+      applyAmountValue: applyAmountValue, // Store raw value for calculations (negative in manual mode)
+      applyAmountDisplay: this.isManualApplyMode ? '$' + this.formatter.currency(applyAmountValue) : '', // Display value
       startDate: this.formatter.formatDateString(invoice.startDate),
       endDate: this.formatter.formatDateString(invoice.endDate),
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
@@ -987,9 +1001,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.paymentAmountDisplay = '$' + this.formatter.currency(finalValue);
         input.value = this.paymentAmountDisplay;
         
-        // Always recalculate remaining amount (payment amount minus paid amounts)
-        // paidAmountValue is stored as negative, so we add it (which subtracts the absolute value)
-        const totalPaid = this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
+        // Always recalculate remaining amount (payment amount minus apply amounts)
+        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
+        // applyAmountValue is stored as negative, so we add it (which subtracts the absolute value)
+        const totalPaid = this.invoicesDisplay
+          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
+          .reduce((sum, inv) => sum + (inv.applyAmountValue || 0), 0);
         this.remainingAmount = this.paymentAmount + totalPaid; // positive + negative = positive - positive
         this.remainingAmountDisplay = '$' + this.formatter.currency(Math.max(0, this.remainingAmount));
       } else {
@@ -998,8 +1015,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         input.value = this.paymentAmountDisplay;
         
         // Recalculate remaining amount
-        // paidAmountValue is stored as negative, so we add it (which subtracts the absolute value)
-        const totalPaid = this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
+        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
+        // applyAmountValue is stored as negative, so we add it (which subtracts the absolute value)
+        const totalPaid = this.invoicesDisplay
+          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
+          .reduce((sum, inv) => sum + (inv.applyAmountValue || 0), 0);
         this.remainingAmount = this.paymentAmount + totalPaid; // positive + negative = positive - positive
         this.remainingAmountDisplay = '$' + this.formatter.currency(Math.max(0, this.remainingAmount));
       }
@@ -1009,9 +1029,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       input.value = this.paymentAmountDisplay;
       
       // Recalculate remaining amount
-      const totalPaid = this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
-      this.remainingAmount = this.paymentAmount - totalPaid;
-      this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+      // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
+      const totalPaid = this.invoicesDisplay
+        .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
+        .reduce((sum, inv) => sum + (inv.applyAmountValue || 0), 0);
+      this.remainingAmount = this.paymentAmount + totalPaid; // positive + negative = positive - positive
+      this.remainingAmountDisplay = '$' + this.formatter.currency(Math.max(0, this.remainingAmount));
     }
   }
 
@@ -1088,10 +1111,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   submitManualPayments(): void {
-    // Find all invoices that have a paid amount entered (paidAmountValue is negative)
+    // Find all invoices that have an apply amount entered (applyAmountValue is negative)
     const invoicesWithPayments = this.invoicesDisplay.filter(invoice => {
-      const paidAmountValue = invoice.paidAmountValue || 0;
-      return paidAmountValue < 0 && invoice.invoiceId; // Only invoices with negative paid amounts (meaning payment was applied)
+      const applyAmountValue = invoice.applyAmountValue || 0;
+      return applyAmountValue < 0 && invoice.invoiceId; // Only invoices with negative apply amounts (meaning payment was applied)
     });
 
     if (invoicesWithPayments.length === 0) {
@@ -1108,7 +1131,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Process payments sequentially to avoid race conditions
     // Create an array of payment data
     const paymentData = invoicesWithPayments.map(invoice => {
-      const paidAmount = Math.abs(invoice.paidAmountValue || 0); // Convert negative to positive
+      const paidAmount = Math.abs(invoice.applyAmountValue || 0); // Convert negative to positive
       return {
         invoice,
         paidAmount,
@@ -1194,7 +1217,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
   
-  onPaidAmountInput(invoice: any, event: Event): void {
+  onApplyAmountInput(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
     let value = input.value;
     
@@ -1216,20 +1239,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Update display value immediately for visual feedback
-    invoice.paidAmountDisplay = input.value;
+    invoice.applyAmountDisplay = input.value;
   }
 
-  onPaidAmountChange(invoice: any, newValue: string): void {
+  onApplyAmountChange(invoice: any, newValue: string): void {
     // This is called on input event, but we'll handle formatting and calculations in blur
     // Just update the display value for visual feedback during typing
     const cleanedValue = newValue.replace(/[^0-9.-]/g, '');
     const numericValue = parseFloat(cleanedValue) || 0;
     
     // Just update display value during input, don't update remaining yet
-    invoice.paidAmountDisplay = numericValue.toString();
+    invoice.applyAmountDisplay = numericValue.toString();
   }
   
-  onPaidAmountBlur(invoice: any, event: Event): void {
+  onApplyAmountBlur(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
     const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
     
@@ -1239,41 +1262,42 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Always store as negative value
         const negativeValue = parsed < 0 ? parsed : -Math.abs(parsed);
         
-        invoice.paidAmount = negativeValue;
-        invoice.paidAmountValue = negativeValue;
-        invoice.paidAmountDisplay = '$' + this.formatter.currency(negativeValue);
-        input.value = invoice.paidAmountDisplay;
+        invoice.applyAmountValue = negativeValue;
+        invoice.applyAmountDisplay = '$' + this.formatter.currency(negativeValue);
+        invoice.applyAmount = invoice.applyAmountDisplay;
+        input.value = invoice.applyAmountDisplay;
         
-        // Calculate due amount: Total + Paid (where Paid is negative)
-        const dueAmount = invoice.totalAmountValue + negativeValue;
-        invoice.dueAmount = '$' + this.formatter.currency(dueAmount);
-        
-        // Calculate remaining amount: subtract paid amounts from payment amount
-        // paidAmountValue is stored as negative, so we add it (which subtracts the absolute value)
-        const totalPaid = this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
+        // Calculate remaining amount: subtract apply amounts from payment amount
+        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
+        // applyAmountValue is stored as negative, so we add it (which subtracts the absolute value)
+        const totalPaid = this.invoicesDisplay
+          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
+          .reduce((sum, inv) => sum + (inv.applyAmountValue || 0), 0);
         this.remainingAmount = this.paymentAmount + totalPaid; // positive + negative = positive - positive
         this.remainingAmountDisplay = '$' + this.formatter.currency(Math.max(0, this.remainingAmount));
       } else {
-        invoice.paidAmount = invoice.paidAmountValue || 0;
-        invoice.paidAmountDisplay = '$' + this.formatter.currency(invoice.paidAmountValue || 0);
-        input.value = invoice.paidAmountDisplay;
+        invoice.applyAmountValue = invoice.applyAmountValue || 0;
+        invoice.applyAmountDisplay = '$' + this.formatter.currency(invoice.applyAmountValue || 0);
+        invoice.applyAmount = invoice.applyAmountDisplay;
+        input.value = invoice.applyAmountDisplay;
       }
     } else {
-      invoice.paidAmount = invoice.paidAmountValue || 0;
-      invoice.paidAmountDisplay = '$' + this.formatter.currency(invoice.paidAmountValue || 0);
-      input.value = invoice.paidAmountDisplay;
+      invoice.applyAmountValue = invoice.applyAmountValue || 0;
+      invoice.applyAmountDisplay = '$' + this.formatter.currency(invoice.applyAmountValue || 0);
+      invoice.applyAmount = invoice.applyAmountDisplay;
+      input.value = invoice.applyAmountDisplay;
     }
   }
   
-  onPaidAmountFocus(invoice: any, event: Event): void {
+  onApplyAmountFocus(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
     // Show absolute value when focusing (for easier editing)
-    const absValue = Math.abs(invoice.paidAmountValue || 0);
+    const absValue = Math.abs(invoice.applyAmountValue || 0);
     input.value = absValue.toString();
     input.select();
   }
 
-  onPaidAmountEnter(invoice: any, event: Event): void {
+  onApplyAmountEnter(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
   }
@@ -1289,6 +1313,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
     this.remainingAmount = 0;
     this.remainingAmountDisplay = '$' + this.formatter.currency(0);
+    // Clear apply amounts from all invoices
+    this.invoicesDisplay.forEach(invoice => {
+      invoice.applyAmountValue = 0;
+      invoice.applyAmount = '';
+      invoice.applyAmountDisplay = '';
+    });
   }
 
   get isPaymentFormValid(): boolean {

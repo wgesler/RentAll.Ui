@@ -198,17 +198,21 @@
                                         </mat-icon>
                                     </button>
                                 </span>
-                            } @else if (column.name === 'paidAmount' && isManualApplyMode) {
-                                <input type="text"
-                                  [value]="item.paidAmountDisplay || item.paidAmount"
-                                  (input)="paidAmountInputCallback && paidAmountInputCallback(item, $event); paidAmountChangeCallback && paidAmountChangeCallback(item, ($any($event.target)).value)"
-                                  (blur)="paidAmountBlurCallback && paidAmountBlurCallback(item, $event)"
-                                  (focus)="paidAmountFocusCallback && paidAmountFocusCallback(item, $event)"
-                                  (keydown.enter)="paidAmountEnterCallback && paidAmountEnterCallback(item, $event)"
-                                  (click)="$event.stopPropagation()"
-                                  (mousedown)="$event.stopPropagation()"
-                                  class="editable-paid-amount"
-                                  style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                            } @else if (column.name === 'applyAmount' && isManualApplyMode) {
+                                @if ((item.originalDueAmountValue || 0) > 0) {
+                                    <input type="text"
+                                      [value]="item.applyAmountDisplay || item.applyAmount || ''"
+                                      (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
+                                      (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
+                                      (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
+                                      (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"
+                                      (click)="$event.stopPropagation()"
+                                      (mousedown)="$event.stopPropagation()"
+                                      class="editable-apply-amount"
+                                      style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                                } @else {
+                                    <span>{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
+                                }
                             } @else if (column.isCheckbox) {
                                 <mat-checkbox [checked]="item[column.name]" 
                                   [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]" 
