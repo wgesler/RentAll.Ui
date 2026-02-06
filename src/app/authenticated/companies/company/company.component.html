@@ -47,12 +47,16 @@
 
                 <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
                   <mat-label>Office</mat-label>
-                  <mat-select formControlName="officeId">
-                    <mat-option [value]="null">None</mat-option>
-                    @for (office of availableOffices; track office.value) {
-                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
+                  @if (isAddMode) {
+                    <mat-select formControlName="officeId">
+                      <mat-option [value]="null">None</mat-option>
+                      @for (office of availableOffices; track office.value) {
+                        <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  } @else {
+                    <input matInput [value]="getOfficeName()" readonly disabled class="readonly-field">
+                  }
                 </mat-form-field>
                 
                 <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">

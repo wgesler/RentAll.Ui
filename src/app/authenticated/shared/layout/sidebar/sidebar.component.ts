@@ -74,8 +74,8 @@ export class SidebarComponent implements OnInit {
     },
     {
       icon: 'contacts',
-      displayName: 'Clients',
-      url: RouterToken.Clients,
+      displayName: 'Contacts',
+      url: RouterToken.Contacts,
       requiredRoles: [], // Available to all
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },

@@ -6,9 +6,9 @@ import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule }
 import { AuthService } from '../../../services/auth.service';
 import { ReservationService } from '../services/reservation.service';
 import { ReservationResponse, ReservationListResponse } from '../models/reservation-model';
-import { ContactService } from '../../clients/services/contact.service';
-import { ContactResponse } from '../../clients/models/contact.model';
-import { EntityType } from '../../clients/models/contact-enum';
+import { ContactService } from '../../contacts/services/contact.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { EntityType } from '../../contacts/models/contact-enum';
 import { CompanyService } from '../../companies/services/company.service';
 import { CompanyResponse } from '../../companies/models/company.model';
 import { PropertyService } from '../../properties/services/property.service';

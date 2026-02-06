@@ -74,6 +74,8 @@ export class VendorComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.removeLoadItem('vendor');
           this.buildForm();
+          // Set officeId from query params after form is built
+          this.setOfficeFromQueryParams();
         } else {
           this.getVendor();
         }
@@ -81,6 +83,43 @@ export class VendorComponent implements OnInit, OnDestroy {
     });
     if (!this.isAddMode) {
       this.buildForm();
+    }
+  }
+  
+  setOfficeFromQueryParams(): void {
+    // Wait for offices to be loaded, then set officeId from query params
+    if (!this.form) {
+      return;
+    }
+    
+    // If offices are already loaded, set immediately
+    if (this.offices && this.offices.length > 0) {
+      this.applyOfficeFromQueryParams();
+    } else {
+      // Otherwise wait for offices to load
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.offices = offices || [];
+          this.applyOfficeFromQueryParams();
+        });
+      });
+    }
+  }
+  
+  applyOfficeFromQueryParams(): void {
+    if (!this.form || !this.offices || this.offices.length === 0) {
+      return;
+    }
+    
+    const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
+    if (officeIdFromParams) {
+      const officeId = parseInt(officeIdFromParams, 10);
+      if (!isNaN(officeId)) {
+        const office = this.offices.find(o => o.officeId === officeId);
+        if (office) {
+          this.form.patchValue({ officeId: office.officeId });
+        }
+      }
     }
   }
 
@@ -158,7 +197,18 @@ export class VendorComponent implements OnInit, OnDestroy {
       next: () => {
         const message = this.isAddMode ? 'Vendor created successfully' : 'Vendor updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        this.router.navigateByUrl(RouterUrl.Companies + '?tab=1');
+        
+        // Preserve query params (including officeId and tab) when navigating back
+        const currentQueryParams = this.route.snapshot.queryParams;
+        const queryParams: any = { tab: '1' }; // Default to vendors tab
+        if (currentQueryParams['officeId']) {
+          queryParams.officeId = currentQueryParams['officeId'];
+        }
+        
+        // Navigate back to companies list, preserving query params
+        this.router.navigate([RouterUrl.Companies], {
+          queryParams: queryParams
+        });
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -193,6 +243,11 @@ export class VendorComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        
+        // If in add mode and form is built, set office from query params
+        if (this.isAddMode && this.form) {
+          this.applyOfficeFromQueryParams();
+        }
       });
     });
   }
@@ -299,8 +354,33 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
+  getOfficeName(): string {
+    if (!this.vendor) {
+      return '';
+    }
+    // Use officeName from vendor response if available, otherwise look it up
+    if (this.vendor.officeName) {
+      return this.vendor.officeName;
+    }
+    if (this.vendor.officeId && this.offices && this.offices.length > 0) {
+      const office = this.offices.find(o => o.officeId === this.vendor.officeId);
+      return office ? office.name : '';
+    }
+    return '';
+  }
+
   back(): void {
-    this.router.navigateByUrl(RouterUrl.Companies + '?tab=1');
+    // Preserve query params (including officeId and tab) when navigating back
+    const currentQueryParams = this.route.snapshot.queryParams;
+    const queryParams: any = { tab: '1' }; // Default to vendors tab
+    if (currentQueryParams['officeId']) {
+      queryParams.officeId = currentQueryParams['officeId'];
+    }
+    
+    // Navigate back to companies list, preserving query params
+    this.router.navigate([RouterUrl.Companies], {
+      queryParams: queryParams
+    });
   }
   //#endregion
 }

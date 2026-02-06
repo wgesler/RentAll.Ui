@@ -42,12 +42,13 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   accountingOfficesDisplay: AccountingOfficeListDisplay[] = [];
 
   accountingOfficesDisplayedColumns: ColumnSet = {
+    'officeName': { displayAs: 'Office', maxWidth: '15ch' },
     'name': { displayAs: 'Name', maxWidth: '15ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch' },
     'fax': { displayAs: 'Fax', maxWidth: '20ch' },
-    'bankName': { displayAs: 'Bank Name', maxWidth: '15ch' },
-    'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'bankName': { displayAs: 'Bank Name', maxWidth: '25ch' },
+    'email': { displayAs: 'Email', maxWidth: '40ch' },
+    'isActive': { displayAs: 'Is Active', maxWidth: '15ch', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices']));
@@ -81,7 +82,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   getAccountingOffices(): void {
     this.accountingOfficeService.getAccountingOffices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
       next: (response: AccountingOfficeResponse[]) => {
-        this.allAccountingOffices = this.mappingService.mapAccountingOffices(response);
+        this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -126,8 +127,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.getAccountingOffices();
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.getAccountingOffices();
+      });
     });
   }
   //#endregion
@@ -147,6 +151,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

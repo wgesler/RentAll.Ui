@@ -34,11 +34,26 @@
 }
 
 .readonly-field {
-  background-color: #f5f5f5 !important;
-  color: #666 !important;
+  background-color: transparent !important;
   cursor: not-allowed;
   
   &::placeholder {
     color: #999;
+  }
+}
+
+// Remove Material's disabled form field wrapper background
+::ng-deep mat-form-field {
+  &.mat-form-field-disabled,
+  .mat-mdc-text-field-wrapper.mdc-text-field--disabled {
+    background-color: transparent !important;
+    
+    .mdc-text-field__input {
+      background-color: transparent !important;
+    }
+  }
+  
+  input.readonly-field {
+    background-color: transparent !important;
   }
 }

@@ -89,3 +89,21 @@
   }
 }
 
+.readonly-field {
+  background-color: transparent !important;
+  cursor: not-allowed;
+}
+
+::ng-deep mat-form-field {
+  &.mat-form-field-disabled,
+  .mat-mdc-text-field-wrapper.mdc-text-field--disabled {
+    background-color: transparent !important;
+    .mdc-text-field__input {
+      background-color: transparent !important;
+    }
+  }
+  input.readonly-field {
+    background-color: transparent !important;
+  }
+}
+

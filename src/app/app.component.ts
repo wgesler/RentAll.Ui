@@ -4,7 +4,7 @@ import { RouterOutlet } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
-import { ContactService } from './authenticated/clients/services/contact.service';
+import { ContactService } from './authenticated/contacts/services/contact.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';

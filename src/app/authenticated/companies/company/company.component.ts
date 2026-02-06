@@ -75,6 +75,8 @@ export class CompanyComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company');
           this.buildForm();
+          // Set officeId from query params after form is built
+          this.setOfficeFromQueryParams();
         } else {
           this.getCompany();
         }
@@ -82,6 +84,43 @@ export class CompanyComponent implements OnInit, OnDestroy {
     });
     if (!this.isAddMode) {
       this.buildForm();
+    }
+  }
+  
+  setOfficeFromQueryParams(): void {
+    // Wait for offices to be loaded, then set officeId from query params
+    if (!this.form) {
+      return;
+    }
+    
+    // If offices are already loaded, set immediately
+    if (this.offices && this.offices.length > 0) {
+      this.applyOfficeFromQueryParams();
+    } else {
+      // Otherwise wait for offices to load
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.offices = offices || [];
+          this.applyOfficeFromQueryParams();
+        });
+      });
+    }
+  }
+  
+  applyOfficeFromQueryParams(): void {
+    if (!this.form || !this.offices || this.offices.length === 0) {
+      return;
+    }
+    
+    const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
+    if (officeIdFromParams) {
+      const officeId = parseInt(officeIdFromParams, 10);
+      if (!isNaN(officeId)) {
+        const office = this.offices.find(o => o.officeId === officeId);
+        if (office) {
+          this.form.patchValue({ officeId: office.officeId });
+        }
+      }
     }
   }
 
@@ -165,7 +204,21 @@ export class CompanyComponent implements OnInit, OnDestroy {
       next: () => {
         const message = this.isAddMode ? 'Company created successfully' : 'Company updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        this.router.navigateByUrl(RouterUrl.Companies);
+        
+        // Preserve query params (including officeId and tab) when navigating back
+        const currentQueryParams = this.route.snapshot.queryParams;
+        const queryParams: any = {};
+        if (currentQueryParams['officeId']) {
+          queryParams.officeId = currentQueryParams['officeId'];
+        }
+        if (currentQueryParams['tab']) {
+          queryParams.tab = currentQueryParams['tab'];
+        }
+        
+        // Navigate back to companies list, preserving query params
+        this.router.navigate([RouterUrl.Companies], {
+          queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+        });
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -200,6 +253,11 @@ export class CompanyComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        
+        // If in add mode and form is built, set office from query params
+        if (this.isAddMode && this.form) {
+          this.applyOfficeFromQueryParams();
+        }
       });
     });
   }
@@ -297,8 +355,36 @@ export class CompanyComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
+  getOfficeName(): string {
+    if (!this.company) {
+      return '';
+    }
+    // Use officeName from company response if available, otherwise look it up
+    if (this.company.officeName) {
+      return this.company.officeName;
+    }
+    if (this.company.officeId && this.offices && this.offices.length > 0) {
+      const office = this.offices.find(o => o.officeId === this.company.officeId);
+      return office ? office.name : '';
+    }
+    return '';
+  }
+
   back(): void {
-    this.router.navigateByUrl(RouterUrl.Companies);
+    // Preserve query params (including officeId and tab) when navigating back
+    const currentQueryParams = this.route.snapshot.queryParams;
+    const queryParams: any = {};
+    if (currentQueryParams['officeId']) {
+      queryParams.officeId = currentQueryParams['officeId'];
+    }
+    if (currentQueryParams['tab']) {
+      queryParams.tab = currentQueryParams['tab'];
+    }
+    
+    // Navigate back to companies list, preserving query params
+    this.router.navigate([RouterUrl.Companies], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
   //#endregion
 }

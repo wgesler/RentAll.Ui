@@ -52,18 +52,18 @@
                 <!-- Edit Mode: Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (1/4 or 2/4), Credit Due (1/4 if > 0) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Code</mat-label>
-                  <input matInput formControlName="reservationCode" readonly>
+                  <input matInput formControlName="reservationCode" readonly [disabled]="true" class="readonly-field">
                 </mat-form-field>
 
                 <!-- Edit Mode: Property Code (read-only) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Property Code</mat-label>
-                  <input matInput formControlName="propertyCode" readonly>
+                  <input matInput formControlName="propertyCode" readonly [disabled]="true" class="readonly-field">
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
-                  <input matInput formControlName="propertyAddress" readonly>
+                  <input matInput formControlName="propertyAddress" readonly [disabled]="true" class="readonly-field">
                 </mat-form-field>
 
                 @if (reservation?.creditDue > 0) {
@@ -91,7 +91,7 @@
 
                 <mat-form-field appearance="outline" [class.col-span-3]="!(reservation?.creditDue > 0)" [class.col-span-2]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
-                  <input matInput formControlName="propertyAddress" readonly>
+                  <input matInput formControlName="propertyAddress" readonly [disabled]="true" class="readonly-field">
                 </mat-form-field>
 
                 @if (reservation?.creditDue > 0) {
@@ -220,12 +220,12 @@
 
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Phone</mat-label>
-                <input matInput formControlName="phone" readonly>
+                <input matInput formControlName="phone" readonly [disabled]="true" class="readonly-field">
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Contact Email</mat-label>
-                <input matInput type="email" formControlName="email" readonly>
+                <input matInput type="email" formControlName="email" readonly [disabled]="true" class="readonly-field">
               </mat-form-field>
 
               <!-- Line 4: Company Name, Number of People, Tenant Name(s) -->
@@ -233,7 +233,7 @@
               @if (selectedContact && selectedContact.entityTypeId === EntityType.Company && selectedContact.entityId) {
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Company Name</mat-label>
-                  <input matInput formControlName="entityCompanyName" readonly>
+                  <input matInput formControlName="entityCompanyName" readonly [disabled]="true" class="readonly-field">
                 </mat-form-field>
               }
 

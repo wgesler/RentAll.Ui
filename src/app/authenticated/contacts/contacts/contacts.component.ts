@@ -2,28 +2,28 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
-import { CompanyListComponent } from '../company-list/company-list.component';
-import { VendorListComponent } from '../vendor-list/vendor-list.component';
+import { ContactListComponent } from '../contact-list/contact-list.component';
 import { Router, ActivatedRoute } from '@angular/router';
+import { EntityType } from '../models/contact-enum';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { Subscription, filter, take } from 'rxjs';
 
 @Component({
-  selector: 'app-companies',
+  selector: 'app-contacts',
   standalone: true,
   imports: [
     CommonModule, 
     MaterialModule, 
     FormsModule, 
-    CompanyListComponent,
-    VendorListComponent
+    ContactListComponent
   ],
-  templateUrl: './companies.component.html',
-  styleUrls: ['./companies.component.scss']
+  templateUrl: './contacts.component.html',
+  styleUrls: ['./contacts.component.scss']
 })
-export class CompaniesComponent implements OnInit, OnDestroy {
-  selectedTabIndex: number = 0; // Default to Companies tab
+export class ContactsComponent implements OnInit, OnDestroy {
+  EntityType = EntityType; // Expose EntityType enum to template
+  selectedTabIndex: number = 0; // Default to Tenants tab
   selectedOffice: OfficeResponse | null = null; // Shared office selection across all tabs
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
@@ -40,7 +40,7 @@ export class CompaniesComponent implements OnInit, OnDestroy {
     const initialParams = this.route.snapshot.queryParams;
     if (initialParams['tab']) {
       const tabIndex = parseInt(initialParams['tab'], 10);
-      if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 1) {
+      if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3) {
         this.selectedTabIndex = tabIndex;
       }
     }
@@ -49,7 +49,7 @@ export class CompaniesComponent implements OnInit, OnDestroy {
     this.route.queryParams.subscribe(params => {
       if (params['tab']) {
         const tabIndex = parseInt(params['tab'], 10);
-        if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 1 && this.selectedTabIndex !== tabIndex) {
+        if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3 && this.selectedTabIndex !== tabIndex) {
           this.selectedTabIndex = tabIndex;
         }
       }
@@ -113,13 +113,9 @@ export class CompaniesComponent implements OnInit, OnDestroy {
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
     // Update URL query params when tab changes manually (user clicks tab)
-    const queryParams: any = { tab: event.index.toString() };
-    if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId.toString();
-    }
     this.router.navigate([], { 
       relativeTo: this.route,
-      queryParams: queryParams,
+      queryParams: { tab: event.index.toString() },
       queryParamsHandling: 'merge'
     });
   }

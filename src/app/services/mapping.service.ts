@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { CompanyResponse, CompanyListDisplay } from '../authenticated/companies/models/company.model';
 import { VendorResponse, VendorListDisplay } from '../authenticated/companies/models/vendor.model';
 import { PropertyListDisplay, PropertyListResponse } from '../authenticated/properties/models/property.model';
-import { ContactResponse, ContactListDisplay } from '../authenticated/clients/models/contact.model';
-import { getEntityType } from '../authenticated/clients/models/contact-enum';
+import { ContactResponse, ContactListDisplay } from '../authenticated/contacts/models/contact.model';
+import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservations/models/reservation-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { AgentResponse, AgentListDisplay } from '../authenticated/organizations/models/agent.model';
@@ -236,17 +236,23 @@ export class MappingService {
       }));
   }
 
-  mapAccountingOffices(offices: AccountingOfficeResponse[]): AccountingOfficeListDisplay[] {
-    return offices.map<AccountingOfficeListDisplay>((o: AccountingOfficeResponse) => ({
-      officeId: o.officeId,
-      name: o.name,
-      address: o.city + ', ' + o.state,
-      phone: this.formatter.phoneNumber(o.phone),
-      fax: this.formatter.phoneNumber(o.fax),
-      bankName: o.bankName,
-      email: o.email,
-      isActive: o.isActive
-    }));
+  mapAccountingOffices(offices: AccountingOfficeResponse[], officeList?: OfficeResponse[]): AccountingOfficeListDisplay[] {
+    return offices.map<AccountingOfficeListDisplay>((o: AccountingOfficeResponse) => {
+      // Find office name by officeId
+      const office = officeList?.find(off => off.officeId === o.officeId);
+      const officeName = office?.name || '';
+      return {
+        officeId: o.officeId,
+        officeName: officeName,
+        name: o.name,
+        address: o.city + ', ' + o.state,
+        phone: this.formatter.phoneNumber(o.phone),
+        fax: this.formatter.phoneNumber(o.fax),
+        bankName: o.bankName,
+        email: o.email,
+        isActive: o.isActive
+      };
+    });
   }
 
   mapOrganizations(organizations: OrganizationResponse[]): OrganizationListDisplay[] {

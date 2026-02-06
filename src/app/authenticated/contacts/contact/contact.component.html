@@ -36,6 +36,21 @@
                 </mat-checkbox>
               </div>
 
+              <!-- Row 1: Office, Contact Type, Company/Vendor Name -->
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Office</mat-label>
+                @if (isAddMode) {
+                  <mat-select formControlName="officeId">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                } @else {
+                  <input matInput [value]="getOfficeName()" readonly disabled class="readonly-field">
+                }
+              </mat-form-field>
+
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Type</mat-label>
                 <mat-select formControlName="contactTypeId" required>
@@ -50,7 +65,7 @@
               </mat-form-field>
 
               @if (form.get('contactTypeId')?.value === EntityType.Company) {
-                <mat-form-field appearance="outline" class="col-span-3">
+                <mat-form-field appearance="outline" class="col-span-2">
                   <mat-label>Company Name</mat-label>
                   <mat-select formControlName="companyId" required>
                     <mat-option [value]="null">Select Company</mat-option>
@@ -65,7 +80,7 @@
               }
 
               @if (form.get('contactTypeId')?.value === EntityType.Vendor) {
-                <mat-form-field appearance="outline" class="col-span-3">
+                <mat-form-field appearance="outline" class="col-span-2">
                   <mat-label>Vendor Name</mat-label>
                   <mat-select formControlName="vendorId" required>
                     <mat-option [value]="null">Select Vendor</mat-option>
@@ -79,6 +94,11 @@
                 </mat-form-field>
               }
 
+              @if (form.get('contactTypeId')?.value !== EntityType.Company && form.get('contactTypeId')?.value !== EntityType.Vendor) {
+                <div class="col-span-2"></div>
+              }
+
+              <!-- Row 2: Code, First Name, Last Name -->
               <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
                 @if (!isAddMode) {
                   <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
@@ -86,16 +106,6 @@
                     <input matInput [value]="contact?.contactCode || ''" readonly disabled>
                   </mat-form-field>
                 }
-
-                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                  <mat-label>Office</mat-label>
-                  <mat-select formControlName="officeId">
-                    <mat-option [value]="null">None</mat-option>
-                    @for (office of availableOffices; track office.value) {
-                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
                 
                 <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>First Name</mat-label>

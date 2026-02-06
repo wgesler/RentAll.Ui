@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { CompanyResponse, CompanyListDisplay } from '../models/company.model';
 import { CompanyService } from '../services/company.service';
@@ -26,7 +26,10 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class CompanyListComponent implements OnInit, OnDestroy {
+export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() selectedOffice: OfficeResponse | null = null; // Office selection from parent
+  @Output() officeChange = new EventEmitter<OfficeResponse | null>(); // Emit office changes to parent
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -35,7 +38,6 @@ export class CompanyListComponent implements OnInit, OnDestroy {
 
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
-  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
   companiesDisplayedColumns: ColumnSet = {
@@ -58,7 +60,8 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     public router: Router,
     public mappingService: MappingService,
     private utilityService: UtilityService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private route: ActivatedRoute) {
   }
 
   //#region Company-List
@@ -82,7 +85,24 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   addCompany(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, ['new']));
+    const url = RouterUrl.replaceTokens(RouterUrl.Company, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 
   deleteCompany(company: CompanyListDisplay): void {
@@ -102,7 +122,24 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   goToCompany(event: CompanyListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Company, [event.companyId]));
+    const url = RouterUrl.replaceTokens(RouterUrl.Company, [event.companyId]);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
   //#endregion
 
@@ -125,6 +162,15 @@ export class CompanyListComponent implements OnInit, OnDestroy {
       ? filtered
       : filtered.filter(company => company.isActive);
   }
+  
+  ngOnChanges(changes: SimpleChanges): void {
+    // Reapply filters when selectedOffice changes
+    if (changes['selectedOffice']) {
+      // Update local selectedOffice when input changes from parent
+      this.selectedOffice = changes['selectedOffice'].currentValue;
+      this.applyFilters();
+    }
+  }
   //#endregion
 
   //#region Office Methods
@@ -134,9 +180,10 @@ export class CompanyListComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         
-        // Auto-select if only one office available
-        if (this.offices.length === 1) {
+        // Auto-select if only one office available and no office is already selected from parent
+        if (this.offices.length === 1 && !this.selectedOffice) {
           this.selectedOffice = this.offices[0];
+          this.officeChange.emit(this.selectedOffice);
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
@@ -147,6 +194,8 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    // Emit office change to parent so all tabs can be updated
+    this.officeChange.emit(this.selectedOffice);
     this.applyFilters();
   }
   //#endregion

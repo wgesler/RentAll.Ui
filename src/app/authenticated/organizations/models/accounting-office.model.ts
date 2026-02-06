@@ -52,6 +52,7 @@ export interface AccountingOfficeResponse {
 
 export interface AccountingOfficeListDisplay {
   officeId: number;
+  officeName: string;
   name: string;
   address: string;
   phone: string;

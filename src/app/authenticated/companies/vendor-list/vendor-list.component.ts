@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { VendorResponse, VendorListDisplay } from '../models/vendor.model';
 import { VendorService } from '../services/vendor.service';
@@ -25,14 +25,16 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class VendorListComponent implements OnInit, OnDestroy {
+export class VendorListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() selectedOffice: OfficeResponse | null = null; // Office selection from parent
+  @Output() officeChange = new EventEmitter<OfficeResponse | null>(); // Emit office changes to parent
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
 
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
-  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
   vendorsDisplayedColumns: ColumnSet = {
@@ -56,7 +58,8 @@ export class VendorListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private route: ActivatedRoute) {
   }
 
   //#region Vendor-List
@@ -80,7 +83,24 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   addVendor(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Vendor, ['new']));
+    const url = RouterUrl.replaceTokens(RouterUrl.Vendor, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 
   deleteVendor(vendor: VendorListDisplay): void {
@@ -100,7 +120,24 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   goToVendor(event: VendorListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Vendor, [event.vendorId]));
+    const url = RouterUrl.replaceTokens(RouterUrl.Vendor, [event.vendorId]);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
   //#endregion
 
@@ -123,6 +160,15 @@ export class VendorListComponent implements OnInit, OnDestroy {
       ? filtered
       : filtered.filter(vendor => vendor.isActive);
   }
+  
+  ngOnChanges(changes: SimpleChanges): void {
+    // Reapply filters when selectedOffice changes
+    if (changes['selectedOffice']) {
+      // Update local selectedOffice when input changes from parent
+      this.selectedOffice = changes['selectedOffice'].currentValue;
+      this.applyFilters();
+    }
+  }
   //#endregion
 
   //#region Office Methods
@@ -132,9 +178,10 @@ export class VendorListComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         
-        // Auto-select if only one office available
-        if (this.offices.length === 1) {
+        // Auto-select if only one office available and no office is already selected from parent
+        if (this.offices.length === 1 && !this.selectedOffice) {
           this.selectedOffice = this.offices[0];
+          this.officeChange.emit(this.selectedOffice);
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
@@ -145,6 +192,8 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    // Emit office change to parent so all tabs can be updated
+    this.officeChange.emit(this.selectedOffice);
     this.applyFilters();
   }
   //#endregion

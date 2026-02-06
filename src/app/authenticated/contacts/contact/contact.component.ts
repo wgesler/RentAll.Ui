@@ -81,6 +81,8 @@ export class ContactComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
           this.buildForm();
+          // Set officeId and contactTypeId from query params after form is built
+          this.setFormValuesFromQueryParams();
         } else {
           this.getContact();
         }
@@ -88,6 +90,54 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
     if (!this.isAddMode) {
       this.buildForm();
+    }
+  }
+  
+  setFormValuesFromQueryParams(): void {
+    // Wait for offices to be loaded, then set values from query params
+    if (!this.form) {
+      return;
+    }
+    
+    // If offices are already loaded, set immediately
+    if (this.offices && this.offices.length > 0) {
+      this.applyFormValuesFromQueryParams();
+    } else {
+      // Otherwise wait for offices to load
+      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.applyFormValuesFromQueryParams();
+        });
+      });
+    }
+  }
+  
+  applyFormValuesFromQueryParams(): void {
+    if (!this.form || !this.offices || this.offices.length === 0) {
+      return;
+    }
+    
+    const queryParams = this.route.snapshot.queryParams;
+    
+    // Set officeId from query params
+    if (queryParams['officeId']) {
+      const officeId = parseInt(queryParams['officeId'], 10);
+      if (!isNaN(officeId)) {
+        const office = this.offices.find(o => o.officeId === officeId);
+        if (office) {
+          this.form.patchValue({ officeId: office.officeId });
+        }
+      }
+    }
+    
+    // Set contactTypeId (entityTypeId) from query params
+    if (queryParams['entityTypeId']) {
+      const entityTypeId = parseInt(queryParams['entityTypeId'], 10);
+      if (!isNaN(entityTypeId) && Object.values(EntityType).includes(entityTypeId)) {
+        this.form.patchValue({ contactTypeId: entityTypeId });
+      }
     }
   }
 
@@ -163,7 +213,21 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         // Reload contacts globally to ensure all components have the latest data
         this.contactService.loadAllContacts();
-        this.router.navigateByUrl(RouterUrl.ContactList);
+        
+        // Preserve query params (including officeId and tab) when navigating back
+        const currentQueryParams = this.route.snapshot.queryParams;
+        const queryParams: any = {};
+        if (currentQueryParams['officeId']) {
+          queryParams.officeId = currentQueryParams['officeId'];
+        }
+        if (currentQueryParams['tab']) {
+          queryParams.tab = currentQueryParams['tab'];
+        }
+        
+        // Navigate back to contact list, preserving query params
+        this.router.navigate([RouterUrl.ContactList], {
+          queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+        });
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -319,6 +383,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        
+        // If in add mode and form is built, set values from query params
+        if (this.isAddMode && this.form) {
+          this.applyFormValuesFromQueryParams();
+        }
       });
     });
   }
@@ -380,8 +449,36 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
+  getOfficeName(): string {
+    if (!this.contact) {
+      return '';
+    }
+    // Use officeName from contact response if available, otherwise look it up
+    if (this.contact.officeName) {
+      return this.contact.officeName;
+    }
+    if (this.contact.officeId && this.offices && this.offices.length > 0) {
+      const office = this.offices.find(o => o.officeId === this.contact.officeId);
+      return office ? office.name : '';
+    }
+    return '';
+  }
+
   back(): void {
-    this.router.navigateByUrl(RouterUrl.ContactList);
+    // Preserve query params (including officeId and tab) when navigating back
+    const currentQueryParams = this.route.snapshot.queryParams;
+    const queryParams: any = {};
+    if (currentQueryParams['officeId']) {
+      queryParams.officeId = currentQueryParams['officeId'];
+    }
+    if (currentQueryParams['tab']) {
+      queryParams.tab = currentQueryParams['tab'];
+    }
+    
+    // Navigate back to contact list, preserving query params
+    this.router.navigate([RouterUrl.ContactList], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
   //#endregion
 }

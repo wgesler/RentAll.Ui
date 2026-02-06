@@ -17,9 +17,9 @@ import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-c
 import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
 import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
 import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
-import { ContactComponent } from './authenticated/clients/contact/contact.component';
-import { ContactListComponent } from './authenticated/clients/contact-list/contact-list.component';
-import { ClientsComponent } from './authenticated/clients/clients/clients.component';
+import { ContactComponent } from './authenticated/contacts/contact/contact.component';
+import { ContactListComponent } from './authenticated/contacts/contact-list/contact-list.component';
+import { ContactsComponent } from './authenticated/contacts/contacts/contacts.component';
 import { UserComponent } from './authenticated/users/user/user.component';
 import { UserListComponent } from './authenticated/users/user-list/user-list.component';
 import { ReservationComponent } from './authenticated/reservations/reservation/reservation.component';
@@ -55,7 +55,7 @@ export enum RouterToken {
   Company = RouterToken.Companies + '/company/:id',
   Vendor = RouterToken.Companies + '/vendor/:id',
   ContactList = 'contacts',
-  Clients = 'clients',
+  Contacts = 'contacts',
   Contact = RouterToken.ContactList + '/:id',
   TenantList = 'tenants',
   Property = RouterToken.TenantList + '/:id',
@@ -99,7 +99,7 @@ export enum RouterUrl {
   Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
   Vendor                = `${RouterToken.Auth}/${RouterToken.Vendor}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
-  Clients               = `${RouterToken.Auth}/${RouterToken.Clients}`,
+  Contacts              = `${RouterToken.Auth}/${RouterToken.Contacts}`,
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   TenantList            = `${RouterToken.Auth}/${RouterToken.TenantList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
@@ -149,8 +149,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Companies, component: CompaniesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Vendor, component: VendorComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ContactList, component: ClientsComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Clients, component: ClientsComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ContactList, component: ContactsComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Contacts, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.TenantList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },

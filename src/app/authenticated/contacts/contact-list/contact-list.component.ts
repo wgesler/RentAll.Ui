@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { ContactResponse, ContactListDisplay } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
@@ -28,6 +28,8 @@ import { AuthService } from '../../../services/auth.service';
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number; // Optional filter by entity type (Tenant, Owner, Company, Vendor)
+  @Input() selectedOffice: OfficeResponse | null = null; // Office selection from parent
+  @Output() officeChange = new EventEmitter<OfficeResponse | null>(); // Emit office changes to parent
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -37,7 +39,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
-  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   contactsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
@@ -58,7 +59,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public mappingService: MappingService,
     private utilityService: UtilityService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private route: ActivatedRoute) {
   }
 
   //#region Contacts
@@ -68,12 +70,28 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   addContact(): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Contact, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
     // If entityTypeId is provided, add it as a query parameter to pre-fill the contact type
     if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
-      this.router.navigateByUrl(`${url}?entityTypeId=${this.entityTypeId}`);
-    } else {
-      this.router.navigateByUrl(url);
+      queryParams.entityTypeId = this.entityTypeId;
     }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 
   getContacts(): void {
@@ -110,7 +128,24 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToContact(event: ContactListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    const url = RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
   //#endregion
 
@@ -140,8 +175,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   ngOnChanges(changes: SimpleChanges): void {
-    // Reapply filters when entityTypeId changes
+    // Reapply filters when entityTypeId or selectedOffice changes
     if (changes['entityTypeId'] && !changes['entityTypeId'].firstChange) {
+      this.applyFilters();
+    }
+    if (changes['selectedOffice']) {
+      // Update local selectedOffice when input changes from parent
+      this.selectedOffice = changes['selectedOffice'].currentValue;
       this.applyFilters();
     }
   }
@@ -154,9 +194,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         
-        // Auto-select if only one office available
-        if (this.offices.length === 1) {
+        // Auto-select if only one office available and no office is already selected from parent
+        if (this.offices.length === 1 && !this.selectedOffice) {
           this.selectedOffice = this.offices[0];
+          this.officeChange.emit(this.selectedOffice);
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
@@ -167,6 +208,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
+    // Emit office change to parent so all tabs can be updated
+    this.officeChange.emit(this.selectedOffice);
     this.applyFilters();
   }
   //#endregion

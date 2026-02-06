@@ -7,7 +7,7 @@ import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model'
 import { OrganizationResponse } from '../organizations/models/organization.model';
 import { OfficeResponse } from '../organizations/models/office.model';
 import { ReservationResponse } from '../reservations/models/reservation-model';
-import { ContactResponse } from '../clients/models/contact.model';
+import { ContactResponse } from '../contacts/models/contact.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { take } from 'rxjs';
 
