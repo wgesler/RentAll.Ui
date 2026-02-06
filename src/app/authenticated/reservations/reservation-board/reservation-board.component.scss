@@ -3,6 +3,13 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
+  
+  // CSS variables for sticky column widths (use px, not ch, for consistency)
+  --col-code: 80px;
+  --col-address: 170px;
+  --col-rent: 70px;
+  --col-beds: 50px;
+  --col-status: 35px;
 }
 
 .reservation-board-wrapper {
@@ -157,26 +164,26 @@
 }
 
 .board-wrapper {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   flex: 1;
   min-height: 0;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   height: 100%;
+  position: relative;
 }
 
 .reservation-table {
-  border-collapse: separate;
+  border-collapse: collapse;
   border-spacing: 0;
-  table-layout: auto;
+  table-layout: fixed;
   display: table;
   
   thead {
-    position: sticky;
-    top: 0;
-    z-index: 100;
     display: table-header-group;
+    position: relative;
   }
   
   tbody {
@@ -205,9 +212,40 @@
     height: 20px;
     box-sizing: border-box;
     vertical-align: middle;
+    background-color: rgb(59, 130, 246) !important;
+  }
+  
+  // Make header cells sticky (not rows - rows can't be sticky)
+  // Date header cells only need vertical stickiness
+  &.header-row-1 {
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background-color: rgb(59, 130, 246) !important;
+    }
+  }
+  
+  &.header-row-2 {
+    th {
+      position: sticky;
+      top: 20px;
+      z-index: 19;
+      background-color: rgb(59, 130, 246) !important;
+    }
+  }
+  
+  &.header-row-3 {
+    th {
+      position: sticky;
+      top: 40px;
+      z-index: 18;
+      background-color: rgb(59, 130, 246) !important;
+    }
   }
 }
 
+// Ensure consistent font size across all header rows to prevent ch unit drift
 .header-row-1 {
   th {
     font-size: 11px;
@@ -216,13 +254,13 @@
 
 .header-row-2 {
   th {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
 .header-row-3 {
   th {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
@@ -238,35 +276,84 @@
   vertical-align: middle;
   height: 20px;
   box-sizing: border-box;
+  position: sticky;
+  z-index: 10;
+  flex-shrink: 0;
   
   &.code-header {
-    width: 10ch !important;
-    min-width: 10ch;
-    max-width: 10ch;
+    width: var(--col-code) !important;
+    min-width: var(--col-code) !important;
+    max-width: var(--col-code) !important;
+    left: 0;
+    z-index: 30;
   }
   
   &.address-header {
-    width: 25ch !important;
-    min-width: 25ch;
-    max-width: 25ch;
+    width: var(--col-address) !important;
+    min-width: var(--col-address) !important;
+    max-width: var(--col-address) !important;
+    left: var(--col-code);
+    z-index: 29;
+    text-align: left;
   }
   
   &.rent-header {
-    width: 8ch !important;
-    min-width: 8ch;
-    max-width: 8ch;
+    width: var(--col-rent) !important;
+    min-width: var(--col-rent) !important;
+    max-width: var(--col-rent) !important;
+    left: calc(var(--col-code) + var(--col-address));
+    z-index: 28;
   }
   
   &.beds-header {
-    width: 6ch !important;
-    min-width: 6ch;
-    max-width: 6ch;
+    width: var(--col-beds) !important;
+    min-width: var(--col-beds) !important;
+    max-width: var(--col-beds) !important;
+    left: calc(var(--col-code) + var(--col-address) + var(--col-rent));
+    z-index: 27;
   }
   
   &.status-header {
-    width: 4ch !important;
-    min-width: 4ch;
-    max-width: 4ch;
+    width: var(--col-status) !important;
+    min-width: var(--col-status) !important;
+    max-width: var(--col-status) !important;
+    left: calc(var(--col-code) + var(--col-address) + var(--col-rent) + var(--col-beds));
+    z-index: 26;
+    border-right: 2px solid #94a3b8;
+  }
+  
+  // Add top positioning based on which header row they're in
+  .header-row-1 & {
+    top: 0;
+    z-index: 35;
+    
+    &.code-header { z-index: 40; }
+    &.address-header { z-index: 39; }
+    &.rent-header { z-index: 38; }
+    &.beds-header { z-index: 37; }
+    &.status-header { z-index: 36; }
+  }
+  
+  .header-row-2 & {
+    top: 20px;
+    z-index: 35;
+    
+    &.code-header { z-index: 40; }
+    &.address-header { z-index: 39; }
+    &.rent-header { z-index: 38; }
+    &.beds-header { z-index: 37; }
+    &.status-header { z-index: 36; }
+  }
+  
+  .header-row-3 & {
+    top: 40px;
+    z-index: 35;
+    
+    &.code-header { z-index: 40; }
+    &.address-header { z-index: 39; }
+    &.rent-header { z-index: 38; }
+    &.beds-header { z-index: 37; }
+    &.status-header { z-index: 36; }
   }
 }
 
@@ -291,10 +378,18 @@
 
   &:nth-child(even) {
     background-color: #e5e7eb;
+    
+    .property-cell {
+      background-color: #e5e7eb;
+    }
   }
 
   &:hover {
     background-color: #e3f2fd;
+    
+    .property-cell {
+      background-color: #e3f2fd;
+    }
   }
 }
 
@@ -308,12 +403,27 @@
   height: 20px;
   box-sizing: border-box;
   white-space: nowrap;
+  position: sticky;
+  background-color: white;
+  z-index: 5;
 
   &.code-cell {
-    width: 10ch !important;
-    min-width: 10ch;
-    max-width: 10ch;
+    width: var(--col-code) !important;
+    min-width: var(--col-code) !important;
+    max-width: var(--col-code) !important;
     text-align: left;
+    left: 0;
+    z-index: 5;
+    flex-shrink: 0;
+    background-color: white;
+    
+    .property-row:nth-child(even) & {
+      background-color: #e5e7eb;
+    }
+    
+    .property-row:hover & {
+      background-color: #e3f2fd;
+    }
     
     a {
       text-decoration: underline;
@@ -328,27 +438,77 @@
 
   &.address-cell {
     text-align: left;
-    width: 25ch !important;
-    min-width: 25ch;
-    max-width: 25ch;
+    width: var(--col-address) !important;
+    min-width: var(--col-address) !important;
+    max-width: var(--col-address) !important;
+    left: var(--col-code);
+    z-index: 4;
+    flex-shrink: 0;
+    position: sticky !important;
+    background-color: white;
+    
+    .property-row:nth-child(even) & {
+      background-color: #e5e7eb;
+    }
+    
+    .property-row:hover & {
+      background-color: #e3f2fd;
+    }
   }
 
   &.rent-cell {
-    width: 8ch !important;
-    min-width: 8ch;
-    max-width: 8ch;
+    width: var(--col-rent) !important;
+    min-width: var(--col-rent) !important;
+    max-width: var(--col-rent) !important;
+    left: calc(var(--col-code) + var(--col-address));
+    z-index: 3;
+    flex-shrink: 0;
+    background-color: white;
+    
+    .property-row:nth-child(even) & {
+      background-color: #e5e7eb;
+    }
+    
+    .property-row:hover & {
+      background-color: #e3f2fd;
+    }
   }
 
   &.beds-cell {
-    width: 6ch !important;
-    min-width: 6ch;
-    max-width: 6ch;
+    width: var(--col-beds) !important;
+    min-width: var(--col-beds) !important;
+    max-width: var(--col-beds) !important;
+    left: calc(var(--col-code) + var(--col-address) + var(--col-rent));
+    z-index: 2;
+    flex-shrink: 0;
+    background-color: white;
+    
+    .property-row:nth-child(even) & {
+      background-color: #e5e7eb;
+    }
+    
+    .property-row:hover & {
+      background-color: #e3f2fd;
+    }
   }
 
   &.status-cell {
-    width: 4ch !important;
-    min-width: 4ch;
-    max-width: 4ch;
+    width: var(--col-status) !important;
+    min-width: var(--col-status) !important;
+    max-width: var(--col-status) !important;
+    left: calc(var(--col-code) + var(--col-address) + var(--col-rent) + var(--col-beds));
+    z-index: 1;
+    border-right: 2px solid #94a3b8;
+    flex-shrink: 0;
+    background-color: white;
+    
+    .property-row:nth-child(even) & {
+      background-color: #e5e7eb;
+    }
+    
+    .property-row:hover & {
+      background-color: #e3f2fd;
+    }
   }
 }
 

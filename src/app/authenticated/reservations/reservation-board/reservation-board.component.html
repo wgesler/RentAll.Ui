@@ -63,7 +63,7 @@
               <th class="property-header-cell code-header">Code</th>
               <th class="property-header-cell address-header">Address</th>
               <th class="property-header-cell rent-header">RET/M</th>
-              <th class="property-header-cell beds-header">BB</th>
+              <th class="property-header-cell beds-header">B/B</th>
               <th class="property-header-cell status-header">ST</th>
               @for (day of calendarDays; track day.date.getTime()) {
                 <th class="dow-header-cell">{{ day.dayOfWeek }}</th>
@@ -88,7 +88,7 @@
                   <a [routerLink]="getPropertyRoute(property.propertyId)">{{ property.propertyCode }}</a>
                 </td>
                 <td class="property-cell address-cell">{{ property.address }}</td>
-                <td class="property-cell rent-cell">{{ property.monthlyRate }}</td>
+                <td class="property-cell rent-cell">${{ property.monthlyRate }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell">{{ property.statusLetter }}</td>
                 @for (day of calendarDays; track day.date.getTime()) {
