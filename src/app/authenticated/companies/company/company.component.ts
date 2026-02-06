@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap } from 'rxjs';
 import { CompanyService } from '../services/company.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -75,8 +75,15 @@ export class CompanyComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company');
           this.buildForm();
-          // Set officeId from query params after form is built
-          this.setOfficeFromQueryParams();
+          // Check if we're copying from another company
+          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+            if (queryParams['copyFrom']) {
+              this.copyFromCompany(queryParams['copyFrom']);
+            } else {
+              // Set officeId from query params after form is built
+              this.setOfficeFromQueryParams();
+            }
+          });
         } else {
           this.getCompany();
         }
@@ -147,6 +154,50 @@ export class CompanyComponent implements OnInit, OnDestroy {
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+      }
+    });
+  }
+
+  copyFromCompany(sourceCompanyId: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'company');
+    
+    // Wait for offices to be loaded before copying
+    const officesLoaded$ = this.officeService.areOfficesLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1)
+    );
+    
+    // Wait for offices to complete, then load the company to copy
+    officesLoaded$.pipe(
+      take(1),
+      switchMap(() => this.companyService.getCompanyByGuid(sourceCompanyId).pipe(take(1))),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company'); })
+    ).subscribe({
+      next: (response: CompanyResponse) => {
+        // Temporarily store the source company
+        this.company = response;
+        // Populate form with all copied values
+        if (this.company && this.form) {
+          this.populateForm();
+          // Clear the company code since this is a new company
+          this.form.get('companyCode')?.setValue('');
+          // Don't copy logo - user should upload a new one if needed
+          this.fileDetails = null;
+          this.logoPath = null;
+          this.originalLogoPath = null;
+          this.hasNewFileUpload = false;
+        }
+        // Clear the company ID reference after populating
+        this.company = null;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load company to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company');
+        // Fall back to setting office from query params if copy fails
+        this.setOfficeFromQueryParams();
       }
     });
   }

@@ -139,6 +139,30 @@ export class VendorListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
     });
   }
+
+  copyVendor(event: VendorListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Vendor, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Add copyFrom parameter
+    queryParams.copyFrom = event.vendorId;
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: queryParams
+    });
+  }
   //#endregion
 
   //#region Filter methods

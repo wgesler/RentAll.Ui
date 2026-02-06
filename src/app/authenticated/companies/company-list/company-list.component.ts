@@ -8,7 +8,8 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
+import { NavigationEnd } from '@angular/router';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -38,7 +39,9 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
+  routerSubscription?: Subscription;
   showOfficeDropdown: boolean = true;
+  hasInitialLoad: boolean = false;
 
   companiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
@@ -67,6 +70,19 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Company-List
   ngOnInit(): void {
     this.loadOffices();
+    
+    // Subscribe to router events to refresh list when navigating back to companies page
+    this.routerSubscription = this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        filter(() => this.router.url.includes(RouterUrl.Companies) && !this.router.url.includes('/company/') && !this.router.url.includes('/vendor/'))
+      )
+      .subscribe(() => {
+        // Only refresh if we've already done the initial load (to avoid double-loading)
+        if (this.hasInitialLoad) {
+          this.getCompanies();
+        }
+      });
   }
 
   getCompanies(): void {
@@ -74,12 +90,14 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
       next: (companies) => {
         this.allCompanies = this.mappingService.mapCompanies(companies, undefined);
         this.applyFilters();
+        this.hasInitialLoad = true;
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+        this.hasInitialLoad = true;
       }
     });
   }
@@ -139,6 +157,30 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     // Navigate with query params
     this.router.navigate([url], {
       queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
+  }
+
+  copyCompany(event: CompanyListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Company, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab and officeId)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Add copyFrom parameter
+    queryParams.copyFrom = event.companyId;
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: queryParams
     });
   }
   //#endregion
@@ -203,6 +245,7 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.routerSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

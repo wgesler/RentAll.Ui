@@ -36,6 +36,7 @@
             [hasButtonTop]="true"
             [hasActionsRowClick]="true"
             [hasActionsEdit]="true"
+            [hasActionsCopy]="true"
             [hasActionsDelete]="true"
             [itemsPerPage]="100"
             buttonToggleTextTop="Inactive"
@@ -45,6 +46,7 @@
             (topToggleButtonEvent)="toggleInactive()"
             (topButtonEvent)="addContact()"
             (editEvent)="goToContact($event)"
+            (copyEvent)="copyContact($event)"
             (rowClickEvent)="goToContact($event)"
             (deleteEvent)="deleteContact($event)"/>
         </div>
@@ -76,6 +78,7 @@
           [hasButtonTop]="true"
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
+          [hasActionsCopy]="true"
           [hasActionsDelete]="true"
           [itemsPerPage]="100"
           buttonToggleTextTop="Inactive"
@@ -85,6 +88,7 @@
           (topToggleButtonEvent)="toggleInactive()"
           (topButtonEvent)="addContact()"
           (editEvent)="goToContact($event)"
+          (copyEvent)="copyContact($event)"
           (rowClickEvent)="goToContact($event)"
           (deleteEvent)="deleteContact($event)"/>
       </div>

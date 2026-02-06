@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap } from 'rxjs';
 import { ContactService } from '../services/contact.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -81,8 +81,15 @@ export class ContactComponent implements OnInit, OnDestroy {
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
           this.buildForm();
-          // Set officeId and contactTypeId from query params after form is built
-          this.setFormValuesFromQueryParams();
+          // Check if we're copying from another contact
+          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+            if (queryParams['copyFrom']) {
+              this.copyFromContact(queryParams['copyFrom']);
+            } else {
+              // Set officeId and contactTypeId from query params after form is built
+              this.setFormValuesFromQueryParams();
+            }
+          });
         } else {
           this.getContact();
         }
@@ -153,6 +160,61 @@ export class ContactComponent implements OnInit, OnDestroy {
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+      }
+    });
+  }
+
+  copyFromContact(sourceContactId: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'contact');
+    
+    // Wait for offices, companies, and vendors to be loaded before copying
+    const officesLoaded$ = this.officeService.areOfficesLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1)
+    );
+    
+    const companiesLoaded$ = this.itemsToLoad$.pipe(
+      map(items => !items.has('companies')),
+      filter(loaded => loaded === true),
+      take(1)
+    );
+    
+    const vendorsLoaded$ = this.itemsToLoad$.pipe(
+      map(items => !items.has('vendors')),
+      filter(loaded => loaded === true),
+      take(1)
+    );
+    
+    // Wait for all dependencies to complete, then load the contact to copy
+    forkJoin({
+      offices: officesLoaded$,
+      companies: companiesLoaded$,
+      vendors: vendorsLoaded$
+    }).pipe(
+      take(1),
+      switchMap(() => this.contactService.getContactByGuid(sourceContactId).pipe(take(1))),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact'); })
+    ).subscribe({
+      next: (response: ContactResponse) => {
+        // Temporarily store the source contact
+        this.contact = response;
+        // Populate form with all copied values
+        if (this.contact && this.form) {
+          this.populateForm();
+          // Clear the contact code since this is a new contact
+          this.form.get('contactCode')?.setValue('');
+        }
+        // Clear the contact ID reference after populating
+        this.contact = null;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load contact to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
+        // Fall back to setting values from query params if copy fails
+        this.setFormValuesFromQueryParams();
       }
     });
   }

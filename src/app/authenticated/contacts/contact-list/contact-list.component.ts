@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { NavigationEnd } from '@angular/router';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -39,7 +40,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
+  routerSubscription?: Subscription;
+  contactsSubscription?: Subscription;
   showOfficeDropdown: boolean = true;
+  hasInitialLoad: boolean = false;
   contactsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
@@ -66,6 +70,30 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Contacts
   ngOnInit(): void {
     this.loadOffices();
+    
+    // Subscribe to router events to force refresh when navigating back to contacts page
+    this.routerSubscription = this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/'))
+      )
+      .subscribe(() => {
+        // Force refresh when navigating back to contacts page
+        if (this.hasInitialLoad) {
+          this.contactService.loadAllContacts();
+        }
+      });
+    
+    // Subscribe to contacts service to automatically refresh when contacts are reloaded
+    // This will fire when loadAllContacts() is called (from contact component or router event)
+    // All contact-list components across all tabs will automatically get the update
+    this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
+      // Only update if we've done the initial load (to avoid updating before offices are loaded)
+      if (this.hasInitialLoad && contacts) {
+        this.allContacts = this.mappingService.mapContacts(contacts || []);
+        this.applyFilters();
+      }
+    });
   }
 
   addContact(): void {
@@ -95,21 +123,25 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getContacts(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'contacts');
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
         next: (response: ContactResponse[]) => {
           this.allContacts = this.mappingService.mapContacts(response || []);
           this.applyFilters();
+          this.hasInitialLoad = true;
         },
         error: (err: HttpErrorResponse) => {
           this.isServiceError = true;
           if (err.status === 404) {
             // Handle not found error if business logic requires
           }
+          this.hasInitialLoad = true;
         }
       });
     });
   }
+
 
   deleteContact(contact: ContactListDisplay): void {
     if (confirm(`Are you sure you want to delete ${contact.fullName}?`)) {
@@ -145,6 +177,35 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     // Navigate with query params
     this.router.navigate([url], {
       queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
+  }
+
+  copyContact(event: ContactListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Contact, ['new']);
+    const queryParams: any = {};
+    
+    // Preserve existing query params (like tab)
+    const currentParams = this.route.snapshot.queryParams;
+    if (currentParams['tab']) {
+      queryParams.tab = currentParams['tab'];
+    }
+    
+    // Add copyFrom parameter
+    queryParams.copyFrom = event.contactId;
+    
+    // Preserve officeId if an office is selected
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    // If entityTypeId is provided, add it as a query parameter
+    if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
+      queryParams.entityTypeId = this.entityTypeId;
+    }
+    
+    // Navigate with query params
+    this.router.navigate([url], {
+      queryParams: queryParams
     });
   }
   //#endregion
@@ -217,6 +278,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.routerSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap } from 'rxjs';
 import { VendorService } from '../services/vendor.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -18,6 +18,7 @@ import { AuthService } from '../../../services/auth.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-vendor',
@@ -58,7 +59,8 @@ export class VendorComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -72,10 +74,17 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.vendorId = paramMap.get('id');
         this.isAddMode = this.vendorId === 'new';
         if (this.isAddMode) {
-          this.removeLoadItem('vendor');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendor');
           this.buildForm();
-          // Set officeId from query params after form is built
-          this.setOfficeFromQueryParams();
+          // Check if we're copying from another vendor
+          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+            if (queryParams['copyFrom']) {
+              this.copyFromVendor(queryParams['copyFrom']);
+            } else {
+              // Set officeId from query params after form is built
+              this.setOfficeFromQueryParams();
+            }
+          });
         } else {
           this.getVendor();
         }
@@ -124,7 +133,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   getVendor(): void {
-    this.vendorService.getVendorByGuid(this.vendorId).pipe(take(1), finalize(() => { this.removeLoadItem('vendor'); })).subscribe({
+    this.vendorService.getVendorByGuid(this.vendorId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendor'); })).subscribe({
       next: (response: VendorResponse) => {
         this.vendor = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -146,6 +155,50 @@ export class VendorComponent implements OnInit, OnDestroy {
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+      }
+    });
+  }
+
+  copyFromVendor(sourceVendorId: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'vendor');
+    
+    // Wait for offices to be loaded before copying
+    const officesLoaded$ = this.officeService.areOfficesLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1)
+    );
+    
+    // Wait for offices to complete, then load the vendor to copy
+    officesLoaded$.pipe(
+      take(1),
+      switchMap(() => this.vendorService.getVendorByGuid(sourceVendorId).pipe(take(1))),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendor'); })
+    ).subscribe({
+      next: (response: VendorResponse) => {
+        // Temporarily store the source vendor
+        this.vendor = response;
+        // Populate form with all copied values
+        if (this.vendor && this.form) {
+          this.populateForm();
+          // Clear the vendor code since this is a new vendor
+          this.form.get('vendorCode')?.setValue('');
+          // Don't copy logo - user should upload a new one if needed
+          this.fileDetails = null;
+          this.logoPath = null;
+          this.originalLogoPath = null;
+          this.hasNewFileUpload = false;
+        }
+        // Clear the vendor ID reference after populating
+        this.vendor = null;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load vendor to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendor');
+        // Fall back to setting office from query params if copy fails
+        this.setOfficeFromQueryParams();
       }
     });
   }
@@ -340,15 +393,6 @@ export class VendorComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
