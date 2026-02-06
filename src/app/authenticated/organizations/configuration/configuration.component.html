@@ -127,11 +127,13 @@
                 <app-cost-codes 
                   [id]="costCodesId" 
                   [officeId]="costCodesOfficeId"
+                  [source]="'configuration'"
                   (backEvent)="onCostCodesBack()">
                 </app-cost-codes>
               } @else {
                 <app-cost-codes-list 
                   [officeId]="selectedCostCodesOfficeId"
+                  [embeddedInSettings]="true"
                   (addCostCodeEvent)="onCostCodesAdd()"
                   (editCostCodeEvent)="onCostCodesEdit($event)"
                   (officeIdChange)="onCostCodesOfficeChangeFromList($event)">

@@ -29,6 +29,7 @@ import { TransactionTypeLabels } from '../models/accounting-enum';
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
+  @Input() embeddedInSettings: boolean = false; // Input to indicate component is embedded in configuration settings
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: string, officeId: number | null }>();
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
@@ -130,17 +131,19 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     // Always emit event - parent can handle navigation if needed
     this.addCostCodeEvent.emit();
     
-    // Also navigate if no parent is handling it (for standalone usage)
-    const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, ['new']);
-    const params: string[] = [];
-    if (this.selectedOffice) {
-      params.push(`officeId=${this.selectedOffice.officeId}`);
-    }
-    params.push('fromOffice=true');
-    if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
-    } else {
-      this.router.navigateByUrl(url);
+    // Only navigate if not embedded in settings (for standalone usage)
+    if (!this.embeddedInSettings) {
+      const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, ['new']);
+      const params: string[] = [];
+      if (this.selectedOffice) {
+        params.push(`officeId=${this.selectedOffice.officeId}`);
+      }
+      params.push('fromOffice=true');
+      if (params.length > 0) {
+        this.router.navigateByUrl(url + `?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(url);
+      }
     }
   }
 
@@ -174,19 +177,21 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       officeId: event.officeId || this.selectedOffice?.officeId || null
     });
     
-    // Also navigate if no parent is handling it (for standalone usage)
-    const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, [event.costCodeId.toString()]);
-    const params: string[] = [];
-    // Use officeId from the response, fallback to selectedOffice
-    const officeIdToUse = event.officeId || this.selectedOffice?.officeId;
-    if (officeIdToUse) {
-      params.push(`officeId=${officeIdToUse}`);
-    }
-    params.push('fromOffice=true');
-    if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
-    } else {
-      this.router.navigateByUrl(url);
+    // Only navigate if not embedded in settings (for standalone usage)
+    if (!this.embeddedInSettings) {
+      const url = RouterUrl.replaceTokens(RouterUrl.CostCodes, [event.costCodeId.toString()]);
+      const params: string[] = [];
+      // Use officeId from the response, fallback to selectedOffice
+      const officeIdToUse = event.officeId || this.selectedOffice?.officeId;
+      if (officeIdToUse) {
+        params.push(`officeId=${officeIdToUse}`);
+      }
+      params.push('fromOffice=true');
+      if (params.length > 0) {
+        this.router.navigateByUrl(url + `?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(url);
+      }
     }
   }
   //#endregion

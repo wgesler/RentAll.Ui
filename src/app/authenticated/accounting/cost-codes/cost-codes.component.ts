@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
@@ -25,12 +25,12 @@ import { TransactionTypeLabels } from '../models/accounting-enum';
   styleUrl: './cost-codes.component.scss'
 })
 
-export class CostCodesComponent implements OnInit, OnDestroy {
-  @Input() id: string | number | null = null; // Input to accept id from parent (for embedded mode)
-  @Input() officeId: number | null = null; // Input to accept officeId from parent (for embedded mode)
-  @Input() embeddedMode: boolean = false; // If true, component is embedded in parent
-  @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked (for embedded mode)
-  @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful (for embedded mode)
+export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() id: string | number | null = null; // Input to accept id from parent
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() source: 'accounting' | 'configuration' = 'accounting'; // Track where component came from
+  @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
+  @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful
   
   isServiceError: boolean = false;
   costCodeId: string;
@@ -65,91 +65,93 @@ export class CostCodesComponent implements OnInit, OnDestroy {
 
   //#region CostCode
   ngOnInit(): void {
-    this.buildForm(); // Build form once in ngOnInit
+    this.buildForm();
     this.loadOffices();
     
-    // If in embedded mode, use Input properties instead of route params
-    if (this.embeddedMode) {
-      this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        if (this.officeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        }
-        
-        if (this.id) {
-          const idStr = this.id.toString();
-          this.isAddMode = idStr === 'new';
-          this.updateCostCodeValidators(); // Update validators based on mode
-          if (this.isAddMode) {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-          } else {
-            this.costCodeId = idStr;
-            if (this.selectedOffice) {
-              this.getCostCode();
-            } else if (this.offices.length > 0) {
-              // If no officeId provided, try with first office as fallback
-              this.selectedOffice = this.offices[0];
-              this.getCostCode();
-            } else {
-              this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-            }
-          }
-        }
-      });
-      return;
-    }
-    
-    // Not in embedded mode - use route params (existing behavior)
-    const snapshotParams = this.route.snapshot.queryParams;
-    const officeId = snapshotParams['officeId'];
-
-    this.fromAccountingTab = snapshotParams['fromAccountingTab'] === 'true';
-    this.fromOffice = snapshotParams['fromOffice'] === 'true';
-    
-    // Also subscribe to query params for changes
-    this.route.queryParams.subscribe(params => {
-      const updatedOfficeId = params['officeId'];
-      if (updatedOfficeId && this.offices.length > 0) {
-        const parsedOfficeId = parseInt(updatedOfficeId, 10);
-        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-      }
- 
-      this.fromAccountingTab = params['fromAccountingTab'] === 'true';
-      this.fromOffice = params['fromOffice'] === 'true';
-    });
-    
-    // Wait for offices to load before processing route params
+    // Component is always embedded - use Input properties
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (officeId && this.offices.length > 0) {
-        const parsedOfficeId = parseInt(officeId, 10);
-        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+      if (this.officeId) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
       }
       
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          const idParam = paramMap.get('id');
-          this.isAddMode = idParam === 'new';
-          if (this.isAddMode) {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
-            // Form already built, no need to rebuild
+      if (this.id) {
+        const idStr = this.id.toString();
+        this.isAddMode = idStr === 'new';
+        this.updateCostCodeValidators();
+        if (this.isAddMode) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        } else {
+          this.costCodeId = idStr;
+          if (this.selectedOffice) {
+            this.getCostCode();
+          } else if (this.offices.length > 0) {
+            // If no officeId provided, try with first office as fallback
+            this.selectedOffice = this.offices[0];
+            this.getCostCode();
           } else {
-            this.costCodeId = idParam || '';
-            if (this.selectedOffice) {
-              this.getCostCode();
-            } else if (this.offices.length > 0) {
-              // If no officeId in query params, use first office
-              this.selectedOffice = this.offices[0];
-              this.getCostCode();
-            }
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
           }
         }
-      });
+      } else {
+        // No id provided - default to add mode
+        this.isAddMode = true;
+        this.updateCostCodeValidators();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+      }
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Handle id changes (including first change when inputs are bound)
+    if (changes['id'] && this.offices.length > 0) {
+      const newId = changes['id'].currentValue;
+      if (newId) {
+        const idStr = newId.toString();
+        this.isAddMode = idStr === 'new';
+        this.updateCostCodeValidators();
+        if (this.isAddMode) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        } else {
+          this.costCodeId = idStr;
+          if (this.selectedOffice) {
+            this.getCostCode();
+          } else if (this.offices.length > 0) {
+            this.selectedOffice = this.offices[0];
+            this.getCostCode();
+          } else {
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+          }
+        }
+      } else {
+        // No id - add mode
+        this.isAddMode = true;
+        this.updateCostCodeValidators();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+      }
+    }
+    
+    // Handle officeId changes
+    if (changes['officeId'] && this.offices.length > 0) {
+      if (this.officeId) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        // If we have a costCodeId and are in edit mode, reload
+        if (!this.isAddMode && this.costCodeId && this.selectedOffice) {
+          this.getCostCode();
+        }
+      }
+    }
   }
 
   getCostCode(): void {
     if (!this.selectedOffice || !this.costCodeId) {
+      // Remove from loading set if we can't load
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
       return;
     }
+    
+    // Add costCode to loading set
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'costCode');
+    
     this.costCodesService.getCostCodeById(this.costCodeId, this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
       next: (response: CostCodesResponse) => {
         this.costCode = response;
@@ -210,9 +212,7 @@ export class CostCodesComponent implements OnInit, OnDestroy {
           // Clear form for another entry (don't navigate back)
           this.resetFormForNewEntry();
           
-          if (this.embeddedMode) {
-            this.savedEvent.emit();
-          }
+          this.savedEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
@@ -231,12 +231,8 @@ export class CostCodesComponent implements OnInit, OnDestroy {
         next: (response: CostCodesResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.embeddedMode) {
-            this.savedEvent.emit();
-            this.back();
-          } else {
-            this.back();
-          }
+          this.savedEvent.emit();
+          this.back();
         },
         error: (err: HttpErrorResponse) => {
           // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
@@ -348,33 +344,10 @@ export class CostCodesComponent implements OnInit, OnDestroy {
       this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
     }
     
-    // If in embedded mode, emit event instead of navigating
-    if (this.embeddedMode) {
-      this.backEvent.emit();
-      return;
-    }
-    
-    // If navigated from Office component (embedded), go back to Office component
-    if (this.fromOffice && this.selectedOffice) {
-      const url = RouterUrl.replaceTokens(RouterUrl.Office, [this.selectedOffice.officeId.toString()]);
-      this.router.navigateByUrl(url);
-    } else if (this.fromAccountingTab) {
-      // If navigated from Accounting tab, go back to Accounting list with Cost Codes tab selected
-      const url = RouterUrl.AccountingList;
-      const queryParams: string[] = [];
-      if (this.selectedOffice) {
-        queryParams.push('officeId=' + this.selectedOffice.officeId);
-      }
-      queryParams.push('tab=costCodes');
-      this.router.navigateByUrl(url + (queryParams.length > 0 ? '?' + queryParams.join('&') : ''));
-    } else {
-      // Navigate back to Cost Codes list with officeId query parameter if available
-      if (this.selectedOffice) {
-        this.router.navigateByUrl(RouterUrl.CostCodesList + '?officeId=' + this.selectedOffice.officeId);
-      } else {
-        this.router.navigateByUrl(RouterUrl.CostCodesList);
-      }
-    }
+    // Component is always embedded - just emit event, parent handles showing the list
+    // Parent components (accounting/configuration) will set isEditingCostCodes = false
+    // which will show the cost-codes-list component again
+    this.backEvent.emit();
   }
   //#endregion
 }
