@@ -46,15 +46,17 @@
   <div class="mat">
       <!-- Office, Company, and Reservation dropdowns row - First Row -->
       <div class="flex gap-3 items-center mt-3 px-4">
-        <mat-form-field appearance="outline" class="office-dropdown">
-          <mat-label>All Offices</mat-label>
-          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office">{{ office.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        @if (showOfficeDropdown) {
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>All Offices</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
         @if (source === 'accounting') {
           <mat-form-field appearance="outline" class="company-dropdown">
             <mat-label>All Companies</mat-label>

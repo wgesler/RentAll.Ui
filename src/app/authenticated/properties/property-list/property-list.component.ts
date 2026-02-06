@@ -35,6 +35,7 @@ export class PropertyListComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
 
   propertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
@@ -56,8 +57,7 @@ export class PropertyListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService,
-    private authService: AuthService) {
+    private officeService: OfficeService) {
   }
 
   //#region Property-List
@@ -142,17 +142,18 @@ export class PropertyListComponent implements OnInit, OnDestroy {
   //#region Office Methods
   loadOffices(): void {
     // Offices are already loaded on login, so directly subscribe to changes
+    // API already filters offices by user access
     this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-      // Filter offices by user access
-      const user = this.authService.getUser();
-      if (user && user.officeAccess && user.officeAccess.length > 0) {
-        // User has specific office access - filter to only those offices
-        const officeAccessIds = user.officeAccess.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
-        this.offices = (allOffices || []).filter(office => officeAccessIds.includes(office.officeId));
+      this.offices = allOffices || [];
+      
+      // Auto-select if only one office available
+      if (this.offices.length === 1) {
+        this.selectedOffice = this.offices[0];
+        this.showOfficeDropdown = false;
       } else {
-        // User has no office restrictions - show all offices
-        this.offices = allOffices || [];
+        this.showOfficeDropdown = true;
       }
+      
       this.getProperties();
     });
   }

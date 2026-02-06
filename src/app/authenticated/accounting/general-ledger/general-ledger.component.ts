@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-general-ledger',
@@ -19,6 +20,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   showInactive: boolean = false;
+  showOfficeDropdown: boolean = true;
 
   constructor(
     private officeService: OfficeService
@@ -41,12 +43,22 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   }
 
   loadOffices(): void {
-    this.officeService.getOffices().subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = offices;
+    this.officeService.getAllOffices().subscribe({
+      next: (allOffices: OfficeResponse[]) => {
+        // API already filters offices by user access
+        this.offices = allOffices || [];
+        
         // After offices load, set selectedOfficeId from officeId input if provided
         if (this.officeId !== null) {
           this.selectedOfficeId = this.officeId;
+        }
+        
+        // Auto-select if only one office available (unless officeId input is provided)
+        if (this.offices.length === 1 && this.officeId === null) {
+          this.selectedOfficeId = this.offices[0].officeId;
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
         }
       },
       error: () => {

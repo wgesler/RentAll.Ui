@@ -8,11 +8,14 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-vendor-list',
@@ -26,6 +29,11 @@ export class VendorListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
 
   vendorsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
@@ -47,12 +55,13 @@ export class VendorListComponent implements OnInit, OnDestroy {
     public vendorService: VendorService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private officeService: OfficeService) {
   }
 
   //#region Vendor-List
   ngOnInit(): void {
-    this.getVendors();
+    this.loadOffices();
   }
 
   getVendors(): void {
@@ -102,9 +111,41 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
+    let filtered = this.allVendors;
+
+    // Filter by office
+    if (this.selectedOffice) {
+      filtered = filtered.filter(vendor => vendor.officeId === this.selectedOffice.officeId);
+    }
+
+    // Filter by active status
     this.vendorsDisplay = this.showInactive
-      ? this.allVendors
-      : this.allVendors.filter(vendor => vendor.isActive);
+      ? filtered
+      : filtered.filter(vendor => vendor.isActive);
+  }
+  //#endregion
+
+  //#region Office Methods
+  loadOffices(): void {
+      // Offices are already loaded on login, so directly subscribe to changes
+      // API already filters offices by user access
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        
+        // Auto-select if only one office available
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        this.getVendors();
+    });
+  }
+
+  onOfficeChange(): void {
+    this.applyFilters();
   }
   //#endregion
 
@@ -119,6 +160,7 @@ export class VendorListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

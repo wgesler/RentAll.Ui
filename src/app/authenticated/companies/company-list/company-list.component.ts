@@ -8,12 +8,15 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-company-list',
@@ -29,6 +32,11 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allCompanies: CompanyListDisplay[] = [];
   companiesDisplay: CompanyListDisplay[] = [];
+
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
 
   companiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
@@ -49,12 +57,13 @@ export class CompanyListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private officeService: OfficeService) {
   }
 
   //#region Company-List
   ngOnInit(): void {
-    this.getCompanies();
+    this.loadOffices();
   }
 
   getCompanies(): void {
@@ -104,14 +113,47 @@ export class CompanyListComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
+    let filtered = this.allCompanies;
+
+    // Filter by office
+    if (this.selectedOffice) {
+      filtered = filtered.filter(company => company.officeId === this.selectedOffice.officeId);
+    }
+
+    // Filter by active status
     this.companiesDisplay = this.showInactive
-      ? this.allCompanies
-      : this.allCompanies.filter(company => company.isActive);
+      ? filtered
+      : filtered.filter(company => company.isActive);
+  }
+  //#endregion
+
+  //#region Office Methods
+  loadOffices(): void {
+      // Offices are already loaded on login, so directly subscribe to changes
+      // API already filters offices by user access
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        
+        // Auto-select if only one office available
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        this.getCompanies();
+    });
+  }
+
+  onOfficeChange(): void {
+    this.applyFilters();
   }
   //#endregion
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

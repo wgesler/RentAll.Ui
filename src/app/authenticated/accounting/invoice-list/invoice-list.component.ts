@@ -28,7 +28,6 @@ import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
 import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
-import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-invoice-list',
@@ -62,6 +61,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -137,7 +137,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
-    private authService: AuthService,
     private cdr: ChangeDetectorRef,
     private zone: NgZone) {
   }
@@ -159,8 +158,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (this.selectedOffice) {
           this.filterCostCodes();
           this.filterReservations();
-          // Filter invoices client-side by office
-          this.applyFilters();
+          // Load invoices for selected office
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.getInvoices();
           
           // Apply initial reservationId from @Input if provided
           if (this.reservationId !== null && this.reservations.length > 0) {
@@ -197,14 +197,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               }
             }
             
-            // Filter invoices client-side by office
-            this.applyFilters();
+            // Load invoices for selected office
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.getInvoices();
           }
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
             this.selectedOffice = null;
-            this.applyFilters();
+            // Load all invoices when "All Offices" is selected
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.loadAllInvoices();
           }
         }
         
@@ -236,13 +239,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.filterCostCodes();
             this.filterCompanies();
             this.filterReservations();
-            // Filter invoices client-side by office
-            this.applyFilters();
+            // Load invoices for selected office
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.getInvoices();
           } else {
             this.selectedReservation = null;
             this.selectedCompany = null;
-            // Show all invoices when no office is selected
-            this.applyFilters();
+            // Load all invoices when "All Offices" is selected
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.loadAllInvoices();
           }
         } else {
           // Offices not loaded yet, wait for them to load in loadOffices()
@@ -293,6 +298,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getInvoices(): void {
     if (!this.selectedOffice?.officeId) {
+      // Load all invoices when "All Offices" is selected
+      this.loadAllInvoices();
       return;
     }
     this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
@@ -434,6 +441,40 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       };
       this.dialog.open(InvoicePaidFullDialogComponent, dialogConfig);
     } else {
+      // Auto-select the invoice's office and reservation
+      const invoiceOfficeId = event.officeId;
+      const invoiceReservationId = event.reservationId;
+      
+      // Set selectedOffice from invoice's officeId
+      if (invoiceOfficeId && this.offices.length > 0) {
+        const matchingOffice = this.offices.find(o => o.officeId === invoiceOfficeId);
+        if (matchingOffice && matchingOffice !== this.selectedOffice) {
+          this.selectedOffice = matchingOffice;
+          // Filter dependent data
+          this.filterCostCodes();
+          this.filterCompanies();
+          this.filterReservations();
+          // Emit office change to parent
+          this.officeIdChange.emit(this.selectedOffice.officeId);
+          // Apply filters
+          this.applyFilters();
+        }
+      }
+      
+      // Set selectedReservation from invoice's reservationId (after office is set)
+      if (invoiceReservationId && this.selectedOffice && this.reservations.length > 0) {
+        const matchingReservation = this.reservations.find(r => 
+          r.reservationId === invoiceReservationId && r.officeId === this.selectedOffice?.officeId
+        );
+        if (matchingReservation && matchingReservation !== this.selectedReservation) {
+          this.selectedReservation = matchingReservation;
+          // Emit reservation change to parent
+          this.reservationIdChange.emit(this.selectedReservation.reservationId);
+          // Apply filters
+          this.applyFilters();
+        }
+      }
+      
       // Open Apply Payment dialog
       this.openApplyPaymentDialogForInvoice(event.invoiceId);
     }
@@ -671,10 +712,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Items
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        
+        // Auto-select if only one office available (unless officeId input is provided)
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
         
         // Set selectedOffice from input
         // Always check current officeId input value to sync with other tabs
@@ -686,25 +735,31 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               this.filterCostCodes();
               this.filterCompanies();
               this.filterReservations();
-              // Filter invoices client-side by office
               this.applyFilters();
             } else {
               this.selectedReservation = null;
               this.selectedCompany = null;
-              // Show all invoices when no office is selected
-              this.applyFilters();
+               this.applyFilters();
             }
           }
+        } else if (this.selectedOffice && this.offices.length === 1) {
+          // If auto-selected, apply filters
+          this.filterCostCodes();
+          this.filterCompanies();
+          this.filterReservations();
+          this.applyFilters();
         }
         
-        // Filter invoices client-side by office
+        // Load invoices - show all if no office selected, or filter by office if selected
         if (this.selectedOffice) {
           this.filterCostCodes();
           this.filterCompanies();
-          this.applyFilters();
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.getInvoices();
         } else {
-          // Show all invoices when no office is selected
-          this.applyFilters();
+          // Load all invoices when no office is selected
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.loadAllInvoices();
         }
       });
     });
@@ -787,8 +842,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    // Filter invoices client-side by selected office
-    this.applyFilters();
     // Emit office change to parent
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
@@ -802,15 +855,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Filter reservations by selected office
     this.filterReservations();
     
-    // Only load invoices if an office is selected
+    // Load invoices - show all if no office selected, or filter by office if selected
     if (this.selectedOffice) {
       this.filterCostCodes();
       this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
       this.getInvoices();
     } else {
-      // Clear invoices when no office is selected
-      this.allInvoices = [];
-      this.invoicesDisplay = [];
+      // Load all invoices when "All Offices" is selected
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+      this.loadAllInvoices();
       this.selectedReservation = null;
       this.selectedCompany = null;
       this.applyFilters();

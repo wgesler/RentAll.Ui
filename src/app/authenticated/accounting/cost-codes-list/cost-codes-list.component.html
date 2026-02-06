@@ -2,17 +2,19 @@
   <div class="mat">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
-      <div class="flex gap-4 items-center mt-3 px-4">
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>All Offices</mat-label>
-          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office">{{ office.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      </div>
+      @if (showOfficeDropdown) {
+        <div class="flex gap-4 items-center mt-3 px-4">
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>All Offices</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      }
       <!-- Action buttons row -->
       <div class="flex justify-end items-center gap-5 mt-3 px-4">
         <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">

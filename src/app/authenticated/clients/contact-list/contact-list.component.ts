@@ -8,12 +8,15 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-contact-list',
@@ -31,6 +34,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
+
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
   contactsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
@@ -49,12 +57,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private officeService: OfficeService) {
   }
 
   //#region Contacts
   ngOnInit(): void {
-    this.getContacts();
+    this.loadOffices();
   }
 
   addContact(): void {
@@ -119,6 +128,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(contact => contact.entityTypeId === this.entityTypeId);
     }
     
+    // Filter by office
+    if (this.selectedOffice) {
+      filtered = filtered.filter(contact => contact.officeId === this.selectedOffice.officeId);
+    }
+    
     // Filter by active status
     this.contactsDisplay = this.showInactive
       ? filtered
@@ -133,8 +147,33 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  //#region Office Methods
+  loadOffices(): void {
+      // Offices are already loaded on login, so directly subscribe to changes
+      // API already filters offices by user access
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        
+        // Auto-select if only one office available
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        this.getContacts();
+    });
+  }
+
+  onOfficeChange(): void {
+    this.applyFilters();
+  }
+  //#endregion
+
   //#region Utility methods
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

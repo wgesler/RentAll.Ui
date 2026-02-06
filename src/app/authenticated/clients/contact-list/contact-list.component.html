@@ -1,46 +1,95 @@
 @if (!(isLoading$ | async)) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      @if (entityTypeId === undefined || entityTypeId === null) {
-        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-          <div class="flex items-baseline">
-            <mat-icon mat-list-icon class="mr-5">contacts</mat-icon>
-            <h2 class="m-0">Contacts</h2>
+  @if (entityTypeId === undefined || entityTypeId === null) {
+    <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+      <div class="flex items-baseline">
+        <mat-icon mat-list-icon class="mr-5">contacts</mat-icon>
+        <h2 class="m-0">Contacts</h2>
+      </div>
+      <button mat-raised-button type="button" color="primary" id="add-button" (click)="addContact()" class="scale-90 text-nowrap">
+        <mat-icon>add</mat-icon>
+        Add
+      </button>
+    </div>
+    <mat-card>
+      <div class="mat">
+        <!-- Office dropdown row - just above data table -->
+        @if (showOfficeDropdown) {
+          <div class="flex gap-3 items-center mt-3 px-4">
+            <mat-form-field appearance="outline" class="office-dropdown">
+              <mat-label>All Offices</mat-label>
+              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of offices; track office.officeId) {
+                  <mat-option [value]="office">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
           </div>
-          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addContact()" class="scale-90 text-nowrap">
-            <mat-icon>add</mat-icon>
-            Add
-          </button>
+        }
+        <div class="tableDiv">
+          <app-data-table
+            [data]="contactsDisplay"
+            [columns]="contactsDisplayedColumns"
+            [hasColumnIndex]="false"
+            [hasFilter]="true"
+            [hasToggleTop]="true"
+            [hasButtonTop]="true"
+            [hasActionsRowClick]="true"
+            [hasActionsEdit]="true"
+            [hasActionsDelete]="true"
+            [itemsPerPage]="100"
+            buttonToggleTextTop="Inactive"
+            buttonTextTop="Add"
+            buttonIconTop="add"
+            buttonColorTop="primary"
+            (topToggleButtonEvent)="toggleInactive()"
+            (topButtonEvent)="addContact()"
+            (editEvent)="goToContact($event)"
+            (rowClickEvent)="goToContact($event)"
+            (deleteEvent)="deleteContact($event)"/>
+        </div>
+      </div>
+    </mat-card>
+  } @else {
+    <div class="mat">
+      <!-- Office dropdown row - just above data table -->
+      @if (showOfficeDropdown) {
+        <div class="flex gap-3 items-center mt-3 px-4">
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>All Offices</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
       }
-      <mat-card>
-        <div class="mat">
-          <div class="tableDiv">
-            <app-data-table
-              [data]="contactsDisplay"
-              [columns]="contactsDisplayedColumns"
-              [hasColumnIndex]="false"
-              [hasFilter]="true"
-              [hasToggleTop]="true"
-              [hasButtonTop]="true"
-              [hasActionsRowClick]="true"
-              [hasActionsEdit]="true"
-              [hasActionsDelete]="true"
-              [itemsPerPage]="100"
-              buttonToggleTextTop="Inactive"
-              buttonTextTop="Add"
-              buttonIconTop="add"
-              buttonColorTop="primary"
-              (topToggleButtonEvent)="toggleInactive()"
-              (topButtonEvent)="addContact()"
-              (editEvent)="goToContact($event)"
-              (rowClickEvent)="goToContact($event)"
-              (deleteEvent)="deleteContact($event)"/>
-          </div>
-        </div>
-      </mat-card>
-    </section>
-  </div>
+      <div class="tableDiv">
+        <app-data-table
+          [data]="contactsDisplay"
+          [columns]="contactsDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="true"
+          [hasButtonTop]="true"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [itemsPerPage]="100"
+          buttonToggleTextTop="Inactive"
+          buttonTextTop="Add"
+          buttonIconTop="add"
+          buttonColorTop="primary"
+          (topToggleButtonEvent)="toggleInactive()"
+          (topButtonEvent)="addContact()"
+          (editEvent)="goToContact($event)"
+          (rowClickEvent)="goToContact($event)"
+          (deleteEvent)="deleteContact($event)"/>
+      </div>
+    </div>
+  }
 } @else {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>

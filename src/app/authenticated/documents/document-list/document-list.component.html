@@ -4,15 +4,17 @@
     <div class="document-list-tab-container">
       <!-- Office and Reservation dropdown row -->
       <div class="flex gap-4 items-center mt-3 px-4">
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>All Offices</mat-label>
-          <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        @if (showOfficeDropdown) {
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>All Offices</mat-label>
+            <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
         <mat-form-field appearance="outline" style="width: 300px;">
           <mat-label>Reservation</mat-label>
           <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
@@ -64,15 +66,17 @@
           <div class="mat">
             <!-- Office and Reservation dropdown row -->
             <div class="flex gap-4 items-center mt-4 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>All Offices</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              @if (showOfficeDropdown) {
+                <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-label>All Offices</mat-label>
+                  <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Reservation</mat-label>
                 <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">

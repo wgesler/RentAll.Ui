@@ -42,6 +42,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
 
   costCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
@@ -110,11 +111,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       const newOfficeId = changes['officeId'].currentValue;
       if (this.offices.length > 0) {
         this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-        if (this.selectedOffice) {
-          this.filterCostCodes();
-        } else {
-          this.applyFilters();
-        }
+        // Filter cost codes - show all if no office selected, or filter by office if selected
+        this.filterCostCodes();
       } else {
         // Offices not loaded yet, wait for them to load in loadOffices()
         // The loadOffices() method will handle setting selectedOffice from officeId input
@@ -196,8 +194,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        // API already filters offices by user access
+        this.offices = allOffices || [];
+        
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
@@ -215,16 +215,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
         
-        // Only filter cost codes if an office is selected
-        if (this.selectedOffice) {
-          // Filter cost codes - this will work even if cost codes aren't loaded yet (will get empty array)
-          // When cost codes load, they will trigger filtering again via loadCostCodes subscription
-          this.filterCostCodes();
+        // Auto-select if only one office available (unless officeId input/query param is provided)
+        if (this.offices.length === 1 && !this.selectedOffice) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
         } else {
-          // No office selected, clear cost codes display
-          this.allCostCodes = [];
-          this.costCodesDisplay = [];
+          this.showOfficeDropdown = true;
         }
+        
+        // Filter cost codes - show all if no office selected, or filter by office if selected
+        // This will work even if cost codes aren't loaded yet (will get empty array)
+        // When cost codes load, they will trigger filtering again via loadCostCodes subscription
+        this.filterCostCodes();
       });
     });
   }
@@ -248,15 +250,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     
-    // Only filter cost codes if an office is selected
-    if (this.selectedOffice) {
-      this.filterCostCodes();
-    } else {
-      // Clear cost codes when no office is selected
-      this.allCostCodes = [];
-      this.costCodesDisplay = [];
-      this.applyFilters();
-    }
+    // Filter cost codes - show all if no office selected, or filter by office if selected
+    this.filterCostCodes();
   }
   
   applyFilters(): void {
@@ -276,6 +271,16 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   filterCostCodes(): void {
     if (!this.selectedOffice) {
+      // Show all cost codes across all offices when "All Offices" is selected
+      this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(allCostCodes => {
+        this.costCodes = allCostCodes || [];
+        this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+          value: c.costCodeId,
+          label: `${c.costCode}: ${c.description}`
+        }));
+        this.allCostCodes = this.costCodes;
+        this.applyFilters();
+      });
       return;
     }
     

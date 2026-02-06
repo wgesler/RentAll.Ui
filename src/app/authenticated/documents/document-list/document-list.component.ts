@@ -19,6 +19,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { UtilityService } from '../../../services/utility.service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-document-list',
@@ -46,6 +47,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   // Office selection for filtering
   selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
+  showOfficeDropdown: boolean = true;
   
   // Reservation selection for filtering (when coming from reservation)
   selectedReservationId: string | null = null;
@@ -404,14 +406,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.getOffices().subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = offices;
+    this.officeService.getAllOffices().subscribe({
+      next: (allOffices: OfficeResponse[]) => {
+        // API already filters offices by user access
+        this.offices = allOffices || [];
+        
         // After offices load, set selectedOfficeId from officeId input if provided
         if (this.officeId !== null && this.officeId !== undefined) {
           this.selectedOfficeId = this.officeId;
         } else {
           this.selectedOfficeId = null;
+        }
+        
+        // Auto-select if only one office available (unless officeId input is provided)
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+          this.selectedOfficeId = this.offices[0].officeId;
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
         }
       },
       error: () => {
