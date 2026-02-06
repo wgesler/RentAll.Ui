@@ -13,7 +13,7 @@ import { CommonMessage } from '../../enums/common-message.enum';
 import { StorageService } from '../../services/storage.service';
 import { RouterToken, RouterUrl } from '../../app.routes';
 import { StorageKey } from '../../enums/storage-keys.enum';
-import { UserGroups } from '../../authenticated/user/models/user-type';
+import { UserGroups } from '../../authenticated/users/models/user-type';
 
 @Component({
   selector: 'app-login',

@@ -6,9 +6,9 @@ import { CommonMessage } from '../enums/common-message.enum';
 import { ConfigService } from './config.service';
 import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
-import { OrganizationResponse } from '../authenticated/organization/models/organization.model';
+import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { AuthService } from './auth.service';
-import { OrganizationService } from '../authenticated/organization/services/organization.service';
+import { OrganizationService } from '../authenticated/organizations/services/organization.service';
 
 @Injectable({
   providedIn: 'root'

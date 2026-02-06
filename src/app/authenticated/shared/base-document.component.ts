@@ -4,9 +4,9 @@ import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-
 import { ToastrService } from 'ngx-toastr';
 import { DocumentType } from '../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
-import { OrganizationResponse } from '../organization/models/organization.model';
-import { OfficeResponse } from '../organization/models/office.model';
-import { ReservationResponse } from '../reservation/models/reservation-model';
+import { OrganizationResponse } from '../organizations/models/organization.model';
+import { OfficeResponse } from '../organizations/models/office.model';
+import { ReservationResponse } from '../reservations/models/reservation-model';
 import { ContactResponse } from '../clients/models/contact.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { take } from 'rxjs';

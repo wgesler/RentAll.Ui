@@ -8,7 +8,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { RouterToken } from '../../../../app.routes';
 import { HeaderComponent } from '../header/header.component';
 import { MatSidenav } from '@angular/material/sidenav';
-import { UserGroups, getUserGroup } from '../../../user/models/user-type';
+import { UserGroups, getUserGroup } from '../../../users/models/user-type';
 
 @Component({
   selector: 'app-sidebar',

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ReservationListResponse } from '../authenticated/reservation/models/reservation-model';
+import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { BehaviorSubject } from 'rxjs';
 
 @Injectable({

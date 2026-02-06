@@ -12,8 +12,8 @@ import { DocumentResponse, DocumentRequest } from '../models/document.model';
 import { DocumentType, getDocumentType } from '../models/document.enum';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { MappingService } from '../../../services/mapping.service';
 

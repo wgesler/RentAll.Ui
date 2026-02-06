@@ -14,8 +14,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 
 @Component({

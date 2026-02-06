@@ -14,10 +14,10 @@ import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MappingService } from '../../../services/mapping.service';
 import { DocumentType } from '../models/document.enum';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
-import { ReservationService } from '../../reservation/services/reservation.service';
-import { ReservationListResponse } from '../../reservation/models/reservation-model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { UtilityService } from '../../../services/utility.service';
 
 @Component({

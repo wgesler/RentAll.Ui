@@ -1,0 +1,71 @@
+body {
+    background: #F4F5F6 !important;
+}
+
+.list {
+    margin-top: 30px;
+}
+
+.mat-expansion-panel-header {
+    background: var(--primary-color) !important;
+}
+
+ .mat-expansion-panel-header-title {
+    color: var(--white) !important;
+}
+
+
+.mat-expansion-panel-header-description,
+ .mat-expansion-indicator::after {
+    color: var(--white) !important;
+}
+
+
+ .mat-expansion-panel-body {
+    padding: 0 !important;
+}
+
+// Pink Clear button
+.clear-button {
+    background-color: #e91e63 !important;
+    color: white !important;
+    
+    &:hover:not(:disabled) {
+        background-color: #c2185b !important;
+    }
+    
+    &:disabled {
+        background-color: rgba(233, 30, 99, 0.3) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.office-dropdown {
+  min-width: 250px;
+  width: 100%;
+  max-width: 300px;
+}
+
+
+
+
+
+
+
+
+
+

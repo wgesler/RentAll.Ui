@@ -15,8 +15,8 @@ import { fileValidator } from '../../../validators/file-validator';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
 
 @Component({

@@ -17,8 +17,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 
 @Component({
   selector: 'app-company',

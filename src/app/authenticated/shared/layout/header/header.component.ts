@@ -8,7 +8,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
 import { MatDialog } from '@angular/material/dialog';
-import { UserComponent } from '../../../user/user/user.component';
+import { UserComponent } from '../../../users/user/user.component';
 
 @Component({
   selector: 'app-header',

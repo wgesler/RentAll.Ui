@@ -18,8 +18,8 @@ import { CompanyService } from '../../companies/services/company.service';
 import { CompanyResponse } from '../../companies/models/company.model';
 import { VendorService } from '../../companies/services/vendor.service';
 import { VendorResponse } from '../../companies/models/vendor.model';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 

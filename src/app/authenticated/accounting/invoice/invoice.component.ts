@@ -10,10 +10,10 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { RouterUrl } from '../../../app.routes';
 import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, InvoiceMonthlyDataRequest, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
-import { OfficeService } from '../../organization/services/office.service';
-import { OfficeResponse } from '../../organization/models/office.model';
-import { ReservationService } from '../../reservation/services/reservation.service';
-import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../reservation/models/reservation-model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../reservations/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { CostCodesService } from '../services/cost-codes.service';

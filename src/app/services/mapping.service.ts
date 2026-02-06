@@ -1,27 +1,27 @@
 import { Injectable } from '@angular/core';
 import { CompanyResponse, CompanyListDisplay } from '../authenticated/companies/models/company.model';
 import { VendorResponse, VendorListDisplay } from '../authenticated/companies/models/vendor.model';
-import { PropertyListDisplay, PropertyListResponse } from '../authenticated/property/models/property.model';
+import { PropertyListDisplay, PropertyListResponse } from '../authenticated/properties/models/property.model';
 import { ContactResponse, ContactListDisplay } from '../authenticated/clients/models/contact.model';
 import { getEntityType } from '../authenticated/clients/models/contact-enum';
-import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
-import { getReservationStatus } from '../authenticated/reservation/models/reservation-enum';
-import { AgentResponse, AgentListDisplay } from '../authenticated/organization/models/agent.model';
-import { AreaResponse, AreaListDisplay } from '../authenticated/organization/models/area.model';
-import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization/models/building.model';
-import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization/models/office.model';
-import { RegionResponse, RegionListDisplay } from '../authenticated/organization/models/region.model';
-import { ColorResponse, ColorListDisplay } from '../authenticated/organization/models/color.model';
-import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
+import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservations/models/reservation-model';
+import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
+import { AgentResponse, AgentListDisplay } from '../authenticated/organizations/models/agent.model';
+import { AreaResponse, AreaListDisplay } from '../authenticated/organizations/models/area.model';
+import { BuildingResponse, BuildingListDisplay } from '../authenticated/organizations/models/building.model';
+import { OfficeResponse, OfficeListDisplay } from '../authenticated/organizations/models/office.model';
+import { RegionResponse, RegionListDisplay } from '../authenticated/organizations/models/region.model';
+import { ColorResponse, ColorListDisplay } from '../authenticated/organizations/models/color.model';
+import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organizations/models/organization.model';
 import { FormatterService } from './formatter-service';
-import { BoardProperty } from '../authenticated/reservation/models/reservation-board-model';
-import { getPropertyStatusLetter } from '../authenticated/property/models/property-enums';
+import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
+import { getPropertyStatusLetter } from '../authenticated/properties/models/property-enums';
 import { DocumentResponse, DocumentListDisplay } from '../authenticated/documents/models/document.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
 import { getTransactionTypeLabel, TransactionType } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
-import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organization/models/accounting-office.model';
+import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organizations/models/accounting-office.model';
 
 @Injectable({
     providedIn: 'root'

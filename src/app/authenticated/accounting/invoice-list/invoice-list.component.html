@@ -45,7 +45,7 @@
 @if (!(isLoading$ | async)) {
   <div class="mat">
       <!-- Office, Company, and Reservation dropdowns row - First Row -->
-      <div class="flex gap-3 items-center mt-4 px-4">
+      <div class="flex gap-3 items-center mt-3 px-4">
         <mat-form-field appearance="outline" class="office-dropdown">
           <mat-label>All Offices</mat-label>
           <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'">
