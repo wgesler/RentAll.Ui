@@ -16,8 +16,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { CompanyService } from '../../company/services/company.service';
-import { CompanyResponse } from '../../company/models/company.model';
+import { CompanyService } from '../../companies/services/company.service';
+import { CompanyResponse } from '../../companies/models/company.model';
 
 @Component({
   selector: 'app-reservation-list',

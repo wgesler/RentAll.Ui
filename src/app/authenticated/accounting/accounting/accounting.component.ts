@@ -239,8 +239,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
     
     // Navigate to the Create Invoice route with all parameters
     const url = params.length > 0 
-      ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
-      : RouterUrl.CreateInvoice;
+      ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
+      : RouterUrl.InvoiceCreate;
     this.router.navigateByUrl(url);
   }
 

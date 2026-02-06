@@ -24,6 +24,9 @@ import { TableItem } from './models/table-item';
 })
 
 export class DataTableComponent implements OnChanges, OnInit {
+  // Expose Math for use in template
+  Math = Math;
+  
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
   @Input() data: PurposefulAny[];

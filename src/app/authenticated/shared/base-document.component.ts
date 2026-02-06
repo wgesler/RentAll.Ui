@@ -5,9 +5,9 @@ import { ToastrService } from 'ngx-toastr';
 import { DocumentType } from '../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { OrganizationResponse } from '../organization/models/organization.model';
-import { OfficeResponse } from '../organization-configuration/office/models/office.model';
+import { OfficeResponse } from '../organization/models/office.model';
 import { ReservationResponse } from '../reservation/models/reservation-model';
-import { ContactResponse } from '../contact/models/contact.model';
+import { ContactResponse } from '../clients/models/contact.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { take } from 'rxjs';
 

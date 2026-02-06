@@ -1,17 +1,17 @@
 import { Injectable } from '@angular/core';
-import { CompanyResponse, CompanyListDisplay } from '../authenticated/company/models/company.model';
-import { VendorResponse, VendorListDisplay } from '../authenticated/vendor/models/vendor.model';
+import { CompanyResponse, CompanyListDisplay } from '../authenticated/companies/models/company.model';
+import { VendorResponse, VendorListDisplay } from '../authenticated/companies/models/vendor.model';
 import { PropertyListDisplay, PropertyListResponse } from '../authenticated/property/models/property.model';
-import { ContactResponse, ContactListDisplay } from '../authenticated/contact/models/contact.model';
-import { getEntityType } from '../authenticated/contact/models/contact-enum';
+import { ContactResponse, ContactListDisplay } from '../authenticated/clients/models/contact.model';
+import { getEntityType } from '../authenticated/clients/models/contact-enum';
 import { ReservationListResponse, ReservationListDisplay } from '../authenticated/reservation/models/reservation-model';
 import { getReservationStatus } from '../authenticated/reservation/models/reservation-enum';
-import { AgentResponse, AgentListDisplay } from '../authenticated/organization-configuration/agent/models/agent.model';
-import { AreaResponse, AreaListDisplay } from '../authenticated/organization-configuration/area/models/area.model';
-import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization-configuration/building/models/building.model';
-import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization-configuration/office/models/office.model';
-import { RegionResponse, RegionListDisplay } from '../authenticated/organization-configuration/region/models/region.model';
-import { ColorResponse, ColorListDisplay } from '../authenticated/organization-configuration/color/models/color.model';
+import { AgentResponse, AgentListDisplay } from '../authenticated/organization/models/agent.model';
+import { AreaResponse, AreaListDisplay } from '../authenticated/organization/models/area.model';
+import { BuildingResponse, BuildingListDisplay } from '../authenticated/organization/models/building.model';
+import { OfficeResponse, OfficeListDisplay } from '../authenticated/organization/models/office.model';
+import { RegionResponse, RegionListDisplay } from '../authenticated/organization/models/region.model';
+import { ColorResponse, ColorListDisplay } from '../authenticated/organization/models/color.model';
 import { OrganizationResponse, OrganizationListDisplay } from '../authenticated/organization/models/organization.model';
 import { FormatterService } from './formatter-service';
 import { BoardProperty } from '../authenticated/reservation/models/reservation-board-model';
@@ -21,7 +21,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { LedgerLineResponse, LedgerLineListDisplay } from '../authenticated/accounting/models/invoice.model';
 import { getTransactionTypeLabel, TransactionType } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesResponse, CostCodesListDisplay } from '../authenticated/accounting/models/cost-codes.model';
-import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organization-configuration/accounting/models/accounting-office.model';
+import { AccountingOfficeResponse, AccountingOfficeListDisplay } from '../authenticated/organization/models/accounting-office.model';
 
 @Injectable({
     providedIn: 'root'
@@ -111,6 +111,7 @@ export class MappingService {
         officeName: o.officeName,
         fullName: o.fullName,
         contactType: getEntityType(o.entityTypeId),
+        entityTypeId: o.entityTypeId, // Include entityTypeId for filtering
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
         isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)

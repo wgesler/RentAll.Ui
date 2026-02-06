@@ -2,8 +2,8 @@ import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitte
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { OfficeService } from '../../organization/services/office.service';
+import { OfficeResponse } from '../../organization/models/office.model';
 
 @Component({
   selector: 'app-general-ledger',

@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './public/login/login.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
-import { CompanyComponent } from './authenticated/company/company/company.component';
-import { CompanyListComponent } from './authenticated/company/company-list/company-list.component';
-import { VendorComponent } from './authenticated/vendor/vendor/vendor.component';
-import { VendorListComponent } from './authenticated/vendor/vendor-list/vendor-list.component';
+import { CompanyComponent } from './authenticated/companies/company/company.component';
+import { CompanyListComponent } from './authenticated/companies/company-list/company-list.component';
+import { VendorComponent } from './authenticated/companies/vendor/vendor.component';
+import { VendorListComponent } from './authenticated/companies/vendor-list/vendor-list.component';
+import { CompaniesComponent } from './authenticated/companies/companies/companies.component';
 import { PropertyComponent } from './authenticated/property/property/property.component';
 import { PropertyListComponent } from './authenticated/property/property-list/property-list.component';
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
@@ -15,32 +16,33 @@ import { InvoiceListComponent } from './authenticated/accounting/invoice-list/in
 import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
 import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
 import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
-import { CreateInvoiceComponent } from './authenticated/accounting/create-invoice/create-invoice.component';
-import { ContactComponent } from './authenticated/contact/contact/contact.component';
-import { ContactListComponent } from './authenticated/contact/contact-list/contact-list.component';
+import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
+import { ContactComponent } from './authenticated/clients/contact/contact.component';
+import { ContactListComponent } from './authenticated/clients/contact-list/contact-list.component';
+import { ClientsComponent } from './authenticated/clients/clients/clients.component';
 import { UserComponent } from './authenticated/user/user/user.component';
 import { UserListComponent } from './authenticated/user/user-list/user-list.component';
 import { ReservationComponent } from './authenticated/reservation/reservation/reservation.component';
 import { ReservationListComponent } from './authenticated/reservation/reservation-list/reservation-list.component';
 import { ReservationBoardComponent } from './authenticated/reservation/reservation-board/reservation-board.component';
 import { ReservationBoardSelectionComponent } from './authenticated/reservation/reservation-board-selection/reservation-board-selection.component';
-import { AgentComponent } from './authenticated/organization-configuration/agent/agent/agent.component';
-import { AgentListComponent } from './authenticated/organization-configuration/agent/agent-list/agent-list.component';
+import { AgentComponent } from './authenticated/organization/agent/agent.component';
+import { AgentListComponent } from './authenticated/organization/agent-list/agent-list.component';
 import { OrganizationComponent } from './authenticated/organization/organization/organization.component';
 import { OrganizationListComponent } from './authenticated/organization/organization-list/organization-list.component';
-import { ConfigurationComponent } from './authenticated/organization-configuration/configuration/configuration.component';
-import { AreaComponent } from './authenticated/organization-configuration/area/area/area.component';
-import { AreaListComponent } from './authenticated/organization-configuration/area/area-list/area-list.component';
-import { BuildingComponent } from './authenticated/organization-configuration/building/building/building.component';
-import { BuildingListComponent } from './authenticated/organization-configuration/building/building-list/building-list.component';
-import { OfficeComponent } from './authenticated/organization-configuration/office/office/office.component';
-import { OfficeListComponent } from './authenticated/organization-configuration/office/office-list/office-list.component';
-import { AccountingOfficeComponent } from './authenticated/organization-configuration/accounting/accounting-office/accounting-office.component';
-import { AccountingOfficeListComponent } from './authenticated/organization-configuration/accounting/accounting-office-list/accounting-office-list.component';
-import { RegionComponent } from './authenticated/organization-configuration/region/region/region.component';
-import { RegionListComponent } from './authenticated/organization-configuration/region/region-list/region-list.component';
-import { ColorComponent } from './authenticated/organization-configuration/color/color/color.component';
-import { ColorListComponent } from './authenticated/organization-configuration/color/color-list/color-list.component';
+import { ConfigurationComponent } from './authenticated/organization/configuration/configuration.component';
+import { AreaComponent } from './authenticated/organization/area/area.component';
+import { AreaListComponent } from './authenticated/organization/area-list/area-list.component';
+import { BuildingComponent } from './authenticated/organization/building/building.component';
+import { BuildingListComponent } from './authenticated/organization/building-list/building-list.component';
+import { OfficeComponent } from './authenticated/organization/office/office.component';
+import { OfficeListComponent } from './authenticated/organization/office-list/office-list.component';
+import { AccountingOfficeComponent } from './authenticated/organization/accounting-office/accounting-office.component';
+import { AccountingOfficeListComponent } from './authenticated/organization/accounting-office-list/accounting-office-list.component';
+import { RegionComponent } from './authenticated/organization/region/region.component';
+import { RegionListComponent } from './authenticated/organization/region-list/region-list.component';
+import { ColorComponent } from './authenticated/organization/color/color.component';
+import { ColorListComponent } from './authenticated/organization/color-list/color-list.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
@@ -49,11 +51,11 @@ export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
   RentalList = 'rentals',
-  CompanyList = 'companies',
-  Company = RouterToken.CompanyList + '/:id',
-  VendorList = 'vendors',
-  Vendor = RouterToken.VendorList + '/:id',
+  Companies = 'companies',
+  Company = RouterToken.Companies + '/company/:id',
+  Vendor = RouterToken.Companies + '/vendor/:id',
   ContactList = 'contacts',
+  Clients = 'clients',
   Contact = RouterToken.ContactList + '/:id',
   TenantList = 'tenants',
   Property = RouterToken.TenantList + '/:id',
@@ -62,7 +64,7 @@ export enum RouterToken {
   DocumentView = RouterToken.DocumentList + '/:id/view',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
-  CreateInvoice = 'create-invoice',
+  InvoiceCreate = 'invoice-create',
   CostCodesList = 'cost-codes',
   CostCodes = RouterToken.CostCodesList + '/:id',
   ReservationList = 'reservations',
@@ -93,11 +95,11 @@ export enum RouterToken {
 
 export enum RouterUrl {
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
-  CompanyList           = `${RouterToken.Auth}/${RouterToken.CompanyList}`,
+  Companies             = `${RouterToken.Auth}/${RouterToken.Companies}`,
   Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
-  VendorList            = `${RouterToken.Auth}/${RouterToken.VendorList}`,
   Vendor                = `${RouterToken.Auth}/${RouterToken.Vendor}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
+  Clients               = `${RouterToken.Auth}/${RouterToken.Clients}`,
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   TenantList            = `${RouterToken.Auth}/${RouterToken.TenantList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
@@ -106,7 +108,7 @@ export enum RouterUrl {
   DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
-  CreateInvoice          = `${RouterToken.Auth}/${RouterToken.CreateInvoice}`,
+  InvoiceCreate          = `${RouterToken.Auth}/${RouterToken.InvoiceCreate}`,
   CostCodesList    = `${RouterToken.Auth}/${RouterToken.CostCodesList}`,
   CostCodes        = `${RouterToken.Auth}/${RouterToken.CostCodes}`,
   ReservationList       = `${RouterToken.Auth}/${RouterToken.ReservationList}`,
@@ -144,11 +146,11 @@ export namespace RouterUrl {
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.CompanyList, component: CompanyListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Companies, component: CompaniesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.VendorList, component: VendorListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Vendor, component: VendorComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ContactList, component: ContactListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ContactList, component: ClientsComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Clients, component: ClientsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.TenantList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
@@ -157,7 +159,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.CreateInvoice, component: CreateInvoiceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },

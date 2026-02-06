@@ -1,0 +1,26 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <span class="flex flex-column items-center gap-3 py-4">
+        <mat-icon class="flex-shrink-0">contacts</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Clients</span>
+      </span>
+    </div>
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="clients-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab label="Tenants">
+          <app-contact-list [entityTypeId]="EntityType.Tenant"></app-contact-list>
+        </mat-tab>
+        <mat-tab label="Owners">
+          <app-contact-list [entityTypeId]="EntityType.Owner"></app-contact-list>
+        </mat-tab>
+        <mat-tab label="Companies">
+          <app-contact-list [entityTypeId]="EntityType.Company"></app-contact-list>
+        </mat-tab>
+        <mat-tab label="Vendors">
+          <app-contact-list [entityTypeId]="EntityType.Vendor"></app-contact-list>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

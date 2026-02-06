@@ -1,0 +1,38 @@
+@if (!(isLoading$ | async)) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <mat-card>
+        <div class="mat">
+          <div class="tableDiv">
+            <app-data-table
+              [data]="vendorsDisplay"
+              [columns]="vendorsDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="true"
+              [hasButtonTop]="true"
+              [hasActionsRowClick]="true"
+              [hasActionsEdit]="true"
+              [hasActionsDelete]="true"
+              [itemsPerPage]="100"
+              buttonToggleTextTop="Inactive"
+              buttonTextTop="Add"
+              buttonIconTop="add"
+              buttonColorTop="primary"
+              (topToggleButtonEvent)="toggleInactive()"
+              (topButtonEvent)="addVendor()"
+              (editEvent)="goToVendor($event)"
+              (rowClickEvent)="goToVendor($event)"
+              (deleteEvent)="deleteVendor($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading vendors...</p>
+  </div>
+}
+

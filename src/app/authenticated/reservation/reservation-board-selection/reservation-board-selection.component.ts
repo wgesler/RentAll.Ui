@@ -12,14 +12,14 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonService } from '../../../services/common.service';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { RegionService } from '../../organization-configuration/region/services/region.service';
-import { AreaService } from '../../organization-configuration/area/services/area.service';
-import { BuildingService } from '../../organization-configuration/building/services/building.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
-import { RegionResponse } from '../../organization-configuration/region/models/region.model';
-import { AreaResponse } from '../../organization-configuration/area/models/area.model';
-import { BuildingResponse } from '../../organization-configuration/building/models/building.model';
+import { OfficeService } from '../../organization/services/office.service';
+import { RegionService } from '../../organization/services/region.service';
+import { AreaService } from '../../organization/services/area.service';
+import { BuildingService } from '../../organization/services/building.service';
+import { OfficeResponse } from '../../organization/models/office.model';
+import { RegionResponse } from '../../organization/models/region.model';
+import { AreaResponse } from '../../organization/models/area.model';
+import { BuildingResponse } from '../../organization/models/building.model';
 import { PropertyStatus } from '../../property/models/property-enums';
 
 @Component({

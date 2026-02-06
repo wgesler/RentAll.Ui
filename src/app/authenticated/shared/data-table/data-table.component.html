@@ -211,9 +211,10 @@
                                       (click)="$event.stopPropagation()"
                                       (mousedown)="$event.stopPropagation()"
                                       class="editable-apply-amount"
+                                      [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
                                       style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                                 } @else {
-                                    <span>{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
+                                    <span [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'">{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
                                 }
                             } @else if (column.isCheckbox) {
                                 <mat-checkbox [checked]="item[column.name]" 

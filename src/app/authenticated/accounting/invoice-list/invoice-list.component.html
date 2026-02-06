@@ -127,7 +127,9 @@
               @if (isManualApplyMode) {
                 <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
                   <mat-label style="font-size: 11px !important;">Remaining</mat-label>
-                  <input matInput [value]="remainingAmountDisplay" readonly style="font-size: 11px !important; text-align: right;">
+                  <input matInput [value]="remainingAmountDisplay" readonly 
+                         [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
+                         style="font-size: 11px !important; text-align: right;">
                 </mat-form-field>
               }
               <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">

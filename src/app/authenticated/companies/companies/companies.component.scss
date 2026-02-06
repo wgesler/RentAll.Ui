@@ -1,0 +1,36 @@
+.companies-tabs {
+  ::ng-deep {
+    // Make all tabs equal width
+    .mat-mdc-tab-header {
+      .mdc-tab {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+
+    .mat-mdc-tab.mdc-tab--active {
+      border-top: 2px solid rgb(148, 163, 184);
+      border-left: 2px solid rgb(148, 163, 184);
+      border-right: 2px solid rgb(148, 163, 184);
+    }
+
+    // Prevent tab content from causing horizontal overflow
+    .mat-mdc-tab-body-wrapper {
+      overflow-x: hidden;
+      max-width: 100%;
+      padding: 0;
+    }
+
+    .mat-mdc-tab-body-content {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+  }
+}
+
+// Ensure mat-card doesn't overflow
+mat-card {
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}

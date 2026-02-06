@@ -68,21 +68,14 @@ export class SidebarComponent implements OnInit {
     {
       icon: 'business',
       displayName: 'Companies',
-      url: RouterToken.CompanyList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'store',
-      displayName: 'Vendors',
-      url: RouterToken.VendorList,
+      url: RouterToken.Companies,
       requiredRoles: [], // Available to all
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },
     {
       icon: 'contacts',
-      displayName: 'Contacts',
-      url: RouterToken.ContactList,
+      displayName: 'Clients',
+      url: RouterToken.Clients,
       requiredRoles: [], // Available to all
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },

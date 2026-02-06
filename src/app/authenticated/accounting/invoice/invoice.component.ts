@@ -10,8 +10,8 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { RouterUrl } from '../../../app.routes';
 import { InvoiceResponse, InvoiceRequest, InvoiceMonthlyDataResponse, InvoiceMonthlyDataRequest, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
-import { OfficeService } from '../../organization-configuration/office/services/office.service';
-import { OfficeResponse } from '../../organization-configuration/office/models/office.model';
+import { OfficeService } from '../../organization/services/office.service';
+import { OfficeResponse } from '../../organization/models/office.model';
 import { ReservationService } from '../../reservation/services/reservation.service';
 import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../reservation/models/reservation-model';
 import { AuthService } from '../../../services/auth.service';
@@ -477,10 +477,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           (this as any).appliedCreditAmount = null;
         }
         
-        // Navigate to create-invoice component to generate the document
+          // Navigate to invoice-create component to generate the document
         const invoiceToUse = savedInvoice || this.invoice;
         if (invoiceToUse && this.selectedOffice && this.selectedReservation) {
-          // Build query parameters for create-invoice component
+          // Build query parameters for invoice-create component
           const queryParams = this.route.snapshot.queryParams;
           const returnTo = queryParams['returnTo'] || 'accounting'; // Default to accounting
           
@@ -501,11 +501,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
             params.push(`companyId=${this.companyId}`);
           }
           
-          // Navigate to create-invoice component
-          const createInvoiceUrl = params.length > 0 
-            ? `${RouterUrl.CreateInvoice}?${params.join('&')}`
-            : RouterUrl.CreateInvoice;
-          this.router.navigateByUrl(createInvoiceUrl);
+          // Navigate to invoice-create component
+          const invoiceCreateUrl = params.length > 0 
+            ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
+            : RouterUrl.InvoiceCreate;
+          this.router.navigateByUrl(invoiceCreateUrl);
         } else {
           // Fallback: navigate back if we don't have required data
           this.navigateBack(formValue);
