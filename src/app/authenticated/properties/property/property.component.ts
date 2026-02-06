@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap, catchError, of } from 'rxjs';
 import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -27,12 +27,14 @@ import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
-import { PropertyLetterInformationComponent } from '../property-information/property-letter-information.component';
+import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { UtilityService } from '../../../services/utility.service';
+import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyLetterResponse, PropertyLetterRequest } from '../models/property-letter.model';
 
 @Component({
   selector: 'app-property',
@@ -43,7 +45,7 @@ import { UtilityService } from '../../../services/utility.service';
     FormsModule, 
     ReactiveFormsModule,
     PropertyWelcomeLetterComponent,
-    PropertyLetterInformationComponent,
+    PropertyInformationComponent,
     DocumentListComponent
   ],
   templateUrl: './property.component.html',
@@ -52,16 +54,21 @@ import { UtilityService } from '../../../services/utility.service';
 
 export class PropertyComponent implements OnInit, OnDestroy {
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
+  @ViewChild(PropertyInformationComponent) propertyInformationComponent?: PropertyInformationComponent;
   
-  DocumentType = DocumentType; // Make DocumentType available in template
+  DocumentType = DocumentType;
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
-  propertyId: string;
-  property: PropertyResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  selectedReservationId: string | null = null; 
+  copiedPropertyInformation: PropertyLetterResponse | null = null; // Store copied property information data
+  
+  propertyId: string;
+  property: PropertyResponse;
+  propertyInformation: PropertyLetterResponse | null = null; 
+  selectedReservationId: string | null = null;
+
   states: string[] = [];
   contacts: ContactResponse[] = [];
   contactsSubscription?: Subscription;
@@ -121,7 +128,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private buildingService: BuildingService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private propertyLetterService: PropertyLetterService
   ) {
   }
 
@@ -185,6 +193,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
         if (!this.isAddMode) {
           this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
           this.getProperty();
+        } else {
+          // Check if we're copying from another property
+          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+            if (queryParams['copyFrom']) {
+              this.copyFromProperty(queryParams['copyFrom']);
+            }
+          });
         }
       }
     });
@@ -210,6 +225,78 @@ export class PropertyComponent implements OnInit, OnDestroy {
         this.isServiceError = true;
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      }
+    });
+  }
+
+  copyFromProperty(sourcePropertyId: string): void {
+    // Wait for contacts and location lookups to be loaded before copying
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
+    const contactsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('contacts')), filter(loaded => loaded === true), take(1));
+    const locationLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('locationLookups')), filter(loaded => loaded === true), take(1));
+    
+    // Wait for both to complete, then load the property and property letter to copy
+    forkJoin({
+      contacts: contactsLoaded$,
+      location: locationLoaded$
+    }).pipe(take(1),
+      switchMap(() => forkJoin({
+        property: this.propertyService.getPropertyByGuid(sourcePropertyId).pipe(take(1)),
+        propertyInformation: this.propertyLetterService.getPropertyInformationByGuid(sourcePropertyId).pipe(take(1), catchError(() => of(null)))
+      })),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })
+    ).subscribe({
+      next: (result: { property: PropertyResponse; propertyInformation: PropertyLetterResponse | null }) => {
+         this.property = result.property;
+         this.copiedPropertyInformation = result.propertyInformation;
+        
+        // Populate form with all copied values
+        if (this.property && this.form) {
+          // Enable all conditional fields temporarily so patchValue can update them
+          this.form.get('alarmCode')?.enable({ emitEvent: false });
+          this.form.get('masterKeyCode')?.enable({ emitEvent: false });
+          this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
+          this.form.get('parkingNotes')?.enable({ emitEvent: false });
+          
+          this.populateForm();
+          this.form.get('propertyCode')?.setValue('');
+          
+          // Now set conditional fields based on copied values
+          const alarmValue = this.form.get('alarm')?.value;
+          const keypadAccessValue = this.form.get('keypadAccess')?.value;
+          const parkingValue = this.form.get('parking')?.value;
+          
+          if (alarmValue) {
+            this.form.get('alarmCode')?.enable({ emitEvent: false });
+          } else {
+            this.form.get('alarmCode')?.disable({ emitEvent: false });
+            this.form.get('alarmCode')?.setValue('', { emitEvent: false });
+          }
+          
+          if (keypadAccessValue) {
+            this.form.get('masterKeyCode')?.enable({ emitEvent: false });
+            this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
+          } else {
+            this.form.get('masterKeyCode')?.disable({ emitEvent: false });
+            this.form.get('masterKeyCode')?.setValue('', { emitEvent: false });
+            this.form.get('tenantKeyCode')?.disable({ emitEvent: false });
+            this.form.get('tenantKeyCode')?.setValue('', { emitEvent: false });
+          }
+          
+          if (parkingValue) {
+            this.form.get('parkingNotes')?.enable({ emitEvent: false });
+          } else {
+            this.form.get('parkingNotes')?.disable({ emitEvent: false });
+            this.form.get('parkingNotes')?.setValue('', { emitEvent: false });
+          }
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        if (err.status !== 400) {
+          this.toastr.error('Could not load property to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
@@ -313,25 +400,24 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.notes = formValue.notes || '';
 
     if (this.isAddMode) {
-      this.propertyService.createProperty(propertyRequest).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
+      this.propertyService.createProperty(propertyRequest).pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          
-          // Update property data and switch to edit mode
           this.property = response;
           this.propertyId = response.propertyId;
           this.isAddMode = false;
-          // Update the URL to reflect edit mode
-          this.router.navigate(['/tenants', this.propertyId], { replaceUrl: true });
           this.populateForm();
           
-          // Trigger welcome letter reload event
-          this.welcomeLetterReloadService.triggerReload();
+          // If this is a copy, get the property information as well
+          if (this.propertyInformationComponent) {
+            this.propertyInformationComponent.propertyId = response.propertyId;
+            if (this.copiedPropertyInformation) {
+              this.propertyInformationComponent.savePropertyLetter();
+              this.copiedPropertyInformation = null;
+            }
+          }
           
-          // Trigger document reload event
+          this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {
@@ -346,15 +432,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       this.propertyService.updateProperty(propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          
-          // Update the property data with the response
           this.property = response;
-          this.populateForm();
-          
-          // Trigger welcome letter reload event
+          this.populateForm();          
           this.welcomeLetterReloadService.triggerReload();
-          
-          // Trigger document reload event
           this.documentReloadService.triggerReload();
         },
         error: (err: HttpErrorResponse) => {

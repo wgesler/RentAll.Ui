@@ -46,6 +46,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsTopEnabled: boolean = true;
 
   @Input() hasActionsCancel: boolean = false;
+  @Input() hasActionsCopy: boolean = false;
   @Input() hasActionsDelete: boolean = false;
   @Input() hasActionsDownload: boolean = false;
   @Input() hasActionsEdit: boolean = false;
@@ -100,6 +101,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
+  @Output() copyEvent = new EventEmitter<PurposefulAny>();
   @Output() deleteEvent = new EventEmitter<PurposefulAny>();
   @Output() downloadEvent = new EventEmitter<PurposefulAny>();
   @Output() dropdownChangeEvent = new EventEmitter<PurposefulAny>();
@@ -249,6 +251,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.printEvent.emit(rowItem);
   }
 
+  emitCopyEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.copyEvent.emit(rowItem);
+  }
+
   emitEditEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.editEvent.emit(rowItem);
@@ -373,7 +380,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsPayable || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsPayable || this.hasActionsCopy || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -403,6 +410,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#4CAF50', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
+    if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#4A90E2', tooltip: 'Copy', tooltipPosition: 'before', icon: 'content_copy', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Payable', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});

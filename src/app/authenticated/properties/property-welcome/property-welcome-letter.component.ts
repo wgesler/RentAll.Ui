@@ -343,7 +343,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       return;
     }
 
-    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter'); })).subscribe({
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
           this.propertyLetter = response;

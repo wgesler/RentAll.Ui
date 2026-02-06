@@ -47,11 +47,13 @@
               [hasToggleTop]="true"
               [hasActionsRowClick]="true"
               [hasActionsEdit]="true"
+              [hasActionsCopy]="true"
               [hasActionsDelete]="true"
               [itemsPerPage]="100"
               buttonToggleTextTop="Inactive"
               (topToggleButtonEvent)="toggleInactive()"
               (editEvent)="goToProperty($event)"
+              (copyEvent)="copyProperty($event)"
               (rowClickEvent)="goToProperty($event)"
               (deleteEvent)="deleteProperty($event)"
               (contactClickEvent)="goToContact($event)"/>

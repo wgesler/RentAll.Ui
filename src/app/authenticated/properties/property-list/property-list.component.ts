@@ -109,6 +109,11 @@ export class PropertyListComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
   }
 
+  copyProperty(event: PropertyListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
+    this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
+  }
+
   goToContact(event: PropertyListDisplay): void {
     if (event.owner1Id) {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));

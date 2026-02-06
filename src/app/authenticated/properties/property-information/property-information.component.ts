@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -18,22 +18,23 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 
 
 @Component({
-  selector: 'app-property-letter-information',
+  selector: 'app-property-information',
   standalone: true,
   imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './property-letter-information.component.html',
-  styleUrls: ['./property-letter-information.component.scss']
+  templateUrl: './property-information.component.html',
+  styleUrls: ['./property-information.component.scss']
 })
-export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
+export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string | null = null;
+  @Input() copiedPropertyInformation: PropertyLetterResponse | null = null;
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
-  propertyLetter: PropertyLetterResponse | null = null;
+  propertyInformation: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyLetter']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyInformation']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -51,6 +52,17 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (!this.propertyId) {
+      // If we have copied property information data, populate the form with it
+      if (this.copiedPropertyInformation) {
+        this.populateFormFromCopiedData();
+        // Clear loading items since we're not loading from API
+        this.removeLoadItem('property');
+        this.removeLoadItem('propertyInformation');
+        // Still load organization settings for defaults
+        this.loadOrganizationSettings();
+        return;
+      }
+      
       const currentSet = this.itemsToLoad$.value;
       currentSet.forEach(item => this.removeLoadItem(item));
       return;
@@ -62,16 +74,63 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
     this.getPropertyLetter();
   }
 
-  getPropertyLetter(): void {
-    if (!this.propertyId) {
-      this.removeLoadItem('propertyLetter');
+  ngOnChanges(changes: SimpleChanges): void {
+    // If propertyId changes from null to a value (property was saved), update the component
+    if (changes['propertyId'] && this.propertyId && !changes['propertyId'].firstChange) {
+      // Property was just saved, now we can load/save property letter
+      this.loadPropertyData();
+      this.getPropertyLetter();
+    }
+    
+    // If copiedPropertyInformation is set and we don't have propertyId yet, populate form
+    if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.propertyId) {
+      this.populateFormFromCopiedData();
+      // Clear loading items since we're not loading from API
+      this.removeLoadItem('property');
+      this.removeLoadItem('propertyInformation');
+      if (!this.organization) {
+        this.loadOrganizationSettings();
+      }
+    }
+  }
+
+  populateFormFromCopiedData(): void {
+    if (!this.copiedPropertyInformation) {
       return;
     }
 
-    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyLetter'); })).subscribe({
+    this.propertyInformation = this.copiedPropertyInformation;
+    this.form.patchValue({
+      arrivalInstructions: this.copiedPropertyInformation.arrivalInstructions || '',
+      access: this.copiedPropertyInformation.access || '',
+      mailboxInstructions: this.copiedPropertyInformation.mailboxInstructions || '',
+      packageInstructions: this.copiedPropertyInformation.packageInstructions || '',
+      parkingInformation: this.copiedPropertyInformation.parkingInformation || '',
+      amenities: this.copiedPropertyInformation.amenities || '',
+      laundry: this.copiedPropertyInformation.laundry || '',
+      providedFurnishings: this.copiedPropertyInformation.providedFurnishings || '',
+      housekeeping: this.copiedPropertyInformation.housekeeping || '',
+      televisionSource: this.copiedPropertyInformation.televisionSource || '',
+      internetService: this.copiedPropertyInformation.internetService || '',
+      keyReturn: this.copiedPropertyInformation.keyReturn || '',
+      concierge: this.copiedPropertyInformation.concierge || '',
+      emergencyContact: this.copiedPropertyInformation.emergencyContact || '',
+      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber || '',
+      additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
+    });
+    this.formatPhone();
+  }
+
+  getPropertyLetter(): void {
+    if (!this.propertyId) {
+      this.removeLoadItem('propertyInformation');
+      return;
+    }
+
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyInformation'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
-          this.propertyLetter = response;
+          this.propertyInformation = response;
           this.form.patchValue({
             arrivalInstructions: response.arrivalInstructions || '',
             access: response.access || '',
@@ -98,13 +157,17 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.populateDefaultsFromProperty();
-        this.removeLoadItem('propertyLetter');
+        this.removeLoadItem('propertyInformation');
       }
     });
   }
     
   savePropertyLetter(): void {
+    // Get propertyId from route if not provided as input (for add mode after property is saved)
     if (!this.propertyId) {
+      // Try to get propertyId from parent component or route
+      // For now, show error if propertyId is not available
+      this.toastr.error('Property must be saved first before saving property letter information.', CommonMessage.Error);
       return;
     }
 
@@ -135,12 +198,14 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
     };
 
     // Check if property letter already exists to determine create vs update
-    this.propertyLetterService.getPropertyLetterByGuid(this.propertyId).pipe(take(1)).subscribe({
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1)).subscribe({
       next: () => {
         // Property letter exists, update it
         this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter updated successfully', CommonMessage.Success);
+            // Clear copied data after successful save
+            this.copiedPropertyInformation = null;
             // Trigger welcome letter reload event
             this.welcomeLetterReloadService.triggerReload();
           },
@@ -156,6 +221,8 @@ export class PropertyLetterInformationComponent implements OnInit, OnDestroy {
         this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter created successfully', CommonMessage.Success);
+            // Clear copied data after successful save
+            this.copiedPropertyInformation = null;
             // Trigger welcome letter reload event
             this.welcomeLetterReloadService.triggerReload();
           },

@@ -18,8 +18,8 @@ export class PropertyLetterService {
   }
 
 
-  // GET: Get property letter by ID
-  getPropertyLetterByGuid(propertyId: string): Observable<PropertyLetterResponse> {
+  // GET: Get property information by ID
+  getPropertyInformationByGuid(propertyId: string): Observable<PropertyLetterResponse> {
     return this.http.get<PropertyLetterResponse>(this.controller + propertyId);
   }
 

@@ -11,7 +11,7 @@
       <div class="form-actions top-actions">
         <div class="flex gap-2 justify-end">
           <button mat-raised-button type="button" color="primary" id="save-button" (click)="savePropertyLetter()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid || (copiedPropertyInformation && !propertyId)">
             <mat-icon>save</mat-icon>
             Save
           </button>
