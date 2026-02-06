@@ -109,6 +109,30 @@ img {
             &:last-child {
                 margin-right: 0;
             }
+            
+            // Fill inner rectangle for copy icon
+            &[id*="copy"] {
+                position: relative;
+                
+                mat-icon {
+                    position: relative;
+                    z-index: 1;
+                }
+                
+                &::before {
+                    content: '';
+                    position: absolute;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 2px;
+                    background-color: currentColor;
+                    opacity: 0.3;
+                    left: 50%;
+                    top: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 0;
+                }
+            }
         }
     }
 
