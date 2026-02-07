@@ -1,18 +1,19 @@
 @if (!(isLoading$ | async)) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-        <div class="flex items-baseline">
-          <mat-icon mat-list-icon class="mr-5">people</mat-icon>
-          <h2 class="m-0">Users</h2>
-        </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addUser()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">people</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Users</span>
+        </span>
       </div>
       <mat-card>
         <div class="mat">
+          <!-- Empty row to maintain consistent spacing -->
+          <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+            <div class="flex items-center gap-3" style="height: 56px;">
+            </div>
+          </div>
           <div class="tableDiv">
             <app-data-table
               [data]="usersDisplay"
@@ -20,12 +21,17 @@
               [hasColumnIndex]="false"
               [hasFilter]="true"
               [hasToggleTop]="true"
+              [hasButtonTop]="true"
               [hasActionsRowClick]="true"
               [hasActionsEdit]="true"
               [hasActionsDelete]="true"
               [itemsPerPage]="100"
-              buttonToggleTextTop="Inactive"
+              [buttonToggleTextTop]="'Inactive'"
+              [buttonTextTop]="'Add'"
+              [buttonIconTop]="'add'"
+              [buttonColorTop]="'primary'"
               (topToggleButtonEvent)="toggleInactive()"
+              (topButtonEvent)="addUser()"
               (editEvent)="goToUser($event)"
               (rowClickEvent)="goToUser($event)"
               (deleteEvent)="deleteUser($event)"/>

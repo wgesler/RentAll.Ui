@@ -93,6 +93,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
@@ -103,14 +104,21 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   get invoicesDisplayedColumns(): ColumnSet {
+    let columns = { ...this.baseInvoicesDisplayedColumns };
+    
+    // Hide reservationCode column when amount column is visible in ledger lines
+    // (Amount is always visible in ledger lines, so hide reservationCode)
+    const { reservationCode, ...columnsWithoutReservationCode } = columns;
+    columns = columnsWithoutReservationCode;
+    
     // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
-    if (this.isManualApplyMode) {
-      return this.baseInvoicesDisplayedColumns;
-    } else {
+    if (!this.isManualApplyMode) {
       // Return columns without applyAmount
-      const { applyAmount, ...columnsWithoutApply } = this.baseInvoicesDisplayedColumns;
+      const { applyAmount, ...columnsWithoutApply } = columns;
       return columnsWithoutApply;
     }
+    
+    return columns;
   }
 
   ledgerLinesDisplayedColumns: ColumnSet = {
@@ -551,6 +559,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceCode || '',
+      reservationCode: invoice.reservationCode || '-',
       totalAmount: '$' + this.formatter.currency(totalAmount),
       totalAmountValue: totalAmount, // Store raw value for validation
       paidAmount: '$' + this.formatter.currency(paidAmount), // Always display as formatted (read-only)

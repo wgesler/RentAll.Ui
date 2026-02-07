@@ -52,40 +52,38 @@
     <!-- Standard layout with header -->
     <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
       <section class="content-card">
-        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-          <div class="flex items-baseline">
-            <mat-icon mat-list-icon class="mr-5">description</mat-icon>
-            <h2 class="m-0">Documents</h2>
-          </div>
-          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addDocument()" class="scale-90 text-nowrap">
-            <mat-icon>add</mat-icon>
-            Add
-          </button>
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">description</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Documents</span>
+          </span>
         </div>
         <mat-card>
           <div class="mat">
             <!-- Office and Reservation dropdown row -->
-            <div class="flex gap-4 items-center mt-4 px-4">
-              @if (showOfficeDropdown) {
+            <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+              <div class="flex items-center gap-3" style="height: 56px;">
+                @if (showOfficeDropdown) {
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>All Offices</mat-label>
+                    <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
+                      <mat-option [value]="null">All Offices</mat-option>
+                      @for (office of offices; track office.officeId) {
+                        <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
                 <mat-form-field appearance="outline" style="width: 300px;">
-                  <mat-label>All Offices</mat-label>
-                  <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled">
-                    <mat-option [value]="null">All Offices</mat-option>
-                    @for (office of offices; track office.officeId) {
-                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  <mat-label>Reservation</mat-label>
+                  <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
+                    <mat-option [value]="null">Select Reservation</mat-option>
+                    @for (reservation of availableReservations; track reservation.value.reservationId) {
+                      <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
-              }
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Reservation</mat-label>
-                <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
-                  <mat-option [value]="null">Select Reservation</mat-option>
-                  @for (reservation of availableReservations; track reservation.value.reservationId) {
-                    <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              </div>
             </div>
             <div class="tableDiv">
               <app-data-table
@@ -94,12 +92,17 @@
                 [hasColumnIndex]="false"
                 [hasFilter]="true"
                 [hasToggleTop]="false"
+                [hasButtonTop]="true"
                 [hasActionsRowClick]="true"
                 [hasActionsView]="true"
                 [hasActionsEdit]="false"
                 [hasActionsDownload]="true"
                 [hasActionsDelete]="true"
                 [itemsPerPage]="100"
+                [buttonTextTop]="'Add'"
+                [buttonIconTop]="'add'"
+                [buttonColorTop]="'primary'"
+                (topButtonEvent)="addDocument()"
                 (viewEvent)="viewDocument($event)"
                 (downloadEvent)="downloadDocument($event)"
                 (rowClickEvent)="viewDocument($event)"

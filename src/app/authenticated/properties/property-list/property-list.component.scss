@@ -22,12 +22,6 @@ body {
   }
 }
 
-.error-message {
-  padding: 2rem;
-  text-align: center;
-  color: #666;
-}
-
 .mat-expansion-panel-header {
     background: var(--primary-color) !important;
 }
@@ -51,6 +45,29 @@ body {
   min-width: 250px;
   width: 100%;
   max-width: 300px;
+}
+
+// Reduce gap between Inactive toggle and Add button
+::ng-deep #toggle-users {
+  margin-right: 0.5rem !important;
+}
+
+::ng-deep .datatable-search-wrap .flex.justify-center {
+  gap: 0.5rem !important;
+}
+
+// Ensure consistent row height for office dropdown row - match Reservations page
+.flex.justify-between.items-center.mt-4 {
+  height: 56px !important; // Fixed height to match Reservations page
+  align-items: center; // Ensure vertical alignment
+  display: flex !important;
+}
+
+// Ensure the left side container maintains height
+.flex.items-center.gap-3 {
+  height: 56px;
+  align-items: center;
+  display: flex;
 }
 
 
