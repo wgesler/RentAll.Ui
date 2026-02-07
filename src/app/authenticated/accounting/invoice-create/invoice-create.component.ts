@@ -95,7 +95,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -200,7 +200,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Handle officeId changes from parent (including first change for initial sync)
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       if (newOfficeId !== (this.selectedOffice?.officeId ?? null)) {
@@ -208,7 +207,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       }
     }
     
-    // Handle reservationId changes from parent (including first change for initial sync)
     if (changes['reservationId']) {
       const newReservationId = changes['reservationId'].currentValue;
       if (newReservationId !== (this.selectedReservation?.reservationId ?? null)) {
@@ -216,7 +214,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       }
     }
     
-    // Handle invoiceId changes from parent (including first change for initial sync)
     if (changes['invoiceId']) {
       const newInvoiceId = changes['invoiceId'].currentValue;
       if (newInvoiceId && newInvoiceId !== (this.selectedInvoice?.invoiceId ?? null)) {
@@ -288,8 +285,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     const reservation = this.selectedReservation as ReservationResponse;
-
-    // Load property if not provided
     if (!this.property && reservation.propertyId) {
       this.property = await firstValueFrom(
         this.propertyService.getPropertyByGuid(reservation.propertyId).pipe(take(1))
@@ -595,7 +590,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   loadContacts(): void {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
       });
     });

@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { ReservationListResponse, ReservationListDisplay } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
@@ -10,7 +10,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -30,7 +30,10 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class ReservationListComponent implements OnInit, OnDestroy {
+export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() officeId: number | null = null;
+  @Output() officeIdChange = new EventEmitter<number | null>();
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -42,6 +45,7 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   endDate: Date | null = null;
 
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
@@ -59,13 +63,14 @@ export class ReservationListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public reservationService: ReservationService,
     public toastr: ToastrService,
     public router: Router,
+    public route: ActivatedRoute,
     public mappingService: MappingService,
     private companyService: CompanyService,
     private propertyService: PropertyService,
@@ -76,10 +81,66 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   //#region Reservation List
   ngOnInit(): void {
     this.loadOffices();
+    
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (this.officeId !== null && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        if (this.selectedOffice) {
+          this.applyFilters();
+        }
+      }
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.officeIdChange.emit(this.selectedOffice.officeId);
+              this.applyFilters();
+            }
+          }
+        } else {
+          if (this.officeId === null || this.officeId === undefined) {
+            this.selectedOffice = null;
+            this.applyFilters();
+          }
+        }
+      });
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+          if (this.selectedOffice) {
+            this.applyFilters();
+          } else {
+            this.applyFilters();
+          }
+        }
+      }
+    }
   }
 
   addReservation(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']));
+    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']);
+    const queryParams: any = {};
+    
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 
   getReservations(): void {
@@ -129,7 +190,16 @@ export class ReservationListComponent implements OnInit, OnDestroy {
   }
 
   goToReservation(event: ReservationListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]));
+    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
+    const queryParams: any = {};
+    
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
   }
 
   goToContact(event: ReservationListDisplay): void {
@@ -170,6 +240,39 @@ export class ReservationListComponent implements OnInit, OnDestroy {
         // Get reservations even if properties failed - ReservationListResponse already includes contactName
         this.getReservations();
       }
+    });
+  }
+
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        if (this.officeId !== null && this.officeId !== undefined) {
+          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (matchingOffice !== this.selectedOffice) {
+            this.selectedOffice = matchingOffice;
+            if (this.selectedOffice) {
+              this.applyFilters();
+            } else {
+              this.applyFilters();
+            }
+          }
+        } else if (this.selectedOffice && this.offices.length === 1) {
+          this.applyFilters();
+        }
+        
+        this.getReservations();
+      });
     });
   }
   //#endregion
@@ -252,28 +355,27 @@ export class ReservationListComponent implements OnInit, OnDestroy {
 
     this.reservationsDisplay = filtered;
   }
-  //#endregion
-
-  //#region Office Methods
-  loadOffices(): void {
-    // Offices are already loaded on login, so directly subscribe to changes
-    // API already filters offices by user access
-    this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-      this.offices = allOffices || [];
-      
-      // Auto-select if only one office available
-      if (this.offices.length === 1) {
-        this.selectedOffice = this.offices[0];
-        this.showOfficeDropdown = false;
-      } else {
-        this.showOfficeDropdown = true;
-      }
-      
-      this.getReservations();
-    });
-  }
 
   onOfficeChange(): void {
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
+    
+    const queryParams: any = {};
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId.toString();
+    } else {
+      queryParams.officeId = null;
+    }
+    
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: queryParams,
+      queryParamsHandling: 'merge'
+    });
+    
     this.applyFilters();
   }
   //#endregion

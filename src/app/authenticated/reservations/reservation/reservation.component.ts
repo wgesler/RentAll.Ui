@@ -96,6 +96,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   filteredContacts: ContactResponse[] = [];
   selectedContact: ContactResponse | null = null;
   properties: PropertyListResponse[] = [];
+  availableProperties: PropertyListResponse[] = [];
   selectedProperty: PropertyListResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -104,10 +105,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
   
-  // ExtraFeeLines management
   extraFeeLines: ExtraFeeLineDisplay[] = [];
   
-  // Cost codes for ExtraFeeLines (charge types only)
   chargeCostCodes: CostCodesResponse[] = [];
   availableChargeCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
@@ -162,13 +161,25 @@ export class ReservationComponent implements OnInit, OnDestroy {
       }
     });
     
-    // Keep track of the tab so we now where the back button should take us
-    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-      if (queryParams['tab'] === 'documents') {
-        this.selectedTabIndex = 3; // Documents tab
-      } else if (queryParams['tab'] === 'invoices') {
-        this.selectedTabIndex = 1; // Invoices tab
-      }
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+        if (queryParams['tab'] === 'documents') {
+          this.selectedTabIndex = 3;
+        } else if (queryParams['tab'] === 'invoices') {
+          this.selectedTabIndex = 1;
+        }
+        
+        if (queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
+          const officeId = parseInt(queryParams['officeId'], 10);
+          if (!isNaN(officeId)) {
+            this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+            if (this.selectedOffice) {
+              this.loadCostCodes();
+              this.filterPropertiesByOffice();
+            }
+          }
+        }
+      });
     });
     
     // Set up handlers after all data is loaded, then load reservation if needed
@@ -189,8 +200,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.reservationService.getReservationByGuid(this.reservationId).pipe( take(1)).subscribe({
       next: (response: ReservationResponse) => {
         this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId);
-        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+        this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId) || null;
         this.populateForm();
       },
       error: (err: HttpErrorResponse) => {
@@ -242,8 +253,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-    // Ensure required non-nullable fields have values
-    const officeId = this.selectedProperty?.officeId;
+    const officeId = this.selectedOffice?.officeId || this.selectedProperty?.officeId;
     if (!officeId) {
       this.toastr.error('Office ID is required', CommonMessage.Error);
       this.isSubmitting = false;
@@ -417,14 +427,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Set selected property
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-    this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
+    this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
     this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
-    // Load cost codes when office is set
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
+    this.filterPropertiesByOffice();
 
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
@@ -501,17 +510,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
     
     this.handlersSetup = true;
   }
-
   //#endregion
 
   //#region Form Value Change Handlers
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
-      this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
-      this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
-      // Load cost codes when office is set
-      if (this.selectedOffice) {
-        this.loadCostCodes();
+      this.selectedProperty = propertyId ? this.availableProperties.find(p => p.propertyId === propertyId) || null : null;
+      if (this.selectedProperty && !this.selectedOffice) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
+        if (this.selectedOffice) {
+          this.loadCostCodes();
+        }
       }
       if(this.reservation?.contactId)
         this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
@@ -630,7 +639,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       }
     });
   }
-
 
   initializeEnums(): void {
     this.availableClientTypes = getReservationTypes();
@@ -890,7 +898,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);
     }
   }
- 
   //#endregion
 
   //#region ExtraFeeLines Management
@@ -998,14 +1005,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
     });
   }
-
 
   loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
@@ -1036,9 +1041,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.properties = properties;
+        this.filterPropertiesByOffice();
        },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
+        this.availableProperties = [];
         if (err.status !== 400) {
           this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
@@ -1061,28 +1068,85 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes for updates
-    // Offices are loaded globally on login, so we just subscribe to the global state
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
       next: () => {
         this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId);
-          // Load cost codes when office is selected
+          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
           if (this.selectedOffice) {
             this.loadCostCodes();
           }
+          this.filterPropertiesByOffice();
         });
       },
       error: (err: HttpErrorResponse) => {
         this.offices = [];
         this.availableOffices = [];
-        // Offices are handled globally, just handle gracefully
       }
     });
   }
 
+  loadCostCodes(): void {
+    if (!this.selectedOffice) {
+      this.chargeCostCodes = [];
+      this.availableChargeCostCodes = [];
+      return;
+    }
+
+    // Wait for cost codes to be loaded, then filter for charge types
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+      next: () => {
+        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
+          // Get cost codes for the selected office and filter for charge types (non-payment)
+          const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
+          this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
+          this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
+            value: parseInt(c.costCodeId, 10),
+            label: `${c.costCode}: ${c.description}`
+          }));
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.chargeCostCodes = [];
+        this.availableChargeCostCodes = [];
+      }
+    });
+  }
+
+  onOfficeChange(): void {
+    if (this.selectedOffice) {
+      this.loadCostCodes();
+    }
+    this.filterPropertiesByOffice();
+    
+    if (this.selectedProperty && this.selectedProperty.officeId !== this.selectedOffice?.officeId) {
+      this.selectedProperty = null;
+      this.form.patchValue({
+        propertyId: '',
+        propertyAddress: '',
+        propertyCode: ''
+      });
+    }
+  }
+
+  filterPropertiesByOffice(): void {
+    if (!this.selectedOffice) {
+      this.availableProperties = this.properties;
+      return;
+    }
+    
+    this.availableProperties = this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
+    
+    if (this.selectedProperty && this.selectedProperty.officeId !== this.selectedOffice.officeId) {
+      this.selectedProperty = null;
+      this.form.patchValue({
+        propertyId: '',
+        propertyAddress: '',
+        propertyCode: ''
+      });
+    }
+  }
   //#endregion
 
   //#region Validator Update Methods
@@ -1323,33 +1387,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  loadCostCodes(): void {
-    if (!this.selectedOffice) {
-      this.chargeCostCodes = [];
-      this.availableChargeCostCodes = [];
-      return;
-    }
-
-    // Wait for cost codes to be loaded, then filter for charge types
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
-      next: () => {
-        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
-          // Get cost codes for the selected office and filter for charge types (non-payment)
-          const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
-          this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
-          this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
-            value: parseInt(c.costCodeId, 10),
-            label: `${c.costCode}: ${c.description}`
-          }));
-        });
-      },
-      error: (err: HttpErrorResponse) => {
-        this.chargeCostCodes = [];
-        this.availableChargeCostCodes = [];
-      }
-    });
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

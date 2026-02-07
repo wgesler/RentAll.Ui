@@ -22,11 +22,12 @@ import { Subscription, filter, take } from 'rxjs';
   styleUrls: ['./contacts.component.scss']
 })
 export class ContactsComponent implements OnInit, OnDestroy {
-  EntityType = EntityType; // Expose EntityType enum to template
-  selectedTabIndex: number = 0; // Default to Tenants tab
-  selectedOffice: OfficeResponse | null = null; // Shared office selection across all tabs
+  EntityType = EntityType;
+  selectedTabIndex: number = 0;
+  selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   
   constructor(
@@ -35,8 +36,8 @@ export class ContactsComponent implements OnInit, OnDestroy {
     private officeService: OfficeService
   ) { }
 
+  //#region Contacts
   ngOnInit(): void {
-    // Read initial query params for tab selection
     const initialParams = this.route.snapshot.queryParams;
     if (initialParams['tab']) {
       const tabIndex = parseInt(initialParams['tab'], 10);
@@ -58,48 +59,22 @@ export class ContactsComponent implements OnInit, OnDestroy {
     // Load offices for shared office selection
     this.loadOffices();
   }
-  
-  loadOffices(): void {
-    // Offices are already loaded on login, so directly subscribe to changes
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
-        
-        // Try to restore office selection from query params
-        const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
-        if (officeIdFromParams) {
-          const officeId = parseInt(officeIdFromParams, 10);
-          if (!isNaN(officeId)) {
-            const office = this.offices.find(o => o.officeId === officeId);
-            if (office) {
-              this.selectedOffice = office;
-              this.showOfficeDropdown = true;
-              return;
-            }
-          }
-        }
-        
-        // Auto-select if only one office available
-        if (this.offices.length === 1) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-      });
-    });
-  }
-  
-  onOfficeChange(office: OfficeResponse | null): void {
-    // Update shared office selection - all tabs will receive this update
-    this.selectedOffice = office;
+  //#endregion
+
+  //#region Form Response Methods
+  onOfficeIdChange(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
     
-    // Store office selection in query params to preserve it
-    const queryParams: any = { tab: this.selectedTabIndex.toString() };
-    if (office) {
-      queryParams.officeId = office.officeId.toString();
+    if (officeId !== null) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
     } else {
-      // Remove officeId from params if "All Offices" is selected
+      this.selectedOffice = null;
+    }
+    
+    const queryParams: any = { tab: this.selectedTabIndex.toString() };
+    if (officeId !== null) {
+      queryParams.officeId = officeId.toString();
+    } else {
       queryParams.officeId = null;
     }
     
@@ -119,8 +94,60 @@ export class ContactsComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
   }
+  //#endregion
 
+  //#region Data Loading Methods
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        
+        const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
+        if (officeIdFromParams) {
+          const officeId = parseInt(officeIdFromParams, 10);
+          if (!isNaN(officeId)) {
+            const office = this.offices.find(o => o.officeId === officeId);
+            if (office) {
+              this.selectedOffice = office;
+              this.selectedOfficeId = office.officeId;
+              this.showOfficeDropdown = true;
+              return;
+            }
+          }
+        }
+        
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.selectedOfficeId = this.offices[0].officeId;
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+      });
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.selectedOfficeId = this.selectedOffice.officeId;
+            }
+          }
+        } else {
+          this.selectedOffice = null;
+          this.selectedOfficeId = null;
+        }
+      });
+    });
+  }
+  //#endregion
+
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
   }
+  //#endregion
 }

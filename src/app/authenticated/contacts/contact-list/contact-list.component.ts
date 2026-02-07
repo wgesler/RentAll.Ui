@@ -28,9 +28,9 @@ import { AuthService } from '../../../services/auth.service';
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() entityTypeId?: number; // Optional filter by entity type (Tenant, Owner, Company, Vendor)
-  @Input() selectedOffice: OfficeResponse | null = null; // Office selection from parent
-  @Output() officeChange = new EventEmitter<OfficeResponse | null>(); // Emit office changes to parent
+  @Input() entityTypeId?: number;
+  @Input() officeId: number | null = null;
+  @Output() officeIdChange = new EventEmitter<number | null>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -39,10 +39,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   contactsDisplay: ContactListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  routerSubscription?: Subscription;
-  contactsSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+
+  routerSubscription?: Subscription;
+
   hasInitialLoad: boolean = false;
   contactsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
@@ -67,33 +70,49 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute) {
   }
 
-  //#region Contacts
+  //#region Contact-List
   ngOnInit(): void {
     this.loadOffices();
+    this.loadContacts();
     
-    // Subscribe to router events to force refresh when navigating back to contacts page
-    this.routerSubscription = this.router.events
-      .pipe(
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (this.officeId !== null && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        if (this.selectedOffice) {
+          this.applyFilters();
+        }
+      }
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.officeIdChange.emit(this.selectedOffice.officeId);
+              this.applyFilters();
+            }
+          }
+        } else {
+          if (this.officeId === null || this.officeId === undefined) {
+            this.selectedOffice = null;
+            this.applyFilters();
+          }
+        }
+      });
+    });
+    
+    this.routerSubscription = this.router.events.pipe(
         filter(event => event instanceof NavigationEnd),
         filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/'))
       )
       .subscribe(() => {
-        // Force refresh when navigating back to contacts page
         if (this.hasInitialLoad) {
           this.contactService.loadAllContacts();
         }
       });
-    
-    // Subscribe to contacts service to automatically refresh when contacts are reloaded
-    // This will fire when loadAllContacts() is called (from contact component or router event)
-    // All contact-list components across all tabs will automatically get the update
-    this.contactsSubscription = this.contactService.getAllContacts().subscribe(contacts => {
-      // Only update if we've done the initial load (to avoid updating before offices are loaded)
-      if (this.hasInitialLoad && contacts) {
-        this.allContacts = this.mappingService.mapContacts(contacts || []);
-        this.applyFilters();
-      }
-    });
   }
 
   addContact(): void {
@@ -111,7 +130,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams.entityTypeId = this.entityTypeId;
     }
     
-    // Preserve officeId if an office is selected
     if (this.selectedOffice) {
       queryParams.officeId = this.selectedOffice.officeId;
     }
@@ -122,33 +140,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  getContacts(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'contacts');
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-        next: (response: ContactResponse[]) => {
-          this.allContacts = this.mappingService.mapContacts(response || []);
-          this.applyFilters();
-          this.hasInitialLoad = true;
-        },
-        error: (err: HttpErrorResponse) => {
-          this.isServiceError = true;
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-          this.hasInitialLoad = true;
-        }
-      });
-    });
-  }
-
-
   deleteContact(contact: ContactListDisplay): void {
     if (confirm(`Are you sure you want to delete ${contact.fullName}?`)) {
-      this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
+        this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Contact deleted successfully', CommonMessage.Success);
-          this.getContacts(); // Refresh the list
+          this.loadContacts();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
@@ -169,7 +166,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams.tab = currentParams['tab'];
     }
     
-    // Preserve officeId if an office is selected
     if (this.selectedOffice) {
       queryParams.officeId = this.selectedOffice.officeId;
     }
@@ -193,7 +189,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     // Add copyFrom parameter
     queryParams.copyFrom = event.contactId;
     
-    // Preserve officeId if an office is selected
     if (this.selectedOffice) {
       queryParams.officeId = this.selectedOffice.officeId;
     }
@@ -236,50 +231,90 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   ngOnChanges(changes: SimpleChanges): void {
-    // Reapply filters when entityTypeId or selectedOffice changes
-    if (changes['entityTypeId'] && !changes['entityTypeId'].firstChange) {
-      this.applyFilters();
+    if (changes['entityTypeId']) {
+      const newEntityTypeId = changes['entityTypeId'].currentValue;
+      const previousEntityTypeId = changes['entityTypeId'].previousValue;
+      
+      if (previousEntityTypeId === undefined || newEntityTypeId !== previousEntityTypeId) {
+        this.applyFilters();
+      }
     }
-    if (changes['selectedOffice']) {
-      // Update local selectedOffice when input changes from parent
-      this.selectedOffice = changes['selectedOffice'].currentValue;
-      this.applyFilters();
+    
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+          if (this.selectedOffice) {
+            this.applyFilters();
+          } else {
+            this.applyFilters();
+          }
+        }
+      }
     }
+  }
+ 
+  onOfficeChange(): void {
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
+    this.applyFilters();
   }
   //#endregion
 
-  //#region Office Methods
+  //#region Data Load Methods
+  loadContacts(): void {
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+        this.allContacts = this.mappingService.mapContacts(contacts || []);
+        this.applyFilters();
+        this.hasInitialLoad = true;
+      });
+    });
+  }
+
   loadOffices(): void {
-      // Offices are already loaded on login, so directly subscribe to changes
-      // API already filters offices by user access
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Auto-select if only one office available and no office is already selected from parent
-        if (this.offices.length === 1 && !this.selectedOffice) {
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
           this.selectedOffice = this.offices[0];
-          this.officeChange.emit(this.selectedOffice);
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
         }
         
-        this.getContacts();
+        if (this.officeId !== null && this.officeId !== undefined) {
+          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (matchingOffice !== this.selectedOffice) {
+            this.selectedOffice = matchingOffice;
+            if (this.selectedOffice) {
+              this.applyFilters();
+            } else {
+              this.applyFilters();
+            }
+          }
+        } else if (this.selectedOffice && this.offices.length === 1) {
+          this.applyFilters();
+        }
+      });
     });
   }
 
-  onOfficeChange(): void {
-    // Emit office change to parent so all tabs can be updated
-    this.officeChange.emit(this.selectedOffice);
-    this.applyFilters();
-  }
   //#endregion
 
   //#region Utility methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.routerSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

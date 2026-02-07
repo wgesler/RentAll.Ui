@@ -9,10 +9,10 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="companies-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Companies">
-          <app-company-list [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-company-list>
+          <app-company-list [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-company-list>
         </mat-tab>
         <mat-tab label="Vendors">
-          <app-vendor-list [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-vendor-list>
+          <app-vendor-list [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-vendor-list>
         </mat-tab>
       </mat-tab-group>
     </mat-card>

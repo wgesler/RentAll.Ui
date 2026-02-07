@@ -21,6 +21,7 @@ import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 
 
 
@@ -36,7 +37,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
   contacts: ContactResponse[] = [];
-  contactsSubscription?: Subscription;
   contactMap: Map<string, ContactResponse> = new Map();
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
@@ -55,7 +55,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private router: Router,
     private authService: AuthService,
     private toastr: ToastrService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) { }
 
   ngOnInit(): void {
@@ -109,9 +110,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.removeLoadItem('contacts'); })).subscribe(contacts => {
+      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
     });
@@ -119,7 +119,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
 
   loadColors(): void {
-    this.colorService.getColors().pipe(take(1), finalize(() => { this.removeLoadItem('colors'); })).subscribe({
+    this.colorService.getColors().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors'); })).subscribe({
       next: (colors: ColorResponse[]) => {
         this.colors = colors;
         this.colorMap = this.mappingService.createColorMap(colors);
@@ -137,7 +137,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   loadProperties(): void {
     const userId = this.authService.getUser()?.userId || '';
 
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.properties = this.mappingService.mapPropertiesToBoardProperties(properties, this.reservations);
       },
@@ -151,7 +151,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
   
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.removeLoadItem('reservations'); })).subscribe({
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         this.reservations = reservations.filter(r => r.isActive);
         // Load properties after reservations are loaded so we can use reservation monthly rates
@@ -501,17 +501,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
-    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

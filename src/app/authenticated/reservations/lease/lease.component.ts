@@ -276,7 +276,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const form = this.fb.group({
       lease: new FormControl(''),
       selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
-      selectedOfficeId: new FormControl({ value: null, disabled: true }), // Disabled since it's readonly
+      selectedOfficeId: new FormControl({ value: null, disabled: false }),
       includeLease: new FormControl(this.includeLease),
       includeLetterOfResponsibility: new FormControl(this.includeLetterOfResponsibility),
       includeNoticeToVacate: new FormControl(this.includeNoticeToVacate),
@@ -289,6 +289,24 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Form Response Methods
+  onOfficeChange(): void {
+    const officeId = this.form.get('selectedOfficeId')?.value;
+    if (!officeId) {
+      this.selectedOffice = null;
+      this.filterReservations();
+      this.selectedReservation = null;
+      this.form.patchValue({ selectedReservationId: null });
+      this.generatePreviewIframe();
+      return;
+    }
+    
+    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+    this.filterReservations();
+    this.selectedReservation = null;
+    this.form.patchValue({ selectedReservationId: null });
+    this.generatePreviewIframe();
+  }
+
   onReservationSelected(reservationId: string | null): void {
     if (!reservationId) {
       this.selectedReservation = null;
@@ -356,8 +374,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
    //#region Data Loading Methods 
   loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
@@ -378,7 +395,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
@@ -387,6 +403,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
           this.filterReservations();
+        } else if (this.reservationId && this.offices.length > 0) {
+          // If coming from reservation but no reservation loaded yet, try to find office from reservationId
+          // This will be handled when reservation loads
         }
       });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
@@ -449,7 +468,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadReservation(): void {
-    // This page loads on the add-reservation, in this case return
     if (!this.reservationId || this.reservationId === 'new') {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       return;

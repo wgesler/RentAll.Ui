@@ -1,6 +1,6 @@
 import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { DocumentResponse, DocumentListDisplay } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -88,7 +88,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private mappingService: MappingService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private route: ActivatedRoute) {
   }
 
   //#region Document-List
@@ -406,29 +407,57 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.getAllOffices().subscribe({
-      next: (allOffices: OfficeResponse[]) => {
-        // API already filters offices by user access
-        this.offices = allOffices || [];
-        
-        // After offices load, set selectedOfficeId from officeId input if provided
-        if (this.officeId !== null && this.officeId !== undefined) {
-          this.selectedOfficeId = this.officeId;
-        } else {
-          this.selectedOfficeId = null;
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officeService.getAllOffices().subscribe({
+        next: (allOffices: OfficeResponse[]) => {
+          this.offices = allOffices || [];
+          
+          if (this.officeId !== null && this.officeId !== undefined) {
+            this.selectedOfficeId = this.officeId;
+          } else {
+            this.selectedOfficeId = null;
+          }
+          
+          if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+            this.selectedOfficeId = this.offices[0].officeId;
+            this.showOfficeDropdown = false;
+          } else {
+            this.showOfficeDropdown = true;
+          }
+          
+          if (this.officeId !== null && this.officeId !== undefined && this.offices.length > 0) {
+            const matchingOffice = this.offices.find(o => o.officeId === this.officeId);
+            if (matchingOffice) {
+              this.selectedOfficeId = matchingOffice.officeId;
+              this.applyFilters();
+            }
+          }
+        },
+        error: () => {
+          this.offices = [];
         }
+      });
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
         
-        // Auto-select if only one office available (unless officeId input is provided)
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
-          this.selectedOfficeId = this.offices[0].officeId;
-          this.showOfficeDropdown = false;
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            const matchingOffice = this.offices.find(o => o.officeId === parsedOfficeId);
+            if (matchingOffice) {
+              this.selectedOfficeId = matchingOffice.officeId;
+              this.officeIdChange.emit(this.selectedOfficeId);
+              this.applyFilters();
+            }
+          }
         } else {
-          this.showOfficeDropdown = true;
+          if (this.officeId === null || this.officeId === undefined) {
+            this.selectedOfficeId = null;
+            this.applyFilters();
+          }
         }
-      },
-      error: () => {
-        this.offices = [];
-      }
+      });
     });
   }
   

@@ -7,6 +7,41 @@
   <div class="lease-container">
     <form [formGroup]="form" class="lease-form">
       
+      <!-- Office, Reservation, and Property Code Section -->
+      <div class="input-controls">
+        <div class="flex gap-3 items-center mt-3 px-4">
+          <!-- Office Dropdown -->
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>Office</mat-label>
+            <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="!!reservationId">
+              <mat-option [value]="null">Select Office</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Reservation Dropdown -->
+          <mat-form-field appearance="outline" class="reservation-dropdown">
+            <mat-label>Reservation</mat-label>
+            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">
+                  {{ reservation.label }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Property Code (disabled when coming from reservation) -->
+          <mat-form-field appearance="outline" class="property-code-field">
+            <mat-label>Property Code</mat-label>
+            <input matInput [value]="property?.propertyCode || ''" [disabled]="!!reservationId">
+          </mat-form-field>
+        </div>
+      </div>
+
       <!-- Action Buttons Section -->
       <div class="top-controls">
         <div class="flex gap-2">
@@ -34,57 +69,27 @@
         </div>
       </div>
 
-      <!-- Input Fields Section -->
-      <div class="input-controls">
-        <div class="flex gap-3 items-center">
-          <!-- Property Code (disabled when coming from reservation) -->
-          <mat-form-field appearance="outline" class="property-code-field">
-            <mat-label>Property Code</mat-label>
-            <input matInput [value]="property?.propertyCode || ''" [disabled]="!!reservationId">
-          </mat-form-field>
-
-          <!-- Office Name (disabled when coming from reservation) -->
-          <mat-form-field appearance="outline" class="office-dropdown">
-            <mat-label>Office</mat-label>
-            <input matInput [value]="selectedReservation?.officeName || ''" [disabled]="!!reservationId">
-          </mat-form-field>
-
-          <!-- Reservation Dropdown -->
-          <mat-form-field appearance="outline" class="reservation-dropdown">
-            <mat-label>Reservation</mat-label>
-            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
-              <mat-option [value]="null">Select Reservation</mat-option>
-              @for (reservation of availableReservations; track reservation.value.reservationId) {
-                <mat-option [value]="reservation.value.reservationId">
-                  {{ reservation.label }}
-                </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-        </div>
-
       <!-- Include Checkboxes Section -->
       <div class="include-controls">
         <span class="include-label">Include:</span>
-          <mat-checkbox formControlName="includeLease" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Lease
-          </mat-checkbox>
-          <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Letter of Responsibility
-          </mat-checkbox>
-          <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Notice to Vacate
-          </mat-checkbox>
-          <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+        <mat-checkbox formControlName="includeLease" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+          Lease
+        </mat-checkbox>
+        <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+          Letter of Responsibility
+        </mat-checkbox>
+        <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+          Notice to Vacate
+        </mat-checkbox>
+        <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
           Credit Card Authorization
         </mat-checkbox>
-          <mat-checkbox *ngIf="isCompanyRental" formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+        <mat-checkbox *ngIf="isCompanyRental" formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
           Business Credit Application
         </mat-checkbox>
-          <mat-checkbox *ngIf="!isCompanyRental" formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-            Rental Credit Application
-          </mat-checkbox>
-        </div>
+        <mat-checkbox *ngIf="!isCompanyRental" formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+          Rental Credit Application
+        </mat-checkbox>
       </div>
 
 

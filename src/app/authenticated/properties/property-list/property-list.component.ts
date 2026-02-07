@@ -1,6 +1,6 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
+import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyService } from '../services/property.service';
@@ -8,14 +8,14 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-property-list',
@@ -25,7 +25,10 @@ import { AuthService } from '../../../services/auth.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class PropertyListComponent implements OnInit, OnDestroy {
+export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() officeId: number | null = null;
+  @Output() officeIdChange = new EventEmitter<number | null>();
+  
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -33,6 +36,7 @@ export class PropertyListComponent implements OnInit, OnDestroy {
   propertiesDisplay: PropertyListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
@@ -49,7 +53,7 @@ export class PropertyListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['properties']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -57,34 +61,88 @@ export class PropertyListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private route: ActivatedRoute,
+    private utilityService: UtilityService) {
   }
 
   //#region Property-List
   ngOnInit(): void {
     this.loadOffices();
+    
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (this.officeId !== null && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        if (this.selectedOffice) {
+          this.applyFilters();
+        }
+      }
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.officeIdChange.emit(this.selectedOffice.officeId);
+              this.applyFilters();
+            }
+          }
+        } else {
+          if (this.officeId === null || this.officeId === undefined) {
+            this.selectedOffice = null;
+            this.applyFilters();
+          }
+        }
+      });
+    });
   }
 
-  addProperty(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+          if (this.selectedOffice) {
+            this.applyFilters();
+          } else {
+            this.applyFilters();
+          }
+        }
+      }
+    }
   }
 
   getProperties(): void {
     this.isServiceError = false;
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.removeLoadItem('properties'); })).subscribe({
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties) => {
         this.allProperties = this.mappingService.mapProperties(properties);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('properties'); // Ensure loading state is cleared
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
         console.error('Error loading properties:', err);
         if (err.status !== 404) {
           this.toastr.error('Could not load properties at this time.', CommonMessage.ServiceError);
         }
       }
     });
+  }
+
+  addProperty(): void {
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+  }
+    
+  copyProperty(event: PropertyListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
+    this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
   }
 
   deleteProperty(property: PropertyListDisplay): void {
@@ -107,11 +165,6 @@ export class PropertyListComponent implements OnInit, OnDestroy {
   //#region Routing Methods
   goToProperty(event: PropertyListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
-  }
-
-  copyProperty(event: PropertyListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
-    this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
   }
 
   goToContact(event: PropertyListDisplay): void {
@@ -146,38 +199,49 @@ export class PropertyListComponent implements OnInit, OnDestroy {
 
   //#region Office Methods
   loadOffices(): void {
-    // Offices are already loaded on login, so directly subscribe to changes
-    // API already filters offices by user access
-    this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-      this.offices = allOffices || [];
-      
-      // Auto-select if only one office available
-      if (this.offices.length === 1) {
-        this.selectedOffice = this.offices[0];
-        this.showOfficeDropdown = false;
-      } else {
-        this.showOfficeDropdown = true;
-      }
-      
-      this.getProperties();
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        if (this.officeId !== null && this.officeId !== undefined) {
+          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (matchingOffice !== this.selectedOffice) {
+            this.selectedOffice = matchingOffice;
+            if (this.selectedOffice) {
+              this.applyFilters();
+            } else {
+              this.applyFilters();
+            }
+          }
+        } else if (this.selectedOffice && this.offices.length === 1) {
+          this.applyFilters();
+        }
+        
+        this.getProperties();
+      });
     });
   }
 
   onOfficeChange(): void {
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
     this.applyFilters();
   }
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

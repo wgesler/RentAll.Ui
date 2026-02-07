@@ -157,11 +157,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadCostCodes();
     this.loadAllInvoices();
     
-    // Handle query params for office selection changes (works in both embedded and non-embedded modes)
     // Wait for offices to load before processing query params
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      // Apply initial officeId from @Input
-      if (this.officeId !== null && this.offices.length > 0) {
+       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         if (this.selectedOffice) {
           this.filterCostCodes();
@@ -234,7 +232,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Watch for changes to officeId input from parent (including initial load)
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
@@ -303,7 +300,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-
   getInvoices(): void {
     if (!this.selectedOffice?.officeId) {
       // Load all invoices when "All Offices" is selected
@@ -340,13 +336,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {
       params.push(`returnTo=reservation`);
-      params.push(`fromReservation=true`); // Keep for backward compatibility
     } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
-      params.push(`fromReservation=true`);
     } else {
       // Default to accounting
       params.push(`returnTo=accounting`);
@@ -357,7 +351,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.router.navigateByUrl(url);
     }
   }
+  //#endregion
 
+//#region Action Methods
   deleteInvoice(invoice: InvoiceResponse): void {
     if (confirm(`Are you sure you want to delete this invoice?`)) {
       this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
@@ -413,13 +409,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {
       params.push(`returnTo=reservation`);
-      params.push(`fromReservation=true`); // Keep for backward compatibility
     } else if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
       // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
-      params.push(`fromReservation=true`);
     } else {
       // Default to accounting
       params.push(`returnTo=accounting`);
@@ -846,7 +840,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
-
   //#endregion
 
   //#region Form Response Methods
@@ -1282,12 +1275,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyManually(): void {
-    // Enable manual apply mode
     this.isManualApplyMode = true;
-    // Initialize remaining amount to payment amount (starting point)
     this.remainingAmount = Math.max(0, this.paymentAmount);
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
-    // Refresh the display to show editable fields
     this.applyFilters();
   }
   
@@ -1317,12 +1307,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onApplyAmountChange(invoice: any, newValue: string): void {
-    // This is called on input event, but we'll handle formatting and calculations in blur
-    // Just update the display value for visual feedback during typing
     const cleanedValue = newValue.replace(/[^0-9.-]/g, '');
     const numericValue = parseFloat(cleanedValue) || 0;
-    
-    // Just update display value during input, don't update remaining yet
     invoice.applyAmountDisplay = numericValue.toString();
   }
   
@@ -1472,16 +1458,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.itemsToLoad$.complete();
-    this.costCodesSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
-    this.reservationsSubscription?.unsubscribe();
-  }
-
-  // Calculate totals from displayed invoices
-  get totalAmountSum(): number {
+  //#region Total Row Methods
+   get totalAmountSum(): number {
     return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.totalAmountValue || 0), 0);
   }
 
@@ -1514,6 +1492,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       paidAmount: this.formattedTotalPaidAmount,
       dueAmount: this.formattedTotalDueAmount
     };
+  }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+    this.costCodesSubscription?.unsubscribe();
+    this.officesSubscription?.unsubscribe();
+    this.reservationsSubscription?.unsubscribe();
   }
   //#endregion
 }

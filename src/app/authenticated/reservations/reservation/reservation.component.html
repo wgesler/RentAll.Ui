@@ -26,6 +26,21 @@
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Reservation">
             @if (form) {
+            <div class="mat">
+              @if (offices.length > 1 || (offices.length === 1 && isAddMode)) {
+                <div class="flex gap-3 items-center mt-3 px-4">
+                  <mat-form-field appearance="outline" class="office-dropdown">
+                    <mat-label>Office</mat-label>
+                    <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [required]="isAddMode">
+                      <mat-option [value]="null">All Offices</mat-option>
+                      @for (office of offices; track office.officeId) {
+                        <mat-option [value]="office">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              }
+            </div>
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
               <mat-checkbox formControlName="isActive" color="primary">
@@ -80,7 +95,7 @@
                   <mat-label>Property</mat-label>
                   <mat-select formControlName="propertyId" required>
                     <mat-option value="">Select Property</mat-option>
-                    @for (property of properties; track property.propertyId) {
+                    @for (property of availableProperties; track property.propertyId) {
                       <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
                     }
                   </mat-select>

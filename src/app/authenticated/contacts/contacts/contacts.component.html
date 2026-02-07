@@ -9,16 +9,16 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="contacts-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Tenants">
-          <app-contact-list [entityTypeId]="EntityType.Tenant" [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-contact-list>
+          <app-contact-list [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-contact-list>
         </mat-tab>
         <mat-tab label="Owners">
-          <app-contact-list [entityTypeId]="EntityType.Owner" [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-contact-list>
+          <app-contact-list [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-contact-list>
         </mat-tab>
         <mat-tab label="Companies">
-          <app-contact-list [entityTypeId]="EntityType.Company" [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-contact-list>
+          <app-contact-list [entityTypeId]="EntityType.Company" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-contact-list>
         </mat-tab>
         <mat-tab label="Vendors">
-          <app-contact-list [entityTypeId]="EntityType.Vendor" [selectedOffice]="selectedOffice" (officeChange)="onOfficeChange($event)"></app-contact-list>
+          <app-contact-list [entityTypeId]="EntityType.Vendor" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)"></app-contact-list>
         </mat-tab>
       </mat-tab-group>
     </mat-card>

@@ -28,8 +28,8 @@ import { AuthService } from '../../../services/auth.service';
 })
 
 export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() selectedOffice: OfficeResponse | null = null; // Office selection from parent
-  @Output() officeChange = new EventEmitter<OfficeResponse | null>(); // Emit office changes to parent
+  @Input() officeId: number | null = null;
+  @Output() officeIdChange = new EventEmitter<number | null>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -38,8 +38,10 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   companiesDisplay: CompanyListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   routerSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   hasInitialLoad: boolean = false;
 
@@ -54,7 +56,7 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['companies']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'companies']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -71,14 +73,41 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     
-    // Subscribe to router events to refresh list when navigating back to companies page
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      if (this.officeId !== null && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        if (this.selectedOffice) {
+          this.applyFilters();
+        }
+      }
+      
+      this.route.queryParams.subscribe(params => {
+        const officeIdParam = params['officeId'];
+        
+        if (officeIdParam) {
+          const parsedOfficeId = parseInt(officeIdParam, 10);
+          if (parsedOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              this.officeIdChange.emit(this.selectedOffice.officeId);
+              this.applyFilters();
+            }
+          }
+        } else {
+          if (this.officeId === null || this.officeId === undefined) {
+            this.selectedOffice = null;
+            this.applyFilters();
+          }
+        }
+      });
+    });
+    
     this.routerSubscription = this.router.events
       .pipe(
         filter(event => event instanceof NavigationEnd),
         filter(() => this.router.url.includes(RouterUrl.Companies) && !this.router.url.includes('/company/') && !this.router.url.includes('/vendor/'))
       )
       .subscribe(() => {
-        // Only refresh if we've already done the initial load (to avoid double-loading)
         if (this.hasInitialLoad) {
           this.getCompanies();
         }
@@ -206,39 +235,65 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   ngOnChanges(changes: SimpleChanges): void {
-    // Reapply filters when selectedOffice changes
-    if (changes['selectedOffice']) {
-      // Update local selectedOffice when input changes from parent
-      this.selectedOffice = changes['selectedOffice'].currentValue;
-      this.applyFilters();
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+          if (this.selectedOffice) {
+            this.applyFilters();
+          } else {
+            this.applyFilters();
+          }
+        }
+      }
     }
+  }
+  
+  onOfficeChange(): void {
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
+    this.applyFilters();
   }
   //#endregion
 
   //#region Office Methods
   loadOffices(): void {
-      // Offices are already loaded on login, so directly subscribe to changes
-      // API already filters offices by user access
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Auto-select if only one office available and no office is already selected from parent
-        if (this.offices.length === 1 && !this.selectedOffice) {
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
           this.selectedOffice = this.offices[0];
-          this.officeChange.emit(this.selectedOffice);
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
         }
         
+        if (this.officeId !== null && this.officeId !== undefined) {
+          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (matchingOffice !== this.selectedOffice) {
+            this.selectedOffice = matchingOffice;
+            if (this.selectedOffice) {
+              this.applyFilters();
+            } else {
+              this.applyFilters();
+            }
+          }
+        } else if (this.selectedOffice && this.offices.length === 1) {
+          this.applyFilters();
+        }
+        
         this.getCompanies();
+      });
     });
-  }
-
-  onOfficeChange(): void {
-    // Emit office change to parent so all tabs can be updated
-    this.officeChange.emit(this.selectedOffice);
-    this.applyFilters();
   }
   //#endregion
 

@@ -47,7 +47,7 @@ export class SidebarComponent implements OnInit {
     {
       icon: 'home',
       displayName: 'Properties',
-      url: RouterToken.TenantList,
+      url: RouterToken.PropertyList,
       requiredRoles: [], // Available to all
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },

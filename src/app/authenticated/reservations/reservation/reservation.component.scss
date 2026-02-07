@@ -232,6 +232,12 @@
   cursor: not-allowed;
 }
 
+.office-dropdown {
+  min-width: 250px;
+  width: 100%;
+  max-width: 300px;
+}
+
 ::ng-deep mat-form-field {
   &.mat-form-field-disabled,
   .mat-mdc-text-field-wrapper.mdc-text-field--disabled {

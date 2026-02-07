@@ -85,7 +85,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
   // Accordion expansion states - will be initialized based on isAddMode
@@ -135,10 +135,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Property
   ngOnInit(): void {
-    // Add items to loading set before loading
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'locationLookups');
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'contacts');
-    
     this.loadStates();
     this.loadContacts();
     this.loadLocationLookups();
@@ -784,7 +780,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    // Wait for contacts to be loaded initially, then subscribe to changes for updates
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts?.filter(c => c.entityTypeId === EntityType.Owner) || [];
@@ -876,7 +871,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigateByUrl(RouterUrl.TenantList);
+    this.router.navigateByUrl(RouterUrl.PropertyList);
   }
   //#endregion
 }
