@@ -18,7 +18,7 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
           <mat-label>Property Code</mat-label>
-          <input matInput [value]="property?.propertyCode || ''" readonly [disabled]="true">
+          <input matInput [value]="propertyCode || property?.propertyCode || ''" readonly [disabled]="true">
         </mat-form-field>
       </div>
     }

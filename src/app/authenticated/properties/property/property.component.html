@@ -663,7 +663,8 @@
             <app-property-information 
               [propertyId]="isAddMode ? null : propertyId" 
               [copiedPropertyInformation]="copiedPropertyInformation"
-              [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null">
+              [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null"
+              [propertyCode]="form?.get('propertyCode')?.value || property?.propertyCode || null">
             </app-property-information>
           </mat-tab>
           
@@ -672,6 +673,7 @@
               [propertyId]="isAddMode ? null : propertyId"
               [externalReservationId]="selectedReservationId"
               [officeId]="form?.get('officeId')?.value || null"
+              [propertyCode]="form?.get('propertyCode')?.value || property?.propertyCode || null"
               (reservationSelected)="onWelcomeLetterReservationSelected($event)"
               (officeIdChange)="onWelcomeLetterOfficeIdChange($event)">
             </app-property-welcome-letter>

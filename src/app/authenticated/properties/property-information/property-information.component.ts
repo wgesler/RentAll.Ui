@@ -33,6 +33,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyLetterResponse | null = null;
   @Input() officeId: number | null = null;
+  @Input() propertyCode: string | null = null; // Input to accept propertyCode from parent
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
   form: FormGroup;

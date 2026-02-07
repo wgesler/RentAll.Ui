@@ -47,6 +47,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   @Input() propertyId: string;
   @Input() externalReservationId: string | null = null; // Input to accept reservationId from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() propertyCode: string | null = null; // Input to accept propertyCode from parent
   @Output() reservationSelected = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>(); // Output to emit officeId changes to parent
   
@@ -182,6 +183,17 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         }
         // If offices aren't loaded yet, loadOffices() will handle initialization when offices arrive
         // The officeId is already set, so loadOffices() will pick it up
+      }
+    }
+    
+    // Handle propertyCode changes from parent - regenerate preview if reservation is selected
+    if (changes['propertyCode']) {
+      const newPropertyCode = changes['propertyCode'].currentValue;
+      const previousPropertyCode = changes['propertyCode'].previousValue;
+      
+      // Only update if the value actually changed and we have a reservation selected
+      if (newPropertyCode !== previousPropertyCode && this.selectedReservation) {
+        this.generatePreviewIframe();
       }
     }
   }
@@ -509,7 +521,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     // Replace property placeholders
     if (this.property) {
-      result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
+      result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{building\}\}/g, this.getBuildingDescription() || 'N/A');

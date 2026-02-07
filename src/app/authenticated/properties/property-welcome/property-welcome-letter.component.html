@@ -7,17 +7,18 @@
   <div class="welcome-letter-container">
     <form [formGroup]="form" class="welcome-letter-form">
       
-      <!-- Office, Reservation, and Property Code row - aligned with other tabs -->
+      <!-- Office, Property Code, and Reservation row - aligned with other tabs -->
       <div class="flex gap-4 items-center mt-3 px-4 mb-4">
-        <!-- Office Dropdown -->
+        <!-- Office Dropdown (read-only) -->
         <mat-form-field appearance="outline" style="width: 300px;">
           <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-          <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="!!propertyId">
-            <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-            }
-          </mat-select>
+          <input matInput [value]="selectedOffice ? selectedOffice.name : 'All Offices'" readonly [disabled]="true">
+        </mat-form-field>
+
+        <!-- Property Code (read-only, reflects parent's propertyCode) -->
+        <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+          <mat-label>Property Code</mat-label>
+          <input matInput [value]="propertyCode || property?.propertyCode || ''" readonly [disabled]="true">
         </mat-form-field>
 
         <!-- Reservation Dropdown -->
@@ -31,12 +32,6 @@
               </mat-option>
             }
           </mat-select>
-        </mat-form-field>
-
-        <!-- Property Code (disabled when coming from Property component) -->
-        <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
-          <mat-label>Property Code</mat-label>
-          <input matInput [value]="property?.propertyCode || ''" [disabled]="!!propertyId">
         </mat-form-field>
       </div>
 
