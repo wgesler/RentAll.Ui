@@ -46,7 +46,9 @@ import { PropertyHtmlResponse } from '../models/property-html.model';
 export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string;
   @Input() externalReservationId: string | null = null; // Input to accept reservationId from parent
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Output() reservationSelected = new EventEmitter<string | null>();
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Output to emit officeId changes to parent
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -100,15 +102,25 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Welcome Letter
   ngOnInit(): void {
+    // Always load offices, even in Add mode (when propertyId is null)
+    this.loadOffices();
+    
     if (!this.propertyId) {
+      // In Add mode, still load organization and contacts for defaults
+      this.loadOrganization();
+      this.loadContacts();
       const currentSet = this.itemsToLoad$.value;
-      currentSet.forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+      // Remove items that won't be loaded in Add mode
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
       return;
     }
 
     this.loadOrganization();
     this.loadContacts();
-    this.loadOffices();
     this.loadBuildings();
     this.loadReservations();
     this.loadPropertyLetterInformation();
@@ -144,6 +156,32 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.selectedReservation = null;
           this.generatePreviewIframe();
         }
+      }
+    }
+    
+    // When officeId changes from parent, set the selected office (don't emit back)
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      // Only update if the value actually changed
+      if (newOfficeId !== previousOfficeId) {
+        // If offices are already loaded, update immediately
+        if (this.offices.length > 0) {
+          if (newOfficeId !== null && newOfficeId !== undefined) {
+            this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
+            if (this.selectedOffice) {
+              this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+              this.filterReservations();
+            }
+          } else {
+            this.selectedOffice = null;
+            this.form.patchValue({ selectedOfficeId: null });
+            this.filterReservations();
+          }
+        }
+        // If offices aren't loaded yet, loadOffices() will handle initialization when offices arrive
+        // The officeId is already set, so loadOffices() will pick it up
       }
     }
   }
@@ -228,7 +266,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   buildForm(): FormGroup {
     const form = this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice })
+      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
+      selectedOfficeId: new FormControl({ value: null, disabled: false })
     });
     return form;
   }
@@ -291,16 +330,23 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        if (this.property?.officeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
-          this.filterReservations();
-          if (this.selectedOffice && this.selectedReservation) {
-            this.generatePreviewIframe();
+        if (this.officeId !== null && this.officeId !== undefined) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (this.selectedOffice) {
+            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+            this.filterReservations();
           }
+        } else if (this.selectedReservation?.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+          this.filterReservations();
+        } else if (this.property?.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+          this.filterReservations();
         }
       });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
@@ -403,11 +449,44 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     // Enable the reservation dropdown when an office is selected
     this.form.get('selectedReservationId')?.enable();
     
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: this.utilityService.getReservationLabel(r)
-    }));
+    // Filter reservations by the selected office
+    if (this.reservations && this.reservations.length > 0) {
+      const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+      this.availableReservations = filteredReservations.map(r => ({
+        value: r,
+        label: this.utilityService.getReservationLabel(r)
+      }));
+    } else {
+      // If reservations haven't loaded yet, clear available reservations
+      this.availableReservations = [];
+    }
+  }
+
+  onOfficeChange(): void {
+    const officeId = this.form.get('selectedOfficeId')?.value;
+    if (!officeId) {
+      this.selectedOffice = null;
+      this.filterReservations();
+      this.selectedReservation = null;
+      this.form.patchValue({ selectedReservationId: null });
+      this.generatePreviewIframe();
+      this.officeIdChange.emit(null);
+      return;
+    }
+    
+    // Find and set the selected office
+    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+    
+    // Filter reservations by the selected office
+    this.filterReservations();
+    
+    // Clear selected reservation when office changes
+    this.selectedReservation = null;
+    this.form.patchValue({ selectedReservationId: null });
+    this.generatePreviewIframe();
+    
+    // Emit office change to parent
+    this.officeIdChange.emit(this.selectedOffice?.officeId || null);
   }
   //#endregion
   

@@ -7,6 +7,39 @@
   <div class="welcome-letter-container">
     <form [formGroup]="form" class="welcome-letter-form">
       
+      <!-- Office, Reservation, and Property Code row - aligned with other tabs -->
+      <div class="flex gap-4 items-center mt-3 px-4 mb-4">
+        <!-- Office Dropdown -->
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+          <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="!!propertyId">
+            <mat-option [value]="null">All Offices</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Reservation Dropdown -->
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>Reservation</mat-label>
+          <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
+            <mat-option [value]="null">Select Reservation</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value.reservationId">
+                {{ reservation.label }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Property Code (disabled when coming from Property component) -->
+        <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+          <mat-label>Property Code</mat-label>
+          <input matInput [value]="property?.propertyCode || ''" [disabled]="!!propertyId">
+        </mat-form-field>
+      </div>
+
       <!-- Action Buttons Section -->
       <div class="top-controls">
         <div class="flex gap-2">
@@ -31,36 +64,6 @@
             <mat-icon>save</mat-icon>
             Save
           </button>
-        </div>
-      </div>
-
-      <!-- Input Fields Section -->
-      <div class="input-controls">
-        <div class="flex gap-3 items-center">
-          <!-- Property Code (disabled when coming from Property component) -->
-          <mat-form-field appearance="outline" class="property-code-field">
-            <mat-label>Property Code</mat-label>
-            <input matInput [value]="property?.propertyCode || ''" [disabled]="!!propertyId">
-          </mat-form-field>
-
-          <!-- Office Name (disabled when coming from Property component) -->
-          <mat-form-field appearance="outline" class="office-dropdown">
-            <mat-label>Office</mat-label>
-            <input matInput [value]="property?.officeName || ''" [disabled]="!!propertyId">
-          </mat-form-field>
-
-          <!-- Reservation Dropdown -->
-          <mat-form-field appearance="outline" class="reservation-dropdown">
-            <mat-label>Select Reservation</mat-label>
-            <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
-              <mat-option [value]="null">Select Reservation</mat-option>
-              @for (reservation of availableReservations; track reservation.value.reservationId) {
-                <mat-option [value]="reservation.value.reservationId">
-                  {{ reservation.label }}
-                </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
         </div>
       </div>
 

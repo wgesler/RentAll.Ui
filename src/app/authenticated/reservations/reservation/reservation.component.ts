@@ -1130,6 +1130,20 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
   }
 
+  onLeaseOfficeIdChange(officeId: number | null): void {
+    if (officeId !== null && officeId !== undefined && this.offices.length > 0) {
+      const newOffice = this.offices.find(o => o.officeId === officeId) || null;
+      if (newOffice && newOffice !== this.selectedOffice) {
+        this.selectedOffice = newOffice;
+        this.loadCostCodes();
+        this.filterPropertiesByOffice();
+      }
+    } else if (officeId === null && this.selectedOffice) {
+      this.selectedOffice = null;
+      this.filterPropertiesByOffice();
+    }
+  }
+
   filterPropertiesByOffice(): void {
     if (!this.selectedOffice) {
       this.availableProperties = this.properties;

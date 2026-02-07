@@ -1,5 +1,5 @@
 import { CommonModule, AsyncPipe } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaterialModule } from '../../../material.module';
 import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -48,6 +48,8 @@ import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } fr
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
+  @Input() officeId: number | null = null;
+  @Output() officeIdChange = new EventEmitter<number | null>();
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -137,6 +139,27 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (changes['propertyId'] && changes['propertyId'].currentValue && !changes['propertyId'].previousValue) {
       this.loadProperty();
       this.loadLeaseInformation();
+    }
+    
+    // When officeId changes from parent, set the selected office (don't emit back)
+    if (changes['officeId'] && this.offices.length > 0) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+      
+      // Only update if the value actually changed
+      if (newOfficeId !== previousOfficeId) {
+        if (newOfficeId !== null && newOfficeId !== undefined) {
+          this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
+          if (this.selectedOffice) {
+            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+            this.filterReservations();
+          }
+        } else {
+          this.selectedOffice = null;
+          this.form.patchValue({ selectedOfficeId: null });
+          this.filterReservations();
+        }
+      }
     }
   }
 
@@ -297,6 +320,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.selectedReservation = null;
       this.form.patchValue({ selectedReservationId: null });
       this.generatePreviewIframe();
+      this.officeIdChange.emit(null);
       return;
     }
     
@@ -305,6 +329,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.selectedReservation = null;
     this.form.patchValue({ selectedReservationId: null });
     this.generatePreviewIframe();
+    this.officeIdChange.emit(this.selectedOffice?.officeId || null);
   }
 
   onReservationSelected(reservationId: string | null): void {
@@ -399,7 +424,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        if (this.selectedReservation?.officeId) {
+        if (this.officeId !== null && this.officeId !== undefined) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+          if (this.selectedOffice) {
+            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+            this.filterReservations();
+          }
+        } else if (this.selectedReservation?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
           this.filterReservations();

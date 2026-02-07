@@ -12,9 +12,9 @@
         <div class="flex gap-3 items-center mt-3 px-4">
           <!-- Office Dropdown -->
           <mat-form-field appearance="outline" class="office-dropdown">
-            <mat-label>Office</mat-label>
-            <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="!!reservationId">
-              <mat-option [value]="null">Select Office</mat-option>
+            <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+            <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="!!reservationId" placeholder="All Offices">
+              <mat-option [value]="null">All Offices</mat-option>
               @for (office of offices; track office.officeId) {
                 <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
               }

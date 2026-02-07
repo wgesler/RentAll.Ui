@@ -35,6 +35,8 @@ import { DocumentReloadService } from '../../documents/services/document-reload.
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyLetterResponse, PropertyLetterRequest } from '../models/property-letter.model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 
 @Component({
   selector: 'app-property',
@@ -81,6 +83,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
   checkOutTimes: { value: number, label: string }[] = [];
 
   offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
+  reservations: ReservationListResponse[] = [];
+  availableReservations: { value: ReservationListResponse, label: string }[] = [];
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -129,7 +136,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
     private utilityService: UtilityService,
-    private propertyLetterService: PropertyLetterService
+    private propertyLetterService: PropertyLetterService,
+    private reservationService: ReservationService
   ) {
   }
 
@@ -138,6 +146,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.loadStates();
     this.loadContacts();
     this.loadLocationLookups();
+    this.loadReservations();
 
     // Initialize dropdown menus
     this.initializeTrashDays();
@@ -613,6 +622,15 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.areaId = this.property.areaId || null;
       formData.buildingId = this.property.buildingId || null;
       
+      // Set selectedOffice if offices are already loaded
+      if (formData.officeId && this.offices.length > 0) {
+        this.selectedOffice = this.offices.find(o => o.officeId === formData.officeId) || null;
+        // Filter reservations after setting office
+        if (this.reservations.length > 0) {
+          this.filterReservations();
+        }
+      }
+      
       // Set all values at once
       this.form.patchValue(formData);
     }
@@ -798,18 +816,35 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
         this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
         
-        // If property is already loaded, update location fields in form
+        if (this.offices.length === 1 && !this.property?.officeId) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+          if (this.form) {
+            this.form.patchValue({ officeId: this.selectedOffice.officeId });
+          }
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        // If property is already loaded, update location fields in form and set selectedOffice
         if (this.property && this.form) {
+          const propertyOfficeId = this.property.officeId;
+          if (propertyOfficeId) {
+            this.selectedOffice = this.offices.find(o => o.officeId === propertyOfficeId) || null;
+          }
           this.form.patchValue({
-            officeId: this.property.officeId || null,
+            officeId: propertyOfficeId || null,
             regionId: this.property.regionId || null,
             areaId: this.property.areaId || null,
             buildingId: this.property.buildingId || null,
           });
+          // Filter reservations after setting office
+          this.filterReservations();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -853,11 +888,71 @@ export class PropertyComponent implements OnInit, OnDestroy {
   onWelcomeLetterReservationSelected(reservationId: string | null): void {
      this.selectedReservationId = reservationId;
   }
+
+  onWelcomeLetterOfficeIdChange(officeId: number | null): void {
+    // Update form officeId when welcome-letter tab office changes
+    if (officeId !== this.form?.get('officeId')?.value) {
+      this.form?.patchValue({ officeId });
+      this.onOfficeChange();
+    }
+  }
   
   onDocumentsReservationSelected(reservationId: string | null): void {
     this.selectedReservationId = reservationId;
   }
+
+  onDocumentOfficeIdChange(officeId: number | null): void {
+    // Update form officeId when document tab office changes
+    if (officeId !== this.form?.get('officeId')?.value) {
+      this.form?.patchValue({ officeId });
+      this.onOfficeChange();
+    }
+  }
   
+  loadReservations(): void {
+    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+      },
+      error: () => {
+        this.reservations = [];
+        this.availableReservations = [];
+      }
+    });
+  }
+
+  filterReservations(): void {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) {
+      this.availableReservations = [];
+      return;
+    }
+    
+    const filteredReservations = this.reservations.filter(r => r.officeId === officeId);
+    this.availableReservations = filteredReservations.map(r => ({
+      value: r,
+      label: this.utilityService.getReservationLabel(r)
+    }));
+  }
+
+  onOfficeChange(): void {
+    const officeId = this.form.get('officeId')?.value;
+    if (officeId) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+    } else {
+      this.selectedOffice = null;
+    }
+    this.filterReservations();
+    // Clear selected reservation when office changes
+    this.selectedReservationId = null;
+  }
+
+  onReservationChange(): void {
+    const reservationId = this.form.get('reservationId')?.value;
+    this.selectedReservationId = reservationId;
+  }
+
   onCodeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const upperValue = input.value.toUpperCase();

@@ -15,6 +15,11 @@ import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormatterService } from '../../../services/formatter-service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
+import { Subscription } from 'rxjs';
 
 
 @Component({
@@ -27,14 +32,20 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyLetterResponse | null = null;
+  @Input() officeId: number | null = null;
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
   propertyInformation: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
+  officesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyInformation']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyInformation', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -45,26 +56,31 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     private toastr: ToastrService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
-    private welcomeLetterReloadService: WelcomeLetterReloadService
+    private welcomeLetterReloadService: WelcomeLetterReloadService,
+    private officeService: OfficeService,
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
     this.form = this.buildForm();
   }
 
   ngOnInit(): void {
+    this.loadOffices();
+    
     if (!this.propertyId) {
       // If we have copied property information data, populate the form with it
       if (this.copiedPropertyInformation) {
         this.populateFormFromCopiedData();
         // Clear loading items since we're not loading from API
-        this.removeLoadItem('property');
-        this.removeLoadItem('propertyInformation');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
         // Still load organization settings for defaults
         this.loadOrganizationSettings();
         return;
       }
       
       const currentSet = this.itemsToLoad$.value;
-      currentSet.forEach(item => this.removeLoadItem(item));
+      currentSet.forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
       return;
     }
     
@@ -86,10 +102,20 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.propertyId) {
       this.populateFormFromCopiedData();
       // Clear loading items since we're not loading from API
-      this.removeLoadItem('property');
-      this.removeLoadItem('propertyInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       if (!this.organization) {
         this.loadOrganizationSettings();
+      }
+    }
+    
+    // Handle officeId changes - update selectedOffice when officeId input changes
+    if (changes['officeId'] && this.offices.length > 0) {
+      const newOfficeId = changes['officeId'].currentValue;
+      if (newOfficeId) {
+        this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
+      } else {
+        this.selectedOffice = null;
       }
     }
   }
@@ -123,11 +149,11 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   getPropertyLetter(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('propertyInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
     }
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('propertyInformation'); })).subscribe({
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
           this.propertyInformation = response;
@@ -157,7 +183,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       },
       error: (err: HttpErrorResponse) => {
         this.populateDefaultsFromProperty();
-        this.removeLoadItem('propertyInformation');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       }
     });
   }
@@ -238,32 +264,65 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   
   // Data Loading Methods
   loadOrganizationSettings(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.removeLoadItem('organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
         this.applyOrganizationDefaults();
       },
       error: (err: HttpErrorResponse) => {
-        this.removeLoadItem('organization');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       }
     });
   }
 
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        
+        // Set selectedOffice from officeId input if provided, otherwise from property
+        if (this.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        } else if (this.property?.officeId) {
+          this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
+        }
+      });
+    });
+  }
+
+  onOfficeChange(): void {
+    // Office dropdown is for display/filtering only in property-information
+    // Update selectedOffice when user changes dropdown
+    // Note: This doesn't change the property's officeId, just the display filter
+  }
+
   loadPropertyData(): void {
     if (!this.propertyId) {
-      this.removeLoadItem('property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('property'); })).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
+        if (response.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
+        }
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
           this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('property');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
   }
@@ -357,16 +416,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   // Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 }

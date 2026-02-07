@@ -73,7 +73,7 @@
               <mat-form-field appearance="outline" class="office-dropdown">
                 <mat-label>Office</mat-label>
                 <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeSelected($event.value)">
-                  <mat-option [value]="null">All Offices</mat-option>
+                  <mat-option [value]="null">Offices</mat-option>
                   @for (office of offices; track office.officeId) {
                     <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                   }

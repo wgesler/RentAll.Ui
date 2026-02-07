@@ -738,11 +738,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               this.filterCostCodes();
               this.filterCompanies();
               this.filterReservations();
-              this.applyFilters();
+              // Load invoices for selected office
+              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+              this.getInvoices();
             } else {
               this.selectedReservation = null;
               this.selectedCompany = null;
-               this.applyFilters();
+              // Load all invoices when "All Offices" is selected
+              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+              this.loadAllInvoices();
             }
           }
         } else if (this.selectedOffice && this.offices.length === 1) {

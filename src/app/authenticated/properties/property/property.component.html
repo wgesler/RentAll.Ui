@@ -25,7 +25,23 @@
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Property">
+            @if (form) {
             <form [formGroup]="form" (ngSubmit)="saveProperty()" class="info-form mb-8 pt-5">
+              @if (showOfficeDropdown) {
+                <!-- Office dropdown row - aligned with other tabs -->
+                <div class="flex gap-4 items-center mt-3 px-4 mb-4">
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+                    <mat-select formControlName="officeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
+                      <mat-option [value]="null">All Offices</mat-option>
+                      @for (office of offices; track office.officeId) {
+                        <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              }
+            
             <!-- First line: IsActive and save button right justified -->
             <div class="mb-4 flex justify-end items-center gap-3">
               <mat-checkbox formControlName="isActive" color="primary">
@@ -383,14 +399,18 @@
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 features-content">
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Office</mat-label>
-                    <mat-select formControlName="officeId" required>
-                      <mat-option [value]="null">Select Office</mat-option>
-                      @for (f of offices; track f.officeId) {
-                        <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
+                    @if (isAddMode) {
+                      <input matInput [value]="selectedOffice ? selectedOffice.name : ''" readonly [disabled]="true">
+                    } @else {
+                      <mat-select formControlName="officeId" required>
+                        <mat-option [value]="null">Select Office</mat-option>
+                        @for (f of offices; track f.officeId) {
+                          <mat-option [value]="f.officeId">{{ f.name }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                        <mat-error>Office is required</mat-error>
                       }
-                    </mat-select>
-                    @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
-                      <mat-error>Office is required</mat-error>
                     }
                   </mat-form-field>
 
@@ -636,17 +656,24 @@
               </div>
             }
         </form>
+            }
           </mat-tab>
           
           <mat-tab label="Information">
-            <app-property-information [propertyId]="isAddMode ? null : propertyId" [copiedPropertyInformation]="copiedPropertyInformation"></app-property-information>
+            <app-property-information 
+              [propertyId]="isAddMode ? null : propertyId" 
+              [copiedPropertyInformation]="copiedPropertyInformation"
+              [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null">
+            </app-property-information>
           </mat-tab>
           
           <mat-tab label="Welcome Letter">
             <app-property-welcome-letter 
               [propertyId]="isAddMode ? null : propertyId"
               [externalReservationId]="selectedReservationId"
-              (reservationSelected)="onWelcomeLetterReservationSelected($event)">
+              [officeId]="form?.get('officeId')?.value || null"
+              (reservationSelected)="onWelcomeLetterReservationSelected($event)"
+              (officeIdChange)="onWelcomeLetterOfficeIdChange($event)">
             </app-property-welcome-letter>
           </mat-tab>
           
@@ -655,10 +682,11 @@
               #propertyDocumentList
               [propertyId]="isAddMode ? null : propertyId" 
               [documentTypeId]="DocumentType.PropertyLetter"
-              [officeId]="property?.officeId || form?.get('officeId')?.value || null"
+              [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null"
               [reservationId]="selectedReservationId"
               [source]="'property'"
               (reservationIdChange)="onDocumentsReservationSelected($event)"
+              (officeIdChange)="onDocumentOfficeIdChange($event)"
               [hideHeader]="true">
             </app-document-list>
           </mat-tab>

@@ -3,9 +3,9 @@
   @if (showOfficeDropdown) {
     <div class="flex gap-4 items-center mt-3 px-4">
       <mat-form-field appearance="outline" style="width: 300px;">
-        <mat-label>All Offices</mat-label>
-        <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()">
-          <mat-option [value]="null">All Offices</mat-option>
+        <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+          <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
+            <mat-option [value]="null">All Offices</mat-option>
           @for (office of offices; track office.officeId) {
             <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
           }
