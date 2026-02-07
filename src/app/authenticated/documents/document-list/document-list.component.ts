@@ -13,13 +13,15 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MappingService } from '../../../services/mapping.service';
-import { DocumentType } from '../models/document.enum';
+import { DocumentType, getDocumentType } from '../models/document.enum';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
+import { PropertyService } from '../../properties/services/property.service';
+import { PropertyListDisplay } from '../../properties/models/property.model';
 
 @Component({
   selector: 'app-document-list',
@@ -49,10 +51,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   showOfficeDropdown: boolean = true;
   
-  // Reservation selection for filtering (when coming from reservation)
+  // Reservation selection for filtering (when coming from reservation or invoice)
   selectedReservationId: string | null = null;
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
+  
+  // Property selection for filtering (when coming from property)
+  selectedPropertyId: string | null = null;
+  properties: PropertyListDisplay[] = [];
+  availableProperties: { value: PropertyListDisplay, label: string }[] = [];
+  
+  // DocumentType selection for filtering (when coming from documents)
+  selectedDocumentTypeId: number | null = null;
+  documentTypes: { value: number, label: string }[] = [];
 
   // Column sets for different modes
   sidebarColumns: ColumnSet = {
@@ -89,7 +100,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
-    private route: ActivatedRoute) {
+    private route: ActivatedRoute,
+    private propertyService: PropertyService) {
   }
 
   //#region Document-List
@@ -110,11 +122,25 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedReservationId = this.reservationId;
     }
     
+    // Pre-select propertyId if provided and source is 'property'
+    if (this.source === 'property' && this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
+      this.selectedPropertyId = this.propertyId;
+    }
+    
     // Add 'documents' to loading set before loading
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
     
     this.loadOffices();
-    this.loadReservations();
+    
+    // Load data based on source
+    if (this.source === 'reservation' || this.source === 'invoice') {
+      this.loadReservations();
+    } else if (this.source === 'property') {
+      this.loadProperties();
+    } else if (this.source === 'documents') {
+      this.initializeDocumentTypes();
+    }
+    
     this.getDocuments();
   }
   
@@ -138,7 +164,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
-    // Handle officeId changes for client-side filtering
+    // Handle officeId changes for client-side filtering and reload data based on source
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
@@ -146,6 +172,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       // Update selectedOfficeId if it changed
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         this.selectedOfficeId = newOfficeId;
+        
+        // Reload data when office changes to update dropdown lists based on source
+        if (this.source === 'invoice' || this.source === 'reservation') {
+          this.loadReservations();
+        } else if (this.source === 'property') {
+          this.loadProperties();
+        }
+        
         this.applyFilters();
       }
     }
@@ -164,17 +198,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.loadReservations();
         }
         this.applyFilters();
-      }
-    }
-    
-    // Handle officeId changes - reload reservations when office changes (especially for invoice source)
-    if (changes['officeId'] && this.source === 'invoice') {
-      const newOfficeId = changes['officeId'].currentValue;
-      const previousOfficeId = changes['officeId'].previousValue;
-      
-      // Reload reservations when office changes to update the dropdown list
-      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
-        this.loadReservations();
       }
     }
     
@@ -524,6 +547,56 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
   
+  initializeDocumentTypes(): void {
+    this.documentTypes = [
+      { value: DocumentType.Other, label: getDocumentType(DocumentType.Other) },
+      { value: DocumentType.PropertyLetter, label: getDocumentType(DocumentType.PropertyLetter) },
+      { value: DocumentType.ReservationLease, label: getDocumentType(DocumentType.ReservationLease) },
+      { value: DocumentType.Invoice, label: getDocumentType(DocumentType.Invoice) }
+    ];
+  }
+
+  loadProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (properties) => {
+        this.properties = this.mappingService.mapProperties(properties) || [];
+        this.filterProperties();
+        // If propertyId was provided, ensure it's selected after filtering
+        if (this.propertyId && this.selectedOfficeId) {
+          const matchingProperty = this.availableProperties.find(p => p.value.propertyId === this.propertyId);
+          if (matchingProperty) {
+            this.selectedPropertyId = this.propertyId;
+          }
+        }
+      },
+      error: () => {
+        this.properties = [];
+        this.availableProperties = [];
+      }
+    });
+  }
+
+  filterProperties(): void {
+    if (!this.selectedOfficeId) {
+      this.availableProperties = [];
+      return;
+    }
+    
+    const filteredProperties = this.properties.filter(p => p.officeId === this.selectedOfficeId);
+    this.availableProperties = filteredProperties.map(p => ({
+      value: p,
+      label: p.propertyCode || ''
+    }));
+  }
+
+  onPropertyChange(): void {
+    this.applyFilters();
+  }
+
+  onDocumentTypeChange(): void {
+    this.applyFilters();
+  }
+
   onReservationChange(): void {
     this.reservationIdChange.emit(this.selectedReservationId);
     this.applyFilters();
@@ -531,8 +604,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   onOfficeChange(): void {
     this.officeIdChange.emit(this.selectedOfficeId);
-    if (!this.reservationId) {
-      this.filterReservations();
+    if (this.source === 'reservation' || this.source === 'invoice') {
+      if (!this.reservationId) {
+        this.filterReservations();
+      }
+    } else if (this.source === 'property') {
+      this.filterProperties();
+      // Clear selected property when office changes
+      this.selectedPropertyId = null;
     }
     // Apply filters to update displayed documents
     this.applyFilters();
@@ -547,10 +626,23 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(doc => doc.officeId === this.selectedOfficeId);
     }
     
-    // Filter by reservationId if provided (from input) or selected (from dropdown)
-    const reservationIdToFilter = this.reservationId || this.selectedReservationId;
-    if (reservationIdToFilter !== null && reservationIdToFilter !== undefined && reservationIdToFilter !== '') {
-      filtered = filtered.filter(doc => doc.reservationId === reservationIdToFilter);
+    // Filter based on source
+    if (this.source === 'reservation' || this.source === 'invoice') {
+      // Filter by reservationId if provided (from input) or selected (from dropdown)
+      const reservationIdToFilter = this.reservationId || this.selectedReservationId;
+      if (reservationIdToFilter !== null && reservationIdToFilter !== undefined && reservationIdToFilter !== '') {
+        filtered = filtered.filter(doc => doc.reservationId === reservationIdToFilter);
+      }
+    } else if (this.source === 'property') {
+      // Filter by propertyId if selected
+      if (this.selectedPropertyId !== null && this.selectedPropertyId !== undefined && this.selectedPropertyId !== '') {
+        filtered = filtered.filter(doc => doc.propertyId === this.selectedPropertyId);
+      }
+    } else if (this.source === 'documents') {
+      // Filter by documentTypeId if selected
+      if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
+        filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
+      }
     }
     
     this.documentsDisplay = filtered;

@@ -2,7 +2,7 @@
   @if (hideHeader) {
     <!-- Full-page layout when inside a tab -->
     <div class="document-list-tab-container">
-      <!-- Office and Reservation dropdown row -->
+      <!-- Office and conditional field dropdown row -->
       <div class="flex gap-4 items-center mt-3 px-4">
         @if (showOfficeDropdown) {
           <mat-form-field appearance="outline" style="width: 300px;">
@@ -15,15 +15,40 @@
             </mat-select>
           </mat-form-field>
         }
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>Reservation</mat-label>
-          <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
-            <mat-option [value]="null">Select Reservation</mat-option>
-            @for (reservation of availableReservations; track reservation.value.reservationId) {
-              <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        @if (source === 'reservation' || source === 'invoice') {
+          <!-- Reservation field for Reservations or Accounting source -->
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Reservation</mat-label>
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        } @else if (source === 'property') {
+          <!-- PropertyCode field for Properties source -->
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Property Code</mat-label>
+            <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyChange()" [disabled]="!selectedOfficeId">
+              <mat-option [value]="null">Select Property</mat-option>
+              @for (property of availableProperties; track property.value.propertyId) {
+                <mat-option [value]="property.value.propertyId">{{ property.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        } @else if (source === 'documents') {
+          <!-- DocumentType field for Documents source -->
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Document Type</mat-label>
+            <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
+              <mat-option [value]="null">All Document Types</mat-option>
+              @for (docType of documentTypes; track docType.value) {
+                <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
       </div>
       <mat-card class="full-height-card">
         <div class="mat">
@@ -60,7 +85,7 @@
         </div>
         <mat-card>
           <div class="mat">
-            <!-- Office and Reservation dropdown row -->
+            <!-- Office and conditional field dropdown row -->
             <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
               <div class="flex items-center gap-3" style="height: 56px;">
                 @if (showOfficeDropdown) {
@@ -74,15 +99,40 @@
                     </mat-select>
                   </mat-form-field>
                 }
-                <mat-form-field appearance="outline" style="width: 300px;">
-                  <mat-label>Reservation</mat-label>
-                  <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
-                    <mat-option [value]="null">Select Reservation</mat-option>
-                    @for (reservation of availableReservations; track reservation.value.reservationId) {
-                      <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                @if (source === 'reservation' || source === 'invoice') {
+                  <!-- Reservation field for Reservations or Accounting source -->
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Reservation</mat-label>
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
+                      <mat-option [value]="null">Select Reservation</mat-option>
+                      @for (reservation of availableReservations; track reservation.value.reservationId) {
+                        <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                } @else if (source === 'property') {
+                  <!-- PropertyCode field for Properties source -->
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Property Code</mat-label>
+                    <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyChange()" [disabled]="!selectedOfficeId">
+                      <mat-option [value]="null">Select Property</mat-option>
+                      @for (property of availableProperties; track property.value.propertyId) {
+                        <mat-option [value]="property.value.propertyId">{{ property.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                } @else if (source === 'documents') {
+                  <!-- DocumentType field for Documents source -->
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Document Type</mat-label>
+                    <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
+                      <mat-option [value]="null">All Document Types</mat-option>
+                      @for (docType of documentTypes; track docType.value) {
+                        <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
               </div>
             </div>
             <div class="tableDiv">
