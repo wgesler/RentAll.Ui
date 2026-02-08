@@ -4,5 +4,5 @@ export const environment = {
     dev: false,
     local: false,
     title: 'RentAll - Prod',
-    apiUrl: 'https://apierentall.etinv.com/'
+    apiUrl: 'https://rentall-api-cvetchcfewgpcqb5.centralus-01.azurewebsites.net/'
 };
