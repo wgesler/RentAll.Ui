@@ -57,7 +57,7 @@ steps:
 
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: 'dist/four-t.private.eschea-tr.ui'
+    PathtoPublish: 'dist/rentall.ui'
     ArtifactName: ${{variables.artifactName}}
     publishLocation: 'Container'
 
@@ -74,7 +74,7 @@ steps:
   displayName: 'publish secondary artifact'
   condition: ne(variables['secondaryConfiguration'],'')
   inputs:
-    PathtoPublish: 'dist/four-t.private.eschea-tr.ui'
+    PathtoPublish: 'dist/rentall.ui'
     ArtifactName: ${{variables.secondaryConfiguration}}
     publishLocation: 'Container'
 
