@@ -4,5 +4,5 @@ export const environment = {
 	dev: false,
 	local: true,
 	title: 'RentAll - Local',
-	apiUrl: 'https://localhost:7154/'
+	apiUrl: 'https://localhost:7154/api/'
   };
