@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
+import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter, NgZone } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -63,7 +63,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private officeService: OfficeService,
     private route: ActivatedRoute,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private ngZone: NgZone) {
   }
 
   //#region Property-List
@@ -164,12 +165,16 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   
   //#region Routing Methods
   goToProperty(event: PropertyListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+    this.ngZone.run(() => {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+    });
   }
 
   goToContact(event: PropertyListDisplay): void {
     if (event.owner1Id) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
+      this.ngZone.run(() => {
+        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
+      });
     }
   }
   //#endregion

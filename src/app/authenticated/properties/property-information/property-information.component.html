@@ -140,7 +140,7 @@
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Maintenance Email</mat-label>
-              <input matInput type="email" formControlName="emergencyContact" readonly [disabled]="true" class="readonly-field">
+              <input matInput type="email" formControlName="emergencyContact" readonly class="readonly-field">
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
@@ -149,7 +149,7 @@
                 (blur)="formatPhone()"
                 (input)="onPhoneInput($event)"
                 placeholder="(555) 123-4567"
-                readonly [disabled]="true" class="readonly-field">
+                readonly class="readonly-field">
             </mat-form-field>
           </div>
         </mat-expansion-panel>

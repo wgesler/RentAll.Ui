@@ -273,7 +273,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
       fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
       website: new FormControl(''),
-      fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true),
       // Configuration fields
       maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
@@ -301,45 +301,46 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   populateForm(): void {
     if (this.office && this.form) {
-      this.form.patchValue({
-        officeCode: this.office.officeCode?.toUpperCase() || '',
-        name: this.office.name,
-         address1: this.office.address1,
-        address2: this.office.address2 || '',
-        suite: this.office.suite || '',
-        city: this.office.city,
-        state: this.office.state,
-        zip: this.office.zip,
-        phone: this.formatterService.phoneNumber(this.office.phone),
-        fax: this.formatterService.phoneNumber(this.office.fax) || '',
-        website: this.office.website || '',
-        isActive: this.office.isActive
-      });
-    }
-    // Populate configuration fields from office response
-    if (this.office && this.form) {
-      this.form.patchValue({
-        maintenanceEmail: this.office.maintenanceEmail || '',
-        afterHoursPhone: this.formatterService.phoneNumber(this.office.afterHoursPhone) || '',
-        afterHoursInstructions: this.office.afterHoursInstructions || '',
-        defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
-        defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
-        daysToRefundDeposit: this.office.daysToRefundDeposit !== null && this.office.daysToRefundDeposit !== undefined ? this.office.daysToRefundDeposit.toString() : '0',
-        defaultKeyFee: this.office.defaultKeyFee !== null && this.office.defaultKeyFee !== undefined ? this.office.defaultKeyFee.toFixed(2) : '0.00',
-        undisclosedPetFee: this.office.undisclosedPetFee !== null && this.office.undisclosedPetFee !== undefined ? this.office.undisclosedPetFee.toFixed(2) : '0.00',
-        minimumSmokingFee: this.office.minimumSmokingFee !== null && this.office.minimumSmokingFee !== undefined ? this.office.minimumSmokingFee.toFixed(2) : '0.00',
-        utilityOneBed: this.office.utilityOneBed !== null && this.office.utilityOneBed !== undefined ? this.office.utilityOneBed.toFixed(2) : '0.00',
-        utilityTwoBed: this.office.utilityTwoBed !== null && this.office.utilityTwoBed !== undefined ? this.office.utilityTwoBed.toFixed(2) : '0.00',
-        utilityThreeBed: this.office.utilityThreeBed !== null && this.office.utilityThreeBed !== undefined ? this.office.utilityThreeBed.toFixed(2) : '0.00',
-        utilityFourBed: this.office.utilityFourBed !== null && this.office.utilityFourBed !== undefined ? this.office.utilityFourBed.toFixed(2) : '0.00',
-        utilityHouse: this.office.utilityHouse !== null && this.office.utilityHouse !== undefined ? this.office.utilityHouse.toFixed(2) : '0.00',
-        maidOneBed: this.office.maidOneBed !== null && this.office.maidOneBed !== undefined ? this.office.maidOneBed.toFixed(2) : '0.00',
-        maidTwoBed: this.office.maidTwoBed !== null && this.office.maidTwoBed !== undefined ? this.office.maidTwoBed.toFixed(2) : '0.00',
-        maidThreeBed: this.office.maidThreeBed !== null && this.office.maidThreeBed !== undefined ? this.office.maidThreeBed.toFixed(2) : '0.00',
-        maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
-        parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
-        parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00'
-      });
+      // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => {
+        this.form.patchValue({
+          officeCode: this.office.officeCode?.toUpperCase() || '',
+          name: this.office.name,
+           address1: this.office.address1,
+          address2: this.office.address2 || '',
+          suite: this.office.suite || '',
+          city: this.office.city,
+          state: this.office.state,
+          zip: this.office.zip,
+          phone: this.formatterService.phoneNumber(this.office.phone),
+          fax: this.formatterService.phoneNumber(this.office.fax) || '',
+          website: this.office.website || '',
+          isActive: this.office.isActive
+        });
+        // Populate configuration fields from office response
+        this.form.patchValue({
+          maintenanceEmail: this.office.maintenanceEmail || '',
+          afterHoursPhone: this.formatterService.phoneNumber(this.office.afterHoursPhone) || '',
+          afterHoursInstructions: this.office.afterHoursInstructions || '',
+          defaultDeposit: this.office.defaultDeposit !== null && this.office.defaultDeposit !== undefined ? this.office.defaultDeposit.toFixed(2) : '0.00',
+          defaultSdw: this.office.defaultSdw !== null && this.office.defaultSdw !== undefined ? this.office.defaultSdw.toFixed(2) : '0.00',
+          daysToRefundDeposit: this.office.daysToRefundDeposit !== null && this.office.daysToRefundDeposit !== undefined ? this.office.daysToRefundDeposit.toString() : '0',
+          defaultKeyFee: this.office.defaultKeyFee !== null && this.office.defaultKeyFee !== undefined ? this.office.defaultKeyFee.toFixed(2) : '0.00',
+          undisclosedPetFee: this.office.undisclosedPetFee !== null && this.office.undisclosedPetFee !== undefined ? this.office.undisclosedPetFee.toFixed(2) : '0.00',
+          minimumSmokingFee: this.office.minimumSmokingFee !== null && this.office.minimumSmokingFee !== undefined ? this.office.minimumSmokingFee.toFixed(2) : '0.00',
+          utilityOneBed: this.office.utilityOneBed !== null && this.office.utilityOneBed !== undefined ? this.office.utilityOneBed.toFixed(2) : '0.00',
+          utilityTwoBed: this.office.utilityTwoBed !== null && this.office.utilityTwoBed !== undefined ? this.office.utilityTwoBed.toFixed(2) : '0.00',
+          utilityThreeBed: this.office.utilityThreeBed !== null && this.office.utilityThreeBed !== undefined ? this.office.utilityThreeBed.toFixed(2) : '0.00',
+          utilityFourBed: this.office.utilityFourBed !== null && this.office.utilityFourBed !== undefined ? this.office.utilityFourBed.toFixed(2) : '0.00',
+          utilityHouse: this.office.utilityHouse !== null && this.office.utilityHouse !== undefined ? this.office.utilityHouse.toFixed(2) : '0.00',
+          maidOneBed: this.office.maidOneBed !== null && this.office.maidOneBed !== undefined ? this.office.maidOneBed.toFixed(2) : '0.00',
+          maidTwoBed: this.office.maidTwoBed !== null && this.office.maidTwoBed !== undefined ? this.office.maidTwoBed.toFixed(2) : '0.00',
+          maidThreeBed: this.office.maidThreeBed !== null && this.office.maidThreeBed !== undefined ? this.office.maidThreeBed.toFixed(2) : '0.00',
+          maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
+          parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
+          parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00'
+        });
+      }, 0);
     }
   }
   //#endregion

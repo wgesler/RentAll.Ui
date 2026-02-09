@@ -344,8 +344,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       internetService: new FormControl(''),
       keyReturn: new FormControl(''),
       concierge: new FormControl(''),
-      emergencyContact: new FormControl(''),
-      emergencyContactNumber: new FormControl(''),
+      emergencyContact: new FormControl({ value: '', disabled: true }),
+      emergencyContactNumber: new FormControl({ value: '', disabled: true }),
       additionalNotes: new FormControl('')
     });
   }
