@@ -27,6 +27,7 @@ import { FileDetails } from '../../../shared/models/fileDetails';
 
 export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
+  @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -158,7 +159,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
 
     const officeRequest: OfficeRequest = {
-      organizationId: user?.organizationId || '',
+      organizationId: this.organizationId || user?.organizationId || '',
       officeCode: formValue.officeCode,
       name: formValue.name,
       address1: (formValue.address1 || '').trim(),
@@ -221,7 +222,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       officeRequest.officeId = officeIdNum;
-      officeRequest.organizationId = this.office?.organizationId || user?.organizationId || '';
+      officeRequest.organizationId = this.organizationId || this.office?.organizationId || user?.organizationId || '';
       this.officeService.updateOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: OfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });

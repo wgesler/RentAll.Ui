@@ -9,6 +9,21 @@
       </span>
     </div>
 
+    <!-- Organization dropdown for SuperAdmin -->
+    @if (isSuperAdmin) {
+      <div class="flex gap-4 items-center mt-3 px-4 mb-4">
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>Organization</mat-label>
+          <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }">
+            <mat-option [value]="null">Select Organization</mat-option>
+            @for (organization of organizations; track organization.organizationId) {
+              <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    }
+
     <mat-card>
       <div class="info-form mb-8 pt-5">
         <mat-accordion multi="true">
@@ -22,9 +37,9 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingOffice && officeId) {
-                <app-office [id]="officeId" (backEvent)="onOfficeBack()"></app-office>
+                <app-office [id]="officeId" [organizationId]="selectedOrganizationId" (backEvent)="onOfficeBack()"></app-office>
               } @else {
-                <app-office-list [embeddedInSettings]="true" (officeSelected)="onOfficeSelected($event)"></app-office-list>
+                <app-office-list [embeddedInSettings]="true" [organizationId]="selectedOrganizationId" (officeSelected)="onOfficeSelected($event)"></app-office-list>
               }
             </div>
           </mat-expansion-panel>

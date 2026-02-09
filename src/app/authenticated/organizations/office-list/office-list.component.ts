@@ -24,6 +24,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 
 export class OfficeListComponent implements OnInit, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
+  @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   panelOpenState: boolean = true;
   isServiceError: boolean = false;

@@ -97,8 +97,8 @@ export class SidebarComponent implements OnInit {
       icon: 'settings',
       displayName: 'Settings',
       url: RouterToken.OrganizationConfiguration,
-      requiredRoles: [UserGroups.Admin], // Admin only
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
+      requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin], // SuperAdmin and Admin only
+      excludedRoles: [] // No exclusions
     },
   ];
 

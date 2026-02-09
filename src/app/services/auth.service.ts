@@ -66,7 +66,7 @@ export class AuthService {
         if (!this.authData$.value) return of(new AuthResponse());
         const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken! };
 
-        return this.http.post<AuthResponse>(this.controller + 'refresh-token', request).pipe(
+        return this.http.post<AuthResponse>(this.controller + 'refresh', request).pipe(
             tap((response: AuthResponse) => this.buildRefreshAuthData(response)));
     }
 

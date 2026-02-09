@@ -21,6 +21,12 @@ import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.compo
 import { ColorListComponent } from '../color-list/color-list.component';
 import { ColorComponent } from '../color/color.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { OrganizationService } from '../services/organization.service';
+import { OrganizationResponse } from '../models/organization.model';
+import { AuthService } from '../../../services/auth.service';
+import { UserGroups } from '../../users/models/user-type';
+import { take, finalize } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-configuration',
@@ -80,16 +86,67 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
 
+  // Organization dropdown (SuperAdmin only)
+  isSuperAdmin: boolean = false;
+  organizations: OrganizationResponse[] = [];
+  selectedOrganizationId: string | null = null;
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private organizationService: OrganizationService,
+    private authService: AuthService
   ) {
   }
 
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
+    
+    // Check if user is SuperAdmin
+    const user = this.authService.getUser();
+    if (user && user.userGroups) {
+      const userGroupNumbers = user.userGroups.map(group => {
+        if (typeof group === 'string') {
+          const enumKey = Object.keys(UserGroups).find(key => key === group);
+          if (enumKey) {
+            return UserGroups[enumKey as keyof typeof UserGroups];
+          }
+          const num = parseInt(group, 10);
+          if (!isNaN(num)) {
+            return num;
+          }
+        }
+        return typeof group === 'number' ? group : null;
+      }).filter(num => num !== null) as number[];
+      
+      this.isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
+      
+      if (this.isSuperAdmin) {
+        this.loadOrganizations();
+      }
+    }
+  }
+
+  loadOrganizations(): void {
+    this.organizationService.getOrganizations().pipe(take(1)).subscribe({
+      next: (organizations) => {
+        this.organizations = organizations || [];
+        // Optionally set default selection to first organization
+        if (this.organizations.length > 0 && !this.selectedOrganizationId) {
+          this.selectedOrganizationId = this.organizations[0].organizationId;
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Error loading organizations:', err);
+      }
+    });
+  }
+
+  onOrganizationChange(): void {
+    // When organization changes, the selected organizationId will be passed to office-list
+    // which will then pass it to office component
   }
 
   onCostCodesOfficeChangeFromList(officeId: number | null): void {
