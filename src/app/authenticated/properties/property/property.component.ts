@@ -264,6 +264,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.form.get('masterKeyCode')?.enable({ emitEvent: false });
           this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
           this.form.get('parkingNotes')?.enable({ emitEvent: false });
+          this.form.get('dogsOkay')?.enable({ emitEvent: false });
+          this.form.get('catsOkay')?.enable({ emitEvent: false });
+          this.form.get('poundLimit')?.enable({ emitEvent: false });
           
           this.populateForm();
           this.form.get('propertyCode')?.setValue('');
@@ -272,6 +275,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
           const alarmValue = this.form.get('alarm')?.value;
           const keypadAccessValue = this.form.get('keypadAccess')?.value;
           const parkingValue = this.form.get('parking')?.value;
+          const petsAllowedValue = this.form.get('petsAllowed')?.value;
           
           if (alarmValue) {
             this.form.get('alarmCode')?.enable({ emitEvent: false });
@@ -295,6 +299,19 @@ export class PropertyComponent implements OnInit, OnDestroy {
           } else {
             this.form.get('parkingNotes')?.disable({ emitEvent: false });
             this.form.get('parkingNotes')?.setValue('', { emitEvent: false });
+          }
+          
+          if (petsAllowedValue) {
+            this.form.get('dogsOkay')?.enable({ emitEvent: false });
+            this.form.get('catsOkay')?.enable({ emitEvent: false });
+            this.form.get('poundLimit')?.enable({ emitEvent: false });
+          } else {
+            this.form.get('dogsOkay')?.disable({ emitEvent: false });
+            this.form.get('dogsOkay')?.setValue(false, { emitEvent: false });
+            this.form.get('catsOkay')?.disable({ emitEvent: false });
+            this.form.get('catsOkay')?.setValue(false, { emitEvent: false });
+            this.form.get('poundLimit')?.disable({ emitEvent: false });
+            this.form.get('poundLimit')?.setValue('', { emitEvent: false });
           }
         }
       },
@@ -547,6 +564,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       sofabeds: new FormControl(false),
       smoking: new FormControl(false),
       petsAllowed: new FormControl(false),
+      dogsOkay: new FormControl({ value: false, disabled: true }),
+      catsOkay: new FormControl({ value: false, disabled: true }),
+      poundLimit: new FormControl({ value: '', disabled: true }),
 
       // Location section
       officeId: new FormControl<number | null>(null, [Validators.required]),
@@ -602,13 +622,17 @@ export class PropertyComponent implements OnInit, OnDestroy {
       // Handle string fields that might be null/undefined - convert to empty strings
       const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'masterKeyCode', 
-                           'tenantKeyCode', 'mailbox', 'phone', 'description', 'notes'];
+                           'tenantKeyCode', 'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
+      
+      // Handle boolean fields that might be null/undefined
+      formData.dogsOkay = this.property.dogsOkay ?? false;
+      formData.catsOkay = this.property.catsOkay ?? false;
       
       // Handle phone - ensure empty string if null/undefined, then format if present
       formData.phone = this.property.phone || '';
@@ -738,6 +762,40 @@ export class PropertyComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Subscribe to petsAllowed checkbox changes to enable/disable pet-related fields
+    this.form.get('petsAllowed')?.valueChanges.subscribe(value => {
+      const dogsOkayControl = this.form.get('dogsOkay');
+      const catsOkayControl = this.form.get('catsOkay');
+      const poundLimitControl = this.form.get('poundLimit');
+      
+      if (dogsOkayControl) {
+        if (value) {
+          dogsOkayControl.enable();
+        } else {
+          dogsOkayControl.disable();
+          dogsOkayControl.setValue(false, { emitEvent: false });
+        }
+      }
+      
+      if (catsOkayControl) {
+        if (value) {
+          catsOkayControl.enable();
+        } else {
+          catsOkayControl.disable();
+          catsOkayControl.setValue(false, { emitEvent: false });
+        }
+      }
+      
+      if (poundLimitControl) {
+        if (value) {
+          poundLimitControl.enable();
+        } else {
+          poundLimitControl.disable();
+          poundLimitControl.setValue('', { emitEvent: false });
+        }
+      }
+    });
+
     // Set initial state based on current values
     const alarmValue = this.form.get('alarm')?.value;
     const keypadAccessValue = this.form.get('keypadAccess')?.value;
@@ -765,6 +823,21 @@ export class PropertyComponent implements OnInit, OnDestroy {
     } else {
       this.form.get('parkingNotes')?.disable();
       this.form.get('parkingNotes')?.setValue('', { emitEvent: false });
+    }
+
+    // Set initial state for pet-related fields based on petsAllowed
+    const petsAllowedValue = this.form.get('petsAllowed')?.value;
+    if (petsAllowedValue) {
+      this.form.get('dogsOkay')?.enable();
+      this.form.get('catsOkay')?.enable();
+      this.form.get('poundLimit')?.enable();
+    } else {
+      this.form.get('dogsOkay')?.disable();
+      this.form.get('dogsOkay')?.setValue(false, { emitEvent: false });
+      this.form.get('catsOkay')?.disable();
+      this.form.get('catsOkay')?.setValue(false, { emitEvent: false });
+      this.form.get('poundLimit')?.disable();
+      this.form.get('poundLimit')?.setValue('', { emitEvent: false });
     }
   }
 

@@ -1,5 +1,6 @@
 //#region TrashDays
 export enum TrashDays {
+  None = 0,
   Monday = 1,
   Tuesday = 2,
   Wednesday = 3,
@@ -13,6 +14,7 @@ export function getTrashPickupDay(trashPickupId: number | undefined): string {
   if (!trashPickupId) return '';
   
   const dayMap: { [key: number]: string } = {
+    [TrashDays.None]: 'None',
     [TrashDays.Monday]: 'Monday',
     [TrashDays.Tuesday]: 'Tuesday',
     [TrashDays.Wednesday]: 'Wednesday',
@@ -266,8 +268,9 @@ export enum BedSizeType
     Queen = 2,
     Double = 3,
     Twin = 4,
-    DayBed = 5,
-    SofaBed = 6
+    TwoTwins = 5,
+    DayBed = 6,
+    SofaBed = 7
 }
 
 export function getBedSizeType(bedSizeTypeId: number | undefined): string {
@@ -278,6 +281,7 @@ export function getBedSizeType(bedSizeTypeId: number | undefined): string {
     [BedSizeType.Queen]: 'Queen',
     [BedSizeType.Double]: 'Double',
     [BedSizeType.Twin]: 'Twin',
+    [BedSizeType.TwoTwins]: 'Two Twins',
     [BedSizeType.DayBed]: 'Day Bed',
     [BedSizeType.SofaBed]: 'Sofa Bed'
   };

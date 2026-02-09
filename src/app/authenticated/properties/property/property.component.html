@@ -452,41 +452,49 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Features & Security</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-                <div class="col-span-4">
-                  <div class="features-container">
-                  <div class="grid grid-cols-4 gap-4 items-start features-content">
-                    <mat-checkbox formControlName="unfurnished">Unfurnished</mat-checkbox>
-                    <mat-checkbox formControlName="heating">Heating</mat-checkbox>
-                    <mat-checkbox formControlName="ac">AC</mat-checkbox>
-                    <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
-                    <mat-checkbox formControlName="security">Security</mat-checkbox>
-                    <mat-checkbox formControlName="gated">Gated</mat-checkbox>
-                    <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
-                    <mat-checkbox formControlName="smoking">Smoking</mat-checkbox>
-                  </div>
-                  <div class="flex items-center gap-3 mt-4 flex-wrap">
-                    <mat-checkbox formControlName="parking">Parking</mat-checkbox>
-                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
-                      <mat-label>Parking Notes</mat-label>
-                      <input matInput formControlName="parkingNotes">
-                    </mat-form-field>
-                    <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
-                    <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 12ch; min-width: 12ch;">
-                      <mat-label>Code</mat-label>
-                      <input matInput formControlName="alarmCode" maxlength="6">
-                    </mat-form-field>
-                    <mat-checkbox formControlName="keypadAccess">Keypad Access</mat-checkbox>
-                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
-                      <mat-label>Master Key Code</mat-label>
-                      <input matInput formControlName="masterKeyCode" maxlength="10">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
-                      <mat-label>Tenant Key Code</mat-label>
-                      <input matInput formControlName="tenantKeyCode" maxlength="10">
-                    </mat-form-field>
-                  </div>
-                  </div>
+              <div class="features-container">
+                <!-- Line 1: Unfurnished, Heating, AC, Elevator, Security, Gated -->
+                <div class="flex items-center justify-between mb-4" style="padding-right: 46px;">
+                  <mat-checkbox formControlName="unfurnished">Unfurnished</mat-checkbox>
+                  <mat-checkbox formControlName="heating">Heating</mat-checkbox>
+                  <mat-checkbox formControlName="ac">AC</mat-checkbox>
+                  <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
+                  <mat-checkbox formControlName="security">Security</mat-checkbox>
+                  <mat-checkbox formControlName="gated">Gated</mat-checkbox>
+                </div>
+
+                <!-- Line 2: Alarm, Code, Keypad Access, Master Key Code, Tenant Key Code -->
+                <div class="flex items-center gap-4 mb-4">
+                  <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
+                  <mat-form-field appearance="outline" style="width: 18ch; min-width: 18ch;">
+                    <mat-label>Code</mat-label>
+                    <input matInput formControlName="alarmCode" maxlength="6">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="keypadAccess">Keypad Access</mat-checkbox>
+                  <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                    <mat-label>Master Key Code</mat-label>
+                    <input matInput formControlName="masterKeyCode" maxlength="10">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                    <mat-label>Tenant Key Code</mat-label>
+                    <input matInput formControlName="tenantKeyCode" maxlength="10">
+                  </mat-form-field>
+                </div>
+
+                <!-- Line 3: Pets Allowed, DogsOkay, CatsOkay, Pound Limit, Parking, Parking Notes -->
+                <div class="flex items-center gap-4 mb-4">
+                  <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
+                  <mat-checkbox formControlName="dogsOkay">DogsOkay</mat-checkbox>
+                  <mat-checkbox formControlName="catsOkay">CatsOkay</mat-checkbox>
+                  <mat-form-field appearance="outline" class="flex-1" style="min-width: 15ch;">
+                    <mat-label>Pound Limit / Notes</mat-label>
+                    <input matInput formControlName="poundLimit">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="parking">Parking</mat-checkbox>
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Parking Notes</mat-label>
+                    <input matInput formControlName="parkingNotes">
+                  </mat-form-field>
                 </div>
               </div>
             </mat-expansion-panel>

@@ -60,6 +60,9 @@ export interface PropertyRequest {
   security: boolean;
   gated: boolean;
   petsAllowed: boolean;
+  dogsOkay: boolean;
+  catsOkay: boolean;
+  poundLimit: string;
   smoking: boolean;
   parking: boolean;
   parkingnotes?: string;
@@ -172,6 +175,9 @@ export interface PropertyResponse {
   security: boolean;
   gated: boolean;
   petsAllowed: boolean;
+  dogsOkay: boolean;
+  catsOkay: boolean;
+  poundLimit: string;
   smoking: boolean;
   parking: boolean;
   parkingNotes?: string;
