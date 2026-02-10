@@ -17,6 +17,7 @@ export interface VendorRequest {
   logoPath?: string; // File path (e.g., '/images/logos/vendor-logo.png')
   notes?: string;
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -38,6 +39,7 @@ export interface VendorResponse {
   logoPath?: string; // File path (e.g., '/images/logos/vendor-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   notes?: string;
+  isInternational: boolean;
   isActive: boolean;
   createdOn: string;
   createdBy: string;
@@ -55,6 +57,7 @@ export interface VendorListDisplay {
   state?: string;
   phone?: string;
   website?: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 

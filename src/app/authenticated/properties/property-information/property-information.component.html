@@ -145,10 +145,10 @@
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>After Hours Phone</mat-label>
-              <input matInput formControlName="emergencyContactNumber" maxlength="14"
+              <input matInput formControlName="emergencyContactNumber" maxlength="20"
                 (blur)="formatPhone()"
                 (input)="onPhoneInput($event)"
-                placeholder="(555) 123-4567"
+                placeholder="(555) 123-4567 or +1 234 567 8900"
                 readonly class="readonly-field">
             </mat-form-field>
           </div>

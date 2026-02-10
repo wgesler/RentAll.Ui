@@ -113,7 +113,7 @@
                   <div class="col-span-4 flex gap-x-1.5">
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Phone</mat-label>
-                      <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
+                      <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
                         <mat-error>Phone is required</mat-error>
                       }
@@ -124,7 +124,7 @@
 
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Fax</mat-label>
-                      <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
+                      <input matInput formControlName="fax" maxlength="20" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
                         <mat-error>Invalid phone format</mat-error>
                       }
@@ -210,7 +210,7 @@
 
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Bank Phone</mat-label>
-                      <input matInput formControlName="bankPhone" maxlength="14" (blur)="formatBankPhone()" (input)="onBankPhoneInput($event)" placeholder="(555) 555-5555">
+                      <input matInput formControlName="bankPhone" maxlength="20" (blur)="formatBankPhone()" (input)="onBankPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('bankPhone')?.hasError('pattern') && form.get('bankPhone')?.touched) {
                         <mat-error>Invalid phone format</mat-error>
                       }

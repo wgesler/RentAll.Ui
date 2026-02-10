@@ -9,14 +9,15 @@ export interface CompanyRequest {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/company-logo.png')
   notes?: string;
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -30,14 +31,15 @@ export interface CompanyResponse {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/company-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   notes?: string;
+  isInternational: boolean;
   isActive: boolean;
   createdOn: string;
   createdBy: string;
@@ -51,10 +53,11 @@ export interface CompanyListDisplay {
   officeId: number;
   officeName: string;
   name: string;
-  city: string;
-  state: string;
+  city?: string;
+  state?: string;
   phone: string;
   website?: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 

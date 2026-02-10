@@ -16,6 +16,7 @@ export interface ContactRequest {
   phone: string;
   email: string;
   notes?: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -39,6 +40,7 @@ export interface ContactResponse {
   phone: string;
   email: string;
   notes?: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -52,6 +54,7 @@ export interface ContactListDisplay {
   entityTypeId?: number; // Add entityTypeId for filtering
   phone: string;
   email: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 

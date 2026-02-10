@@ -81,8 +81,8 @@
 
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>HOA Phone</mat-label>
-                  <input matInput formControlName="hoaPhone" placeholder="(555) 555-5555"
-                    maxlength="14" (blur)="formatHoaPhone()" (input)="onHoaPhoneInput($event)">
+                  <input matInput formControlName="hoaPhone" placeholder="(555) 555-5555 or +1 234 567 8900"
+                    maxlength="20" (blur)="formatHoaPhone()" (input)="onHoaPhoneInput($event)">
                   @if (form.get('hoaPhone')?.hasError('pattern') && form.get('hoaPhone')?.touched) {
                     <mat-error>Invalid phone format</mat-error>
                   }

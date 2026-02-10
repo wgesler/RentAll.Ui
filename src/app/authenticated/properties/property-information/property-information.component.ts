@@ -142,7 +142,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       keyReturn: this.copiedPropertyInformation.keyReturn || '',
       concierge: this.copiedPropertyInformation.concierge || '',
       emergencyContact: this.copiedPropertyInformation.emergencyContact || '',
-      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber || '',
+      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyContactNumber) : '',
       additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
     });
     this.formatPhone();
@@ -173,7 +173,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
             keyReturn: response.keyReturn || '',
             concierge: response.concierge || '',
             emergencyContact: response.emergencyContact || '',
-            emergencyContactNumber: response.emergencyContactNumber || '',
+            emergencyContactNumber: response.emergencyContactNumber ? this.formatterService.phoneNumber(response.emergencyContactNumber) : '',
             additionalNotes: response.additionalNotes || ''
           });
           this.formatPhone();
@@ -220,7 +220,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       keyReturn: formValue.keyReturn || undefined,
       concierge: formValue.concierge || undefined,
       emergencyContact: formValue.emergencyContact || undefined,
-      emergencyContactNumber: formValue.emergencyContactNumber || undefined,
+      emergencyContactNumber: formValue.emergencyContactNumber ? this.formatterService.stripPhoneFormatting(formValue.emergencyContactNumber) : undefined,
       additionalNotes: formValue.additionalNotes || undefined
     };
 
@@ -398,7 +398,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       patch.emergencyContact = maintenanceEmail;
     }
     if (!this.form.get('emergencyContactNumber')?.value && afterHoursPhone) {
-      patch.emergencyContactNumber = afterHoursPhone;
+      patch.emergencyContactNumber = this.formatterService.phoneNumber(afterHoursPhone);
     }
 
     if (Object.keys(patch).length) {

@@ -216,17 +216,19 @@ export class VendorComponent implements OnInit, OnDestroy {
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const user = this.authService.getUser();
 
+    const isInternational = formValue.isInternational || false;
     const vendorRequest: VendorRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
       address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2 || '',
-      suite: formValue.suite || '',
-      city: (formValue.city || '').trim(),
-      state: (formValue.state || '').trim(),
-      zip: (formValue.zip || '').trim(),
-      website: formValue.website || '',
-      notes: formValue.notes || '',
+      address2: formValue.address2 || undefined,
+      suite: formValue.suite || undefined,
+      city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
+      state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
+      zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
+      website: formValue.website || undefined,
+      notes: formValue.notes || undefined,
+      isInternational: isInternational,
       phone: phoneDigits,
       officeId: formValue.officeId || undefined,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
@@ -352,12 +354,36 @@ export class VendorComponent implements OnInit, OnDestroy {
       city: new FormControl(''),
       state: new FormControl(''),
       zip: new FormControl(''),
-      phone: new FormControl('', [Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
       officeId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      isInternational: new FormControl(false),
       isActive: new FormControl(true)
+    });
+
+    // Setup conditional validation for international addresses
+    this.setupConditionalFields();
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        // Note: City, State, Zip are optional for vendors, so no validators needed
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -376,6 +402,7 @@ export class VendorComponent implements OnInit, OnDestroy {
         website: this.vendor.website || '',
         notes: this.vendor.notes || '',
         officeId: this.vendor.officeId || null,
+        isInternational: this.vendor.isInternational || false,
         isActive: this.vendor.isActive // Convert number to boolean for checkbox
       });
     }

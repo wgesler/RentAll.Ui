@@ -7,14 +7,15 @@ export interface OrganizationRequest {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -25,14 +26,15 @@ export interface OrganizationResponse {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
+  isInternational: boolean;
   isActive: boolean;
 }
 
@@ -43,11 +45,12 @@ export interface OrganizationListDisplay {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   website?: string;
+  isInternational: boolean;
   isActive: boolean;
 }
 

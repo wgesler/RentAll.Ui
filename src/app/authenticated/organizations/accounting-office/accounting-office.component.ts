@@ -319,8 +319,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
-      fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       website: new FormControl(''),
       bankName: new FormControl('', [Validators.required]),
@@ -328,7 +328,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAccount: new FormControl('', [Validators.required]),
       bankSwiftCode: new FormControl('', [Validators.required]),
       bankAddress: new FormControl('', [Validators.required]),
-      bankPhone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
+      bankPhone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });

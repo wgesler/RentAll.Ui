@@ -133,47 +133,103 @@ export class FormatterService {
 
     
     /*******************  Phone Numbers *******************/
-    // Formats a phone number to (XXX) XXX-XXXX
+    // Formats a phone number - supports US (10 digits) and international (up to 15 digits)
+    // US format: (XXX) XXX-XXXX
+    // International format: Returns exactly as stored (no auto-formatting)
     phoneNumber(phone?: string): string {
         if (!phone) return phone || '';
-        // Remove all non-digits
+        const trimmed = phone.trim();
+        
+        // If starts with +, return as-is (international numbers stored exactly as typed)
+        if (trimmed.startsWith('+')) {
+            return phone;
+        }
+        
+        // For US numbers (10 digits), format as (XXX) XXX-XXXX
         const digits = phone.replace(/\D/g, '');
         if (digits.length === 10) {
             return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
         }
+        
+        // Return original if it doesn't match standard formats
         return phone;
     }
 
     // Removes all non-digit characters from a phone number string
+    // For international numbers (starting with +), preserves the original format exactly as typed
+    // For US numbers, strips formatting to digits only
     stripPhoneFormatting(phone: string): string {
         if (!phone) return '';
+        const trimmed = phone.trim();
+        
+        // If starts with +, return exactly as typed (international numbers stored as-is)
+        if (trimmed.startsWith('+')) {
+            return trimmed;
+        }
+        
+        // For US numbers, strip all formatting and return digits only
         return phone.replace(/\D/g, '');
     }
 
-    // Formats a phone number to (XXX) XXX-XXXX on blur (when user leaves the field)
+    // Formats a phone number on blur (when user leaves the field)
+    // Only formats US numbers (10 digits). International numbers (starting with +) are stored exactly as typed
     formatPhoneControl(control: AbstractControl | null): void {
         if (control && control.value) {
-            const phone = this.stripPhoneFormatting(control.value);
-            if (phone.length === 10) {
-                const formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
+            const value = control.value.toString().trim();
+            
+            // If starts with +, don't format - store exactly as typed
+            if (value.startsWith('+')) {
+                control.setValue(value, { emitEvent: false });
+                return;
+            }
+            
+            // For US numbers (10 digits), format as (XXX) XXX-XXXX
+            const digits = value.replace(/\D/g, '');
+            if (digits.length === 10) {
+                const formatted = `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
                 control.setValue(formatted, { emitEvent: false });
             }
         }
     }
 
     // Handles phone number input formatting in real-time as user types
+    // For US numbers (10 digits): auto-formats as (XXX) XXX-XXXX
+    // For international numbers (starting with +): allows free-form input (digits, spaces, +) - stores exactly as typed
     formatPhoneInput(event: Event, control: AbstractControl | null): void {
         const input = event.target as HTMLInputElement;
-        const phone = this.stripPhoneFormatting(input.value);
-        if (phone.length <= 10) {
-            let formatted = phone;
-            if (phone.length > 6) {
-                formatted = `(${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}`;
-            } else if (phone.length > 3) {
-                formatted = `(${phone.substring(0, 3)}) ${phone.substring(3)}`;
-            } else if (phone.length > 0) {
-                formatted = `(${phone}`;
+        const value = input.value;
+        const trimmed = value.trim();
+        const hasPlus = trimmed.startsWith('+');
+        
+        // If starts with +, allow free-form input (digits, spaces, +) - don't auto-format
+        if (hasPlus) {
+            // Allow only digits, spaces, and + character
+            const cleaned = value.replace(/[^0-9+\s]/g, '');
+            // Ensure + is only at the start
+            const parts = cleaned.split('+');
+            const finalValue = parts.length > 1 ? '+' + parts.slice(1).join('').replace(/\+/g, '') : cleaned;
+            
+            input.value = finalValue;
+            if (control) {
+                control.setValue(finalValue, { emitEvent: false });
             }
+            return;
+        }
+        
+        // For US numbers (no +), auto-format as (XXX) XXX-XXXX
+        const digits = value.replace(/\D/g, '');
+        
+        if (digits.length <= 10) {
+            let formatted = '';
+            if (digits.length > 6) {
+                formatted = `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+            } else if (digits.length > 3) {
+                formatted = `(${digits.substring(0, 3)}) ${digits.substring(3)}`;
+            } else if (digits.length > 0) {
+                formatted = `(${digits}`;
+            }
+            
+            input.value = formatted;
             if (control) {
                 control.setValue(formatted, { emitEvent: false });
             }

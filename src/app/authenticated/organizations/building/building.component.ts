@@ -197,7 +197,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       officeId: new FormControl(null, [Validators.required]),
       hoaName: new FormControl(''),
       hoaPhone: new FormControl('', [
-        Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)
+        Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)
       ]),
       hoaEmail: new FormControl('', [Validators.email]),
       isActive: new FormControl(true)

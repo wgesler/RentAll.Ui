@@ -483,7 +483,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
       propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
-      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
+      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),

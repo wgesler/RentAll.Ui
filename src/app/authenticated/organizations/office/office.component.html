@@ -28,7 +28,10 @@
       </div>
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveOffice()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-end gap-4" style="padding-right: 5px;">
+              <mat-checkbox formControlName="isInternational" color="primary">
+                Is International
+              </mat-checkbox>
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
@@ -59,8 +62,9 @@
                     </mat-form-field>
                   </div>
 
-                  <div class="col-span-4 flex gap-x-1.5">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  @if (form.get('isInternational')?.value) {
+                    <!-- International address layout: Address 1 and Address 2 on separate lines -->
+                    <mat-form-field appearance="outline" class="col-span-4">
                       <mat-label>Address 1</mat-label>
                       <input matInput formControlName="address1" required>
                       @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
@@ -68,50 +72,67 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-4">
                       <mat-label>Address 2</mat-label>
                       <input matInput formControlName="address2">
                     </mat-form-field>
+                  } @else {
+                    <!-- US address layout: Address 1, Address 2, Suite on same line -->
+                    <div class="col-span-4 flex gap-x-1.5">
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>Address 1</mat-label>
+                        <input matInput formControlName="address1" required>
+                        @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
+                          <mat-error>Address 1 is required</mat-error>
+                        }
+                      </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
-                      <mat-label>Suite</mat-label>
-                      <input matInput formControlName="suite">
-                    </mat-form-field>
-                  </div>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>Address 2</mat-label>
+                        <input matInput formControlName="address2">
+                      </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="col-span-2">
-                    <mat-label>City</mat-label>
-                    <input matInput formControlName="city" required>
-                    @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
-                      <mat-error>City is required</mat-error>
-                    }
-                  </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1">
+                        <mat-label>Suite</mat-label>
+                        <input matInput formControlName="suite">
+                      </mat-form-field>
+                    </div>
 
-                  <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>State</mat-label>
-                    <mat-select formControlName="state" required>
-                      <mat-option value="">Select State</mat-option>
-                      @for (state of states; track state) {
-                        <mat-option [value]="state">{{ state }}</mat-option>
+                    <!-- City, State, Zip - only show for non-international addresses -->
+                    <mat-form-field appearance="outline" class="col-span-2">
+                      <mat-label>City</mat-label>
+                      <input matInput formControlName="city" required>
+                      @if (form.get('city')?.hasError('required') && form.get('city')?.touched) {
+                        <mat-error>City is required</mat-error>
                       }
-                    </mat-select>
-                    @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
-                      <mat-error>State is required</mat-error>
-                    }
-                  </mat-form-field>
+                    </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Zip</mat-label>
-                    <input matInput formControlName="zip" required>
-                    @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
-                      <mat-error>Zip is required</mat-error>
-                    }
-                  </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1">
+                      <mat-label>State</mat-label>
+                      <mat-select formControlName="state" required>
+                        <mat-option value="">Select State</mat-option>
+                        @for (state of states; track state) {
+                          <mat-option [value]="state">{{ state }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('state')?.hasError('required') && form.get('state')?.touched) {
+                        <mat-error>State is required</mat-error>
+                      }
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1">
+                      <mat-label>Zip</mat-label>
+                      <input matInput formControlName="zip" required>
+                      @if (form.get('zip')?.hasError('required') && form.get('zip')?.touched) {
+                        <mat-error>Zip is required</mat-error>
+                      }
+                    </mat-form-field>
+                  }
 
                   <div class="col-span-4 flex gap-x-1.5">
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Phone</mat-label>
-                      <input matInput formControlName="phone" required maxlength="14" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555">
+                      <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
                         <mat-error>Phone is required</mat-error>
                       }
@@ -122,7 +143,7 @@
 
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Fax</mat-label>
-                      <input matInput formControlName="fax" maxlength="14" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555">
+                      <input matInput formControlName="fax" maxlength="20" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
                         <mat-error>Invalid phone format</mat-error>
                       }
@@ -276,8 +297,8 @@
                   <!-- After Hours Phone -->
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>After Hours Phone</mat-label>
-                    <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555" required
-                      maxlength="14" (blur)="formatConfigPhone()" (input)="onConfigPhoneInput($event)" (focus)="selectAllOnFocus($event)">
+                    <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555 or +1 234 567 8900" required
+                      maxlength="20" (blur)="formatConfigPhone()" (input)="onConfigPhoneInput($event)" (focus)="selectAllOnFocus($event)">
                     @if (form.get('afterHoursPhone')?.hasError('required') && form.get('afterHoursPhone')?.touched) {
                       <mat-error>After Hours Phone is required</mat-error>
                     }

@@ -118,17 +118,19 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
 
+    const isInternational = formValue.isInternational || false;
     const organizationRequest: OrganizationRequest = {
       ...formValue,
       address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2 || '',
-      suite: formValue.suite || '',
-      city: (formValue.city || '').trim(),
-      state: (formValue.state || '').trim(),
-      zip: (formValue.zip || '').trim(),
-      website: formValue.website || '',
+      address2: formValue.address2 || undefined,
+      suite: formValue.suite || undefined,
+      city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
+      state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
+      zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
+      website: formValue.website || undefined,
       phone: phoneDigits,
       fax: faxDigits || undefined,
+      isInternational: isInternational,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
@@ -136,7 +138,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     };
 
     // Defensive guard: required fields must remain non-empty
-    if (!organizationRequest.address1 || !organizationRequest.city || !organizationRequest.state || !organizationRequest.zip || !organizationRequest.phone) {
+    // For international addresses, city, state, and zip are not required
+    if (!organizationRequest.address1 || !organizationRequest.phone || 
+        (!isInternational && (!organizationRequest.city || !organizationRequest.state || !organizationRequest.zip))) {
       this.isSubmitting = false;
       this.form.markAllAsTouched();
       return;
@@ -180,7 +184,33 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       fax: new FormControl(''),
       website: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      isInternational: new FormControl(false),
       isActive: new FormControl(true)
+    });
+
+    // Setup conditional validation for international addresses
+    this.setupConditionalFields();
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        cityControl?.setValidators([Validators.required]);
+        stateControl?.setValidators([Validators.required]);
+        zipControl?.setValidators([Validators.required]);
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -197,6 +227,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.organization.phone),
         fax: this.formatterService.phoneNumber(this.organization.fax) || '',
         website: this.organization.website || '',
+        isInternational: this.organization.isInternational || false,
         isActive: this.organization.isActive
       });
     }

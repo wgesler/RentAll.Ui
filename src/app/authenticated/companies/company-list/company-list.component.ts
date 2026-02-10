@@ -1,4 +1,4 @@
-import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
+import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter, NgZone } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router, ActivatedRoute } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
@@ -66,7 +66,8 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private route: ActivatedRoute) {
+    private route: ActivatedRoute,
+    private ngZone: NgZone) {
   }
 
   //#region Company-List
@@ -147,8 +148,10 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    this.ngZone.run(() => {
+      this.router.navigate([url], {
+        queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+      });
     });
   }
 
@@ -184,8 +187,10 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    this.ngZone.run(() => {
+      this.router.navigate([url], {
+        queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+      });
     });
   }
 
@@ -208,8 +213,10 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: queryParams
+    this.ngZone.run(() => {
+      this.router.navigate([url], {
+        queryParams: queryParams
+      });
     });
   }
   //#endregion

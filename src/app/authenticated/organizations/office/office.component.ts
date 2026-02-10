@@ -158,17 +158,19 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
 
+    const isInternational = formValue.isInternational || false;
     const officeRequest: OfficeRequest = {
       organizationId: this.organizationId || user?.organizationId || '',
       officeCode: formValue.officeCode,
       name: formValue.name,
       address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2 || '',
-      suite: formValue.suite || '',
-      city: (formValue.city || '').trim(),
-      state: (formValue.state || '').trim(),
-      zip: (formValue.zip || '').trim(),
-      website: formValue.website || '',
+      address2: formValue.address2 || undefined,
+      suite: formValue.suite || undefined,
+      city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
+      state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
+      zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
+      isInternational: isInternational,
+      website: formValue.website || undefined,
       phone: phoneDigits,
       fax: faxDigits || undefined,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
@@ -270,14 +272,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
-      fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4})?$/)]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      fax: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       website: new FormControl(''),
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      isInternational: new FormControl(false),
       isActive: new FormControl(true),
       // Configuration fields
       maintenanceEmail: new FormControl<string>('', [Validators.required, Validators.email]),
-      afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      afterHoursPhone: new FormControl<string>('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       afterHoursInstructions: new FormControl<string>(''),
       defaultDeposit: new FormControl<string>('0.00', [Validators.required]),
       defaultSdw: new FormControl<string>('0.00', [Validators.required]),
@@ -297,6 +300,31 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
       parkingHighEnd: new FormControl<string>('0.00', [Validators.required])
     });
+
+    // Setup conditional validation for international addresses
+    this.setupConditionalFields();
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        cityControl?.setValidators([Validators.required]);
+        stateControl?.setValidators([Validators.required]);
+        zipControl?.setValidators([Validators.required]);
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
   populateForm(): void {
@@ -315,6 +343,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           phone: this.formatterService.phoneNumber(this.office.phone),
           fax: this.formatterService.phoneNumber(this.office.fax) || '',
           website: this.office.website || '',
+          isInternational: this.office.isInternational || false,
           isActive: this.office.isActive
         });
         // Populate configuration fields from office response
@@ -347,6 +376,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Logo methods
   upload(event: Event): void {
+    if (!this.form) return;
     this.isUploadingLogo = true;
     const input = event.target as HTMLInputElement;
     if (input.files?.length) {
@@ -354,7 +384,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
       this.fileName = file.name;
       this.form.patchValue({ fileUpload: file });
-      this.form.get('fileUpload').updateValueAndValidity();
+      this.form.get('fileUpload')?.updateValueAndValidity();
       this.logoPath = null; // Clear existing logo path when new file is selected
       this.hasNewFileUpload = true; // Mark that this is a new file upload
 
@@ -363,11 +393,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       fileReader.onload = (): void => {
         // readAsDataURL returns a data URL (e.g., "data:image/png;base64,iVBORw0KG...")
         const dataUrl = fileReader.result as string;
-        this.fileDetails.dataUrl = dataUrl;
-        // Extract base64 string from data URL for API upload
-        // Format: "data:image/png;base64,iVBORw0KG..." -> extract part after comma
-        const base64String = dataUrl.split(',')[1];
-        this.fileDetails.file = base64String;
+        if (this.fileDetails) {
+          this.fileDetails.dataUrl = dataUrl;
+          // Extract base64 string from data URL for API upload
+          // Format: "data:image/png;base64,iVBORw0KG..." -> extract part after comma
+          const base64String = dataUrl.split(',')[1];
+          this.fileDetails.file = base64String;
+        }
         this.isUploadingLogo = false;
       };
       fileReader.readAsDataURL(file);
@@ -375,12 +407,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   removeLogo(): void {
+    if (!this.form) return;
     this.logoPath = null;
     this.fileName = null;
     this.fileDetails = null;
     this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
-    this.form.get('fileUpload').updateValueAndValidity();
+    this.form.get('fileUpload')?.updateValueAndValidity();
     // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
   

@@ -86,17 +86,22 @@ export class MappingService {
 
   mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
     return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
+      // Treat as international if isInternational flag is true OR if address2 has value and city is null/empty
+      const isInternational = Boolean(o.isInternational) || (Boolean(o.address2) && (!o.city || o.city.trim() === ''));
+      // For international addresses, use address2 for city field; otherwise use city
+      const cityValue = isInternational ? (o.address2 || '') : (o.city || '');
+      
       return {
         companyId: o.companyId,
         companyCode: o.companyCode,
         officeId: o.officeId,
         officeName: o.officeName,
         name: o.name,
-        city: o.city,
+        city: cityValue,
         state: o.state,
-        zip: o.zip,
         phone: this.formatter.phoneNumber(o.phone),
         website: o.website,
+        isInternational: isInternational,
         isActive: o.isActive,
       };
     });
@@ -114,6 +119,7 @@ export class MappingService {
         entityTypeId: o.entityTypeId, // Include entityTypeId for filtering
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
+        isInternational: o.isInternational || false,
         isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
       };
     });
@@ -204,27 +210,33 @@ export class MappingService {
   }
 
   mapOffices(offices: OfficeResponse[]): OfficeListDisplay[] {
-    return offices.map<OfficeListDisplay>((o: OfficeResponse) => ({
-      officeId: o.officeId,
-      officeCode: o.officeCode,
-      name: o.name,
-      address: o.city + ',  ' + o.state, 
-      address1: o.address1,
-      address2: o.address2,
-      suite: o.suite,
-      city: o.city,
-      state: o.state,
-      zip: o.zip,
-      phone: this.formatter.phoneNumber(o.phone),
-      fax: this.formatter.phoneNumber(o.fax),
-      website: o.website,
-      isActive: o.isActive,
-      // Configuration display fields
-      maintenanceEmail: o.maintenanceEmail,
-      afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
-      defaultDeposit: o.defaultDeposit || 0,
-      defaultSdw: o.defaultSdw || 0
-    }));
+    return offices.map<OfficeListDisplay>((o: OfficeResponse) => {
+      const isInternational = o.isInternational || false;
+      const cityValue = isInternational ? o.address2 : o.city;
+      const addressValue = cityValue && o.state ? cityValue + ',  ' + o.state : (cityValue || o.state || '');
+      return {
+        officeId: o.officeId,
+        officeCode: o.officeCode,
+        name: o.name,
+        address: addressValue,
+        address1: o.address1,
+        address2: o.address2,
+        suite: o.suite,
+        city: cityValue,
+        state: o.state,
+        zip: o.zip,
+        phone: this.formatter.phoneNumber(o.phone),
+        fax: this.formatter.phoneNumber(o.fax),
+        website: o.website,
+        isInternational: isInternational,
+        isActive: o.isActive,
+        // Configuration display fields
+        maintenanceEmail: o.maintenanceEmail,
+        afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
+        defaultDeposit: o.defaultDeposit || 0,
+        defaultSdw: o.defaultSdw || 0
+      };
+    });
   }
 
   mapOfficesToDropdown(offices: OfficeResponse[]): { value: number, name: string }[] {
@@ -256,20 +268,24 @@ export class MappingService {
   }
 
   mapOrganizations(organizations: OrganizationResponse[]): OrganizationListDisplay[] {
-    return organizations.map<OrganizationListDisplay>((org: OrganizationResponse) => ({
-      organizationId: org.organizationId,
-      organizationCode: org.organizationCode,
-      name: org.name,
-      address1: org.address1,
-      address2: org.address2,
-      suite: org.suite,
-      city: org.city,
-      state: org.state,
-      zip: org.zip,
-      phone: this.formatter.phoneNumber(org.phone),
-      website: org.website,
-      isActive: org.isActive
-    }));
+    return organizations.map<OrganizationListDisplay>((org: OrganizationResponse) => {
+      const isInternational = org.isInternational || false;
+      return {
+        organizationId: org.organizationId,
+        organizationCode: org.organizationCode,
+        name: org.name,
+        address1: org.address1,
+        address2: org.address2,
+        suite: org.suite,
+        city: isInternational ? org.address2 : org.city,
+        state: org.state,
+        zip: org.zip,
+        phone: this.formatter.phoneNumber(org.phone),
+        website: org.website,
+        isInternational: isInternational,
+        isActive: org.isActive
+      };
+    });
   }
 
   mapProperties(properties: PropertyListResponse[]): PropertyListDisplay[] {
@@ -353,16 +369,18 @@ export class MappingService {
 
   mapVendors(vendors: VendorResponse[]): VendorListDisplay[] {
     return vendors.map<VendorListDisplay>((o: VendorResponse) => {
-     return {
+      const isInternational = o.isInternational || false;
+      return {
         vendorId: o.vendorId,
         vendorCode: o.vendorCode,
         officeId: o.officeId,
         officeName: o.officeName,
         name: o.name,
-        city: o.city,
+        city: isInternational ? o.address2 : o.city,
         state: o.state,
         phone: this.formatter.phoneNumber(o.phone),
         website: o.website,
+        isInternational: isInternational,
         isActive: o.isActive,
       };
     });

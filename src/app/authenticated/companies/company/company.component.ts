@@ -147,7 +147,10 @@ export class CompanyComponent implements OnInit, OnDestroy {
           this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
         this.buildForm();
-        this.populateForm();
+        // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
+        setTimeout(() => {
+          this.populateForm();
+        }, 0);
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -178,14 +181,17 @@ export class CompanyComponent implements OnInit, OnDestroy {
         this.company = response;
         // Populate form with all copied values
         if (this.company && this.form) {
-          this.populateForm();
-          // Clear the company code since this is a new company
-          this.form.get('companyCode')?.setValue('');
           // Don't copy logo - user should upload a new one if needed
           this.fileDetails = null;
           this.logoPath = null;
           this.originalLogoPath = null;
           this.hasNewFileUpload = false;
+          // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
+          setTimeout(() => {
+            this.populateForm();
+            // Clear the company code since this is a new company
+            this.form.get('companyCode')?.setValue('');
+          }, 0);
         }
         // Clear the company ID reference after populating
         this.company = null;
@@ -215,18 +221,20 @@ export class CompanyComponent implements OnInit, OnDestroy {
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const user = this.authService.getUser();
 
+    const isInternational = formValue.isInternational || false;
     const companyRequest: CompanyRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
       officeId: formValue.officeId || undefined,
       address1: (formValue.address1 || '').trim(),
-      address2: formValue.address2 || '',
-      suite: formValue.suite || '',
-      city: (formValue.city || '').trim(),
-      state: (formValue.state || '').trim(),
-      zip: (formValue.zip || '').trim(),
-      website: formValue.website || '',
-      notes: formValue.notes || '',
+      address2: formValue.address2 || undefined,
+      suite: formValue.suite || undefined,
+      city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
+      state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
+      zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
+      website: formValue.website || undefined,
+      notes: formValue.notes || undefined,
+      isInternational: isInternational,
       phone: phoneDigits,
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
@@ -235,7 +243,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
     };
 
     // Defensive guard: required fields must remain non-empty
-    if (!companyRequest.address1 || !companyRequest.city || !companyRequest.state || !companyRequest.zip || !companyRequest.phone) {
+    // For international addresses, city, state, and zip are not required
+    if (!companyRequest.address1 || !companyRequest.phone || 
+        (!isInternational && (!companyRequest.city || !companyRequest.state || !companyRequest.zip))) {
       this.isSubmitting = false;
       this.form.markAllAsTouched();
       return;
@@ -361,11 +371,37 @@ export class CompanyComponent implements OnInit, OnDestroy {
       city: new FormControl('', [Validators.required]),
       state: new FormControl('', [Validators.required]),
       zip: new FormControl('', [Validators.required]),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       website: new FormControl(''),
       notes: new FormControl(''),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      isInternational: new FormControl(false),
       isActive: new FormControl(true)
+    });
+
+    // Setup conditional validation for international addresses
+    this.setupConditionalFields();
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        cityControl?.setValidators([Validators.required]);
+        stateControl?.setValidators([Validators.required]);
+        zipControl?.setValidators([Validators.required]);
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -384,6 +420,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.company.phone),
         website: this.company.website || '',
         notes: this.company.notes || '',
+        isInternational: this.company.isInternational || false,
         isActive: this.company.isActive // Convert number to boolean for checkbox
       });
     }

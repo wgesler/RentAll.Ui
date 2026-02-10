@@ -240,6 +240,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       entityId = formValue.vendorId;
     }
 
+    const isInternational = formValue.isInternational || false;
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
@@ -247,13 +248,14 @@ export class ContactComponent implements OnInit, OnDestroy {
       entityId: entityId,
       officeId: formValue.officeId || undefined,
       address1: formValue.address1 || '',
-      address2: formValue.address2 || '',
-      city: formValue.city || '',
-      state: formValue.state || '',
-      zip: formValue.zip || '',
+      address2: formValue.address2 || undefined,
+      city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
+      state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
+      zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: this.formatterService.stripPhoneFormatting(formValue.phone),
-      notes: formValue.notes || '',
-      companyId: formValue.companyId || undefined
+      notes: formValue.notes || undefined,
+      companyId: formValue.companyId || undefined,
+      isInternational: isInternational
     };
     // Remove contactTypeId and vendorId from request since we're using entityTypeId and entityId
     delete (contactRequest as any).contactTypeId;
@@ -310,7 +312,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       officeId: new FormControl(null),
       companyId: new FormControl(null),
       vendorId: new FormControl(null),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/)]),
+      phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
       address2: new FormControl(''),
@@ -318,8 +320,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: new FormControl(''),
       zip: new FormControl(''),
       notes: new FormControl(''),
+      isInternational: new FormControl(false),
       isActive: new FormControl(true)
     });
+
+    // Setup conditional validation for international addresses
+    this.setupConditionalFields();
 
     // Show/hide company/vendor dropdown based on contact type
     this.form.get('contactTypeId')?.valueChanges.subscribe(contactTypeId => {
@@ -346,6 +352,26 @@ export class ContactComponent implements OnInit, OnDestroy {
         vendorIdControl?.setValue(null);
         vendorIdControl?.updateValueAndValidity();
       }
+    });
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        // Note: City, State, Zip are optional for contacts, so no validators needed
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -385,6 +411,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.contact.phone),
         email: this.contact.email,
         notes: this.contact.notes || '',
+        isInternational: this.contact.isInternational || false,
         isActive: isActiveValue
       });
 

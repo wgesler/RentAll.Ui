@@ -8,14 +8,15 @@ export interface OfficeRequest {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
+  isInternational: boolean;
   isActive: boolean;
   // Configuration fields
   maintenanceEmail?: string;
@@ -48,14 +49,15 @@ export interface OfficeResponse {
   address1: string;
   address2?: string;
   suite?: string;
-  city: string;
-  state: string;
-  zip: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   phone: string;
   fax?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
+  isInternational: boolean;
   isActive: boolean;
   // Configuration fields
   maintenanceEmail?: string;
@@ -92,6 +94,7 @@ export interface OfficeListDisplay {
   afterHoursPhone?: string;
   defaultDeposit: number;
   defaultSdw: number;
+  isInternational: boolean;
   isActive: boolean;
 }
 
