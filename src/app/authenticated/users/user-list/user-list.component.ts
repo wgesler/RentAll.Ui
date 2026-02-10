@@ -1,9 +1,10 @@
 import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { Router } from '@angular/router';
+import { NgZone } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { UserResponse, UserListDisplay } from '../models/user.model';
-import { UserGroups } from '../models/user-type';
+import { UserGroups } from '../models/user-enums';
 import { UserService } from '../services/user.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -48,6 +49,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     private organizationService: OrganizationService,
     public toastr: ToastrService,
     public router: Router,
+    private ngZone: NgZone,
     public mappingService: MappingService) {
   }
 
@@ -130,7 +132,9 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
   
   goToUser(event: UserListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+    this.ngZone.run(() => {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+    });
   }
   //#endregion
 

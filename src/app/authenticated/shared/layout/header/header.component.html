@@ -21,7 +21,11 @@
         <button mat-button [matMenuTriggerFor]="menu" #menuTrigger="matMenuTrigger" aria-label="profile button" id="profile-button">
           <span class="flex justify-end items-center">
             <span class="mobile-hide text-xs font-semibold mr-2">{{ user?.firstName + ' ' + user?.lastName }}</span>
-            <mat-icon>person</mat-icon>
+            @if (profilePictureUrl) {
+              <img [src]="profilePictureUrl" alt="Profile Picture" class="profile-picture-avatar mr-1" />
+            } @else {
+              <mat-icon>person</mat-icon>
+            }
             <mat-icon>keyboard_arrow_down</mat-icon>
           </span>
         </button>

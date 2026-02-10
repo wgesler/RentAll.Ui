@@ -13,7 +13,7 @@ import { CommonMessage } from '../../enums/common-message.enum';
 import { StorageService } from '../../services/storage.service';
 import { RouterToken, RouterUrl } from '../../app.routes';
 import { StorageKey } from '../../enums/storage-keys.enum';
-import { UserGroups } from '../../authenticated/users/models/user-type';
+import { UserGroups, StartupPage } from '../../authenticated/users/models/user-enums';
 
 @Component({
   selector: 'app-login',
@@ -79,31 +79,39 @@ export class LoginComponent {
     this.authService.login(this.getLoginRequest()).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
         if (this.authService.getIsLoggedIn()) {
-          // Check if user is SuperAdmin and redirect to OrganizationList
           const user = this.authService.getUser();
-          if (user && user.userGroups) {
-            const userGroupNumbers = user.userGroups.map(group => {
-              if (typeof group === 'string') {
-                const enumKey = Object.keys(UserGroups).find(key => key === group);
-                if (enumKey) {
-                  return UserGroups[enumKey as keyof typeof UserGroups];
-                }
-                const num = parseInt(group, 10);
-                if (!isNaN(num)) {
-                  return num;
-                }
-              }
-              return typeof group === 'number' ? group : null;
-            }).filter(num => num !== null) as number[];
-
-            if (userGroupNumbers.includes(UserGroups.SuperAdmin)) {
-              this.router.navigateByUrl(RouterUrl.OrganizationList);
-            } else {
-              this.router.navigateByUrl(RouterToken.Auth);
-            }
-          } else {
-            this.router.navigateByUrl(RouterToken.Auth);
+          console.log('JWT User object:', user);
+          console.log('JWT startupPageId:', user?.startupPageId);
+          console.log('StartupPage enum values:', StartupPage);
+          
+          const startupPageId = user?.startupPageId ?? StartupPage.Dashboard;
+          console.log('Using startupPageId value:', startupPageId);
+          
+          // Redirect based on user's startup page preference
+          let redirectUrl: string;
+          switch (startupPageId) {
+            case StartupPage.Dashboard:
+              redirectUrl = RouterUrl.Dashboard;
+              break;
+            case StartupPage.Boards:
+              redirectUrl = RouterUrl.ReservationBoard;
+              break;
+            case StartupPage.Reservations:
+              redirectUrl = RouterUrl.ReservationList;
+              break;
+            case StartupPage.Properties:
+              redirectUrl = RouterUrl.PropertyList;
+              break;
+            case StartupPage.Accounting:
+              redirectUrl = RouterUrl.AccountingList;
+              break;
+            default:
+              redirectUrl = RouterUrl.Dashboard;
+              break;
           }
+          
+          console.log('Redirecting to:', redirectUrl);
+          this.router.navigateByUrl(redirectUrl);
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');
         }

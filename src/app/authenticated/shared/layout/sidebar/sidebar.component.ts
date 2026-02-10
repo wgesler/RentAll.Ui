@@ -8,7 +8,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { RouterToken } from '../../../../app.routes';
 import { HeaderComponent } from '../header/header.component';
 import { MatSidenav } from '@angular/material/sidenav';
-import { UserGroups, getUserGroup } from '../../../users/models/user-type';
+import { UserGroups, getUserGroup } from '../../../users/models/user-enums';
 
 @Component({
   selector: 'app-sidebar',
@@ -30,6 +30,13 @@ export class SidebarComponent implements OnInit {
   navItems: any[] = [];
   
   private allNavItems = [
+    {
+      icon: 'dashboard',
+      displayName: 'Dashboard',
+      url: RouterToken.Dashboard,
+      requiredRoles: [], // Available to all
+      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
+    },
     {
       icon: 'grid_view',
       displayName: 'Boards',

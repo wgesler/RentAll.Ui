@@ -246,3 +246,10 @@ mat-form-field input,
 ::ng-deep .mat-form-field-label .mat-form-field-required-marker {
   color: red !important;
 }
+
+// Standardize page headings to match dashboard size
+.content-card .bg-slate-200 .text-xl.font-medium,
+.content-card .bg-slate-300 .text-xl.font-medium {
+  font-size: 1.5rem !important;
+  font-weight: 500;
+}

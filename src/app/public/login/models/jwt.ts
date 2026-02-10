@@ -31,6 +31,12 @@ export class JwtContainer {
             }
         }
         
+        // Parse startupPageId - should be a number
+        const startupPageIdRaw = user.StartupPageId || user.startupPageId || user.StartupPage || user.startupPage;
+        const startupPageId = startupPageIdRaw !== undefined && startupPageIdRaw !== null 
+            ? (typeof startupPageIdRaw === 'number' ? startupPageIdRaw : parseInt(String(startupPageIdRaw), 10))
+            : 0;
+        
         this.user = new JwtUser(
             user.UserId || user.userId || '',
             user.OrganizationId || user.organizationId || '',
@@ -38,7 +44,7 @@ export class JwtContainer {
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
             userGroups,
-            officeAccess
+            startupPageId
         );
     }
 }
@@ -50,7 +56,8 @@ export class JwtUser {
     lastName: string;
     email: string;
     userGroups: string[];
-    officeAccess: number[];
+    startupPageId: number;
+  
 
 
     constructor(
@@ -60,7 +67,7 @@ export class JwtUser {
         lastName: string,
         email: string,
         userGroups: string[],
-        officeAccess: number[]
+        startupPageId: number
     ) {
         this.userId = userId;
         this.organizationId = organizationId;
@@ -68,6 +75,6 @@ export class JwtUser {
         this.lastName = lastName;
         this.email = email;
         this.userGroups = userGroups;
-        this.officeAccess = officeAccess;
+        this.startupPageId = startupPageId;
     }
 }

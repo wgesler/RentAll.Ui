@@ -46,7 +46,7 @@
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Organization</mat-label>
-                <mat-select formControlName="organizationId" [disabled]="selfEdit" required>
+                <mat-select formControlName="organizationId" required>
                   <mat-option value="">Select Organization</mat-option>
                   @for (org of organizations; track org.organizationId) {
                     <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
@@ -59,11 +59,14 @@
 
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Office Access</mat-label>
-                <mat-select formControlName="officeAccess" [disabled]="selfEdit" multiple>
+                <mat-select formControlName="officeAccess" multiple required>
                   @for (office of availableOffices; track office.value) {
                     <mat-option [value]="office.value">{{ office.name }}</mat-option>
                   }
                 </mat-select>
+                @if (form.get('officeAccess')?.hasError('required') && form.get('officeAccess')?.touched) {
+                  <mat-error>Office Access is required</mat-error>
+                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
@@ -105,22 +108,98 @@
                 }
               </mat-form-field>
 
-              @if (isAddMode || isDialog) {
+              <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Startup Page</mat-label>
+                <mat-select formControlName="startupPageId" required>
+                  @for (page of availableStartupPages; track page.value) {
+                    <mat-option [value]="page.value">{{ page.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
+                  <mat-error>Startup Page is required</mat-error>
+                }
+              </mat-form-field>
+
+              <!-- Profile Picture Section -->
+              <div class="col-span-4">
+                <mat-divider class="my-5"/>
+                <h3 class="pt-3">Profile Picture</h3>
+                <div class="flex justify-start image-input items-center mb-4">
+                  @if (fileDetails && fileDetails.file) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Profile Picture" title="Profile Picture" [src]="'data:' + fileDetails.contentType + ';base64,' + fileDetails.file" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      @if (fileName) {
+                        <span class="text-sm font-semibold">{{ fileName }}</span>
+                      }
+                      <div class="flex flex-col gap-2">
+                        <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                          Choose Image
+                        </button>
+                        <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" style="width: 100%;">
+                          Delete Image
+                        </button>
+                      </div>
+                    </div>
+                  } @else if (profilePath && !fileDetails) {
+                    <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Profile Picture" title="Profile Picture" [src]="profilePath" />
+                    <div class="flex flex-col gap-2 ml-4">
+                      <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                        Choose Image
+                      </button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" style="width: 100%;">
+                        Delete Image
+                      </button>
+                    </div>
+                  } @else {
+                    <button class="myfilebrowser mb-3 mr-2" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
+                      Choose Image
+                    </button>
+                  }
+                  <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="uploadProfilePicture($event)" style="display: none;" />
+                </div>
+                @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+                  <div class="image-file-error mb-4">
+                    Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+                  </div>
+                }
+                <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+              </div>
+
+              <!-- Password Section Toggle - Only show in edit mode, not add mode -->
+              @if (!isAddMode) {
+                <div class="col-span-4">
+                  <mat-divider class="my-5"/>
+                  <div class="flex items-center justify-end gap-3 mb-4">
+                    <mat-slide-toggle formControlName="changePassword" color="primary">
+                      Change Password
+                    </mat-slide-toggle>
+                  </div>
+                </div>
+              }
+
+              <!-- Password Section - Always shown in add mode, or when changePassword toggle is ON in edit mode -->
+              @if (isAddMode || form.get('changePassword')?.value) {
                 @if (selfEdit) {
                   <mat-form-field appearance="outline" class="col-span-4">
                     <mat-label>Current Password</mat-label>
-                    <input matInput [type]="hideCurrentPassword ? 'password' : 'text'" formControlName="currentPassword">
+                    <input matInput [type]="hideCurrentPassword ? 'password' : 'text'" formControlName="currentPassword" required>
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleCurrentPasswordVisibility()" [attr.aria-label]="'Hide current password'" [attr.aria-pressed]="hideCurrentPassword">
                       <mat-icon>{{hideCurrentPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
+                    @if (form.get('currentPassword')?.hasError('required') && form.get('currentPassword')?.touched) {
+                      <mat-error>Current Password is required</mat-error>
+                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>New Password</mat-label>
-                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password">
+                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" required>
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
                       <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
+                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+                      <mat-error>Password is required</mat-error>
+                    }
                     @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
                       <mat-error>Password must be at least 8 characters long</mat-error>
                     }
@@ -137,10 +216,13 @@
 
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>Confirm Password</mat-label>
-                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" (blur)="onConfirmPasswordBlur()">
+                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" required (blur)="onConfirmPasswordBlur()">
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
                       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
+                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched) {
+                      <mat-error>Confirm Password is required</mat-error>
+                    }
                     @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {
                       <mat-error>Password must be at least 8 characters long</mat-error>
                     }
@@ -157,11 +239,11 @@
                 } @else {
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>Password</mat-label>
-                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" [required]="isAddMode">
+                    <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" required>
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
                       <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched && isAddMode) {
+                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
                       <mat-error>Password is required</mat-error>
                     }
                     @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
@@ -176,18 +258,15 @@
                     @if (shouldShowPasswordHint) {
                       <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
                     }
-                    @if (isDialog && !isAddMode) {
-                      <mat-hint>Leave blank to keep current password</mat-hint>
-                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>Confirm Password</mat-label>
-                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" [required]="isAddMode" (blur)="onConfirmPasswordBlur()">
+                    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" required (blur)="onConfirmPasswordBlur()">
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
                       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched && isAddMode) {
+                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched) {
                       <mat-error>Confirm Password is required</mat-error>
                     }
                     @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {

@@ -45,3 +45,25 @@ export function getUserGroup(userGroupId: number | undefined): string {
   
   return groupMap[userGroupId] || '';
 }
+
+export enum StartupPage {
+  Dashboard = 0,
+  Boards = 1,
+  Reservations = 2,
+  Properties = 3,
+  Accounting = 4
+}
+
+export function getStartupPage(startupPage: number | undefined): string {
+  if (startupPage === undefined || startupPage === null) return '';
+  
+  const pageSizeMap: { [key: number]: string } = {
+    [StartupPage.Dashboard]: 'Dashboard',
+    [StartupPage.Boards]: 'Boards',
+    [StartupPage.Reservations]: 'Reservations',
+    [StartupPage.Properties]: 'Properties',
+    [StartupPage.Accounting]: 'Accounting'
+  };
+  
+  return pageSizeMap[startupPage] || '';
+}

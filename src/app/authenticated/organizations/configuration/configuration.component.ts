@@ -24,7 +24,7 @@ import { NavigationContextService } from '../../../services/navigation-context.s
 import { OrganizationService } from '../services/organization.service';
 import { OrganizationResponse } from '../models/organization.model';
 import { AuthService } from '../../../services/auth.service';
-import { UserGroups } from '../../users/models/user-type';
+import { UserGroups } from '../../users/models/user-enums';
 import { take, finalize } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 

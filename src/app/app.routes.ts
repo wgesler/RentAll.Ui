@@ -43,6 +43,7 @@ import { RegionComponent } from './authenticated/organizations/region/region.com
 import { RegionListComponent } from './authenticated/organizations/region-list/region-list.component';
 import { ColorComponent } from './authenticated/organizations/color/color.component';
 import { ColorListComponent } from './authenticated/organizations/color-list/color-list.component';
+import { DashboardComponent } from './authenticated/dashboard/dashboard.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
@@ -50,6 +51,7 @@ import { unAuthRouteGuard } from './guards/un-auth-guard';
 export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
+  Dashboard = 'dashboard',
   RentalList = 'rentals',
   Companies = 'companies',
   Company = RouterToken.Companies + '/company/:id',
@@ -94,6 +96,7 @@ export enum RouterToken {
 }
 
 export enum RouterUrl {
+  Dashboard             = `${RouterToken.Auth}/${RouterToken.Dashboard}`,
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
   Companies             = `${RouterToken.Auth}/${RouterToken.Companies}`,
   Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
@@ -145,6 +148,7 @@ export namespace RouterUrl {
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
+  { path: RouterToken.Dashboard, component: DashboardComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Companies, component: CompaniesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
