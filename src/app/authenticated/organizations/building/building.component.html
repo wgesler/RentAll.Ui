@@ -53,17 +53,23 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Description</mat-label>
-                <input matInput formControlName="description">
+                <input matInput formControlName="description" required>
+                @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
+                  <mat-error>Description is required</mat-error>
+                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Office</mat-label>
-                <mat-select formControlName="officeId">
+                <mat-select formControlName="officeId" required>
                   <mat-option [value]="null">Select Office</mat-option>
                   @for (office of offices; track office.officeId) {
                     <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                   }
                 </mat-select>
+                @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                  <mat-error>Office is required</mat-error>
+                }
               </mat-form-field>
 
               <!-- HOA Fields on same line -->

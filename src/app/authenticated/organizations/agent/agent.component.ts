@@ -180,7 +180,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     this.form = this.fb.group({
       agentCode: new FormControl('', [Validators.required]),
       name: new FormControl('', [Validators.required]),
-      officeId: new FormControl(null),
+      officeId: new FormControl(null, [Validators.required]),
       isActive: new FormControl(true)
     });
   }
