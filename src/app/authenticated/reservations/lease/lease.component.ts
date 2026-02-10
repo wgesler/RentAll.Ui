@@ -557,38 +557,98 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Field Replacement Helpers
+  getContactAddress(): string {
+    if (!this.contact) return '';
+    const isInternational = (this.contact as any).isInternational || false;
+    
+    if (isInternational) {
+      // For international addresses, compose from Address1 and Address2
+      const parts = [
+        this.contact.address1,
+        this.contact.address2
+      ].filter(p => p);
+      return parts.join(', ');
+    } else {
+      // For US addresses, use the existing logic
+      const parts = [
+        this.contact.address1,
+        this.contact.city,
+        this.contact.state,
+        this.contact.zip
+      ].filter(p => p);
+      return parts.join(', ');
+    }
+  }
+
   getCommunityAddress(): string {
     if (!this.property) return '';
-    const parts = [
-      this.property.address1,
-      this.property.city,
-      this.property.state,
-      this.property.zip
-    ].filter(p => p);
-    return parts.join(', ');
+    const isInternational = (this.property as any).isInternational || false;
+    
+    if (isInternational) {
+      // For international addresses, compose from Address1 and Address2
+      const parts = [
+        this.property.address1,
+        this.property.address2
+      ].filter(p => p);
+      return parts.join(', ');
+    } else {
+      // For US addresses, use the existing logic
+      const parts = [
+        this.property.address1,
+        this.property.city,
+        this.property.state,
+        this.property.zip
+      ].filter(p => p);
+      return parts.join(', ');
+    }
   }
 
   getApartmentAddress(): string {
     if (!this.property) return '';
-    const parts = [
-      this.property.address1,
-      this.property.suite ? `#${this.property.suite}` : '',
-      this.property.city,
-      this.property.state,
-      this.property.zip
-    ].filter(p => p);
-    return parts.join(', ');
+    const isInternational = (this.property as any).isInternational || false;
+    
+    if (isInternational) {
+      // For international addresses, compose from Address1 and Address2
+      const parts = [
+        this.property.address1,
+        this.property.suite ? `#${this.property.suite}` : '',
+        this.property.address2
+      ].filter(p => p);
+      return parts.join(', ');
+    } else {
+      // For US addresses, use the existing logic
+      const parts = [
+        this.property.address1,
+        this.property.suite ? `#${this.property.suite}` : '',
+        this.property.city,
+        this.property.state,
+        this.property.zip
+      ].filter(p => p);
+      return parts.join(', ');
+    }
   }
 
   getOrganizationAddress(): string {
     if (!this.organization) return '';
-    const parts = [
-      this.organization.address1,
-      this.organization.city,
-      this.organization.state,
-      this.organization.zip
-    ].filter(p => p);
-    return parts.join(', ');
+    const isInternational = this.organization.isInternational || false;
+    
+    if (isInternational) {
+      // For international addresses, compose from Address1 and Address2
+      const parts = [
+        this.organization.address1,
+        this.organization.address2
+      ].filter(p => p);
+      return parts.join(', ');
+    } else {
+      // For US addresses, use the existing logic
+      const parts = [
+        this.organization.address1,
+        this.organization.city,
+        this.organization.state,
+        this.organization.zip
+      ].filter(p => p);
+      return parts.join(', ');
+    }
   }
 
   getWebsiteWithProtocol(): string {
@@ -1003,6 +1063,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
         result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
       }
+       result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress());
     }
 
     // Replace reservation placeholders
