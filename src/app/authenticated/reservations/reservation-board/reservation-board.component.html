@@ -5,8 +5,8 @@
         <mat-icon class="flex-shrink-0">grid_view</mat-icon>
         <span class="flex-shrink-0 text-xl font-medium" style="font-size: 2rem;">Reservation Board</span>
       </span>
-      <div class="flex items-center gap-3 py-4">
-        <mat-form-field appearance="outline" class="scale-90" style="width: 170px;">
+      <div class="header-date-controls">
+        <mat-form-field appearance="outline" class="header-date-field">
           <mat-label>Start Date</mat-label>
           <input
             matInput
@@ -19,7 +19,7 @@
           <mat-datepicker #startPicker></mat-datepicker>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="scale-90" style="width: 170px;">
+        <mat-form-field appearance="outline" class="header-date-field">
           <mat-label>End Date</mat-label>
           <input
             matInput
@@ -38,7 +38,7 @@
           color="primary"
           id="selection-button"
           (click)="goToBoardSelection()"
-          class="scale-90 text-nowrap flex-shrink-0">
+          class="header-clear-button text-nowrap flex-shrink-0">
           Selection
         </button>
       </div>
@@ -62,7 +62,7 @@
             <tr class="header-row header-row-2">
               <th class="property-header-cell code-header">Code</th>
               <th class="property-header-cell address-header">Address</th>
-              <th class="property-header-cell rent-header">RET/M</th>
+              <th class="property-header-cell rent-header">RENT/M</th>
               <th class="property-header-cell beds-header">B/B</th>
               <th class="property-header-cell status-header">ST</th>
               @for (day of calendarDays; track day.date.getTime()) {

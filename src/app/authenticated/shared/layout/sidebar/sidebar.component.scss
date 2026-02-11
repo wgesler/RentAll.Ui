@@ -30,7 +30,8 @@ mat-sidenav {
     flex-wrap: wrap;
     box-sizing: border-box;
     color: #FFFFFF;
-    padding: 25px;
+    padding: 20px 12px;
+    min-height: 54px;
     text-shadow: -1px 1px 1px #000000;
 
     &:hover {
@@ -39,10 +40,12 @@ mat-sidenav {
     
     & mat-icon {
       display:block;
-      margin: 0 auto 5px auto;
+      margin: 0 auto 4px auto;
     }
     & span  {
       text-align:center;
+      font-size: 13px;
+      line-height: 1.1;
     }
   }
 
@@ -60,8 +63,8 @@ mat-sidenav.sidenav-collapsed {
   }
 
   & .mat-list-item-content-open {
-    padding: 14px 6px;
-    min-height: 52px;
+    padding: 13px 5px;
+    min-height: 48px;
     justify-content: center;
   }
 

@@ -34,8 +34,10 @@ export interface UserResponse {
 export interface UserListDisplay {
   userId: string;
   organizationName: string;
+  officeAccess: number[];
   fullName: string;
   email: string;
+  startupPageDisplay: string;
   userGroups: string[];
   userGroupsDisplay: string;
   isActive: boolean;

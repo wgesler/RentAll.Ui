@@ -4,15 +4,17 @@ import { Router } from '@angular/router';
 import { NgZone } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { UserResponse, UserListDisplay } from '../models/user.model';
-import { UserGroups } from '../models/user-enums';
+import { UserGroups, getStartupPage } from '../models/user-enums';
 import { UserService } from '../services/user.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
+import { take, finalize, forkJoin, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
@@ -32,21 +34,28 @@ export class UserListComponent implements OnInit, OnDestroy {
   showInactive: boolean = false;
   allUsers: UserListDisplay[] = [];
   usersDisplay: UserListDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  availableOffices: { value: number, name: string }[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
+  officesSubscription?: Subscription;
 
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '20ch' },
+    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '40ch'},
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, maxWidth: '15ch', sort: false, wrap: false, alignment: 'left' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public userService: UserService,
     private organizationService: OrganizationService,
+    private officeService: OfficeService,
     public toastr: ToastrService,
     public router: Router,
     private ngZone: NgZone,
@@ -55,6 +64,7 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region User-List
   ngOnInit(): void {
+    this.loadOffices();
     this.getUsers();
   }
 
@@ -95,6 +105,8 @@ export class UserListComponent implements OnInit, OnDestroy {
             fullName: user.firstName + ' ' + user.lastName,
             email: user.email,
             organizationName: orgMap.get(user.organizationId) || '',
+            officeAccess: (user.officeAccess || []).map(id => Number(id)).filter(id => !isNaN(id)),
+            startupPageDisplay: getStartupPage(user.startupPageId),
             userGroups: userGroups,
             userGroupsDisplay: userGroupsDisplay,
             isActive: user.isActive
@@ -140,14 +152,45 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region Filter Methods
   applyFilters(): void {
-    this.usersDisplay = this.showInactive
+    let filtered = this.showInactive
       ? this.allUsers
       : this.allUsers.filter(user => user.isActive);
+
+    if (this.selectedOffice) {
+      filtered = filtered.filter(user => (user.officeAccess || []).includes(this.selectedOffice!.officeId));
+    }
+
+    this.usersDisplay = filtered;
   }
 
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
+  }
+
+  onOfficeChange(): void {
+    this.applyFilters();
+  }
+  //#endregion
+
+  //#region Data Load Methods
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = (allOffices || []).filter(office => office.isActive);
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.removeLoadItem('offices');
+
+        if (this.offices.length === 1) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+
+        this.applyFilters();
+      });
+    });
   }
   //#endregion
 
@@ -162,6 +205,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -53,6 +53,50 @@
   }
 }
 
+// Match Reservations page header date/selection controls.
+.header-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  flex-shrink: 0;
+
+  @media (max-width: 1200px) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.header-date-field {
+  min-width: 140px;
+  max-width: 160px;
+
+  ::ng-deep {
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+
+    .mat-mdc-text-field-wrapper {
+      height: 41px !important;
+    }
+
+    .mat-mdc-form-field {
+      margin-bottom: 0 !important;
+    }
+
+    .mat-mdc-input-element {
+      font-size: 0.875rem !important;
+    }
+  }
+}
+
+.header-clear-button {
+  height: 32px;
+  font-size: 0.875rem;
+  padding: 0 16px;
+  min-width: auto;
+}
+
 .board-header {
   display: flex;
   flex-direction: column;
@@ -173,13 +217,17 @@
   box-sizing: border-box;
   height: 100%;
   position: relative;
+  padding-top: 16px;
 }
 
 .reservation-table {
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   display: table;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  overflow: hidden;
   
   thead {
     display: table-header-group;
@@ -243,6 +291,15 @@
       background-color: rgb(59, 130, 246) !important;
     }
   }
+}
+
+// Round top corners of the board table header.
+.header-row-1 th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.header-row-1 th:last-child {
+  border-top-right-radius: 8px;
 }
 
 // Ensure consistent font size across all header rows to prevent ch unit drift
