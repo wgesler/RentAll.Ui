@@ -11,6 +11,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { UserComponent } from '../../../users/user/user.component';
 import { UserService } from '../../../users/services/user.service';
 import { UserResponse } from '../../../users/models/user.model';
+import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
   selector: 'app-header',
@@ -26,26 +27,33 @@ export class HeaderComponent implements OnInit, OnDestroy {
   dailyQuote: Observable<DailyQuote> = this.commonService.getDailyQuote();
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall).pipe( map(result => result.matches), shareReplay() );
   isMobile: boolean = false;
+  isSidebarExpanded = true;
   
   // Profile picture properties
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
+  private sidebarSubscription?: Subscription;
 
   constructor(
     private authService: AuthService,
     private commonService: CommonService,
     private breakpointObserver: BreakpointObserver,
     private dialog: MatDialog,
-    private userService: UserService
+    private userService: UserService,
+    private sidebarStateService: SidebarStateService
   ) { }
   
   ngOnInit(): void {
     // Load user profile picture when component initializes
     this.loadUserProfilePicture();
+    this.sidebarSubscription = this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
+      this.isSidebarExpanded = isExpanded;
+    });
   }
   
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
+    this.sidebarSubscription?.unsubscribe();
   }
   
   loadUserProfilePicture(): void {
@@ -101,5 +109,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.loadUserProfilePicture();
       }
     });
+  }
+
+  toggleSidebar(): void {
+    this.sidebarStateService.requestToggle();
   }
 }

@@ -1,9 +1,22 @@
 <mat-toolbar id="header" color="primary" class="flex justify-between gap-8 shrink w-full">
-  <span [ngClass]="{'pl-[30px]' : (isHandset$ | async)}" class="flex items-center h-full">
+  <button mat-icon-button type="button" id="sidenav-toggle-btn" class="sidebar-toggle-btn"
+    aria-label="Toggle navigation" (click)="toggleSidebar()"
+    [style.left.px]="(isHandset$ | async) ? 18 : (isSidebarExpanded ? 175 : 64)">
+    <mat-icon>
+      @if ((isHandset$ | async)) {
+        menu
+      } @else {
+        {{ isSidebarExpanded ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right' }}
+      }
+    </mat-icon>
+  </button>
+  <span class="flex items-center h-full" [class.mobile-left-offset]="(isHandset$ | async)">
     @if ((isHandset$ | async) === false) {
       <mat-icon class="align-sub mr-3 ml-2">library_add_check</mat-icon>
     }
-    <span class="mr-8">RentAll</span>
+    @if ((isHandset$ | async) || isSidebarExpanded) {
+      <span class="mr-8">RentAll</span>
+    }
     <span class="quote flex items-center">
       <mat-icon class="quote-icon mr-2">psychology_alt</mat-icon>
       <span class="quote-content">

@@ -9,6 +9,7 @@ import { RouterToken } from '../../../../app.routes';
 import { HeaderComponent } from '../header/header.component';
 import { MatSidenav } from '@angular/material/sidenav';
 import { UserGroups, getUserGroup } from '../../../users/models/user-enums';
+import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -19,8 +20,11 @@ import { UserGroups, getUserGroup } from '../../../users/models/user-enums';
 })
 
 export class SidebarComponent implements OnInit {
+  readonly expandedSidebarWidth = 175;
+  readonly collapsedSidebarWidth = 64;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   isExpanded: boolean = true;
+  isHandset = false;
   sideNav: MatSidenav;
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall)
     .pipe(
@@ -112,11 +116,28 @@ export class SidebarComponent implements OnInit {
   constructor(
     public router: Router,
     private authService: AuthService,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private sidebarStateService: SidebarStateService
   ) { }
 
   ngOnInit(): void {
     this.filterNavItemsByRole();
+
+    this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
+      this.isExpanded = isExpanded;
+    });
+
+    this.sidebarStateService.toggleRequest$.subscribe(() => {
+      this.sideNavToggleHandler();
+    });
+
+    this.isHandset$.subscribe(isHandset => {
+      this.isHandset = isHandset;
+      if (isHandset) {
+        // Mobile keeps the overlay behavior and always shows labels.
+        this.sidebarStateService.setExpanded(true);
+      }
+    });
     
     // Re-filter when login status changes
     this.authService.getIsLoggedIn$().subscribe(() => {
@@ -171,10 +192,14 @@ export class SidebarComponent implements OnInit {
   }
 
   sideNavToggleHandler(): void {
-    if (this.isHandset$) {
+    if (this.isHandset) {
       this.sideNav.toggle();
     } else {
-      this.isExpanded = !this.isExpanded;
+      this.sidebarStateService.toggleExpanded();
     }
+  }
+
+  get desktopSidebarWidth(): number {
+    return this.isExpanded ? this.expandedSidebarWidth : this.collapsedSidebarWidth;
   }
 }

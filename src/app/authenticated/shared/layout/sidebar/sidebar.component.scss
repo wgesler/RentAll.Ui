@@ -1,10 +1,3 @@
-.sidenav-toggle-button {
-  position: absolute;
-  top: 4px;
-  left: 0px;
-  z-index: 1000;
-}
-
 mat-sidenav-container {
   overflow: hidden;
   height: calc(100vh - 64px);
@@ -13,7 +6,6 @@ mat-sidenav-container {
 mat-sidenav {
   background-color: #1c2c3f !important;
   box-shadow: 2px 1px 1px rgb(0 0 0 / 10%), 0 1px 3px rgb(0 0 0 / 10%);
-  width: 175px;
   padding-top: 0;
   text-align: center;
   overflow-y: auto;
@@ -58,6 +50,24 @@ mat-sidenav {
     padding: 0;
   }
 
+}
+
+mat-sidenav.sidenav-collapsed {
+  width: 64px;
+
+  & .active-list-item {
+    border-left-width: 3px;
+  }
+
+  & .mat-list-item-content-open {
+    padding: 14px 6px;
+    min-height: 52px;
+    justify-content: center;
+  }
+
+  & .mat-list-item-content-open mat-icon {
+    margin: 0 auto !important;
+  }
 }
 
 mat-sidenav-content {

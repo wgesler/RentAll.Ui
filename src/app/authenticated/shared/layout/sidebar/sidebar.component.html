@@ -1,14 +1,10 @@
-@if ((isHandset$ | async)) {
-  <button class="sidenav-toggle-button" type="button" aria-label="Toggle sidenav" mat-icon-button (click)="sideNav.toggle()"
-          id="sidenav-toggle-btn">
-    <mat-icon aria-label="Side nav toggle icon" class="text-white">menu</mat-icon>
-  </button>
-}
-<mat-sidenav-container>
+<mat-sidenav-container [autosize]="true">
   <mat-sidenav #sideNav
     [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
     [mode]="(isHandset$ | async) ? 'over' : 'side'"
-    [opened]="(isHandset$ | async) === false">
+    [opened]="(isHandset$ | async) === false"
+    [style.width.px]="(isHandset$ | async) ? expandedSidebarWidth : desktopSidebarWidth"
+    [class.sidenav-collapsed]="!isExpanded && (isHandset$ | async) === false">
 
     @for (navItem of navItems; track navItem; let i = $index) {
       <a mat-list-item [routerLink]="navItem.url" [ngClass]="{'mat-list-item-closed': !isExpanded}"
@@ -19,7 +15,9 @@
         (click)="sideNav.mode === 'over' ? sideNav.toggle() : ''">
         <div class="mat-list-item-content-open" [ngClass]="{'mat-list-item-content-closed': !isExpanded && (isHandset$ | async) === false}" routerLinkActive="active-list-item">
           <mat-icon>{{navItem.icon}}</mat-icon>
-          <span>{{navItem.displayName}}</span>
+          @if (isExpanded || (isHandset$ | async)) {
+            <span>{{navItem.displayName}}</span>
+          }
         </div>
       </a>
     }

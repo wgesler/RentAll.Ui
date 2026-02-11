@@ -8,6 +8,34 @@
   text-align: right !important;
 }
 
+#header {
+  position: relative;
+}
+
+.sidebar-toggle-btn {
+  color: #fff !important;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  line-height: 28px !important;
+  padding: 0 !important;
+
+  mat-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+  }
+}
+
+.mobile-left-offset {
+  padding-left: 2.5rem;
+}
+
 // Daily Quote
 .quote {
     display: flex;
