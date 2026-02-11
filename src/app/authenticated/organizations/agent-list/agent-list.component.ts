@@ -16,11 +16,10 @@ import { AgentService } from '../services/agent.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-agent-list',
-  templateUrl: './agent-list.component.html',
-  styleUrls: ['./agent-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-agent-list',
+    templateUrl: './agent-list.component.html',
+    styleUrls: ['./agent-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class AgentListComponent implements OnInit, OnDestroy {

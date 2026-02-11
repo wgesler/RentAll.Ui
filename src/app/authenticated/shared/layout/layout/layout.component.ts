@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -13,11 +13,10 @@ import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
 @Component({
-  selector: 'app-layout',
-  standalone: true,
-  imports: [CommonModule, RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule],
-  templateUrl: './layout.component.html',
-  styleUrl: './layout.component.scss'
+    selector: 'app-layout',
+    imports: [RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule],
+    templateUrl: './layout.component.html',
+    styleUrl: './layout.component.scss'
 })
 
 export class LayoutComponent implements OnInit, OnDestroy {

@@ -18,11 +18,10 @@ import { PropertyListDisplay } from '../models/property.model';
 import { PropertyService } from '../services/property.service';
 
 @Component({
-  selector: 'app-property-list',
-  templateUrl: './property-list.component.html',
-  styleUrls: ['./property-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-property-list',
+    templateUrl: './property-list.component.html',
+    styleUrls: ['./property-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {

@@ -18,16 +18,15 @@ import { DocumentRequest, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
 @Component({
-  selector: 'app-document',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MaterialModule,
-    FormsModule,
-    ReactiveFormsModule
-  ],
-  templateUrl: './document.component.html',
-  styleUrls: ['./document.component.scss']
+    selector: 'app-document',
+    imports: [
+        CommonModule,
+        MaterialModule,
+        FormsModule,
+        ReactiveFormsModule
+    ],
+    templateUrl: './document.component.html',
+    styleUrls: ['./document.component.scss']
 })
 export class DocumentComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;

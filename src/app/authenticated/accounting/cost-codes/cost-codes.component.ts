@@ -17,11 +17,10 @@ import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model'
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-  selector: 'app-cost-codes',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './cost-codes.component.html',
-  styleUrl: './cost-codes.component.scss'
+    selector: 'app-cost-codes',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './cost-codes.component.html',
+    styleUrl: './cost-codes.component.scss'
 })
 
 export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {

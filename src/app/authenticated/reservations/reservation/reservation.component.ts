@@ -53,11 +53,10 @@ interface ExtraFeeLineDisplay {
 }
 
 @Component({
-  selector: 'app-reservation',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent, InvoiceListComponent],
-  templateUrl: './reservation.component.html',
-  styleUrl: './reservation.component.scss'
+    selector: 'app-reservation',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent, InvoiceListComponent],
+    templateUrl: './reservation.component.html',
+    styleUrl: './reservation.component.scss'
 })
 
 export class ReservationComponent implements OnInit, OnDestroy {

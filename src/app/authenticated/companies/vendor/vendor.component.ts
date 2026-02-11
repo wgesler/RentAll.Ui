@@ -21,11 +21,10 @@ import { VendorRequest, VendorResponse } from '../models/vendor.model';
 import { VendorService } from '../services/vendor.service';
 
 @Component({
-  selector: 'app-vendor',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './vendor.component.html',
-  styleUrl: './vendor.component.scss'
+    selector: 'app-vendor',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './vendor.component.html',
+    styleUrl: './vendor.component.scss'
 })
 
 export class VendorComponent implements OnInit, OnDestroy {

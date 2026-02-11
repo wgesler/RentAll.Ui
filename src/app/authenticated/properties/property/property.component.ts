@@ -39,19 +39,18 @@ import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
-  selector: 'app-property',
-  standalone: true,
-  imports: [
-    CommonModule, 
-    MaterialModule, 
-    FormsModule, 
-    ReactiveFormsModule,
-    PropertyWelcomeLetterComponent,
-    PropertyInformationComponent,
-    DocumentListComponent
-  ],
-  templateUrl: './property.component.html',
-  styleUrls: ['./property.component.scss']
+    selector: 'app-property',
+    imports: [
+        CommonModule,
+        MaterialModule,
+        FormsModule,
+        ReactiveFormsModule,
+        PropertyWelcomeLetterComponent,
+        PropertyInformationComponent,
+        DocumentListComponent
+    ],
+    templateUrl: './property.component.html',
+    styleUrls: ['./property.component.scss']
 })
 
 export class PropertyComponent implements OnInit, OnDestroy {

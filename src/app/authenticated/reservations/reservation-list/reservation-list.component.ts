@@ -22,11 +22,10 @@ import { ReservationListDisplay, ReservationListResponse } from '../models/reser
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
-  selector: 'app-reservation-list',
-  templateUrl: './reservation-list.component.html',
-  styleUrls: ['./reservation-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-reservation-list',
+    templateUrl: './reservation-list.component.html',
+    styleUrls: ['./reservation-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {

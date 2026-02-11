@@ -41,11 +41,10 @@ import { InvoiceResponse } from '../models/invoice.model';
 import { AccountingService } from '../services/accounting.service';
 
 @Component({
-  selector: 'app-invoice-create',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
-  templateUrl: './invoice-create.component.html',
-  styleUrls: ['./invoice-create.component.scss']
+    selector: 'app-invoice-create',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    templateUrl: './invoice-create.component.html',
+    styleUrls: ['./invoice-create.component.scss']
 })
 export class InvoiceCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent

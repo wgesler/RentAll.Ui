@@ -39,11 +39,10 @@ import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
-  selector: 'app-lease',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
-  templateUrl: './lease.component.html',
-  styleUrl: './lease.component.scss'
+    selector: 'app-lease',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    templateUrl: './lease.component.html',
+    styleUrl: './lease.component.scss'
 })
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string = '';

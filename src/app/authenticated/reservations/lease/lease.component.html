@@ -6,7 +6,7 @@
 } @else {
   <div class="lease-container">
     <form [formGroup]="form" class="lease-form">
-      
+
       <!-- Office, Reservation, and Property Code Section -->
       <div class="input-controls">
         <div class="flex gap-3 items-center mt-3 px-4">
@@ -45,22 +45,22 @@
       <!-- Action Buttons Section -->
       <div class="top-controls">
         <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+          <button mat-raised-button type="button" color="accent" (click)="onPrint()"
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
             <mat-icon>print</mat-icon>
             Print
           </button>
-          <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+          <button mat-raised-button type="button" color="accent" (click)="onEmail()"
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !contact?.email">
             <mat-icon>email</mat-icon>
             Email
           </button>
-          <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()"
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
             <mat-icon>download</mat-icon>
             {{ isDownloading ? 'Downloading...' : 'Download' }}
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" 
+          <button mat-raised-button type="button" color="primary" id="save-button"
             (click)="saveLease()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
@@ -84,12 +84,16 @@
         <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange()">
           Credit Card Authorization
         </mat-checkbox>
-        <mat-checkbox *ngIf="isCompanyRental" formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-          Business Credit Application
-        </mat-checkbox>
-        <mat-checkbox *ngIf="!isCompanyRental" formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
-          Rental Credit Application
-        </mat-checkbox>
+        @if (isCompanyRental) {
+          <mat-checkbox formControlName="includeBusinessCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+            Business Credit Application
+          </mat-checkbox>
+        }
+        @if (!isCompanyRental) {
+          <mat-checkbox formControlName="includeRentalCreditApplication" class="include-checkbox" (change)="onIncludeCheckboxChange()">
+            Rental Credit Application
+          </mat-checkbox>
+        }
       </div>
 
 
@@ -98,8 +102,8 @@
         @if (previewIframeHtml) {
           <!-- Preview iframe when lease HTML is available -->
           <div class="preview-section">
-            <iframe 
-              [srcdoc]="safeHtml" 
+            <iframe
+              [srcdoc]="safeHtml"
               class="preview-iframe"
               [attr.key]="iframeKey"
               (load)="injectStylesIntoIframe()"
@@ -110,9 +114,9 @@
           <!-- Editor textarea when preview is not available -->
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Lease (HTML)</mat-label>
-            <textarea 
-              matInput 
-              formControlName="lease" 
+            <textarea
+              matInput
+              formControlName="lease"
               rows="20"
               [placeholder]="'Enter your lease HTML here. Use {{propertyAddress}} and other placeholders in double curly brackets for dynamic content.'">
             </textarea>

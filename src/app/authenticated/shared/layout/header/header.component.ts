@@ -14,11 +14,10 @@ import { UserComponent } from '../../../users/user/user.component';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
-  selector: 'app-header',
-  standalone: true,
-  imports: [CommonModule, MaterialModule],
-  templateUrl: './header.component.html',
-  styleUrl: './header.component.scss'
+    selector: 'app-header',
+    imports: [CommonModule, MaterialModule],
+    templateUrl: './header.component.html',
+    styleUrl: './header.component.scss'
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {

@@ -57,10 +57,10 @@ $custom-accent-palette: (
     ),
 );
 
-$custom-primary: mat.define-palette($custom-primary-palette);
-$custom-accent: mat.define-palette($custom-accent-palette);
-$custom-warn: mat.define-palette(mat.$red-palette);
-$custom-theme: mat.define-light-theme((color: (
+$custom-primary: mat.m2-define-palette($custom-primary-palette);
+$custom-accent: mat.m2-define-palette($custom-accent-palette);
+$custom-warn: mat.m2-define-palette(mat.$m2-red-palette);
+$custom-theme: mat.m2-define-light-theme((color: (
     primary: $custom-primary,
     accent: $custom-accent,
     warn: $custom-warn )

@@ -16,11 +16,10 @@ import { OfficeService } from '../services/office.service';
 import { RegionService } from '../services/region.service';
 
 @Component({
-  selector: 'app-region-list',
-  templateUrl: './region-list.component.html',
-  styleUrls: ['./region-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-region-list',
+    templateUrl: './region-list.component.html',
+    styleUrls: ['./region-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class RegionListComponent implements OnInit, OnDestroy {

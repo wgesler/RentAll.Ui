@@ -21,11 +21,10 @@ import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-accounting-office',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './accounting-office.component.html',
-  styleUrl: './accounting-office.component.scss'
+    selector: 'app-accounting-office',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './accounting-office.component.html',
+    styleUrl: './accounting-office.component.scss'
 })
 
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {

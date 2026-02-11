@@ -1,272 +1,276 @@
-<div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4" *ngIf="hasFilter || hasToggleTop || hasButtonTop">
+@if (hasFilter || hasToggleTop || hasButtonTop) {
+  <div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4">
     @if (hasFilter) {
-        <mat-form-field id="datatable-search-field-{{templateTableId}}"
+      <mat-form-field id="datatable-search-field-{{templateTableId}}"
         class="mobile-view-full datatable-search-field">
-            <mat-label><mat-icon class="relative top-0.5">filter_list</mat-icon> Filter</mat-label>
-            <input matInput (input)="applyFilter()" placeholder="Filter table by word or value..." #dataTableSearch autocomplete="off" id="datatable-search-input-{{templateTableId}}"
-            class="datatable-search-input"
-            [(ngModel)]="filterVal" />
-            <span matSuffix *ngIf="dataTableSearch.value">
-                <button mat-icon-button id="datatable-clear-btn-{{templateTableId}}" (click)="clearFilter(dataTableSearch)" class="datatable-clear-btn">
-                    <mat-icon class="text-sm relative bottom-0.5">clear</mat-icon>
-                </button>
-            </span>
-        </mat-form-field>
+        <mat-label><mat-icon class="relative top-0.5">filter_list</mat-icon> Filter</mat-label>
+        <input matInput (input)="applyFilter()" placeholder="Filter table by word or value..." #dataTableSearch autocomplete="off" id="datatable-search-input-{{templateTableId}}"
+          class="datatable-search-input"
+          [(ngModel)]="filterVal" />
+        @if (dataTableSearch.value) {
+          <span matSuffix>
+            <button mat-icon-button id="datatable-clear-btn-{{templateTableId}}" (click)="clearFilter(dataTableSearch)" class="datatable-clear-btn">
+              <mat-icon class="text-sm relative bottom-0.5">clear</mat-icon>
+            </button>
+          </span>
+        }
+      </mat-form-field>
     }
     <div class="flex justify-center lg:justify-end items-center gap-5 flex-wrap mobile-view-full mb-4">
-        @if (hasToggleTop) {
-            <mat-slide-toggle id="toggle-users" [checked]="isToggle" color="primary" (change)="emitToggleEvent()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
-                {{buttonToggleTextTop}}
-            </mat-slide-toggle>
+      @if (hasToggleTop) {
+        <mat-slide-toggle id="toggle-users" [checked]="isToggle" color="primary" (change)="emitToggleEvent()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
+          {{buttonToggleTextTop}}
+        </mat-slide-toggle>
+      }
+      @if (hasButtonTop) {
+        <button mat-raised-button id="datatable-add-btn-{{templateTableId}}" [color]="buttonColorTop" (click)="emitAddEvent()"
+          class="mobile-view-full datatable-add-btn whitespace-nowrap items-center flex gap-1" [disabled]="buttonDisabledTop || !hasActionsTopEnabled">
+          @if (buttonIconTop === 'spinner') { <mat-spinner diameter="15"/> }
+            @else {<mat-icon class="text-base">{{buttonIconTop}}</mat-icon>}
+            <span>{{ buttonTextTop }}</span>
+          </button>
         }
-        @if (hasButtonTop) {
-            <button mat-raised-button id="datatable-add-btn-{{templateTableId}}" [color]="buttonColorTop" (click)="emitAddEvent()"
-            class="mobile-view-full datatable-add-btn whitespace-nowrap items-center flex gap-1" [disabled]="buttonDisabledTop || !hasActionsTopEnabled">
-                @if (buttonIconTop === 'spinner') { <mat-spinner diameter="15"/> }
-                @else {<mat-icon class="text-base">{{buttonIconTop}}</mat-icon>}
-                <span>{{ buttonTextTop }}</span>
-            </button>
-        }
+      </div>
     </div>
-</div>
+  }
 
-<div class="is-scrollable">
+  <div class="is-scrollable">
     <table class="data-table" mat-table [dataSource]="dataSource" matSort [multiTemplateDataRows]="hasDetailRow">
-        <ng-container>
-            <tr class="mat-row mat-no-data-row" *matNoDataRow>
-                <td class="mat-cell" [attr.colspan]="displayedColumns.length">
-                    No data found...
-                </td>
-            </tr>
-        </ng-container>
+      <ng-container>
+        <tr class="mat-row mat-no-data-row" *matNoDataRow>
+          <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+            No data found...
+          </td>
+        </tr>
+      </ng-container>
 
-        @for (column of tableColumns; track column.name) {
-            <ng-container [matColumnDef]="column.name">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
-                [style.max-width]="column.maxWidth"
-                [style.width]="column.maxWidth"
-                [style.min-width]="column.maxWidth"
-                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
-                [attr.data-alignment]="getHeaderAlignment(column)">
-                    @switch (column.name) {
-                        @case ('select') {
-                            @if (hasButtonSelectAll) {
-                                <mat-checkbox
-                                    (change)="$event ? toggleAllRows($event) : null"
-                                    [indeterminate]="!isAllSelected && selection.selected?.length > 0"
-                                    [checked]="isAllSelected"
-                                    [aria-label]="selectAllToolTip"
-                                    [matTooltip]="selectAllToolTip"
-                                    [disabled]="!hasActionsEnabled"/>
-                            } @else {
-                                {{column.displayAs}}
-                            }
-                        } @case ('expand') {
-                            @if (expandAllCallback) {
-                                <button mat-icon-button type="button" (click)="toggleExpandAll()" 
-                                        [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'" 
-                                        class="expand-button"
-                                        [style.width.px]="28"
-                                        [style.height.px]="28"
-                                        [style.min-width.px]="28">
-                                    <span class="expand-text">{{ isAllExpanded ? '−' : '+' }}</span>
-                                </button>
-                            } @else {
-                                {{column.displayAs}}
-                            }
-                        } @default {
-                            {{column.displayAs}}
-                        }
-                    }
-                </th>
-                <td mat-cell *matCellDef="let item, index as i"
-                class="align-middle"
-                [style.max-width]="column.maxWidth"
-                [style.width]="column.maxWidth"
-                [style.min-width]="column.maxWidth"
-                [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
+      @for (column of tableColumns; track column.name) {
+        <ng-container [matColumnDef]="column.name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
+            [style.max-width]="column.maxWidth"
+            [style.width]="column.maxWidth"
+            [style.min-width]="column.maxWidth"
+            [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
+            [attr.data-alignment]="getHeaderAlignment(column)">
+            @switch (column.name) {
+              @case ('select') {
+                @if (hasButtonSelectAll) {
+                  <mat-checkbox
+                    (change)="$event ? toggleAllRows($event) : null"
+                    [indeterminate]="!isAllSelected && selection.selected?.length > 0"
+                    [checked]="isAllSelected"
+                    [aria-label]="selectAllToolTip"
+                    [matTooltip]="selectAllToolTip"
+                    [disabled]="!hasActionsEnabled"/>
+                } @else {
+                  {{column.displayAs}}
+                }
+                } @case ('expand') {
+                @if (expandAllCallback) {
+                  <button mat-icon-button type="button" (click)="toggleExpandAll()"
+                    [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                    class="expand-button"
+                    [style.width.px]="28"
+                    [style.height.px]="28"
+                    [style.min-width.px]="28">
+                    <span class="expand-text">{{ isAllExpanded ? '−' : '+' }}</span>
+                  </button>
+                } @else {
+                  {{column.displayAs}}
+                }
+                } @default {
+                {{column.displayAs}}
+              }
+            }
+          </th>
+          <td mat-cell *matCellDef="let item, index as i"
+            class="align-middle"
+            [style.max-width]="column.maxWidth"
+            [style.width]="column.maxWidth"
+            [style.min-width]="column.maxWidth"
+            [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
                 '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',
                 '!text-center': column.alignment === 'center', '!text-right': column.alignment === 'right',
                 }"
-                appMatTooltipShowIfTruncated [matTooltip]="item[column.name]?.value">
+            appMatTooltipShowIfTruncated [matTooltip]="item[column.name]?.value">
 
-                    <span class="mobile-label"> {{ column.displayAs }} </span>
-                    @switch (column.name) {
-                        @case ('expand') {
-                            <button mat-icon-button type="button" (click)="item.expandClick?.($event, item)" [matTooltip]="item.expanded ? 'Collapse' : 'Expand'" class="expand-button">
-                                <span class="expand-text">{{ item.expanded ? '−' : '+' }}</span>
-                            </button>
-                        } @case ('select') {
-                            <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
-                            [matTooltip]="actionTooltipSelect"/>
-                            @if (item?.updating) {<mat-spinner diameter="15" color="primary" class="inline relative top-px ml-2"/>}
-                        } @case ('no') {
-                            {{dataSource.filteredData.indexOf(item)+1}}
-                        } @case ('actions') {
-                            <div class="flex items-center justify-start">
-                                @for (button of buttons; track buttons) {
-                                    @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
-                                        <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip || button.name)" 
-                                              [matTooltipPosition]="button.tooltipPosition || 'above'"
-                                              [matTooltipDisabled]="false"
-                                              style="display: inline-flex;">
-                                            <button mat-icon-button type="button"
-                                                id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
-                                                (click)="button.callback($event, item)"
-                                                [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false)"
-                                                [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) ? button.color : ''"
-                                                [color]="button.color">
-                                                @if (button.suspendOnUpdate && item?.updating) {
-                                                    <div class="datatable-{{button.name}}-loader-wrap">
-                                                        <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
-                                                    </div>
-                                                } @else {
-                                                    <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
-                                                        {{button.icon}}
-                                                    </mat-icon>
-                                                }
-                                            </button>
-                                        </span>
-                                    }
-                                }
-                            </div>
-                        } @case ('status') {
-                            <mat-chip-listbox>
-                                <mat-chip class="whitespace-nowrap" [class]="item?.statusChipType">{{ item?.status }}</mat-chip>
-                            </mat-chip-listbox>
-                        } @case ('name') {
-                            @if (hasSubDescription) {
-                                <strong>{{item[column.name]}}</strong> <br/> {{item?.description}}
+            <span class="mobile-label"> {{ column.displayAs }} </span>
+            @switch (column.name) {
+              @case ('expand') {
+                <button mat-icon-button type="button" (click)="item.expandClick?.($event, item)" [matTooltip]="item.expanded ? 'Collapse' : 'Expand'" class="expand-button">
+                  <span class="expand-text">{{ item.expanded ? '−' : '+' }}</span>
+                </button>
+                } @case ('select') {
+                <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
+                  [matTooltip]="actionTooltipSelect"/>
+                @if (item?.updating) {<mat-spinner diameter="15" color="primary" class="inline relative top-px ml-2"/>}
+                  } @case ('no') {
+                  {{dataSource.filteredData.indexOf(item)+1}}
+                  } @case ('actions') {
+                  <div class="flex items-center justify-start">
+                    @for (button of buttons; track buttons) {
+                      @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
+                        <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip || button.name)"
+                          [matTooltipPosition]="button.tooltipPosition || 'above'"
+                          [matTooltipDisabled]="false"
+                          style="display: inline-flex;">
+                          <button mat-icon-button type="button"
+                            id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
+                            (click)="button.callback($event, item)"
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false)"
+                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) ? button.color : ''"
+                            [color]="button.color">
+                            @if (button.suspendOnUpdate && item?.updating) {
+                              <div class="datatable-{{button.name}}-loader-wrap">
+                                <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
+                              </div>
                             } @else {
-                                {{item[column.name]}}
+                              <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                {{button.icon}}
+                              </mat-icon>
                             }
-                        } @case ('email') {
-                            <span (click)="onEmailClick($event, item)" 
-                                  class="text-blue-700 underline cursor-pointer" 
-                                  id="table-email-link-{{templateTableId}}-{{i}}">
-                                {{item[column.name]}}
-                            </span>
-                        } @case ('contactName') {
-                            <span (click)="onContactClick($event, item)" 
-                                  class="text-blue-700 underline cursor-pointer" 
-                                  id="table-contact-link-{{templateTableId}}-{{i}}">
-                                {{item[column.name]}}
-                            </span>
-                        } @case ('contact') {
-                            <span (click)="onContactClick($event, item)" 
-                                  class="text-blue-700 underline cursor-pointer" 
-                                  id="table-contact-link-{{templateTableId}}-{{i}}">
-                                {{item[column.name]}}
-                            </span>
-                        } @case ('owner') {
-                            <span (click)="onContactClick($event, item)" 
-                                  class="text-blue-700 underline cursor-pointer" 
-                                  id="table-owner-link-{{templateTableId}}-{{i}}">
-                                {{item[column.name]}}
-                            </span>
-                        } @case ('ownerName') {
-                            <span (click)="onContactClick($event, item)" 
-                                  class="text-blue-700 underline cursor-pointer" 
-                                  id="table-owner-link-{{templateTableId}}-{{i}}">
-                                {{item[column.name]}}
-                            </span>
-                        } @case ('website') {
-                            @if (item[column.name]) {
-                                <a [href]="item[column.name]" 
-                                   target="_blank" 
-                                   rel="noopener noreferrer"
-                                   (click)="$event.stopPropagation()"
-                                   class="text-blue-700 underline cursor-pointer" 
-                                   id="table-website-link-{{templateTableId}}-{{i}}">
-                                    {{item[column.name]}}
-                                </a>
-                            }
-                        } @case ('color') {
-                            <div class="flex items-center gap-2">
-                                <div [style.background-color]="item[column.name]" 
-                                     [style.width.px]="24" 
-                                     [style.height.px]="24" 
-                                     [style.border]="'1px solid #ccc'"
-                                     [style.border-radius.px]="4"
-                                     class="inline-block flex-shrink-0"></div>
-                                <span>{{item[column.name]}}</span>
-                            </div>
-                        } @default {
-                            @if (column.obfuscate) {
-                                <span>
-                                    {{item.obfuscate ? obfuscateValue(item[column.name]) : item[column.name]}}
-                                    <button mat-icon-button id="acct-no-btn-{{i}}" (click)="item.obfuscate = !item.obfuscate">
-                                        <mat-icon class="text-base" [matTooltip]="item.obfuscate ? 'Show' : 'Hide'" matTooltipPosition="after">
-                                            visibility{{item.obfuscate ? '' : '_off'}}
-                                        </mat-icon>
-                                    </button>
-                                </span>
-                            } @else if (column.name === 'applyAmount' && isManualApplyMode) {
-                                @if ((item.originalDueAmountValue || 0) > 0) {
-                                    <input type="text"
-                                      [value]="item.applyAmountDisplay || item.applyAmount || ''"
-                                      (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
-                                      (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
-                                      (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
-                                      (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"
-                                      (click)="$event.stopPropagation()"
-                                      (mousedown)="$event.stopPropagation()"
-                                      class="editable-apply-amount"
-                                      [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
-                                      style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                                } @else {
-                                    <span [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'">{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
-                                }
-                            } @else if (column.isCheckbox) {
-                                <mat-checkbox [checked]="item[column.name]" 
-                                  [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]" 
-                                  disabled/>
-                            } @else if (column.options?.length) {
-                                @if (item[column.name]?.isOverridable) {
-                                    <mat-select [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
-                                    [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item)">
-                                        @for (option of column.options; track option) {
-                                            <mat-option [value]="option" id="option-{{column}}-{{$index}}">
-                                                {{option}}
-                                            </mat-option>
-                                        }
-                                    </mat-select>
-                                } @else {
-                                    <span matTooltip="Locked">
-                                        @if (item[column.name]?.value !== 'NONE') { {{item[column.name]?.value}} }
-                                    </span>
-                                }
-                            } @else if (column?.buttonText && item?.isEditing) {
-                                <button color="primary" mat-stroked-button id="row-button-{{i}}" (click)="emitButtonEvent(item)">
-                                    {{item[column.name + 'ButtonText'] ?? column?.buttonText}}
-                                </button>
-                            } @else {
-                                @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
-                            }
-                        }
+                          </button>
+                        </span>
+                      }
                     }
+                  </div>
+                  } @case ('status') {
+                  <mat-chip-listbox>
+                    <mat-chip class="whitespace-nowrap" [class]="item?.statusChipType">{{ item?.status }}</mat-chip>
+                  </mat-chip-listbox>
+                  } @case ('name') {
+                  @if (hasSubDescription) {
+                    <strong>{{item[column.name]}}</strong> <br/> {{item?.description}}
+                  } @else {
+                    {{item[column.name]}}
+                  }
+                  } @case ('email') {
+                  <span (click)="onEmailClick($event, item)"
+                    class="text-blue-700 underline cursor-pointer"
+                    id="table-email-link-{{templateTableId}}-{{i}}">
+                    {{item[column.name]}}
+                  </span>
+                  } @case ('contactName') {
+                  <span (click)="onContactClick($event, item)"
+                    class="text-blue-700 underline cursor-pointer"
+                    id="table-contact-link-{{templateTableId}}-{{i}}">
+                    {{item[column.name]}}
+                  </span>
+                  } @case ('contact') {
+                  <span (click)="onContactClick($event, item)"
+                    class="text-blue-700 underline cursor-pointer"
+                    id="table-contact-link-{{templateTableId}}-{{i}}">
+                    {{item[column.name]}}
+                  </span>
+                  } @case ('owner') {
+                  <span (click)="onContactClick($event, item)"
+                    class="text-blue-700 underline cursor-pointer"
+                    id="table-owner-link-{{templateTableId}}-{{i}}">
+                    {{item[column.name]}}
+                  </span>
+                  } @case ('ownerName') {
+                  <span (click)="onContactClick($event, item)"
+                    class="text-blue-700 underline cursor-pointer"
+                    id="table-owner-link-{{templateTableId}}-{{i}}">
+                    {{item[column.name]}}
+                  </span>
+                  } @case ('website') {
+                  @if (item[column.name]) {
+                    <a [href]="item[column.name]"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      (click)="$event.stopPropagation()"
+                      class="text-blue-700 underline cursor-pointer"
+                      id="table-website-link-{{templateTableId}}-{{i}}">
+                      {{item[column.name]}}
+                    </a>
+                  }
+                  } @case ('color') {
+                  <div class="flex items-center gap-2">
+                    <div [style.background-color]="item[column.name]"
+                      [style.width.px]="24"
+                      [style.height.px]="24"
+                      [style.border]="'1px solid #ccc'"
+                      [style.border-radius.px]="4"
+                    class="inline-block flex-shrink-0"></div>
+                    <span>{{item[column.name]}}</span>
+                  </div>
+                  } @default {
+                  @if (column.obfuscate) {
+                    <span>
+                      {{item.obfuscate ? obfuscateValue(item[column.name]) : item[column.name]}}
+                      <button mat-icon-button id="acct-no-btn-{{i}}" (click)="item.obfuscate = !item.obfuscate">
+                        <mat-icon class="text-base" [matTooltip]="item.obfuscate ? 'Show' : 'Hide'" matTooltipPosition="after">
+                          visibility{{item.obfuscate ? '' : '_off'}}
+                        </mat-icon>
+                      </button>
+                    </span>
+                  } @else if (column.name === 'applyAmount' && isManualApplyMode) {
+                    @if ((item.originalDueAmountValue || 0) > 0) {
+                      <input type="text"
+                        [value]="item.applyAmountDisplay || item.applyAmount || ''"
+                        (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
+                        (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
+                        (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
+                        (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"
+                        (click)="$event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        class="editable-apply-amount"
+                        [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
+                        style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    } @else {
+                      <span [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'">{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
+                    }
+                  } @else if (column.isCheckbox) {
+                    <mat-checkbox [checked]="item[column.name]"
+                      [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
+                      disabled/>
+                  } @else if (column.options?.length) {
+                    @if (item[column.name]?.isOverridable) {
+                      <mat-select [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
+                        [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item)">
+                        @for (option of column.options; track option) {
+                          <mat-option [value]="option" id="option-{{column}}-{{$index}}">
+                            {{option}}
+                          </mat-option>
+                        }
+                      </mat-select>
+                    } @else {
+                      <span matTooltip="Locked">
+                        @if (item[column.name]?.value !== 'NONE') { {{item[column.name]?.value}} }
+                        </span>
+                      }
+                    } @else if (column?.buttonText && item?.isEditing) {
+                      <button color="primary" mat-stroked-button id="row-button-{{i}}" (click)="emitButtonEvent(item)">
+                        {{item[column.name + 'ButtonText'] ?? column?.buttonText}}
+                      </button>
+                    } @else {
+                      @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
+                      }
+                    }
+                  }
                 </td>
                 <!-- Footer cell for totals row -->
                 <td mat-footer-cell *matFooterCellDef
-                    class="align-middle"
-                    [style.max-width]="column.maxWidth"
-                    [style.width]="column.maxWidth"
-                    [style.min-width]="column.maxWidth"
-                    [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : '10px'"
-                    [style.padding-right]="'10px'"
-                    [style.padding-top]="'0'"
-                    [style.padding-bottom]="'0'"
-                    [style.border-bottom]="'none'"
-                    [style.font-weight]="totalsRow && data.length > 0 ? '600' : '400'"
-                    [style.color]="totalsRow && data.length > 0 ? '#333' : null"
-                    [style.font-size]="'12px'"
-                    [style.white-space]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'nowrap' : null"
-                    [style.text-overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'clip' : null"
-                    [style.overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'visible' : null"
-                    [attr.data-text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
-                    [style.text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
+                  class="align-middle"
+                  [style.max-width]="column.maxWidth"
+                  [style.width]="column.maxWidth"
+                  [style.min-width]="column.maxWidth"
+                  [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : '10px'"
+                  [style.padding-right]="'10px'"
+                  [style.padding-top]="'0'"
+                  [style.padding-bottom]="'0'"
+                  [style.border-bottom]="'none'"
+                  [style.font-weight]="totalsRow && data.length > 0 ? '600' : '400'"
+                  [style.color]="totalsRow && data.length > 0 ? '#333' : null"
+                  [style.font-size]="'12px'"
+                  [style.white-space]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'nowrap' : null"
+                  [style.text-overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'clip' : null"
+                  [style.overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'visible' : null"
+                  [attr.data-text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
+                  [style.text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
                     [ngClass]="{
                         'no-wrap': !column.wrap || (totalsRow && data.length > 0 && totalsRow[column.name]),
                         'datatable-truncated': !!column.maxWidth && !(totalsRow && data.length > 0 && totalsRow[column.name]),
@@ -275,53 +279,53 @@
                         '!text-center': column.alignment === 'center',
                         '!text-right': column.alignment === 'right' || !column.alignment
                     }">
-                    @if (totalsRow && data.length > 0) {
-                        @if (column.name === 'expand') {
-                            <!-- Empty for expand column -->
-                        } @else if (column.name === 'actions') {
-                            <!-- Empty for actions column -->
-                        } @else if (column.name === 'officeName') {
-                            {{ totalsLabel }}
-                        } @else if (totalsRow[column.name]) {
-                            {{ totalsRow[column.name] }}
-                        }
+                  @if (totalsRow && data.length > 0) {
+                    @if (column.name === 'expand') {
+                      <!-- Empty for expand column -->
+                    } @else if (column.name === 'actions') {
+                      <!-- Empty for actions column -->
+                    } @else if (column.name === 'officeName') {
+                      {{ totalsLabel }}
+                    } @else if (totalsRow[column.name]) {
+                      {{ totalsRow[column.name] }}
                     }
+                  }
                 </td>
-            </ng-container>
-        }
+              </ng-container>
+            }
 
-        @if (hasDetailRow && detailRowTemplate) {
-            <ng-container matColumnDef="detail">
+            @if (hasDetailRow && detailRowTemplate) {
+              <ng-container matColumnDef="detail">
                 <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" [class.hide-detail-header]="!includeDetailRowHeader">
-                    <ng-container *ngTemplateOutlet="detailRowTemplate; context: getDetailRowContext(row)"></ng-container>
+                  <ng-container *ngTemplateOutlet="detailRowTemplate; context: getDetailRowContext(row)"></ng-container>
                 </td>
-            </ng-container>
-        }
+              </ng-container>
+            }
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns" ></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row) : null"
-        [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited, 'datatable-row-colored': rowColorColumn && getRowColor(row) !== defaultRowColor}" 
-        [style.background-color]="rowColorColumn ? getRowColor(row) : null"
-        [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>
-        
-        @if (hasDetailRow && detailRowTemplate) {
-            <tr mat-row *matRowDef="let row; columns: ['detail']; when: isRowExpanded" 
-                class="datatable-detail-row" 
-                [class.hide-detail-header]="!includeDetailRowHeader"></tr>
-        }
-        
-        <!-- Totals footer row -->
-        <tr mat-footer-row *matFooterRowDef="displayedColumns" 
-            [style.border-top]="totalsRow && data.length > 0 ? '2px solid #333' : 'none'"
+            <tr mat-header-row *matHeaderRowDef="displayedColumns" ></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row) : null"
+              [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited, 'datatable-row-colored': rowColorColumn && getRowColor(row) !== defaultRowColor}"
+              [style.background-color]="rowColorColumn ? getRowColor(row) : null"
+            [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>
+
+            @if (hasDetailRow && detailRowTemplate) {
+              <tr mat-row *matRowDef="let row; columns: ['detail']; when: isRowExpanded"
+                class="datatable-detail-row"
+              [class.hide-detail-header]="!includeDetailRowHeader"></tr>
+            }
+
+            <!-- Totals footer row -->
+            <tr mat-footer-row *matFooterRowDef="displayedColumns"
+              [style.border-top]="totalsRow && data.length > 0 ? '2px solid #333' : 'none'"
             [style.display]="totalsRow && data.length > 0 ? 'table-row' : 'none'"></tr>
-    </table>
-</div>
+          </table>
+        </div>
 
-<mat-paginator
-    [ngClass]="{'datatable-hidden' : data.length < itemsPerPage}"
-    [pageSizeOptions]="pageSizeOptions"
-    [pageSize]="itemsPerPage"
-    showFirstLastButtons
-    aria-label="Select page"
-    (page)="hasButtonSelectAll ? onPageChange() : null">
-</mat-paginator>
+        <mat-paginator
+          [ngClass]="{'datatable-hidden' : data.length < itemsPerPage}"
+          [pageSizeOptions]="pageSizeOptions"
+          [pageSize]="itemsPerPage"
+          showFirstLastButtons
+          aria-label="Select page"
+          (page)="hasButtonSelectAll ? onPageChange() : null">
+        </mat-paginator>

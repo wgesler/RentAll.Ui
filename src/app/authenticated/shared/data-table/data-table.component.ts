@@ -16,11 +16,10 @@ import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
 
 @Component({
-  selector: 'app-data-table',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule],
-  templateUrl: './data-table.component.html',
-  styleUrls: ['./data-table.component.scss'],
+    selector: 'app-data-table',
+    imports: [CommonModule, MaterialModule, FormsModule],
+    templateUrl: './data-table.component.html',
+    styleUrls: ['./data-table.component.scss']
 })
 
 export class DataTableComponent implements OnChanges, OnInit {

@@ -15,11 +15,10 @@ import { ColorListDisplay, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
 @Component({
-  selector: 'app-color-list',
-  templateUrl: './color-list.component.html',
-  styleUrls: ['./color-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-color-list',
+    templateUrl: './color-list.component.html',
+    styleUrls: ['./color-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class ColorListComponent implements OnInit, OnDestroy {

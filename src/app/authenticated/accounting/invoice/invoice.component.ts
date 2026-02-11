@@ -26,11 +26,10 @@ import { AccountingService } from '../services/accounting.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-  selector: 'app-invoice',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './invoice.component.html',
-  styleUrl: './invoice.component.scss'
+    selector: 'app-invoice',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './invoice.component.html',
+    styleUrl: './invoice.component.scss'
 })
 
 export class InvoiceComponent implements OnInit, OnDestroy {

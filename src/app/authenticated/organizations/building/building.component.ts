@@ -17,11 +17,10 @@ import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-building',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './building.component.html',
-  styleUrl: './building.component.scss'
+    selector: 'app-building',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './building.component.html',
+    styleUrl: './building.component.scss'
 })
 
 export class BuildingComponent implements OnInit, OnDestroy, OnChanges {

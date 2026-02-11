@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription, filter, take } from 'rxjs';
@@ -8,11 +8,10 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 
 @Component({
-  selector: 'app-general-ledger',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule],
-  templateUrl: './general-ledger.component.html',
-  styleUrls: ['./general-ledger.component.scss']
+    selector: 'app-general-ledger',
+    imports: [MaterialModule, FormsModule],
+    templateUrl: './general-ledger.component.html',
+    styleUrls: ['./general-ledger.component.scss']
 })
 export class GeneralLedgerComponent implements OnInit, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent

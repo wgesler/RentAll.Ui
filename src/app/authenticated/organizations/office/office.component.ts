@@ -17,11 +17,10 @@ import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-office',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './office.component.html',
-  styleUrl: './office.component.scss'
+    selector: 'app-office',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './office.component.html',
+    styleUrl: './office.component.scss'
 })
 
 export class OfficeComponent implements OnInit, OnDestroy, OnChanges {

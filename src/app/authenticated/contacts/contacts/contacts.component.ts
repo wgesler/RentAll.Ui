@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,16 +11,14 @@ import { ContactListComponent } from '../contact-list/contact-list.component';
 import { EntityType } from '../models/contact-enum';
 
 @Component({
-  selector: 'app-contacts',
-  standalone: true,
-  imports: [
-    CommonModule, 
-    MaterialModule, 
-    FormsModule, 
+    selector: 'app-contacts',
+    imports: [
+    MaterialModule,
+    FormsModule,
     ContactListComponent
-  ],
-  templateUrl: './contacts.component.html',
-  styleUrls: ['./contacts.component.scss']
+],
+    templateUrl: './contacts.component.html',
+    styleUrls: ['./contacts.component.scss']
 })
 export class ContactsComponent implements OnInit, OnDestroy {
   EntityType = EntityType;

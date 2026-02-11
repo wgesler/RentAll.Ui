@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -15,12 +15,11 @@ import { StorageService } from '../../services/storage.service';
 import { LoginRequest } from './models/login-request';
 
 @Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, ReactiveFormsModule, FormsModule],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  templateUrl: './login.component.html',
-  styleUrl: './login.component.scss',
+    selector: 'app-login',
+    imports: [MaterialModule, ReactiveFormsModule, FormsModule],
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+    templateUrl: './login.component.html',
+    styleUrl: './login.component.scss'
 })
 
 export class LoginComponent {

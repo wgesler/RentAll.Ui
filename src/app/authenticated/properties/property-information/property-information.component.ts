@@ -22,11 +22,10 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 
 
 @Component({
-  selector: 'app-property-information',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './property-information.component.html',
-  styleUrls: ['./property-information.component.scss']
+    selector: 'app-property-information',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './property-information.component.html',
+    styleUrls: ['./property-information.component.scss']
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string | null = null;

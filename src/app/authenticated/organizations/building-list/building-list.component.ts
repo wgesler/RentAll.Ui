@@ -16,11 +16,10 @@ import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-building-list',
-  templateUrl: './building-list.component.html',
-  styleUrls: ['./building-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-building-list',
+    templateUrl: './building-list.component.html',
+    styleUrls: ['./building-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class BuildingListComponent implements OnInit, OnDestroy {

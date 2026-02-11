@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -8,11 +8,10 @@ export interface InvoicePaidFullDialogData {
 }
 
 @Component({
-  selector: 'app-invoice-paid-full-dialog',
-  standalone: true,
-  imports: [CommonModule, MaterialModule],
-  templateUrl: './invoice-paid-full-dialog.component.html',
-  styleUrl: './invoice-paid-full-dialog.component.scss'
+    selector: 'app-invoice-paid-full-dialog',
+    imports: [MaterialModule],
+    templateUrl: './invoice-paid-full-dialog.component.html',
+    styleUrl: './invoice-paid-full-dialog.component.scss'
 })
 export class InvoicePaidFullDialogComponent implements OnInit {
   

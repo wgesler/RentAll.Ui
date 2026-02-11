@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -13,11 +13,10 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
-  selector: 'app-lease-information',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './lease-information.component.html',
-  styleUrl: './lease-information.component.scss'
+    selector: 'app-lease-information',
+    imports: [MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './lease-information.component.html',
+    styleUrl: './lease-information.component.scss'
 })
 export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;

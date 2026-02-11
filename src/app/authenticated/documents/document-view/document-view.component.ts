@@ -15,11 +15,10 @@ import { DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
 @Component({
-  selector: 'app-document-view',
-  standalone: true,
-  imports: [CommonModule, MaterialModule],
-  templateUrl: './document-view.component.html',
-  styleUrls: ['./document-view.component.scss']
+    selector: 'app-document-view',
+    imports: [CommonModule, MaterialModule],
+    templateUrl: './document-view.component.html',
+    styleUrls: ['./document-view.component.scss']
 })
 export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('documentIframe', { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>;

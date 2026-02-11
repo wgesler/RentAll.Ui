@@ -19,11 +19,10 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-  selector: 'app-cost-codes-list',
-  templateUrl: './cost-codes-list.component.html',
-  styleUrls: ['./cost-codes-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-cost-codes-list',
+    templateUrl: './cost-codes-list.component.html',
+    styleUrls: ['./cost-codes-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {

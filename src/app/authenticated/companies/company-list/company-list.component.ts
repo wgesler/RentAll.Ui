@@ -18,11 +18,10 @@ import { CompanyListDisplay } from '../models/company.model';
 import { CompanyService } from '../services/company.service';
 
 @Component({
-  selector: 'app-company-list',
-  templateUrl: './company-list.component.html',
-  styleUrls: ['./company-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-company-list',
+    templateUrl: './company-list.component.html',
+    styleUrls: ['./company-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {

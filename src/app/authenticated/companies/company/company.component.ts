@@ -22,11 +22,10 @@ import { CompanyRequest, CompanyResponse } from '../models/company.model';
 import { CompanyService } from '../services/company.service';
 
 @Component({
-  selector: 'app-company',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './company.component.html',
-  styleUrl: './company.component.scss'
+    selector: 'app-company',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './company.component.html',
+    styleUrl: './company.component.scss'
 })
 
 export class CompanyComponent implements OnInit, OnDestroy {

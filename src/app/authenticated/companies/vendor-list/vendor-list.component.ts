@@ -18,11 +18,10 @@ import { VendorListDisplay } from '../models/vendor.model';
 import { VendorService } from '../services/vendor.service';
 
 @Component({
-  selector: 'app-vendor-list',
-  templateUrl: './vendor-list.component.html',
-  styleUrls: ['./vendor-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-vendor-list',
+    templateUrl: './vendor-list.component.html',
+    styleUrls: ['./vendor-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class VendorListComponent implements OnInit, OnDestroy, OnChanges {

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
@@ -6,11 +6,10 @@ import { SafeHTMLPipe } from '../../pipes/safe-html';
 import { GenericModalData, defaultGenericModalData } from './models/generic-modal-data';
 
 @Component({
-  selector: 'app-generic-modal',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, SafeHTMLPipe],
-  templateUrl: './generic-modal.component.html',
-  styleUrl: './generic-modal.component.scss'
+    selector: 'app-generic-modal',
+    imports: [MaterialModule, SafeHTMLPipe],
+    templateUrl: './generic-modal.component.html',
+    styleUrl: './generic-modal.component.scss'
 })
 export class GenericModalComponent implements OnInit {
 

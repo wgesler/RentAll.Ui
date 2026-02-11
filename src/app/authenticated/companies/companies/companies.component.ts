@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,17 +11,15 @@ import { CompanyListComponent } from '../company-list/company-list.component';
 import { VendorListComponent } from '../vendor-list/vendor-list.component';
 
 @Component({
-  selector: 'app-companies',
-  standalone: true,
-  imports: [
-    CommonModule, 
-    MaterialModule, 
-    FormsModule, 
+    selector: 'app-companies',
+    imports: [
+    MaterialModule,
+    FormsModule,
     CompanyListComponent,
     VendorListComponent
-  ],
-  templateUrl: './companies.component.html',
-  styleUrls: ['./companies.component.scss']
+],
+    templateUrl: './companies.component.html',
+    styleUrls: ['./companies.component.scss']
 })
 export class CompaniesComponent implements OnInit, OnDestroy {
   selectedTabIndex: number = 0;

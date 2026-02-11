@@ -17,11 +17,10 @@ import { AreaService } from '../services/area.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-area',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './area.component.html',
-  styleUrl: './area.component.scss'
+    selector: 'app-area',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './area.component.html',
+    styleUrl: './area.component.scss'
 })
 
 export class AreaComponent implements OnInit, OnDestroy, OnChanges {

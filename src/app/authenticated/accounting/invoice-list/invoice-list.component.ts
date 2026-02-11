@@ -30,11 +30,10 @@ import { AccountingService } from '../services/accounting.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-  selector: 'app-invoice-list',
-  templateUrl: './invoice-list.component.html',
-  styleUrls: ['./invoice-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DatePipe]
+    selector: 'app-invoice-list',
+    templateUrl: './invoice-list.component.html',
+    styleUrls: ['./invoice-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DatePipe]
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {

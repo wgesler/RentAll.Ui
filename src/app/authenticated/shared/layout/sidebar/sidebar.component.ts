@@ -12,11 +12,10 @@ import { HeaderComponent } from '../header/header.component';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
-  selector: 'app-sidebar',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, RouterOutlet, RouterLink, RouterLinkActive, HeaderComponent],
-  templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.scss'
+    selector: 'app-sidebar',
+    imports: [CommonModule, MaterialModule, RouterOutlet, RouterLink, RouterLinkActive, HeaderComponent],
+    templateUrl: './sidebar.component.html',
+    styleUrl: './sidebar.component.scss'
 })
 
 export class SidebarComponent implements OnInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -29,14 +29,12 @@ import { RegionComponent } from '../region/region.component';
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
-  selector: 'app-configuration',
-  standalone: true,
-  imports: [
-    CommonModule, 
+    selector: 'app-configuration',
+    imports: [
     MaterialModule,
     FormsModule,
     ReactiveFormsModule,
-    AgentListComponent, 
+    AgentListComponent,
     AgentComponent,
     OfficeListComponent,
     OfficeComponent,
@@ -52,9 +50,9 @@ import { OrganizationService } from '../services/organization.service';
     CostCodesComponent,
     ColorListComponent,
     ColorComponent
-  ],
-  templateUrl: './configuration.component.html',
-  styleUrls: ['./configuration.component.scss']
+],
+    templateUrl: './configuration.component.html',
+    styleUrls: ['./configuration.component.scss']
 })
 export class ConfigurationComponent implements OnInit, OnDestroy {
   expandedSections = {

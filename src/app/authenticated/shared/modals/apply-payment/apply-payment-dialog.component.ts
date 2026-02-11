@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -15,11 +15,10 @@ export interface ApplyPaymentDialogData {
 }
 
 @Component({
-  selector: 'app-apply-payment-dialog',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule],
-  templateUrl: './apply-payment-dialog.component.html',
-  styleUrl: './apply-payment-dialog.component.scss'
+    selector: 'app-apply-payment-dialog',
+    imports: [MaterialModule, FormsModule],
+    templateUrl: './apply-payment-dialog.component.html',
+    styleUrl: './apply-payment-dialog.component.scss'
 })
 export class ApplyPaymentDialogComponent implements OnInit {
   selectedCostCodeId: number | null = null;

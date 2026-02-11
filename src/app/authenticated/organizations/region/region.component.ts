@@ -17,11 +17,10 @@ import { OfficeService } from '../services/office.service';
 import { RegionService } from '../services/region.service';
 
 @Component({
-  selector: 'app-region',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './region.component.html',
-  styleUrl: './region.component.scss'
+    selector: 'app-region',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './region.component.html',
+    styleUrl: './region.component.scss'
 })
 
 export class RegionComponent implements OnInit, OnDestroy, OnChanges {

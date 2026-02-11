@@ -36,11 +36,10 @@ import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
-  selector: 'app-property-welcome-letter',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
-  templateUrl: './property-welcome-letter.component.html',
-  styleUrls: ['./property-welcome-letter.component.scss']
+    selector: 'app-property-welcome-letter',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    templateUrl: './property-welcome-letter.component.html',
+    styleUrls: ['./property-welcome-letter.component.scss']
 })
 export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string;

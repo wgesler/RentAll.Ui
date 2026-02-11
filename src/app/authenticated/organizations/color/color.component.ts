@@ -14,11 +14,10 @@ import { ColorRequest, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
 @Component({
-  selector: 'app-color',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './color.component.html',
-  styleUrl: './color.component.scss'
+    selector: 'app-color',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './color.component.html',
+    styleUrl: './color.component.scss'
 })
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {

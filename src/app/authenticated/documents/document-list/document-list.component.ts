@@ -23,11 +23,10 @@ import { DocumentListDisplay, DocumentResponse } from '../models/document.model'
 import { DocumentService } from '../services/document.service';
 
 @Component({
-  selector: 'app-document-list',
-  templateUrl: './document-list.component.html',
-  styleUrls: ['./document-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-document-list',
+    templateUrl: './document-list.component.html',
+    styleUrls: ['./document-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {

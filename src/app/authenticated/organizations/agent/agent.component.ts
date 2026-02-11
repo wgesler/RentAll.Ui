@@ -18,11 +18,10 @@ import { AgentService } from '../services/agent.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-agent',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './agent.component.html',
-  styleUrl: './agent.component.scss'
+    selector: 'app-agent',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './agent.component.html',
+    styleUrl: './agent.component.scss'
 })
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {

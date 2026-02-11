@@ -16,11 +16,10 @@ import { AreaService } from '../services/area.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-area-list',
-  templateUrl: './area-list.component.html',
-  styleUrls: ['./area-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-area-list',
+    templateUrl: './area-list.component.html',
+    styleUrls: ['./area-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class AreaListComponent implements OnInit, OnDestroy {

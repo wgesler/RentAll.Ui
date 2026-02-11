@@ -26,11 +26,10 @@ import { ReservationService } from '../services/reservation.service';
 
 
 @Component({
-  selector: 'app-reservation-board',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, RouterLink, FormsModule],
-  templateUrl: './reservation-board.component.html',
-  styleUrl: './reservation-board.component.scss'
+    selector: 'app-reservation-board',
+    imports: [CommonModule, MaterialModule, RouterLink, FormsModule],
+    templateUrl: './reservation-board.component.html',
+    styleUrl: './reservation-board.component.scss'
 })
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   properties: BoardProperty[] = [];

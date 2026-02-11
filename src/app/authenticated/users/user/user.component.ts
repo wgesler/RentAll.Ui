@@ -32,11 +32,10 @@ export interface UserDialogData {
 }
 
 @Component({
-  selector: 'app-user',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './user.component.html',
-  styleUrl: './user.component.scss'
+    selector: 'app-user',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './user.component.html',
+    styleUrl: './user.component.scss'
 })
 
 export class UserComponent implements OnInit, OnDestroy {

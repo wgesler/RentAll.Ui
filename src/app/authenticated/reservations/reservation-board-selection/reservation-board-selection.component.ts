@@ -24,11 +24,10 @@ import { PropertySelectionRequest, PropertySelectionResponse } from '../../prope
 import { PropertyService } from '../../properties/services/property.service';
 
 @Component({
-  selector: 'app-reservation-board-selection',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, ReactiveFormsModule],
-  templateUrl: './reservation-board-selection.component.html',
-  styleUrl: './reservation-board-selection.component.scss',
+    selector: 'app-reservation-board-selection',
+    imports: [CommonModule, MaterialModule, ReactiveFormsModule],
+    templateUrl: './reservation-board-selection.component.html',
+    styleUrl: './reservation-board-selection.component.scss'
 })
 export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   form: FormGroup;

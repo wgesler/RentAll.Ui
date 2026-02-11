@@ -15,11 +15,10 @@ import { OrganizationListDisplay } from '../models/organization.model';
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
-  selector: 'app-organization-list',
-  templateUrl: './organization-list.component.html',
-  styleUrls: ['./organization-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-organization-list',
+    templateUrl: './organization-list.component.html',
+    styleUrls: ['./organization-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class OrganizationListComponent implements OnInit, OnDestroy {

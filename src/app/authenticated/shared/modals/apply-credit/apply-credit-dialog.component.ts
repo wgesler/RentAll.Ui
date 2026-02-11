@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -22,11 +22,10 @@ export interface ApplyCreditDialogData {
 }
 
 @Component({
-  selector: 'app-apply-credit-dialog',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule],
-  templateUrl: './apply-credit-dialog.component.html',
-  styleUrl: './apply-credit-dialog.component.scss'
+    selector: 'app-apply-credit-dialog',
+    imports: [MaterialModule, FormsModule],
+    templateUrl: './apply-credit-dialog.component.html',
+    styleUrl: './apply-credit-dialog.component.scss'
 })
 export class ApplyCreditDialogComponent implements OnInit {
   creditAmount: number = 0;

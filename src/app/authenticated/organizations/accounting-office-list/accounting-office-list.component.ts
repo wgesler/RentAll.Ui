@@ -19,11 +19,10 @@ import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
-  selector: 'app-accounting-office-list',
-  templateUrl: './accounting-office-list.component.html',
-  styleUrls: ['./accounting-office-list.component.scss'],
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    selector: 'app-accounting-office-list',
+    templateUrl: './accounting-office-list.component.html',
+    styleUrls: ['./accounting-office-list.component.scss'],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {

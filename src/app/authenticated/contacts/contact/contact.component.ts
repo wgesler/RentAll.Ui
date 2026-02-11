@@ -25,11 +25,10 @@ import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
 @Component({
-  selector: 'app-contact',
-  standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './contact.component.html',
-  styleUrl: './contact.component.scss'
+    selector: 'app-contact',
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    templateUrl: './contact.component.html',
+    styleUrl: './contact.component.scss'
 })
 
 export class ContactComponent implements OnInit, OnDestroy {

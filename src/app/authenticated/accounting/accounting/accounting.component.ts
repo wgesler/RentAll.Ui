@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -15,20 +15,18 @@ import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-  selector: 'app-accounting',
-  standalone: true,
-  imports: [
-    CommonModule, 
-    MaterialModule, 
-    FormsModule, 
-    InvoiceListComponent, 
-    CostCodesListComponent, 
+    selector: 'app-accounting',
+    imports: [
+    MaterialModule,
+    FormsModule,
+    InvoiceListComponent,
+    CostCodesListComponent,
     CostCodesComponent,
     GeneralLedgerComponent,
     DocumentListComponent
-  ],
-  templateUrl: './accounting.component.html',
-  styleUrls: ['./accounting.component.scss']
+],
+    templateUrl: './accounting.component.html',
+    styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
   @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;

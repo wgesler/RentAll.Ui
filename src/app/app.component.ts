@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { HttpClientModule, HttpErrorResponse } from '@angular/common/http';
+
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,18 +12,16 @@ import { AccountingOfficeService } from './authenticated/organizations/services/
 import { OfficeService } from './authenticated/organizations/services/office.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
-import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { CommonMessage } from './enums/common-message.enum';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
 import { UtilityService } from './services/utility.service';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, HttpClientModule, LayoutComponent, MatButtonModule, MatIconModule],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+    selector: 'app-root',
+    imports: [RouterOutlet, MatButtonModule, MatIconModule],
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss'
 })
 
 export class AppComponent implements OnInit, OnDestroy {
