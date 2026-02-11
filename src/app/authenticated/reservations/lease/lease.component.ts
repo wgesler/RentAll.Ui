@@ -49,6 +49,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
+  @Input() lockOfficeSelection: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
   isSubmitting: boolean = false;
@@ -115,6 +116,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Lease
   ngOnInit(): void {
+    this.applyOfficeSelectionLockState();
     this.loadOrganization();
     this.loadContacts();
     this.loadOffices();
@@ -135,6 +137,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['lockOfficeSelection']) {
+      this.applyOfficeSelectionLockState();
+    }
+
     // When propertyId becomes available, load property and lease information
     if (changes['propertyId'] && changes['propertyId'].currentValue && !changes['propertyId'].previousValue) {
       this.loadProperty();
@@ -313,6 +319,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Form Response Methods
   onOfficeChange(): void {
+    if (this.lockOfficeSelection) {
+      return;
+    }
+
     const officeId = this.form.get('selectedOfficeId')?.value;
     if (!officeId) {
       this.selectedOffice = null;
@@ -1402,6 +1412,23 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Utility Methods
+  get isOfficeSelectionLocked(): boolean {
+    return this.lockOfficeSelection;
+  }
+
+  private applyOfficeSelectionLockState(): void {
+    const officeControl = this.form?.get('selectedOfficeId');
+    if (!officeControl) {
+      return;
+    }
+
+    if (this.lockOfficeSelection) {
+      officeControl.disable({ emitEvent: false });
+    } else {
+      officeControl.enable({ emitEvent: false });
+    }
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

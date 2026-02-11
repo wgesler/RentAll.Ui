@@ -31,7 +31,7 @@
                 <div class="flex gap-3 items-center mt-3 px-4">
                   <mat-form-field appearance="outline" class="office-dropdown">
                     <mat-label>Office</mat-label>
-                    <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [required]="isAddMode">
+                    <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [required]="isAddMode" [disabled]="true">
                       <mat-option [value]="null">Offices</mat-option>
                       @for (office of offices; track office.officeId) {
                         <mat-option [value]="office">{{ office.name }}</mat-option>
@@ -613,6 +613,7 @@
               [reservationId]="isAddMode ? '' : reservationId" 
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || ''"
               [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
+              [lockOfficeSelection]="true"
               (officeIdChange)="onLeaseOfficeIdChange($event)">
             </app-lease>
           </mat-tab>

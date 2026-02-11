@@ -60,6 +60,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -126,6 +127,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  get useRouteQueryParams(): boolean {
+    // When embedded in Reservation tabs, parent inputs are the source of truth.
+    return this.source !== 'reservation';
+  }
 
   constructor(
     public accountingService: AccountingService,
@@ -172,7 +177,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
       
-      this.route.queryParams.subscribe(params => {
+      if (!this.useRouteQueryParams) {
+        return;
+      }
+
+      this.queryParamsSubscription?.unsubscribe();
+      this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
         const officeIdParam = params['officeId'];
         const companyIdParam = params['companyId'];
         
@@ -180,28 +190,28 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
             // Find office from already loaded offices
-          this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-          if (this.selectedOffice) {
-            // Emit office change to parent
-            this.officeIdChange.emit(this.selectedOffice.officeId);
-            this.filterCostCodes();
-            this.filterCompanies();
-            this.filterReservations();
-            
-            // Apply companyId from query params if available
-            if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
-              const matchingCompany = this.companies.find(c => 
-                c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
-              );
-              if (matchingCompany) {
-                this.selectedCompany = matchingCompany;
+            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+            if (this.selectedOffice) {
+              // Emit office change to parent
+              this.officeIdChange.emit(this.selectedOffice.officeId);
+              this.filterCostCodes();
+              this.filterCompanies();
+              this.filterReservations();
+              
+              // Apply companyId from query params if available
+              if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
+                const matchingCompany = this.companies.find(c => 
+                  c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+                );
+                if (matchingCompany) {
+                  this.selectedCompany = matchingCompany;
+                }
               }
+              
+              // Load invoices for selected office
+              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+              this.getInvoices();
             }
-            
-            // Load invoices for selected office
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.getInvoices();
-          }
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
@@ -1500,6 +1510,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodesSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
+    this.queryParamsSubscription?.unsubscribe();
   }
   //#endregion
 }

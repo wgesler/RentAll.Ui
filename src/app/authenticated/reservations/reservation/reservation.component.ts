@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of, Subscription } from 'rxjs';
+import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of, Subscription, Subject, takeUntil } from 'rxjs';
 import { ReservationService } from '../services/reservation.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -113,6 +113,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private destroy$ = new Subject<void>();
+  private readonly tabParamToIndex: Record<string, number> = {
+    invoices: 1,
+    lease: 2,
+    documents: 3
+  };
 
   constructor(
     public reservationService: ReservationService,
@@ -163,11 +169,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-        if (queryParams['tab'] === 'documents') {
-          this.selectedTabIndex = 3;
-        } else if (queryParams['tab'] === 'invoices') {
-          this.selectedTabIndex = 1;
-        }
+        this.selectedTabIndex = this.getTabIndexFromQueryParam(queryParams['tab']);
         
         if (queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
           const officeId = parseInt(queryParams['officeId'], 10);
@@ -514,7 +516,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Form Value Change Handlers
   setupPropertySelectionHandler(): void {
-    this.form.get('propertyId')?.valueChanges.subscribe(propertyId => {
+    this.form.get('propertyId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(propertyId => {
       this.selectedProperty = propertyId ? this.availableProperties.find(p => p.propertyId === propertyId) || null : null;
       if (this.selectedProperty && !this.selectedOffice) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
@@ -542,14 +544,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   setupContactSelectionHandler(): void {
-    this.form.get('contactId')?.valueChanges.subscribe(contactId => {
+    this.form.get('contactId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactId => {
       this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
       this.updateContactFields();
     });
   }
 
   setupReservationTypeHandler(): void {
-    this.form.get('reservationTypeId')?.valueChanges.subscribe(reservationTypeId => {
+    this.form.get('reservationTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(reservationTypeId => {
       // Filter statuses and contacts based on reservation type
       this.updateReservationStatusesByReservationType();
       this.updateContactsByReservationType();
@@ -574,19 +576,19 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
     
   setupDepositHandlers(): void {
-    this.form.get('depositType')?.valueChanges.subscribe(() => {
+    this.form.get('depositType')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateDepositValues();
     });
   }
 
   setupBillingTypeHandler(): void {
-    this.form.get('billingTypeId')?.valueChanges.subscribe(billingTypeId => {
+    this.form.get('billingTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(billingTypeId => {
       this.updateBillingValues();
     });
   }
 
   setupPetFeeHandler(): void {
-    this.form.get('pets')?.valueChanges.subscribe(pets => {
+    this.form.get('pets')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(pets => {
       this.updatePetFields();
     });
   }
@@ -611,7 +613,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   setupMaidServiceHandler(): void {
-    this.form.get('maidService')?.valueChanges.subscribe(maidService => {
+    this.form.get('maidService')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(maidService => {
       this.updateMaidServiceFields();
       
       // When maidService becomes enabled, initialize maidStartDate if arrivalDate exists
@@ -622,13 +624,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   setupMaidStartDateHandler(): void {
-    this.form.get('arrivalDate')?.valueChanges.subscribe(() => {
+    this.form.get('arrivalDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateMaidStartDate();
     });
   }
 
   setupDepartureDateStartAtHandler(): void {
-    this.form.get('arrivalDate')?.valueChanges.subscribe(arrivalDate => {
+    this.form.get('arrivalDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(arrivalDate => {
       const departureDate = this.form.get('departureDate')?.value;
       
       // If arrival date is set and departure date is unset, start calendar at arrival date
@@ -1402,6 +1404,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
@@ -1413,10 +1417,40 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   onTabChange(event: any): void {
+    this.selectedTabIndex = event.index;
+    const tabParam = this.getTabParamFromIndex(event.index);
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: tabParam },
+      queryParamsHandling: 'merge'
+    });
+
     // When Documents tab (index 3) is selected, reload the document list
     if (event.index === 3 && this.reservationDocumentList) {
       this.reservationDocumentList.reload();
     }
   }
   //#endregion
+
+  private getTabIndexFromQueryParam(tabParam: string | undefined): number {
+    if (!tabParam) {
+      return 0;
+    }
+
+    return this.tabParamToIndex[tabParam] ?? 0;
+  }
+
+  private getTabParamFromIndex(tabIndex: number): string | null {
+    switch (tabIndex) {
+      case 1:
+        return 'invoices';
+      case 2:
+        return 'lease';
+      case 3:
+        return 'documents';
+      default:
+        return null;
+    }
+  }
 }

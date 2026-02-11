@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, filter } from 'rxjs';
+import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -50,6 +50,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   showOfficeDropdown: boolean = true;
+  officesSubscription?: Subscription;
+  queryParamsSubscription?: Subscription;
   
   // Reservation selection for filtering (when coming from reservation or invoice)
   selectedReservationId: string | null = null;
@@ -91,6 +93,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  get useRouteQueryParams(): boolean {
+    // In embedded contexts, parent inputs should drive state.
+    return this.source === 'documents';
+  }
 
   constructor(
     public documentService: DocumentService,
@@ -431,7 +437,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officeService.getAllOffices().subscribe({
+      this.officesSubscription?.unsubscribe();
+      this.officesSubscription = this.officeService.getAllOffices().subscribe({
         next: (allOffices: OfficeResponse[]) => {
           this.offices = allOffices || [];
           
@@ -461,7 +468,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         }
       });
       
-      this.route.queryParams.subscribe(params => {
+      if (!this.useRouteQueryParams) {
+        return;
+      }
+
+      this.queryParamsSubscription?.unsubscribe();
+      this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
         const officeIdParam = params['officeId'];
         
         if (officeIdParam) {
@@ -492,24 +504,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         if (this.source === 'invoice') {
           // Show all reservations filtered by office when coming from Invoice/Accounting
           this.filterReservations();
+          if (this.reservationId) {
+            this.selectedReservationId = this.reservationId;
+          }
         } else if (this.propertyId) {
           // When coming from Property component, always show all reservations filtered by office
           this.filterReservations();
-        } else if (this.reservationId) {
-          // When coming from Reservation component, only show the selected reservation
-          const selectedReservation = this.reservations.find(r => r.reservationId === this.reservationId);
-          if (selectedReservation) {
-            this.availableReservations = [{
-              value: selectedReservation,
-              label: this.utilityService.getReservationLabel(selectedReservation)
-            }];
-          } else {
-            this.availableReservations = [];
+          if (this.reservationId) {
+            this.selectedReservationId = this.reservationId;
           }
+        } else if (this.reservationId) {
+          // When coming from Reservation component, show office reservations and preselect current reservation
+          this.filterReservations();
+          this.selectedReservationId = this.reservationId;
         } else {
           // Show all reservations filtered by office if office is selected
           this.filterReservations();
         }
+        this.applyFilters();
       },
       error: () => {
         this.reservations = [];
@@ -531,7 +543,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
     
   get isReservationDisabled(): boolean {
-    return this.source === 'reservation';
+    return false;
   }
   
   filterReservations(): void {
@@ -629,7 +641,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     // Filter based on source
     if (this.source === 'reservation' || this.source === 'invoice') {
       // Filter by reservationId if provided (from input) or selected (from dropdown)
-      const reservationIdToFilter = this.reservationId || this.selectedReservationId;
+      const reservationIdToFilter = this.selectedReservationId || this.reservationId;
       if (reservationIdToFilter !== null && reservationIdToFilter !== undefined && reservationIdToFilter !== '') {
         filtered = filtered.filter(doc => doc.reservationId === reservationIdToFilter);
       }
@@ -651,6 +663,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.queryParamsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

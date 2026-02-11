@@ -157,6 +157,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.initializeTimeTypes();
     
     this.buildForm();
+    this.applyOfficeControlState();
   
     // Set isAddMode from route params and load property if needed
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
@@ -194,6 +195,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
         owner1Control?.updateValueAndValidity();
         codeControl?.updateValueAndValidity();
+        this.applyOfficeControlState();
 
         if (!this.isAddMode) {
           this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
@@ -576,6 +578,20 @@ export class PropertyComponent implements OnInit, OnDestroy {
       
       isActive: new FormControl(true)
     });
+  }
+
+  private applyOfficeControlState(): void {
+    const officeControl = this.form?.get('officeId');
+    if (!officeControl) {
+      return;
+    }
+
+    // Office selection is locked while editing an existing property.
+    if (this.isAddMode) {
+      officeControl.enable({ emitEvent: false });
+    } else {
+      officeControl.disable({ emitEvent: false });
+    }
   }
 
   populateForm(): void {
