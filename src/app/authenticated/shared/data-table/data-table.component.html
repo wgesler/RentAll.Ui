@@ -33,7 +33,7 @@
 <div class="is-scrollable">
     <table class="data-table" mat-table [dataSource]="dataSource" matSort [multiTemplateDataRows]="hasDetailRow">
         <ng-container>
-            <tr class="mat-row" *matNoDataRow>
+            <tr class="mat-row mat-no-data-row" *matNoDataRow>
                 <td class="mat-cell" [attr.colspan]="displayedColumns.length">
                     No data found...
                 </td>

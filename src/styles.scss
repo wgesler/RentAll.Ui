@@ -253,3 +253,37 @@ mat-form-field input,
   font-size: 1.5rem !important;
   font-weight: 500;
 }
+
+// Global expansion panel style baseline (matches dashboard)
+.mat-expansion-panel {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 4px !important;
+}
+
+.mat-expansion-panel-header {
+  padding: 12px 16px !important;
+  height: auto !important;
+  background-color: #cbd5e1 !important; // slate-300
+}
+
+.mat-expansion-panel-header:hover {
+  background-color: #94a3b8 !important; // slate-400
+}
+
+.mat-expansion-panel-header .mat-expansion-panel-header-title {
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.mat-expansion-panel-header .mat-expansion-indicator::after {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  border-width: 0 3px 3px 0 !important;
+}
+
+.mat-expansion-panel-header .mat-expansion-indicator svg,
+.mat-expansion-panel-header .mat-expansion-indicator svg path {
+  fill: #000000 !important;
+}

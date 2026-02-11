@@ -49,9 +49,17 @@ img {
     }
 }
 
-.mat-mdc-no-data-row td {
+.mat-mdc-no-data-row td,
+.mat-no-data-row td {
     text-align: center;
-    padding: 50px 0;
+    padding: 0 !important; // No extra padding, just match regular row height
+}
+
+// Set explicit height for no-data row to match 1 regular row
+tr.mat-row.mat-no-data-row,
+tr.mat-mdc-row.mat-no-data-row,
+.mat-mdc-no-data-row {
+    height: 48px !important; // Equivalent to 1 row (48px)
 }
 
 .edited-table-row {

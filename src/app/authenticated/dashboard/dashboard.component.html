@@ -31,8 +31,14 @@
           <!-- Reservation Tables -->
           <div class="reservation-tables">
             <!-- Upcoming Arrivals Table -->
-            <div class="reservation-section">
-              <h2 class="section-title">Upcoming Arrivals (Next 15 Days)</h2>
+            <mat-expansion-panel 
+              class="reservation-section"
+              [(expanded)]="arrivalsExpanded">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <h2 class="section-title">Upcoming Arrivals (Next 15 Days)</h2>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
               @if (isLoadingReservations) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
@@ -55,11 +61,17 @@
                     (contactClickEvent)="goToContact($event)"/>
                 </div>
               }
-            </div>
+            </mat-expansion-panel>
 
             <!-- Upcoming Departures Table -->
-            <div class="reservation-section">
-              <h2 class="section-title">Upcoming Departures (Next 15 Days)</h2>
+            <mat-expansion-panel 
+              class="reservation-section"
+              [(expanded)]="departuresExpanded">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <h2 class="section-title">Upcoming Departures (Next 15 Days)</h2>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
               @if (isLoadingReservations) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
@@ -82,7 +94,39 @@
                     (contactClickEvent)="goToContact($event)"/>
                 </div>
               }
-            </div>
+            </mat-expansion-panel>
+
+            <!-- Properties by Vacancy Table -->
+            <mat-expansion-panel 
+              class="reservation-section"
+              [(expanded)]="propertiesExpanded">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <h2 class="section-title">Properties by Vacancy Duration</h2>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              @if (isLoadingProperties || isLoadingReservations) {
+                <div class="loading-container">
+                  <mat-spinner [diameter]="40"></mat-spinner>
+                  <p>Loading properties...</p>
+                </div>
+              } @else {
+                <div class="tableDiv">
+                  <app-data-table
+                    [data]="propertiesByVacancy"
+                    [columns]="propertiesDisplayedColumns"
+                    [hasColumnIndex]="false"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasActionsEdit]="false"
+                    [hasActionsDelete]="false"
+                    [itemsPerPage]="50"
+                    (rowClickEvent)="goToProperty($event)"/>
+                </div>
+              }
+            </mat-expansion-panel>
           </div>
 
           <!-- Right Sidebar -->
@@ -113,6 +157,31 @@
                     <mat-icon class="calendar-icon-below">event</mat-icon>
                     <span class="total-number">{{ getTomorrowTotal() }}</span>
                   </div>
+                </div>
+              </div>
+
+              <!-- Properties Box -->
+              <div class="day-box day-box-reservations">
+                <div class="day-box-text">
+                  <h4 class="day-title">
+                    <span>Properties</span>
+                  </h4>
+                  @if (isLoadingProperties) {
+                    <div class="loading-container-small">
+                      <mat-spinner [diameter]="24"></mat-spinner>
+                    </div>
+                  } @else {
+                    <div class="reservations-stats">
+                      <div class="stat-row">
+                        <span class="stat-label">Rented:</span>
+                        <span class="stat-value">{{ rentedCount }}</span>
+                      </div>
+                      <div class="stat-row">
+                        <span class="stat-label">Vacant:</span>
+                        <span class="stat-value">{{ vacantCount }}</span>
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
             </div>

@@ -7,17 +7,24 @@ body {
 }
 
 .mat-expansion-panel-header {
-    background: var(--primary-color) !important;
+    background-color: #cbd5e1 !important;
 }
 
  .mat-expansion-panel-header-title {
-    color: var(--white) !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    color: rgba(0, 0, 0, 0.87) !important;
 }
 
 
 .mat-expansion-panel-header-description,
  .mat-expansion-indicator::after {
-    color: var(--white) !important;
+    color: #000000 !important;
+}
+
+.mat-expansion-indicator::after {
+    border-color: #000000 !important;
+    border-width: 0 3px 3px 0 !important;
 }
 
 

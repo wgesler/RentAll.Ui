@@ -265,8 +265,8 @@
     }
     
     .mat-expansion-panel-header-title {
-      font-weight: 500;
-      font-size: 14px;
+      font-weight: 600;
+      font-size: 16px;
       color: rgba(0, 0, 0, 0.87);
     }
     
@@ -274,6 +274,7 @@
       &::after {
         color: #000000 !important;
         border-color: #000000 !important;
+        border-width: 0 3px 3px 0 !important;
       }
     }
   }
