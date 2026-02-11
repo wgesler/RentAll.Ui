@@ -1,14 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
+import { MatSidenav } from '@angular/material/sidenav';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Observable, map, shareReplay } from 'rxjs';
+import { RouterToken } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-import { Observable, map, shareReplay } from 'rxjs';
-import { RouterOutlet, Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { RouterToken } from '../../../../app.routes';
+import { UserGroups } from '../../../users/models/user-enums';
 import { HeaderComponent } from '../header/header.component';
-import { MatSidenav } from '@angular/material/sidenav';
-import { UserGroups, getUserGroup } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({

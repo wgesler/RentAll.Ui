@@ -1,19 +1,18 @@
-import { CommonModule} from '@angular/common';
+import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { MaterialModule } from '../../material.module';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { LoginRequest } from './models/login-request';
+import { finalize, take } from 'rxjs';
+import { RouterUrl } from '../../app.routes';
+import { StartupPage } from '../../authenticated/users/models/user-enums';
+import { StorageKey } from '../../enums/storage-keys.enum';
+import { MaterialModule } from '../../material.module';
 import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
-import { finalize, take } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http';
-import { CommonMessage } from '../../enums/common-message.enum';
 import { StorageService } from '../../services/storage.service';
-import { RouterToken, RouterUrl } from '../../app.routes';
-import { StorageKey } from '../../enums/storage-keys.enum';
-import { UserGroups, StartupPage } from '../../authenticated/users/models/user-enums';
+import { LoginRequest } from './models/login-request';
 
 @Component({
   selector: 'app-login',
@@ -59,6 +58,7 @@ export class LoginComponent {
     });
   }
 
+  //#region Login
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -142,7 +142,8 @@ export class LoginComponent {
       this.router.navigate(['']);
   }
 
-  private getLoginRequest(): LoginRequest {
+  getLoginRequest(): LoginRequest {
     return {username: this.form.value.username, password: this.form.value.password} as LoginRequest;
   }
+  //#endregion
 }

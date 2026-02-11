@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { BehaviorSubject } from 'rxjs';
+import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 
 @Injectable({
   providedIn: 'root'

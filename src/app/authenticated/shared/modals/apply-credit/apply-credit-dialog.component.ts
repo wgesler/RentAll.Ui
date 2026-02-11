@@ -1,17 +1,17 @@
-import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MaterialModule } from '../../../../material.module';
-import { FormsModule } from '@angular/forms';
-import { ReservationListResponse, ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../../../reservations/models/reservation-model';
-import { ReservationService } from '../../../reservations/services/reservation.service';
-import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, Inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { ToastrService } from 'ngx-toastr';
+import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
-import { take, finalize } from 'rxjs';
+import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
-import { AccountingService } from '../../../accounting/services/accounting.service';
 import { InvoicePaymentRequest } from '../../../accounting/models/invoice.model';
+import { AccountingService } from '../../../accounting/services/accounting.service';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest, ReservationResponse } from '../../../reservations/models/reservation-model';
+import { ReservationService } from '../../../reservations/services/reservation.service';
 
 export interface ApplyCreditDialogData {
   creditAmount: number;

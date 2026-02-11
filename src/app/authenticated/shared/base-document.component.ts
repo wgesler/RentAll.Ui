@@ -1,15 +1,15 @@
-import { DocumentService } from '../documents/services/document.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ToastrService } from 'ngx-toastr';
+import { take } from 'rxjs';
 import { DocumentExportService } from '../../services/document-export.service';
 import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-html.service';
-import { ToastrService } from 'ngx-toastr';
+import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
-import { OrganizationResponse } from '../organizations/models/organization.model';
+import { DocumentService } from '../documents/services/document.service';
 import { OfficeResponse } from '../organizations/models/office.model';
+import { OrganizationResponse } from '../organizations/models/organization.model';
 import { ReservationResponse } from '../reservations/models/reservation-model';
-import { ContactResponse } from '../contacts/models/contact.model';
-import { HttpErrorResponse } from '@angular/common/http';
-import { take } from 'rxjs';
 
 export interface DocumentConfig {
   previewIframeHtml: string;

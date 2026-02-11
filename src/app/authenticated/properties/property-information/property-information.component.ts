@@ -1,25 +1,24 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { PropertyLetterService } from '../services/property-letter.service';
-import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
-import { AuthService } from '../../../services/auth.service';
-import { PropertyService } from '../services/property.service';
-import { PropertyResponse } from '../models/property.model';
-import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { CommonService } from '../../../services/common.service';
-import { finalize, take, filter, BehaviorSubject, Observable, map } from 'rxjs';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { Subscription } from 'rxjs';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyResponse } from '../models/property.model';
+import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyService } from '../services/property.service';
+import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 
 @Component({
@@ -65,6 +64,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.form = this.buildForm();
   }
 
+  //#region Property-Information
   ngOnInit(): void {
     this.loadOffices();
     
@@ -121,31 +121,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     }
   }
 
-  populateFormFromCopiedData(): void {
-    if (!this.copiedPropertyInformation) {
-      return;
-    }
-
-    this.propertyInformation = this.copiedPropertyInformation;
-    this.form.patchValue({
-      arrivalInstructions: this.copiedPropertyInformation.arrivalInstructions || '',
-      access: this.copiedPropertyInformation.access || '',
-      mailboxInstructions: this.copiedPropertyInformation.mailboxInstructions || '',
-      packageInstructions: this.copiedPropertyInformation.packageInstructions || '',
-      parkingInformation: this.copiedPropertyInformation.parkingInformation || '',
-      amenities: this.copiedPropertyInformation.amenities || '',
-      laundry: this.copiedPropertyInformation.laundry || '',
-      providedFurnishings: this.copiedPropertyInformation.providedFurnishings || '',
-      housekeeping: this.copiedPropertyInformation.housekeeping || '',
-      televisionSource: this.copiedPropertyInformation.televisionSource || '',
-      internetService: this.copiedPropertyInformation.internetService || '',
-      keyReturn: this.copiedPropertyInformation.keyReturn || '',
-      concierge: this.copiedPropertyInformation.concierge || '',
-      emergencyContact: this.copiedPropertyInformation.emergencyContact || '',
-      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyContactNumber) : '',
-      additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
-    });
-    this.formatPhone();
+  onOfficeChange(): void {
+    // Office dropdown is for display/filtering only in property-information
   }
 
   getPropertyLetter(): void {
@@ -262,8 +239,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       }
     });
   }
-  
-  // Data Loading Methods
+  //#endregion
+
+  //#region Data Loading Methods
   loadOrganizationSettings(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
@@ -300,12 +278,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     });
   }
 
-  onOfficeChange(): void {
-    // Office dropdown is for display/filtering only in property-information
-    // Update selectedOffice when user changes dropdown
-    // Note: This doesn't change the property's officeId, just the display filter
-  }
-
   loadPropertyData(): void {
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
@@ -327,8 +299,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       }
     });
   }
+  //#endregion 
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       arrivalInstructions: new FormControl(''),
@@ -349,8 +322,36 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: new FormControl('')
     });
   }
+  //#endregion
 
-  // Populate Functions
+  //#region Populate Functions
+  populateFormFromCopiedData(): void {
+    if (!this.copiedPropertyInformation) {
+      return;
+    }
+
+    this.propertyInformation = this.copiedPropertyInformation;
+    this.form.patchValue({
+      arrivalInstructions: this.copiedPropertyInformation.arrivalInstructions || '',
+      access: this.copiedPropertyInformation.access || '',
+      mailboxInstructions: this.copiedPropertyInformation.mailboxInstructions || '',
+      packageInstructions: this.copiedPropertyInformation.packageInstructions || '',
+      parkingInformation: this.copiedPropertyInformation.parkingInformation || '',
+      amenities: this.copiedPropertyInformation.amenities || '',
+      laundry: this.copiedPropertyInformation.laundry || '',
+      providedFurnishings: this.copiedPropertyInformation.providedFurnishings || '',
+      housekeeping: this.copiedPropertyInformation.housekeeping || '',
+      televisionSource: this.copiedPropertyInformation.televisionSource || '',
+      internetService: this.copiedPropertyInformation.internetService || '',
+      keyReturn: this.copiedPropertyInformation.keyReturn || '',
+      concierge: this.copiedPropertyInformation.concierge || '',
+      emergencyContact: this.copiedPropertyInformation.emergencyContact || '',
+      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyContactNumber) : '',
+      additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
+    });
+    this.formatPhone();
+  }
+
   populateDefaultsFromProperty(): void {
     if (!this.property) return;
 
@@ -406,8 +407,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       this.formatPhone();
     }
   }
-  
-   // Phone Helpers
+  //#endregion
+
+  //#region Phone Helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
   }
@@ -415,11 +417,13 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('emergencyContactNumber'));
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

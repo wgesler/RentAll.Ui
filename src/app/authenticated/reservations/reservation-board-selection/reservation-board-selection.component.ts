@@ -1,26 +1,27 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { RouterUrl } from '../../../app.routes';
-import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { PropertyService } from '../../properties/services/property.service';
-import { AuthService } from '../../../services/auth.service';
-import { PropertySelectionRequest, PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, filter, finalize, forkJoin, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
-import { OfficeService } from '../../organizations/services/office.service';
-import { RegionService } from '../../organizations/services/region.service';
-import { AreaService } from '../../organizations/services/area.service';
-import { BuildingService } from '../../organizations/services/building.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { RegionResponse } from '../../organizations/models/region.model';
+import { UtilityService } from '../../../services/utility.service';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { RegionResponse } from '../../organizations/models/region.model';
+import { AreaService } from '../../organizations/services/area.service';
+import { BuildingService } from '../../organizations/services/building.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { RegionService } from '../../organizations/services/region.service';
 import { PropertyStatus } from '../../properties/models/property-enums';
+import { PropertySelectionRequest, PropertySelectionResponse } from '../../properties/models/property-selection.model';
+import { PropertyService } from '../../properties/services/property.service';
 
 @Component({
   selector: 'app-reservation-board-selection',
@@ -51,6 +52,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private toastr: ToastrService,
     private commonService: CommonService,
+    private utilityService: UtilityService,
     private officeService: OfficeService,
     private regionService: RegionService,
     private areaService: AreaService,
@@ -58,6 +60,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   ) {
   }
 
+  //#region Board-Selection
   ngOnInit(): void {
     this.buildForm();
     this.initializePropertyStatuses();
@@ -69,23 +72,22 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     if (preloaded) {
       this.preloadedSelection = preloaded;
       this.patchFormFromResponse(preloaded);
-      this.removeLoadItem('selection');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'selection');
     } else {
       this.loadPropertySelection();
     }
   }
-
 
   loadPropertySelection(): void {
     const userId = this.authService.getUser()?.userId || '';
     if (!userId) {
       this.isServiceError = true;
       this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
-      this.removeLoadItem('selection');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'selection');
       return;
     }
 
-    this.propertyService.getPropertySelection(userId).pipe(take(1), finalize(() => this.removeLoadItem('selection'))).subscribe({
+    this.propertyService.getPropertySelection(userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'selection'))).subscribe({
       next: (response: PropertySelectionResponse | null) => {
         this.preloadedSelection = response;
         this.patchFormFromResponse(response);
@@ -162,8 +164,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  // Data Load Methods
+  //#region Data Load Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -188,7 +191,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   loadDropDownLookups(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
-      this.removeLoadItem('lookups');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');
       return;
     }
 
@@ -197,7 +200,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1), finalize(() => { this.removeLoadItem('lookups'); })).subscribe({
+    }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
@@ -228,7 +231,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
         if (err.status !== 400) {
           this.toastr.error('Could not load lookups. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('lookups');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');
       }
     });
   }
@@ -245,8 +248,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       .trim()
       .replace(/^./, str => str.toUpperCase());
   }
-
-  // Form Methods
+  //#endregion
+  
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       // Use '' to match other dropdowns (e.g. Office) where All is selected by default
@@ -353,8 +357,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     this.form.markAsUntouched();
     this.form.markAsPristine();
   }
+  //#endregion
 
-  // Get Code Methods
+  //#region Get Code Methods
   getOfficeCode(officeId?: number): string | undefined {
     if (!officeId) return undefined;
     return this.offices.find(f => f.officeId === officeId)?.officeCode;
@@ -398,8 +403,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     if (!c) return undefined;
     return this.buildings.find(b => b.buildingCode === c)?.buildingId;
   }
+  //#endregion
 
-  // Conversion Methods
+  //#region Conversion Methods
   toStringOrNull(value: unknown): string | null {
     if (value === null || value === undefined || value === '') return null;
     const s = value.toString().trim();
@@ -447,8 +453,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     const item = list.find(item => item[codeField] === code);
     return item?.[idField] || null;
   }
+  //#endregion
 
-  // Utility Methods
+  //#region Utility Methods
   numbersOnly(event: KeyboardEvent): void {
     const allowedKeys = [
       'Backspace',
@@ -475,15 +482,6 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     }
   }
   
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
@@ -491,6 +489,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   backToBoard(): void {
     this.router.navigateByUrl(RouterUrl.ReservationBoard);
   }
+  //#endregion
 }
 
 

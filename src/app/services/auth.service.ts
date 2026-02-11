@@ -1,18 +1,17 @@
-import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, BehaviorSubject, tap, take } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
-import { MatDialog } from '@angular/material/dialog';
-import { StorageService } from './storage.service';
+import { BehaviorSubject, Observable, of, take, tap } from 'rxjs';
+import { RouterToken } from '../app.routes';
 import { StorageKey } from '../enums/storage-keys.enum';
-import { LoginRequest } from '../public/login/models/login-request';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
-import { ConfigService } from './config.service';
-import { JwtTempContainer } from '../public/login/models/jwt-temp';
+import { LoginRequest } from '../public/login/models/login-request';
 import { RefreshTokenRequest } from '../public/login/models/refresh-token-request';
-import { RouterToken } from '../app.routes';
+import { ConfigService } from './config.service';
+import { StorageService } from './storage.service';
 
 @Injectable({
     providedIn: 'root'

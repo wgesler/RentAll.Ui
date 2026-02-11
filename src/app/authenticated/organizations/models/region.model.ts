@@ -1,4 +1,3 @@
-import { of } from "rxjs";
 
 export interface RegionRequest {
   regionId?: number;

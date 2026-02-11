@@ -278,7 +278,7 @@
 .tableDiv {
   width: 100%;
   overflow-x: auto;
-  padding: 15px; // Equal padding all around
+  padding: var(--global-page-inner-padding); // Keep in sync with global page spacing
   
   // Style the "No data found..." message to maintain spacing (equivalent to 2 rows)
   ::ng-deep {

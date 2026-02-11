@@ -1,33 +1,33 @@
-import { OnInit, Component, OnDestroy, ViewChild, TemplateRef, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, DatePipe } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
+import { CompanyResponse } from '../../companies/models/company.model';
+import { CompanyService } from '../../companies/services/company.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
+import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
+import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
+import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
+import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
 import { AccountingService } from '../services/accounting.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
-import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter, concatMap, of, from } from 'rxjs';
-import { MappingService } from '../../../services/mapping.service';
-import { FormatterService } from '../../../services/formatter-service';
-import { UtilityService } from '../../../services/utility.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CostCodesService } from '../services/cost-codes.service';
-import { CostCodesResponse } from '../models/cost-codes.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { ReservationService } from '../../reservations/services/reservation.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { CompanyService } from '../../companies/services/company.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { TransactionTypeLabels, TransactionType } from '../models/accounting-enum';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
-import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
-import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
-import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 
 @Component({
   selector: 'app-invoice-list',
@@ -91,7 +91,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
   creditCostCodes: { value: number, label: string }[] = [];
-  private baseInvoicesDisplayedColumns: ColumnSet = {
+  baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -358,7 +358,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-//#region Action Methods
+  //#region Action Methods
   deleteInvoice(invoice: InvoiceResponse): void {
     if (confirm(`Are you sure you want to delete this invoice?`)) {
       this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
@@ -489,6 +489,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Filter methods
+  getCompanyIdToApply(): string | null {
+    if (this.companyId !== null && this.companyId !== undefined && this.companyId !== '') {
+      return this.companyId;
+    }
+
+    // In embedded reservation mode, never consume route query params.
+    if (!this.useRouteQueryParams) {
+      return null;
+    }
+
+    const routeCompanyId = this.route.snapshot.queryParams['companyId'];
+    return routeCompanyId ? String(routeCompanyId) : null;
+  }
+
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -646,9 +660,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // After filtering by office, check if there's a companyId to select in the dropdown
     // This only sets selectedCompany - it doesn't change the filtered list
     if (this.companies.length > 0 && this.selectedOffice) {
-      const companyIdToApply = this.companyId !== null 
-        ? this.companyId 
-        : this.route.snapshot.queryParams['companyId'];
+      const companyIdToApply = this.getCompanyIdToApply();
       
       if (companyIdToApply) {
         const matchingCompany = this.companies.find(c => 

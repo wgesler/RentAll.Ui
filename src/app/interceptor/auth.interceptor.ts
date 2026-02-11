@@ -1,10 +1,10 @@
 import { HttpErrorResponse, HttpEvent, HttpHandlerFn, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
-import { AuthResponse } from '../public/login/models/auth-response';
 import { inject } from '@angular/core';
-import { AuthService } from '../services/auth.service';
+import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, catchError, filter, finalize, switchMap, take, throwError } from 'rxjs';
 import { CommonMessage } from '../enums/common-message.enum';
-import { ToastrService } from 'ngx-toastr';
+import { AuthResponse } from '../public/login/models/auth-response';
+import { AuthService } from '../services/auth.service';
 import { LoadingBarService } from '../services/loading-bar.service';
 import { PurposefulAny } from '../shared/models/amorphous';
 import { ErrorResponseDto } from '../shared/models/error-response';

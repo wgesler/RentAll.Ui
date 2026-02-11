@@ -1,20 +1,20 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map } from 'rxjs';
-import { OrganizationService } from '../services/organization.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { OrganizationResponse, OrganizationRequest } from '../models/organization.model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
-import { fileValidator } from '../../../validators/file-validator';
 import { FileDetails } from '../../../shared/models/fileDetails';
+import { fileValidator } from '../../../validators/file-validator';
+import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
+import { OrganizationService } from '../services/organization.service';
 
 @Component({
   selector: 'app-organization',
@@ -41,6 +41,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public organizationService: OrganizationService,
@@ -57,7 +58,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#region Organization
   ngOnInit(): void {
     this.loadStates();
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.organizationId = paramMap.get('id');
         this.isAddMode = this.organizationId === 'new';
@@ -193,7 +194,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   }
 
   setupConditionalFields(): void {
-    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+    this.form.get('isInternational')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isInternational => {
       const cityControl = this.form.get('city');
       const stateControl = this.form.get('state');
       const zipControl = this.form.get('zip');
@@ -311,6 +312,8 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
 

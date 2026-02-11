@@ -41,7 +41,7 @@ body {
 .tableDiv {
   width: 100%;
   overflow-x: auto;
-  padding: 15px;
+  padding: var(--global-page-inner-padding);
 }
 
 .office-dropdown {

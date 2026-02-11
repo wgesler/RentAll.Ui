@@ -1,18 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
-import { ColorService } from '../services/color.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ColorResponse, ColorRequest } from '../models/color.model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { ReservationStatus } from '../../reservations/models/reservation-enum';
+import { ColorRequest, ColorResponse } from '../models/color.model';
+import { ColorService } from '../services/color.service';
 
 @Component({
   selector: 'app-color',
@@ -45,6 +44,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public colorService: ColorService,
@@ -60,7 +60,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   //#region Color
   ngOnInit(): void {
     // Check for returnTo query parameter
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
@@ -213,6 +213,8 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
 

@@ -1,24 +1,22 @@
-import { OnInit, Component, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
-import { NgZone } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { UserResponse, UserListDisplay } from '../models/user.model';
-import { UserGroups, getStartupPage } from '../models/user-enums';
-import { UserService } from '../services/user.service';
-import { OrganizationService } from '../../organizations/services/organization.service';
-import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, forkJoin, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
-import { MappingService } from '../../../services/mapping.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { MappingService } from '../../../services/mapping.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { OrganizationService } from '../../organizations/services/organization.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { getStartupPage } from '../models/user-enums';
+import { UserListDisplay, UserResponse } from '../models/user.model';
+import { UserService } from '../services/user.service';
 
 @Component({
   selector: 'app-user-list',

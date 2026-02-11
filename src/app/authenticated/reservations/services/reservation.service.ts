@@ -1,8 +1,8 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { ReservationRequest, ReservationResponse, ReservationListResponse } from '../models/reservation-model';
+import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 
 @Injectable({
   providedIn: 'root'

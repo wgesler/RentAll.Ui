@@ -1,7 +1,7 @@
 import { DialogRef } from "@angular/cdk/dialog";
 import { MatDialogRef } from "@angular/material/dialog";
-import { GenericModalComponent } from "../generic-modal.component";
 import { MatIcon } from "@angular/material/icon";
+import { GenericModalComponent } from "../generic-modal.component";
 
 export type GenericModalData = {
     title: string;

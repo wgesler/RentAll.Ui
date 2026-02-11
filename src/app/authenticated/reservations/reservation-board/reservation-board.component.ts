@@ -1,27 +1,27 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, Router } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { FormsModule } from '@angular/forms';
-import { PropertyService } from '../../properties/services/property.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
-import { take, finalize, filter, BehaviorSubject, Observable, map, Subscription } from 'rxjs';
-import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { ReservationService } from '../services/reservation.service';
-import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
-import { ReservationStatus } from '../models/reservation-enum';
-import { RouterUrl } from '../../../app.routes';
-import { ContactService } from '../../contacts/services/contact.service';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { ColorService } from '../../organizations/services/color.service';
-import { ColorResponse } from '../../organizations/models/color.model';
-import { AuthService } from '../../../services/auth.service';
-import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../enums/common-message.enum';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { ColorResponse } from '../../organizations/models/color.model';
+import { ColorService } from '../../organizations/services/color.service';
+import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
+import { ReservationStatus } from '../models/reservation-enum';
+import { ReservationListResponse } from '../models/reservation-model';
+import { ReservationService } from '../services/reservation.service';
 
 
 
@@ -59,6 +59,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService
   ) { }
 
+  //#region Reseration-Board
   ngOnInit(): void {
     this.setDefaultDateRange();
     this.generateCalendarDays();
@@ -107,7 +108,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.generateCalendarDays();
   }
-
+  //#endregion
+  
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {

@@ -1,14 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
-import { FormBuilder, FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
 import { LeaseInformationService } from '../services/lease-information.service';
-import { AuthService } from '../../../services/auth.service';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { HttpErrorResponse } from '@angular/common/http';
-import { finalize, take, BehaviorSubject, Observable, map } from 'rxjs';
 import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
@@ -34,11 +35,13 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
     private leaseInformationService: LeaseInformationService,
     private authService: AuthService,
     private toastr: ToastrService,
-    private leaseReloadService: LeaseReloadService
+    private leaseReloadService: LeaseReloadService,
+    private utilityService: UtilityService
   ) {
     this.form = this.buildForm();
   }
 
+  //#region Lease-Information
   ngOnInit(): void {
     this.getLeaseInformation();
   }
@@ -53,30 +56,25 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
     // If either changed and both are now available, load the lease information
     if ((propertyIdChanged || contactIdChanged) && this.propertyId && this.contactId) {
       // Reset loading state
-      const currentSet = this.itemsToLoad$.value;
-      if (!currentSet.has('leaseInformation')) {
-        const newSet = new Set(currentSet);
-        newSet.add('leaseInformation');
-        this.itemsToLoad$.next(newSet);
-      }
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
       this.getLeaseInformation();
     } else if ((propertyIdChanged || contactIdChanged) && (!this.propertyId || !this.contactId)) {
       // If inputs became null/undefined, clear the form
       this.leaseInformation = null;
       this.form.reset();
-      this.removeLoadItem('leaseInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
     }
   }
 
   getLeaseInformation(): void {
     // This loads on add-reservation, no need to do anything
     if (!this.propertyId || !this.contactId) {
-      this.removeLoadItem('leaseInformation');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
       return;
     }
 
     // Try to get by propertyId first
-    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.removeLoadItem('leaseInformation'); })).subscribe({
+    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         if (response) {
           this.leaseInformation = response;
@@ -87,13 +85,13 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
         // If not found by propertyId, that's okay - form will remain empty
         if (err.status === 404) {
           // Lease information doesn't exist yet, that's fine
-          this.removeLoadItem('leaseInformation');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
           return;
         }
         if (err.status !== 400) {
           this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('leaseInformation');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
       }
     });
   }
@@ -161,8 +159,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+  //#endregion
 
-  // Form Methods
+  //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
       rentalPayment: new FormControl<string | null>(null),
@@ -222,19 +221,12 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       miscellaneous: leaseInformation.miscellaneous || null
     });
   }
+  //#endregion
 
-  // Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

@@ -14,16 +14,16 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'FourT.Private.EscheaTR.Ui' title`, () => {
+  it(`should have the 'RentAll.Ui' title`, () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('FourT.Private.EscheaTR.Ui');
+    expect(app.title).toEqual('RentAll.Ui');
   });
 
   it('should render title', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, FourT.Private.EscheaTR.Ui');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, RentAll.Ui');
   });
 });

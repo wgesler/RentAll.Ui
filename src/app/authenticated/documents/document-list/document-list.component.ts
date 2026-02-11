@@ -1,27 +1,26 @@
-import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { DocumentResponse, DocumentListDisplay } from '../models/document.model';
-import { DocumentService } from '../services/document.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
-import { DocumentType, getDocumentType } from '../models/document.enum';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { ReservationService } from '../../reservations/services/reservation.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { UtilityService } from '../../../services/utility.service';
-import { AuthService } from '../../../services/auth.service';
-import { PropertyService } from '../../properties/services/property.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListDisplay } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { DocumentType, getDocumentType } from '../models/document.enum';
+import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
+import { DocumentService } from '../services/document.service';
 
 @Component({
   selector: 'app-document-list',
@@ -83,20 +82,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '30ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
   };
-
-  // Getter that returns the appropriate columns based on mode
-  get documentsDisplayedColumns(): ColumnSet {
-    return (this.propertyId && this.documentTypeId !== undefined) 
-      ? this.tabColumns 
-      : this.sidebarColumns;
-  }
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  get useRouteQueryParams(): boolean {
-    // In embedded contexts, parent inputs should drive state.
-    return this.source === 'documents';
-  }
 
   constructor(
     public documentService: DocumentService,
@@ -662,6 +650,16 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  get useRouteQueryParams(): boolean {   
+    return this.source === 'documents';
+  }
+
+  get documentsDisplayedColumns(): ColumnSet {
+    return (this.propertyId && this.documentTypeId !== undefined) 
+      ? this.tabColumns 
+      : this.sidebarColumns;
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();

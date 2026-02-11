@@ -1,7 +1,7 @@
-import {AfterViewInit, Directive, ElementRef, OnDestroy, OnInit} from '@angular/core';
-import {MatTooltip} from '@angular/material/tooltip';
-import {fromEvent, Observable, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import { AfterViewInit, Directive, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { MatTooltip } from '@angular/material/tooltip';
+import { Observable, Subscription, fromEvent } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 
 @Directive({
 	selector: '[matTooltip][appMatTooltipShowIfTruncated]'

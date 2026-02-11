@@ -1,20 +1,19 @@
-import { OnInit, Component, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { AreaResponse, AreaListDisplay } from '../models/area.model';
-import { AreaService } from '../services/area.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map } from 'rxjs';
-import { MappingService } from '../../../services/mapping.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { MappingService } from '../../../services/mapping.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { AreaListDisplay, AreaResponse } from '../models/area.model';
+import { AreaService } from '../services/area.service';
 import { OfficeService } from '../services/office.service';
-import { OfficeResponse } from '../models/office.model';
 
 @Component({
   selector: 'app-area-list',

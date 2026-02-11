@@ -22,7 +22,6 @@
 }
 
 .reservation-board-card {
-  width: 96% !important;
   height: calc(100vh - 144px);
   display: flex;
   flex-direction: column;
@@ -30,7 +29,6 @@
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  max-width: 96% !important;
   margin-left: auto !important;
   margin-right: auto !important;
 

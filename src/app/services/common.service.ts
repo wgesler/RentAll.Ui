@@ -1,14 +1,14 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, take } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, take } from 'rxjs';
+import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
+import { OrganizationService } from '../authenticated/organizations/services/organization.service';
 import { CommonMessage } from '../enums/common-message.enum';
-import { ConfigService } from './config.service';
 import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
-import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { AuthService } from './auth.service';
-import { OrganizationService } from '../authenticated/organizations/services/organization.service';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'

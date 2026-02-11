@@ -1,32 +1,32 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MaterialModule } from '../../../material.module';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { AgentListComponent } from '../agent-list/agent-list.component';
-import { AgentComponent } from '../agent/agent.component';
-import { OfficeListComponent } from '../office-list/office-list.component';
-import { OfficeComponent } from '../office/office.component';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
+import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
+import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.component';
+import { UserGroups } from '../../users/models/user-enums';
 import { AccountingOfficeListComponent } from '../accounting-office-list/accounting-office-list.component';
 import { AccountingOfficeComponent } from '../accounting-office/accounting-office.component';
-import { RegionListComponent } from '../region-list/region-list.component';
-import { RegionComponent } from '../region/region.component';
+import { AgentListComponent } from '../agent-list/agent-list.component';
+import { AgentComponent } from '../agent/agent.component';
 import { AreaListComponent } from '../area-list/area-list.component';
 import { AreaComponent } from '../area/area.component';
 import { BuildingListComponent } from '../building-list/building-list.component';
 import { BuildingComponent } from '../building/building.component';
-import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
-import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.component';
 import { ColorListComponent } from '../color-list/color-list.component';
 import { ColorComponent } from '../color/color.component';
-import { NavigationContextService } from '../../../services/navigation-context.service';
-import { OrganizationService } from '../services/organization.service';
 import { OrganizationResponse } from '../models/organization.model';
-import { AuthService } from '../../../services/auth.service';
-import { UserGroups } from '../../users/models/user-enums';
-import { take, finalize } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http';
+import { OfficeListComponent } from '../office-list/office-list.component';
+import { OfficeComponent } from '../office/office.component';
+import { RegionListComponent } from '../region-list/region-list.component';
+import { RegionComponent } from '../region/region.component';
+import { OrganizationService } from '../services/organization.service';
 
 @Component({
   selector: 'app-configuration',
@@ -100,6 +100,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   ) {
   }
 
+  //#region Configuration
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
@@ -128,7 +129,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       }
     }
   }
+  //#endregion
 
+  //#region Data Loading Methods
   loadOrganizations(): void {
     this.organizationService.getOrganizations().pipe(take(1)).subscribe({
       next: (organizations) => {
@@ -143,7 +146,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   onOrganizationChange(): void {
     // When organization changes, the selected organizationId will be passed to office-list
     // which will then pass it to office component
@@ -155,7 +160,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.costCodesOfficeId = officeId;
   }
 
-  // Event handlers for child components
   onOfficeSelected(officeId: string | number | null): void {
     this.officeId = officeId;
     this.isEditingOffice = officeId !== null;
@@ -244,7 +248,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onCostCodesEdit(event: string | { costCodeId: string, officeId: number | null }): void {
-    // Handle both old format (string) and new format (object)
     if (typeof event === 'string') {
       this.costCodesId = event;
       this.costCodesOfficeId = this.selectedCostCodesOfficeId;
@@ -284,13 +287,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onPanelClosed(section: string): void {
     this.expandedSections[section] = false;
   }
+  //#endregion
 
-  ngOnDestroy(): void {
-    this.navigationContext.clearContext();
-  }
-
+  //#region Utlity Methods
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }
+  
+  ngOnDestroy(): void {
+    this.navigationContext.clearContext();
+  }
+  //#endregion
 }
 

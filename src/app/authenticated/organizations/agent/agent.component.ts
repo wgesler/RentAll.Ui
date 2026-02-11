@@ -1,21 +1,20 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
-import { AgentService } from '../services/agent.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { AgentResponse, AgentRequest } from '../models/agent.model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
-import { OfficeService } from '../services/office.service';
-import { OfficeResponse } from '../models/office.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
+import { AgentRequest, AgentResponse } from '../models/agent.model';
+import { OfficeResponse } from '../models/office.model';
+import { AgentService } from '../services/agent.service';
+import { OfficeService } from '../services/office.service';
 
 @Component({
   selector: 'app-agent',
@@ -42,6 +41,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public agentService: AgentService,
@@ -61,7 +61,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     // Check for returnTo query parameter
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
@@ -212,6 +212,8 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

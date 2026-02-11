@@ -1,4 +1,3 @@
-import { JwtTempUser } from './jwt-temp';
 
 export class JwtContainer {
     sub: string;

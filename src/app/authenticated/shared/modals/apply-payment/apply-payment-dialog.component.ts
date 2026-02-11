@@ -1,10 +1,10 @@
-import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MaterialModule } from '../../../../material.module';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CostCodesResponse } from '../../../accounting/models/cost-codes.model';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MaterialModule } from '../../../../material.module';
 import { TransactionType } from '../../../accounting/models/accounting-enum';
+import { CostCodesResponse } from '../../../accounting/models/cost-codes.model';
 
 export interface ApplyPaymentDialogData {
   costCodes: CostCodesResponse[];

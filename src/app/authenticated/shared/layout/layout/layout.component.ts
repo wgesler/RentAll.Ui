@@ -1,16 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterModule } from '@angular/router';
+import { DEFAULT_INTERRUPTSOURCES, Idle } from '@ng-idle/core';
+import { Keepalive, NgIdleKeepaliveModule } from '@ng-idle/keepalive';
+import { Subject, Subscription } from 'rxjs';
+import { AuthService } from '../../../../services/auth.service';
+import { GenericModalComponent } from '../../modals/generic/generic-modal.component';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { AuthService } from '../../../../services/auth.service';
-import { Subject, Subscription } from 'rxjs';
-import { Keepalive, NgIdleKeepaliveModule } from '@ng-idle/keepalive';
-import { DEFAULT_INTERRUPTSOURCES, Idle } from '@ng-idle/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { GenericModalComponent } from '../../modals/generic/generic-modal.component';
 
 @Component({
   selector: 'app-layout',

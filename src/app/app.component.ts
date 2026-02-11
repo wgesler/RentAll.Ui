@@ -1,22 +1,21 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule, HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterOutlet } from '@angular/router';
-import { HttpClientModule } from '@angular/common/http';
-import { AuthService } from './services/auth.service';
-import { CommonService } from './services/common.service';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
+import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
+import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
+import { OfficeService } from './authenticated/organizations/services/office.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
-import { OfficeService } from './authenticated/organizations/services/office.service';
-import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
-import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
-import { Observable, filter, take, BehaviorSubject, map, finalize } from 'rxjs';
-import { MatIconModule } from '@angular/material/icon'; 
-import { MatButtonModule } from '@angular/material/button';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from './enums/common-message.enum';
+import { AuthService } from './services/auth.service';
+import { CommonService } from './services/common.service';
 
 @Component({
   selector: 'app-root',

@@ -1,26 +1,25 @@
-import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { ReservationListResponse, ReservationListDisplay } from '../models/reservation-model';
-import { ReservationService } from '../services/reservation.service';
-import { PropertyService } from '../../properties/services/property.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { CompanyService } from '../../companies/services/company.service';
 import { CompanyResponse } from '../../companies/models/company.model';
-import { OfficeService } from '../../organizations/services/office.service';
+import { CompanyService } from '../../companies/services/company.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { AuthService } from '../../../services/auth.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ReservationListDisplay, ReservationListResponse } from '../models/reservation-model';
+import { ReservationService } from '../services/reservation.service';
 
 @Component({
   selector: 'app-reservation-list',

@@ -1,16 +1,16 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MaterialModule } from '../../../../material.module';
-import { AuthService } from '../../../../services/auth.service';
-import { Observable, map, shareReplay, take, Subscription } from 'rxjs';
-import { JwtUser } from '../../../../public/login/models/jwt';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { Observable, Subscription, map, shareReplay, take } from 'rxjs';
+import { MaterialModule } from '../../../../material.module';
+import { JwtUser } from '../../../../public/login/models/jwt';
+import { AuthService } from '../../../../services/auth.service';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
-import { MatDialog } from '@angular/material/dialog';
-import { UserComponent } from '../../../users/user/user.component';
-import { UserService } from '../../../users/services/user.service';
 import { UserResponse } from '../../../users/models/user.model';
+import { UserService } from '../../../users/services/user.service';
+import { UserComponent } from '../../../users/user/user.component';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({

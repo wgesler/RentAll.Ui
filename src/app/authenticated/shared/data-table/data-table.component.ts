@@ -1,18 +1,18 @@
+import { SelectionModel } from '@angular/cdk/collections';
+import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 import { take } from 'rxjs';
 import { FormatterService } from '../../../../app/services/formatter-service';
+import { getStatus } from '../../../enums/status.enum';
 import { MaterialModule } from '../../../material.module';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { PurposefulAny } from '../../../shared/models/amorphous';
-import { SelectionModel } from '@angular/cdk/collections';
-import { Status, getStatus } from '../../../enums/status.enum';
-import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { ButtonData } from './models/button-data';
+import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
 
 @Component({

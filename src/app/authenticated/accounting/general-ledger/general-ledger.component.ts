@@ -1,13 +1,11 @@
-import { Component, OnInit, OnChanges, SimpleChanges, Input, Output, EventEmitter, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subscription, filter, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { AuthService } from '../../../services/auth.service';
-import { filter, take, Subscription } from 'rxjs';
 import { MappingService } from '../../../services/mapping.service';
-import { ActivatedRoute } from '@angular/router';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 
 @Component({
   selector: 'app-general-ledger',
@@ -29,8 +27,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
 
   constructor(
     private officeService: OfficeService,
-    private mappingService: MappingService,
-    private route: ActivatedRoute
+    private mappingService: MappingService
   ) {}
 
   //#region General-Ledger
@@ -41,22 +38,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOfficeId = this.officeId;
       }
-      
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.selectedOfficeId = parsedOfficeId;
-            this.officeIdChange.emit(this.selectedOfficeId);
-          }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOfficeId = null;
-          }
-        }
-      });
     });
   }
 

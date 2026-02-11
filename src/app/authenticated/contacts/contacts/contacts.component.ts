@@ -1,13 +1,14 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subject, Subscription, filter, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
-import { ContactListComponent } from '../contact-list/contact-list.component';
-import { Router, ActivatedRoute } from '@angular/router';
-import { EntityType } from '../models/contact-enum';
-import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { Subscription, filter, take } from 'rxjs';
+import { OfficeService } from '../../organizations/services/office.service';
+import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
+import { ContactListComponent } from '../contact-list/contact-list.component';
+import { EntityType } from '../models/contact-enum';
 
 @Component({
   selector: 'app-contacts',
@@ -29,6 +30,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  destroy$ = new Subject<void>();
   
   constructor(
     private router: Router,
@@ -38,23 +40,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
   //#region Contacts
   ngOnInit(): void {
-    const initialParams = this.route.snapshot.queryParams;
-    if (initialParams['tab']) {
-      const tabIndex = parseInt(initialParams['tab'], 10);
-      if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3) {
-        this.selectedTabIndex = tabIndex;
-      }
-    }
+    this.applyQueryParamState(this.route.snapshot.queryParams);
     
     // Subscribe to query params for tab selection
-    this.route.queryParams.subscribe(params => {
-      if (params['tab']) {
-        const tabIndex = parseInt(params['tab'], 10);
-        if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3 && this.selectedTabIndex !== tabIndex) {
-          this.selectedTabIndex = tabIndex;
-        }
-      }
-    });
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => this.applyQueryParamState(params));
     
     // Load offices for shared office selection
     this.loadOffices();
@@ -102,43 +93,12 @@ export class ContactsComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         
-        const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
-        if (officeIdFromParams) {
-          const officeId = parseInt(officeIdFromParams, 10);
-          if (!isNaN(officeId)) {
-            const office = this.offices.find(o => o.officeId === officeId);
-            if (office) {
-              this.selectedOffice = office;
-              this.selectedOfficeId = office.officeId;
-              this.showOfficeDropdown = true;
-              return;
-            }
-          }
-        }
-        
-        if (this.offices.length === 1) {
+        this.showOfficeDropdown = this.offices.length !== 1;
+        this.applyQueryParamState(this.route.snapshot.queryParams);
+
+        if (!this.selectedOffice && this.offices.length === 1) {
           this.selectedOffice = this.offices[0];
           this.selectedOfficeId = this.offices[0].officeId;
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-      });
-      
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              this.selectedOfficeId = this.selectedOffice.officeId;
-            }
-          }
-        } else {
-          this.selectedOffice = null;
-          this.selectedOfficeId = null;
         }
       });
     });
@@ -147,7 +107,29 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
   }
   //#endregion
+
+  applyQueryParamState(params: Record<string, unknown>): void {
+    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
+      this.selectedTabIndex = tabIndex;
+    }
+
+    const officeId = getNumberQueryParam(params, 'officeId');
+    if (officeId !== null && this.offices.length > 0) {
+      const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.selectedOffice = matchedOffice;
+      this.selectedOfficeId = matchedOffice?.officeId ?? null;
+      return;
+    }
+
+    if (getStringQueryParam(params, 'officeId') === null) {
+      this.selectedOffice = null;
+      this.selectedOfficeId = null;
+    }
+  }
 }

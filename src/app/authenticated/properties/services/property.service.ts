@@ -1,9 +1,9 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 
 @Injectable({
     providedIn: 'root'

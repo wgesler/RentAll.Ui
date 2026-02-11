@@ -1,46 +1,46 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, BehaviorSubject, Observable, map, catchError, of, Subscription, Subject, takeUntil } from 'rxjs';
-import { ReservationService } from '../services/reservation.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ReservationResponse, ReservationRequest, ExtraFeeLineRequest, ExtraFeeLineResponse } from '../models/reservation-model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
-import { ContactService } from '../../contacts/services/contact.service';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { PropertyService } from '../../properties/services/property.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
-import { AgentService } from '../../organizations/services/agent.service';
-import { AgentResponse } from '../../organizations/models/agent.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { CompanyService } from '../../companies/services/company.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { CommonService } from '../../../services/common.service';
-import { EntityType } from '../../contacts/models/contact-enum';
-import { ReservationType, ReservationStatus, BillingType, BillingMethod, Frequency, ReservationNotice, DepositType, ProrateType, getReservationTypes, getReservationStatuses, getBillingTypes, getBillingMethods, getFrequencies, getReservationNotices, getDepositTypes, getProrateTypes } from '../models/reservation-enum';
-import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
-import { AuthService } from '../../../services/auth.service';
-import { FormatterService } from '../../../services/formatter-service';
-import { LeaseComponent } from '../lease/lease.component';
-import { LeaseInformationComponent } from '../lease-information/lease-information.component';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
-import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
-import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { LeaseReloadService } from '../services/lease-reload.service';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CostCodesService } from '../../accounting/services/cost-codes.service';
-import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
+import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
 import { TransactionType } from '../../accounting/models/accounting-enum';
+import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
+import { CompanyResponse } from '../../companies/models/company.model';
+import { CompanyService } from '../../companies/services/company.service';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
+import { AgentResponse } from '../../organizations/models/agent.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { AgentService } from '../../organizations/services/agent.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { LeaseInformationComponent } from '../lease-information/lease-information.component';
+import { LeaseComponent } from '../lease/lease.component';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
+import { ExtraFeeLineRequest, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { LeaseReloadService } from '../services/lease-reload.service';
+import { ReservationService } from '../services/reservation.service';
 
 // Display interface for ExtraFeeLine in the UI
 interface ExtraFeeLineDisplay {
@@ -113,8 +113,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private destroy$ = new Subject<void>();
-  private readonly tabParamToIndex: Record<string, number> = {
+  destroy$ = new Subject<void>();
+  readonly tabParamToIndex: Record<string, number> = {
     invoices: 1,
     lease: 2,
     documents: 3
@@ -749,7 +749,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
   }
 
-  private applyDefaultProrateTypeByReservationType(reservationTypeId: number | null): void {
+  applyDefaultProrateTypeByReservationType(reservationTypeId: number | null): void {
     const prorateTypeControl = this.form.get('prorateTypeId');
     if (!prorateTypeControl) {
       return;
@@ -1418,20 +1418,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
-    this.costCodesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.ReservationList);
-  }
-
+  //#region Tab Selection Methods
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
     const tabParam = this.getTabParamFromIndex(event.index);
@@ -1447,9 +1434,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.reservationDocumentList.reload();
     }
   }
-  //#endregion
-
-  private getTabIndexFromQueryParam(tabParam: string | undefined): number {
+  
+ getTabIndexFromQueryParam(tabParam: string | undefined): number {
     if (!tabParam) {
       return 0;
     }
@@ -1457,7 +1443,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     return this.tabParamToIndex[tabParam] ?? 0;
   }
 
-  private getTabParamFromIndex(tabIndex: number): string | null {
+  getTabParamFromIndex(tabIndex: number): string | null {
     switch (tabIndex) {
       case 1:
         return 'invoices';
@@ -1469,4 +1455,20 @@ export class ReservationComponent implements OnInit, OnDestroy {
         return null;
     }
   }
+  //#endregion
+
+  //#region Utility Methods
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.ReservationList);
+  }
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.officesSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
+    this.costCodesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+  //#endregion
 }

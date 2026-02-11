@@ -1,27 +1,27 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap } from 'rxjs';
-import { ContactService } from '../services/contact.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { ContactResponse, ContactRequest } from '../models/contact.model';
-import { EntityType, getContactTypes } from '../models/contact-enum';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { AuthService } from '../../../services/auth.service';
-import { CompanyService } from '../../companies/services/company.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { VendorService } from '../../companies/services/vendor.service';
-import { VendorResponse } from '../../companies/models/vendor.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { CompanyResponse } from '../../companies/models/company.model';
+import { VendorResponse } from '../../companies/models/vendor.model';
+import { CompanyService } from '../../companies/services/company.service';
+import { VendorService } from '../../companies/services/vendor.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { EntityType, getContactTypes } from '../models/contact-enum';
+import { ContactRequest, ContactResponse } from '../models/contact.model';
+import { ContactService } from '../services/contact.service';
 
 @Component({
   selector: 'app-contact',

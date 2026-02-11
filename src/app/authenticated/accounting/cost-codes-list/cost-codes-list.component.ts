@@ -1,22 +1,22 @@
-import { OnInit, Component, OnDestroy, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { CostCodesResponse } from '../models/cost-codes.model';
-import { CostCodesService } from '../services/cost-codes.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, BehaviorSubject, Observable, map, filter, Subscription } from 'rxjs';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeService } from '../../organizations/services/office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../models/accounting-enum';
+import { CostCodesResponse } from '../models/cost-codes.model';
+import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
   selector: 'app-cost-codes-list',
@@ -77,33 +77,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     this.loadCostCodes();
-    
-    // Handle query params for office selection changes
-    // Wait for offices to load before processing query params
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            // Find office from already loaded offices
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-              this.filterCostCodes();
-            }
-            this.applyFilters();
-          }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOffice = null;
-            this.allCostCodes = [];
-            this.costCodesDisplay = [];
-            this.applyFilters();
-          }
-        }
-      });
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -206,18 +179,9 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Set selectedOffice from input or query params (input takes precedence)
+        // Set selectedOffice from parent input.
         if (this.officeId !== null && this.officeId !== undefined) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        } else {
-          const snapshotParams = this.route.snapshot.queryParams;
-          const officeIdParam = snapshotParams['officeId'];
-          if (officeIdParam) {
-            const parsedOfficeId = parseInt(officeIdParam, 10);
-            if (parsedOfficeId) {
-              this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            }
-          }
         }
         
         // Auto-select if only one office available (unless officeId input/query param is provided)

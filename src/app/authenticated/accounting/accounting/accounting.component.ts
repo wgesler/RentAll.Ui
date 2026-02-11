@@ -1,15 +1,17 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
+import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
-import { Router, ActivatedRoute } from '@angular/router';
-import { RouterUrl } from '../../../app.routes';
+import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
@@ -43,6 +45,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   isEditingCostCodes: boolean = false;
   costCodesId: string | number | null = null;
   costCodesOfficeId: number | null = null;
+  destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
@@ -51,66 +54,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    // Read initial query params immediately (before subscription) so invoice-list gets companyId on first render
-    const initialParams = this.route.snapshot.queryParams;
-    if (initialParams['officeId']) {
-      const officeId = parseInt(initialParams['officeId'], 10);
-      if (!isNaN(officeId)) {
-        this.selectedOfficeId = officeId;
-      }
-    }
-    if (initialParams['companyId']) {
-      this.selectedCompanyId = initialParams['companyId'];
-    }
-    if (initialParams['reservationId']) {
-      this.selectedReservationId = initialParams['reservationId'];
-    }
-    if (initialParams['invoiceId']) {
-      this.selectedInvoiceId = initialParams['invoiceId'];
-    }
-    if (initialParams['tab']) {
-      const tabIndex = parseInt(initialParams['tab'], 10);
-      if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3) {
-        this.selectedTabIndex = tabIndex;
-      }
-    }
+    this.applyQueryParamState(this.route.snapshot.queryParams);
     
-    // Check query params for tab selection and filters (subscribe to changes, not just initial)
-    this.route.queryParams.subscribe(params => {
-      if (params['tab']) {
-        const tabIndex = parseInt(params['tab'], 10);
-        if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3 && this.selectedTabIndex !== tabIndex) {
-          this.selectedTabIndex = tabIndex;
-        }
-      }
-      if (params['officeId']) {
-        const officeId = parseInt(params['officeId'], 10);
-        if (!isNaN(officeId) && this.selectedOfficeId !== officeId) {
-          this.selectedOfficeId = officeId;
-        }
-      }
-      if (params['reservationId']) {
-        const reservationId = params['reservationId'];
-        if (this.selectedReservationId !== reservationId) {
-          this.selectedReservationId = reservationId;
-        }
-      }
-      if (params['invoiceId']) {
-        const invoiceId = params['invoiceId'];
-        if (this.selectedInvoiceId !== invoiceId) {
-          this.selectedInvoiceId = invoiceId;
-        }
-      }
-      if (params['companyId']) {
-        const companyId = params['companyId'];
-        if (this.selectedCompanyId !== companyId) {
-          this.selectedCompanyId = companyId;
-        }
-      }
-    });
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => this.applyQueryParamState(params));
   }
-
-
 
   //#region Tab Selections
   onTabChange(event: any): void {
@@ -274,7 +223,35 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  applyQueryParamState(params: Record<string, string>): void {
+    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
+      this.selectedTabIndex = tabIndex;
+    }
+
+    const officeId = getNumberQueryParam(params, 'officeId');
+    if (officeId !== null && this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
+    }
+
+    const reservationId = getStringQueryParam(params, 'reservationId');
+    if (reservationId !== null && this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+    }
+
+    const invoiceId = getStringQueryParam(params, 'invoiceId');
+    if (invoiceId !== null && this.selectedInvoiceId !== invoiceId) {
+      this.selectedInvoiceId = invoiceId;
+    }
+
+    const companyId = getStringQueryParam(params, 'companyId');
+    if (companyId !== null && this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
+    }
+  }
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 

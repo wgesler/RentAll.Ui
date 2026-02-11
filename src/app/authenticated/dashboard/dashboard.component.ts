@@ -1,21 +1,21 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MaterialModule } from '../../material.module';
-import { AuthService } from '../../services/auth.service';
-import { UserService } from '../users/services/user.service';
-import { UserResponse } from '../users/models/user.model';
-import { JwtUser } from '../../public/login/models/jwt';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { Subscription, take } from 'rxjs';
-import { ReservationService } from '../reservations/services/reservation.service';
-import { ReservationListResponse, ReservationListDisplay } from '../reservations/models/reservation-model';
+import { RouterUrl } from '../../app.routes';
+import { MaterialModule } from '../../material.module';
+import { JwtUser } from '../../public/login/models/jwt';
+import { AuthService } from '../../services/auth.service';
 import { MappingService } from '../../services/mapping.service';
+import { PropertyListResponse } from '../properties/models/property.model';
+import { PropertyService } from '../properties/services/property.service';
+import { ReservationListDisplay, ReservationListResponse } from '../reservations/models/reservation-model';
+import { ReservationService } from '../reservations/services/reservation.service';
 import { DataTableComponent } from '../shared/data-table/data-table.component';
 import { ColumnSet } from '../shared/data-table/models/column-data';
-import { Router } from '@angular/router';
-import { RouterUrl } from '../../app.routes';
-import { HttpErrorResponse } from '@angular/common/http';
-import { PropertyService } from '../properties/services/property.service';
-import { PropertyListResponse } from '../properties/models/property.model';
+import { UserResponse } from '../users/models/user.model';
+import { UserService } from '../users/services/user.service';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
   vacancyDays: number | null;
@@ -91,6 +91,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService
   ) { }
 
+  //#region Dashboard
   ngOnInit(): void {
     // Get current user from auth service
     this.user = this.authService.getUser();
@@ -107,11 +108,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Load properties
     this.loadProperties();
   }
+  //#endregion 
 
-  ngOnDestroy(): void {
-    this.userSubscription?.unsubscribe();
-  }
-
+  //#region Data Loading Methods
   loadUserProfilePicture(): void {
     const currentUser = this.authService.getUser();
     if (!currentUser?.userId) {
@@ -137,14 +136,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     });
   }
-
-  getFullName(): string {
-    if (!this.user) {
-      return '';
-    }
-    return `${this.user.firstName} ${this.user.lastName}`.trim();
-  }
-
+  
   loadReservations(): void {
     this.isLoadingReservations = true;
     this.reservationService.getReservationList().pipe(take(1)).subscribe({
@@ -166,6 +158,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadProperties(): void {
+    this.isLoadingProperties = true;
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (response: PropertyListResponse[]) => {
+        this.allProperties = response.filter(p => p.isActive);
+        // Only calculate if reservations are already loaded
+        if (this.allReservations.length > 0) {
+          this.calculatePropertyStatus();
+        }
+        this.isLoadingProperties = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.allProperties = [];
+        this.rentedCount = 0;
+        this.vacantCount = 0;
+        this.isLoadingProperties = false;
+      }
+    });
+  }
+  //#endregion
+
+  //#region Setting and Filtering
+  getFullName(): string {
+    if (!this.user) {
+      return '';
+    }
+    return `${this.user.firstName} ${this.user.lastName}`.trim();
+  }
+  
+  getTodayTotal(): number {
+    return this.todayArrivals.length + this.todayDepartures.length;
+  }
+
+  getTomorrowTotal(): number {
+    return this.tomorrowArrivals.length + this.tomorrowDepartures.length;
+  }
+  
   setTodayDate(): void {
     const today = new Date();
     const options: Intl.DateTimeFormatOptions = { 
@@ -254,7 +283,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
              departureDate.getTime() <= fifteenDaysFromNow.getTime();
     });
   }
+  //#endregion
 
+  //#region Routing Methods
   goToReservation(event: ReservationListDisplay): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
     this.router.navigateByUrl(url);
@@ -266,34 +297,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  getTodayTotal(): number {
-    return this.todayArrivals.length + this.todayDepartures.length;
+  goToProperty(event: PropertyVacancyDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]);
+    this.router.navigateByUrl(url);
   }
+  //#endregion
 
-  getTomorrowTotal(): number {
-    return this.tomorrowArrivals.length + this.tomorrowDepartures.length;
-  }
-
-  loadProperties(): void {
-    this.isLoadingProperties = true;
-    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
-      next: (response: PropertyListResponse[]) => {
-        this.allProperties = response.filter(p => p.isActive);
-        // Only calculate if reservations are already loaded
-        if (this.allReservations.length > 0) {
-          this.calculatePropertyStatus();
-        }
-        this.isLoadingProperties = false;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.allProperties = [];
-        this.rentedCount = 0;
-        this.vacantCount = 0;
-        this.isLoadingProperties = false;
-      }
-    });
-  }
-
+  //#region Table Calculations
   calculatePropertyStatus(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -425,9 +435,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     
     this.propertiesByVacancy = vacantProperties;
   }
+  //#endregion
 
-  goToProperty(event: PropertyVacancyDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]);
-    this.router.navigateByUrl(url);
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.userSubscription?.unsubscribe();
   }
+  //#endregion
 }

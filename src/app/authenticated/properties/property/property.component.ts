@@ -1,42 +1,42 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap, catchError, of, Subject, takeUntil } from 'rxjs';
-import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { PropertyResponse, PropertyRequest } from '../models/property.model';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { ContactService } from '../../contacts/services/contact.service';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { EntityType } from '../../contacts/models/contact-enum';
 import { MappingService } from '../../../services/mapping.service';
-import { TrashDays, PropertyStyle, PropertyStatus, PropertyType, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyTypes, getBedSizeTypes, getPropertyStyles, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
-import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organizations/services/office.service';
-import { RegionService } from '../../organizations/services/region.service';
-import { AreaService } from '../../organizations/services/area.service';
-import { BuildingService } from '../../organizations/services/building.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { RegionResponse } from '../../organizations/models/region.model';
-import { AreaResponse } from '../../organizations/models/area.model';
-import { BuildingResponse } from '../../organizations/models/building.model';
-import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
-import { PropertyInformationComponent } from '../property-information/property-information.component';
+import { UtilityService } from '../../../services/utility.service';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
-import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
-import { UtilityService } from '../../../services/utility.service';
-import { PropertyLetterService } from '../services/property-letter.service';
-import { PropertyLetterResponse, PropertyLetterRequest } from '../models/property-letter.model';
-import { ReservationService } from '../../reservations/services/reservation.service';
+import { AreaResponse } from '../../organizations/models/area.model';
+import { BuildingResponse } from '../../organizations/models/building.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { RegionResponse } from '../../organizations/models/region.model';
+import { AreaService } from '../../organizations/services/area.service';
+import { BuildingService } from '../../organizations/services/building.service';
+import { OfficeService } from '../../organizations/services/office.service';
+import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
+import { PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyInformationComponent } from '../property-information/property-information.component';
+import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
+import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyService } from '../services/property.service';
+import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
   selector: 'app-property',
@@ -110,14 +110,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     amenities: false,
     description: false
   };
-
-  onPanelOpened(section: keyof typeof this.expandedSections): void {
-    this.expandedSections[section] = true;
-  }
-
-  onPanelClosed(section: keyof typeof this.expandedSections): void {
-    this.expandedSections[section] = false;
-  }
 
   constructor(
     public propertyService: PropertyService,
@@ -966,10 +958,31 @@ export class PropertyComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  loadReservations(): void {
+    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+      },
+      error: () => {
+        this.reservations = [];
+        this.availableReservations = [];
+      }
+    });
+  }
   //#endregion
 
-  //#region Utility Methods
-   onTabChange(event: any): void {
+  //#region Form Response Methods
+  onPanelOpened(section: keyof typeof this.expandedSections): void {
+    this.expandedSections[section] = true;
+  }
+
+  onPanelClosed(section: keyof typeof this.expandedSections): void {
+    this.expandedSections[section] = false;
+  }
+  
+  onTabChange(event: any): void {
      if (event.index === 3 && this.propertyDocumentList) {
       this.propertyDocumentList.reload();
     }
@@ -999,19 +1012,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }
   }
   
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.filterReservations();
-      },
-      error: () => {
-        this.reservations = [];
-        this.availableReservations = [];
-      }
-    });
-  }
-
   filterReservations(): void {
     const officeId = this.form?.get('officeId')?.value;
     if (!officeId) {
@@ -1049,7 +1049,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
   }
+  //#endregion
 
+   //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

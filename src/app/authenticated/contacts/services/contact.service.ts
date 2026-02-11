@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject, map } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { EntityType } from '../models/contact-enum';
+import { ContactRequest, ContactResponse } from '../models/contact.model';
 
 @Injectable({
     providedIn: 'root'

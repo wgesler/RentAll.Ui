@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "FourT.Private.EscheaTR.Ui": {
+    "RentAll.Ui": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -137,19 +137,19 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "FourT.Private.EscheaTR.Ui:build:production"
+              "buildTarget": "RentAll.Ui:build:production"
             },
             "demo": {
-              "buildTarget": "FourT.Private.EscheaTR.Ui:build:demo"
+              "buildTarget": "RentAll.Ui:build:demo"
             },
             "stage": {
-              "buildTarget": "FourT.Private.EscheaTR.Ui:build:stage"
+              "buildTarget": "RentAll.Ui:build:stage"
             },
             "development": {
-              "buildTarget": "FourT.Private.EscheaTR.Ui:build:development"
+              "buildTarget": "RentAll.Ui:build:development"
             },
             "local": {
-              "buildTarget": "FourT.Private.EscheaTR.Ui:build:local"
+              "buildTarget": "RentAll.Ui:build:local"
             }
           },
           "defaultConfiguration": "local"
@@ -157,7 +157,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "buildTarget": "FourT.Private.EscheaTR.Ui:build"
+            "buildTarget": "RentAll.Ui:build"
           }
         },
         "test": {

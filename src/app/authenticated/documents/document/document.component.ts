@@ -1,21 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, map, take, finalize, filter, Subscription } from 'rxjs';
-import { DocumentService } from '../services/document.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { DocumentResponse, DocumentRequest } from '../models/document.model';
-import { DocumentType, getDocumentType } from '../models/document.enum';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { FileDetails } from '../../../shared/models/fileDetails';
 import { MappingService } from '../../../services/mapping.service';
+import { FileDetails } from '../../../shared/models/fileDetails';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { DocumentType, getDocumentType } from '../models/document.enum';
+import { DocumentRequest, DocumentResponse } from '../models/document.model';
+import { DocumentService } from '../services/document.service';
 
 @Component({
   selector: 'app-document',

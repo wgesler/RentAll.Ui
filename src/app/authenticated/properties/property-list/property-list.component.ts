@@ -1,21 +1,21 @@
-import { OnInit, Component, OnDestroy, OnChanges, SimpleChanges, Input, Output, EventEmitter, NgZone } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyService } from '../services/property.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
-import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
-import { MappingService } from '../../../services/mapping.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { UtilityService } from '../../../services/utility.service';
 
 @Component({
   selector: 'app-property-list',

@@ -1,8 +1,8 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../../services/config.service';
-import { InvoiceRequest, InvoiceResponse, InvoiceMonthlyDataResponse, InvoiceMonthlyDataRequest, InvoicePaymentRequest, InvoicePaymentResponse } from '../models/invoice.model';
+import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'

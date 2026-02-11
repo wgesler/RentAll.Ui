@@ -1,17 +1,18 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MaterialModule } from '../../../material.module';
-import { ActivatedRoute, Router } from '@angular/router';
-import { DocumentService } from '../services/document.service';
-import { DocumentResponse } from '../models/document.model';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../enums/common-message.enum';
-import { RouterUrl } from '../../../app.routes';
-import { BehaviorSubject, Observable, map, take, finalize } from 'rxjs';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { UtilityService } from '../../../services/utility.service';
+import { DocumentResponse } from '../models/document.model';
+import { DocumentService } from '../services/document.service';
 
 @Component({
   selector: 'app-document-view',
@@ -48,12 +49,13 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     private toastr: ToastrService,
     private sanitizer: DomSanitizer,
     private documentExportService: DocumentExportService,
-    private documentHtmlService: DocumentHtmlService
+    private documentHtmlService: DocumentHtmlService,
+    private utilityService: UtilityService
   ) {
   }
 
+  //#region Document-View
   ngOnInit(): void {
-    // Get route params
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
       if (id) {
@@ -76,14 +78,11 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadDocument(): void {
-    const currentSet = this.itemsToLoad$.value;
-    const newSet = new Set(currentSet);
-    newSet.add('document');
-    this.itemsToLoad$.next(newSet);
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'document');
 
     this.documentService.getDocumentByGuid(this.documentId).pipe(
       take(1),
-      finalize(() => { this.removeLoadItem('document'); })
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'document'); })
     ).subscribe({
       next: (document) => {
         this.document = document;
@@ -95,7 +94,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('document');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'document');
       }
     });
   }
@@ -105,7 +104,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     // The listener will be set up when iframe src is set
   }
 
-  private setupIframeLoadListener(): void {
+  setupIframeLoadListener(): void {
     // Clear any existing handler first
     if (this.iframeLoadHandler) {
       const existingIframe = document.querySelector('iframe.document-iframe') as HTMLIFrameElement;
@@ -140,7 +139,9 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     
     checkForIframe();
   }
+  //#endregion
 
+  //#region Form Response Methods
   loadDocumentContent(): void {
     if (!this.document) {
       return;
@@ -193,7 +194,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // Check if document type can be viewed directly in browser
   isViewableInBrowser(contentType: string, fileExtension: string): boolean {
     if (!contentType && !fileExtension) {
       return false;
@@ -226,7 +226,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     return false;
   }
 
-  private attemptClickPrintButton(iframe: HTMLIFrameElement, attempts: number = 0, maxAttempts: number = 15): void {
+  attemptClickPrintButton(iframe: HTMLIFrameElement, attempts: number = 0, maxAttempts: number = 15): void {
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
       const iframeWin = iframe.contentWindow;
@@ -457,7 +457,9 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       });
     }
   }
+  //#endregion 
 
+  //#region Utility Methods
   back(): void {
     // If we came from a tab, navigate back to that tab
     if (this.returnTo === 'tab' && this.propertyId && this.documentTypeId !== undefined) {
@@ -478,16 +480,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       this.router.navigateByUrl(RouterUrl.DocumentList);
     }
   }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
+  
   ngOnDestroy(): void {
     // Remove iframe load listener if it exists
     if (this.iframeLoadHandler) {
@@ -506,5 +499,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.itemsToLoad$.complete();
   }
+  //#endregion
 }
 

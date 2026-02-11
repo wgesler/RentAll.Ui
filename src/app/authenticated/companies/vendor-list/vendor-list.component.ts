@@ -1,22 +1,21 @@
-import { OnInit, Component, OnDestroy, Input, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from "@angular/common";
-import { Router, ActivatedRoute } from '@angular/router';
-import { MaterialModule } from '../../../material.module';
-import { VendorResponse, VendorListDisplay } from '../models/vendor.model';
-import { VendorService } from '../services/vendor.service';
-import { ToastrService } from 'ngx-toastr';
-import { FormsModule } from '@angular/forms';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { take, finalize, BehaviorSubject, Observable, map, Subscription, filter } from 'rxjs';
-import { MappingService } from '../../../services/mapping.service';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeService } from '../../organizations/services/office.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { AuthService } from '../../../services/auth.service';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { MaterialModule } from '../../../material.module';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { VendorListDisplay } from '../models/vendor.model';
+import { VendorService } from '../services/vendor.service';
 
 @Component({
   selector: 'app-vendor-list',
@@ -77,26 +76,6 @@ export class VendorListComponent implements OnInit, OnDestroy, OnChanges {
           this.applyFilters();
         }
       }
-      
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-              this.applyFilters();
-            }
-          }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOffice = null;
-            this.applyFilters();
-          }
-        }
-      });
     });
   }
 

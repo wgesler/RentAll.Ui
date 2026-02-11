@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 
