@@ -87,14 +87,14 @@
   }
 
   .content-card {
-    width: 85%;
+    width: 96%;
     margin-top: 24px;
     margin-bottom: 2px;
     height: fit-content;
     padding: 0 !important;
 
 		mat-card {
-			padding:20px 44px;
+			padding:16px 20px;
 		}
 
     @media screen and (max-width: 959px) {
