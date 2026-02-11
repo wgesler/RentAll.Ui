@@ -94,7 +94,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         if (err.status !== 400) {
           this.toastr.error('Could not load Document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'document');
       }
     });
   }

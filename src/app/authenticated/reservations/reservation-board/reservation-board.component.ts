@@ -59,7 +59,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService
   ) { }
 
-  //#region Reseration-Board
+  //#region Reservation-Board
   ngOnInit(): void {
     this.setDefaultDateRange();
     this.generateCalendarDays();

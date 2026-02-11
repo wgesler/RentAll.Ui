@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterOutlet } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
@@ -16,6 +16,7 @@ import { LayoutComponent } from './authenticated/shared/layout/layout/layout.com
 import { CommonMessage } from './enums/common-message.enum';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
+import { UtilityService } from './services/utility.service';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,7 @@ export class AppComponent implements OnInit, OnDestroy {
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
@@ -40,7 +42,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private utilityService: UtilityService
   ) { }
 
   ngOnInit(): void {
@@ -49,7 +52,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadStates();
 
     // Watch for login changes and re-initialize organization list, contacts, and offices
-    this.authService.getIsLoggedIn$().subscribe(isLoggedIn => {
+    this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       if (isLoggedIn) {
         this.initializeOrganizationList();
         this.loadContacts();
@@ -67,69 +70,69 @@ export class AppComponent implements OnInit, OnDestroy {
 
   loadStates(): void {
     this.commonService.loadStates();
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1),finalize(() => { this.removeLoadItem('states'); })).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'states'); })).subscribe({
       next: () => {},
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
           this.toastr.error('Unable to load States. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('states');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'states');
       }
     });
   }
 
   loadDailyQuote(): void {
     this.commonService.loadDailyQuote();
-    this.commonService.getDailyQuote().pipe(filter(quote => quote !== null), take(1), finalize(() => { this.removeLoadItem('dailyQuote'); })).subscribe({
+    this.commonService.getDailyQuote().pipe(filter(quote => quote !== null), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'dailyQuote'); })).subscribe({
       next: () => {},
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
           this.toastr.error('Unable to load Daily Quote. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('dailyQuote');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'dailyQuote');
       }
     });
   }
 
   loadContacts(): void {
     this.contactService.loadAllContacts();
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('contacts'); })).subscribe({
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: () => {},
       error: () => {
-        this.removeLoadItem('contacts');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       }
     });
   }
 
   loadOffices(): void {
     this.officeService.loadAllOffices();
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         // After offices are loaded, load cost codes
         this.loadCostCodes();
       },
       error: () => {
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       }
     });
   }
 
   loadAccountingOffices(): void {
     this.accountingOfficeService.loadAllAccountingOffices();
-    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('accountingOffices'); })).subscribe({
+    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
       next: () => {},
       error: () => {
-        this.removeLoadItem('accountingOffices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       }
     });
   }
 
   loadCostCodes(): void {
     this.costCodesService.loadAllCostCodes();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.removeLoadItem('costCodes'); })).subscribe({
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes'); })).subscribe({
       next: () => {},
       error: () => {
-        this.removeLoadItem('costCodes');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
       }
     });
   }
@@ -141,7 +144,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     if (userGuid === adminUserGuid) {
       // Admin user: Get all organizations
-      this.organizationService.getOrganizations().pipe(take(1),finalize(() => { this.removeLoadItem('organizations'); })).subscribe({
+      this.organizationService.getOrganizations().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
         next: (organizations) => {
           this.organizationListService.setOrganizations(organizations);
         },
@@ -154,30 +157,22 @@ export class AppComponent implements OnInit, OnDestroy {
     } else {
       // Regular user: Load and add their single organization to the list
       this.commonService.loadOrganization();
-      this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => { this.removeLoadItem('organizations'); })).subscribe({
+      this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
         next: (organization) => {
           if (organization) {
             this.organizationListService.setOrganizations([organization]);
           }
         },
         error: () => {
-          this.removeLoadItem('organizations');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations');
         }
       });
     }
   }
 
-  // Utiltity Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
 }

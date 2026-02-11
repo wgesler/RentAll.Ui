@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { AgentRequest, AgentResponse } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
@@ -53,11 +54,12 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
-  //#region
+  //#region Agent
   ngOnInit(): void {
     this.loadOffices();
     // Check for returnTo query parameter
@@ -69,7 +71,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     if (this.agentId) {
       this.isAddMode = this.agentId === 'new' || this.agentId === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('agent');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
       } else {
         this.getAgent(this.agentId.toString());
@@ -85,7 +87,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.getAgent(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('agent');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
       }
     }
@@ -97,7 +99,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     const agentIdStr = idToUse.toString();
-    this.agentService.getAgentByGuid(agentIdStr).pipe(take(1), finalize(() => { this.removeLoadItem('agent'); })).subscribe({
+    this.agentService.getAgentByGuid(agentIdStr).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent'); })).subscribe({
       next: (response: AgentResponse) => {
         this.agent = response;
         this.buildForm();
@@ -108,7 +110,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         if (err.status !== 400) {
           this.toastr.error('Could not load agent info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
-        this.removeLoadItem('agent');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
       }
     });
   }
@@ -170,7 +172,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion
@@ -201,15 +203,6 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('agentCode'));
   } 
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
 
   ngOnDestroy(): void {
     this.destroy$.next();

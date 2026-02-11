@@ -4,7 +4,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,6 +13,7 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { CompanyResponse } from '../../companies/models/company.model';
 import { VendorResponse } from '../../companies/models/vendor.model';
 import { CompanyService } from '../../companies/services/company.service';
@@ -49,6 +50,7 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact', 'companies', 'vendors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public contactService: ContactService,
@@ -74,7 +76,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.loadOffices();
     this.loadCompanies();
     this.loadVendors();
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.contactId = paramMap.get('id');
         this.isAddMode = this.contactId === 'new';
@@ -128,23 +130,17 @@ export class ContactComponent implements OnInit, OnDestroy {
     
     const queryParams = this.route.snapshot.queryParams;
     
-    // Set officeId from query params
-    if (queryParams['officeId']) {
-      const officeId = parseInt(queryParams['officeId'], 10);
-      if (!isNaN(officeId)) {
-        const office = this.offices.find(o => o.officeId === officeId);
-        if (office) {
-          this.form.patchValue({ officeId: office.officeId });
-        }
+    const officeId = getNumberQueryParam(queryParams, 'officeId');
+    if (officeId !== null) {
+      const office = this.offices.find(o => o.officeId === officeId);
+      if (office) {
+        this.form.patchValue({ officeId: office.officeId });
       }
     }
     
-    // Set contactTypeId (entityTypeId) from query params
-    if (queryParams['entityTypeId']) {
-      const entityTypeId = parseInt(queryParams['entityTypeId'], 10);
-      if (!isNaN(entityTypeId) && Object.values(EntityType).includes(entityTypeId)) {
-        this.form.patchValue({ contactTypeId: entityTypeId });
-      }
+    const entityTypeId = getNumberQueryParam(queryParams, 'entityTypeId');
+    if (entityTypeId !== null && Object.values(EntityType).includes(entityTypeId)) {
+      this.form.patchValue({ contactTypeId: entityTypeId });
     }
   }
 
@@ -328,7 +324,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
 
     // Show/hide company/vendor dropdown based on contact type
-    this.form.get('contactTypeId')?.valueChanges.subscribe(contactTypeId => {
+    this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
       const companyIdControl = this.form.get('companyId');
       const vendorIdControl = this.form.get('vendorId');
       
@@ -356,7 +352,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   setupConditionalFields(): void {
-    this.form.get('isInternational')?.valueChanges.subscribe(isInternational => {
+    this.form.get('isInternational')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isInternational => {
       const cityControl = this.form.get('city');
       const stateControl = this.form.get('state');
       const zipControl = this.form.get('zip');
@@ -534,6 +530,8 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   //#region Utility methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

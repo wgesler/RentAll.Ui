@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule } from '@angular/router';
 import { DEFAULT_INTERRUPTSOURCES, Idle } from '@ng-idle/core';
 import { Keepalive, NgIdleKeepaliveModule } from '@ng-idle/keepalive';
-import { Subject, Subscription } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { AuthService } from '../../../../services/auth.service';
 import { GenericModalComponent } from '../../modals/generic/generic-modal.component';
 import { HeaderComponent } from '../header/header.component';
@@ -24,12 +24,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
   readonly timeoutData = { data: { title: 'Session Timed-Out', message: 'Would you like to continue?', no: 'Leave', yes: 'Stay' } };
   static isIdleModalOn = false;
 
-  loginSubscription = new Subscription();
   isLoading = true;
   isInitialLoad: boolean = true;
   lastPing?: Date = null;
   idleMonitor: boolean = false;
-  destroy$ = new Subject<boolean>();
+  destroy$ = new Subject<void>();
   dialogRef: MatDialogRef<GenericModalComponent>;
 
   constructor(
@@ -46,16 +45,16 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Sets the default interrupts, in this case, things like clicks, scrolls, touches to the document
     idle.setInterrupts(DEFAULT_INTERRUPTSOURCES);
 
-    idle.onIdleEnd.subscribe(() => {
+    idle.onIdleEnd.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.userIsActive();
       this.cd.detectChanges();
     })
 
-    idle.onTimeout.subscribe(() => {
+    idle.onTimeout.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.userIsTimedOut();
     })
 
-    idle.onIdleStart.subscribe(() => {
+    idle.onIdleStart.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.userIsIdle();
     })
   }
@@ -64,14 +63,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.idleMonitor = true;
     this.idle.watch();
 
-    this.loginSubscription = this.authService.jwtChanged$.subscribe(() => {
+    this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       if (this.authService.getIsLoggedIn()) return;
       this.userIsTimedOut();
     });
   }
 
   ngOnDestroy(): void {
-    this.loginSubscription.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // Step one: Idle detected, launch logout dialog
@@ -81,7 +81,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
     LayoutComponent.isIdleModalOn = true;
     this.dialogRef = this.dialog.open(GenericModalComponent, this.timeoutData);
-    this.dialogRef.afterClosed().subscribe({
+    this.dialogRef.afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: result => {
         if (result)
           LayoutComponent.isIdleModalOn = false;
@@ -96,7 +96,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     if (LayoutComponent.isIdleModalOn)
       return;
 
-    this.dialogRef.close();
+    this.dialogRef?.close();
     this.endIdle();
   }
 
@@ -109,8 +109,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   endIdle(): void {
     if (!this.idleMonitor) return;
 
-    this.destroy$.next(true);
-    this.destroy$.complete();
+    this.destroy$.next();
     this.idle.stop();
     this.keepalive.stop();
     this.dialog.closeAll();

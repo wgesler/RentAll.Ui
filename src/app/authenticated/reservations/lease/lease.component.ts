@@ -170,6 +170,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   getLease(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'lease');
+
     // This loads on add reservation, do nothing
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');

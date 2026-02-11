@@ -289,7 +289,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utlity Methods
+  //#region Utility Methods
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }

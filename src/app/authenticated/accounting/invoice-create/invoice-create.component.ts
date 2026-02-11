@@ -1214,6 +1214,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.accountingOfficesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

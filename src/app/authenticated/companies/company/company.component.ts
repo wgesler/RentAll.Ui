@@ -13,6 +13,7 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -119,14 +120,11 @@ export class CompanyComponent implements OnInit, OnDestroy {
       return;
     }
     
-    const officeIdFromParams = this.route.snapshot.queryParams['officeId'];
-    if (officeIdFromParams) {
-      const officeId = parseInt(officeIdFromParams, 10);
-      if (!isNaN(officeId)) {
-        const office = this.offices.find(o => o.officeId === officeId);
-        if (office) {
-          this.form.patchValue({ officeId: office.officeId });
-        }
+    const officeId = getNumberQueryParam(this.route.snapshot.queryParams, 'officeId');
+    if (officeId !== null) {
+      const office = this.offices.find(o => o.officeId === officeId);
+      if (office) {
+        this.form.patchValue({ officeId: office.officeId });
       }
     }
   }
@@ -290,7 +288,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Data Loadiing Methods
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {

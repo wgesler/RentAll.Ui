@@ -1,9 +1,9 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Observable, map, shareReplay } from 'rxjs';
+import { Observable, Subject, map, shareReplay, takeUntil } from 'rxjs';
 import { RouterToken } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -19,7 +19,7 @@ import { SidebarStateService } from '../services/sidebar-state.service';
   styleUrl: './sidebar.component.scss'
 })
 
-export class SidebarComponent implements OnInit {
+export class SidebarComponent implements OnInit, OnDestroy {
   readonly expandedSidebarWidth = 175;
   readonly collapsedSidebarWidth = 64;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
@@ -32,6 +32,7 @@ export class SidebarComponent implements OnInit {
       shareReplay()
     );
   navItems: any[] = [];
+  destroy$ = new Subject<void>();
   
   private allNavItems = [
     {
@@ -123,15 +124,15 @@ export class SidebarComponent implements OnInit {
   ngOnInit(): void {
     this.filterNavItemsByRole();
 
-    this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
+    this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isExpanded = isExpanded;
     });
 
-    this.sidebarStateService.toggleRequest$.subscribe(() => {
+    this.sidebarStateService.toggleRequest$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.sideNavToggleHandler();
     });
 
-    this.isHandset$.subscribe(isHandset => {
+    this.isHandset$.pipe(takeUntil(this.destroy$)).subscribe(isHandset => {
       this.isHandset = isHandset;
       if (isHandset) {
         // Mobile keeps the overlay behavior and always shows labels.
@@ -140,9 +141,14 @@ export class SidebarComponent implements OnInit {
     });
     
     // Re-filter when login status changes
-    this.authService.getIsLoggedIn$().subscribe(() => {
+    this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterNavItemsByRole();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   filterNavItemsByRole(): void {

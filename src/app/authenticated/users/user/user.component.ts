@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -66,6 +66,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['user']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public userService: UserService,
@@ -104,7 +105,7 @@ export class UserComponent implements OnInit, OnDestroy {
       this.getUser();
     } else {
       // Otherwise, use route params (existing behavior)
-      this.route.paramMap.subscribe((paramMap: ParamMap) => {
+      this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
         if (paramMap.has('id')) {
           this.userId = paramMap.get('id');
           this.isAddMode = this.userId === 'new';
@@ -405,7 +406,7 @@ export class UserComponent implements OnInit, OnDestroy {
     this.form = this.fb.group(formControls);
     
     // Setup changePassword toggle behavior
-    this.form.get('changePassword')?.valueChanges.subscribe((changePassword: boolean) => {
+    this.form.get('changePassword')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((changePassword: boolean) => {
       const passwordControl = this.form.get('password');
       const confirmPasswordControl = this.form.get('confirmPassword');
       const currentPasswordControl = this.form.get('currentPassword');
@@ -514,7 +515,7 @@ export class UserComponent implements OnInit, OnDestroy {
     // Add conditional validation for selfEdit mode: if currentPassword is provided, password and confirmPassword are required
     // This is now handled by the changePassword toggle, but keeping for backward compatibility
     if (this.selfEdit) {
-      this.form.get('currentPassword')?.valueChanges.subscribe(() => {
+      this.form.get('currentPassword')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
         // Only apply if changePassword is enabled
         if (this.form.get('changePassword')?.value) {
           const currentPassword = this.form.get('currentPassword')?.value;
@@ -534,7 +535,7 @@ export class UserComponent implements OnInit, OnDestroy {
     }
     
     // Reload offices when organization changes
-    this.form.get('organizationId')?.valueChanges.subscribe(() => {
+    this.form.get('organizationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterOfficesByOrganization();
       // Clear office access when organization changes
       this.form.get('officeAccess')?.setValue([]);
@@ -699,7 +700,7 @@ export class UserComponent implements OnInit, OnDestroy {
   //#region Password Helpers
   setupPasswordValidation(): void {
     // Re-validate confirmPassword when password changes (real-time validation)
-    this.form.get('password')?.valueChanges.subscribe(() => {
+    this.form.get('password')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       const confirmPasswordControl = this.form.get('confirmPassword');
       if (confirmPasswordControl && confirmPasswordControl.value) {
         // Mark as touched so error shows immediately
@@ -711,7 +712,7 @@ export class UserComponent implements OnInit, OnDestroy {
     });
     
     // Re-validate confirmPassword when confirmPassword changes (real-time validation as user types)
-    this.form.get('confirmPassword')?.valueChanges.subscribe(() => {
+    this.form.get('confirmPassword')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       const confirmPasswordControl = this.form.get('confirmPassword');
       if (confirmPasswordControl && confirmPasswordControl.value) {
         // Mark as touched so error shows immediately while typing
@@ -899,6 +900,8 @@ export class UserComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
     if (this.organizationsSubscription) {
       this.organizationsSubscription.unsubscribe();
