@@ -354,6 +354,7 @@ export class MappingService {
         contactName: o.contactName,
         tenantName: o.tenantName,
         companyName: o.companyName || 'N/A',
+        agentId: o.agentId ?? null,
         agentCode: o.agentCode,
         monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),

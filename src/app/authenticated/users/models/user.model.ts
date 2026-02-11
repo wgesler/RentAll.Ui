@@ -12,6 +12,8 @@ export interface UserRequest {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  agentId?: string | null;
+  commissionRate?: number | null;
   isActive: boolean;
 }
 
@@ -28,6 +30,8 @@ export interface UserResponse {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  agentId?: string | null;
+  commissionRate?: number | null;
   isActive: boolean;
 }
 

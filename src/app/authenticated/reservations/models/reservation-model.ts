@@ -99,6 +99,7 @@ export interface ReservationListResponse {
   contactName: string;
   tenantName: string;
   companyName: string;
+  agentId?: string | null;
   agentCode: string;
   monthlyRate: number;
   arrivalDate: string;
@@ -122,6 +123,7 @@ export interface ReservationListDisplay {
   contactName: string;
   tenantName: string;
   companyName: string;
+  agentId?: string | null;
   agentCode: string;
   monthlyRate: number;
   arrivalDate: string;

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subscription, take } from 'rxjs';
+import { Subscription, forkJoin, take } from 'rxjs';
 import { RouterUrl } from '../../app.routes';
 import { MaterialModule } from '../../material.module';
 import { JwtUser } from '../../public/login/models/jwt';
@@ -10,17 +10,30 @@ import { AuthService } from '../../services/auth.service';
 import { MappingService } from '../../services/mapping.service';
 import { PropertyListResponse } from '../properties/models/property.model';
 import { PropertyService } from '../properties/services/property.service';
+import { AgentResponse } from '../organizations/models/agent.model';
+import { AgentService } from '../organizations/services/agent.service';
 import { ReservationListDisplay, ReservationListResponse } from '../reservations/models/reservation-model';
 import { ReservationService } from '../reservations/services/reservation.service';
 import { DataTableComponent } from '../shared/data-table/data-table.component';
 import { ColumnSet } from '../shared/data-table/models/column-data';
 import { UserResponse } from '../users/models/user.model';
+import { UserGroups } from '../users/models/user-enums';
 import { UserService } from '../users/services/user.service';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
   vacancyDays: number | null;
   vacancyDaysDisplay: string | number;
   lastDepartureDate: string | null;
+}
+
+export interface MonthlyCommissionDisplay extends ReservationListDisplay {
+  daysRented: number;
+  commission: number;
+}
+
+export interface MonthlyCommissionTileRow {
+  agentCode: string;
+  amount: number;
 }
 
 @Component({
@@ -47,6 +60,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   tomorrowArrivals: ReservationListDisplay[] = [];
   tomorrowDepartures: ReservationListDisplay[] = [];
   todayDate: string = '';
+  currentUserAgentId: string | null = null;
+  currentUserAgentCode: string | null = null;
+  currentUserCommissionRate: number = 0;
+  isAdminUser: boolean = false;
+  adminCommissionRatesByAgentCode = new Map<string, number>();
+  showMonthlyCommissionAmount: boolean = false;
+  monthlyCommissions: MonthlyCommissionDisplay[] = [];
 
   // Property data
   allProperties: PropertyListResponse[] = [];
@@ -58,6 +78,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Accordion states
   arrivalsExpanded: boolean = true;
   departuresExpanded: boolean = true;
+  monthlyCommissionsExpanded: boolean = true;
   propertiesExpanded: boolean = true;
 
   reservationsDisplayedColumns: ColumnSet = {
@@ -82,19 +103,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
     'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '20ch' },
   };
 
+  monthlyCommissionsDisplayedColumns: ColumnSet = {
+    'office': { displayAs: 'Office', maxWidth: '20ch' },
+    'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
+    'departureDate': { displayAs: 'Departure', maxWidth: '20ch' },
+    'daysRented': { displayAs: 'Days Rented', maxWidth: '15ch' },    
+    'commission': { displayAs: 'Commission', maxWidth: '15ch' },
+  };
+
   constructor(
     private authService: AuthService,
     private userService: UserService,
     private reservationService: ReservationService,
     private mappingService: MappingService,
     private router: Router,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    private agentService: AgentService
   ) { }
 
   //#region Dashboard
   ngOnInit(): void {
     // Get current user from auth service
     this.user = this.authService.getUser();
+    this.isAdminUser = this.hasAdminRole(this.user);
     
     // Set today's date
     this.setTodayDate();
@@ -117,24 +151,77 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
     
+    if (this.isAdminUser) {
+      this.userSubscription = forkJoin({
+        currentUser: this.userService.getUserByGuid(currentUser.userId),
+        allUsers: this.userService.getUsers(),
+        agents: this.agentService.getAgents()
+      }).pipe(take(1)).subscribe({
+        next: ({ currentUser, allUsers, agents }) => {
+          this.applyUserProfilePicture(currentUser);
+          this.currentUserAgentId = currentUser.agentId ?? this.user?.agentId ?? null;
+          this.currentUserCommissionRate = Number(currentUser.commissionRate ?? 0);
+
+          const agentCodeByAgentId = new Map<string, string>();
+          (agents || []).forEach(agent => {
+            if (agent.agentId && agent.agentCode) {
+              agentCodeByAgentId.set(agent.agentId, agent.agentCode.trim().toLowerCase());
+            }
+          });
+
+          this.adminCommissionRatesByAgentCode.clear();
+          (allUsers || []).forEach(user => {
+            if (!user.agentId) {
+              return;
+            }
+            const agentCode = agentCodeByAgentId.get(user.agentId);
+            if (!agentCode) {
+              return;
+            }
+            this.adminCommissionRatesByAgentCode.set(agentCode, Number(user.commissionRate ?? 0));
+          });
+
+          this.resolveCurrentAgentAndFilter();
+        },
+        error: () => {
+          this.profilePictureUrl = null;
+          this.currentUserAgentId = this.user?.agentId ?? null;
+          this.currentUserCommissionRate = 0;
+          this.adminCommissionRatesByAgentCode.clear();
+          this.resolveCurrentAgentAndFilter();
+        }
+      });
+      return;
+    }
+
     this.userSubscription = this.userService.getUserByGuid(currentUser.userId).pipe(take(1)).subscribe({
       next: (userResponse: UserResponse) => {
-        // Set profile picture URL from fileDetails or profilePath
-        if (userResponse.fileDetails && userResponse.fileDetails.file) {
-          // Construct data URL from fileDetails
-          const contentType = userResponse.fileDetails.contentType || 'image/png';
-          this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
-        } else if (userResponse.profilePath) {
-          this.profilePictureUrl = userResponse.profilePath;
-        } else {
-          this.profilePictureUrl = null;
-        }
+        this.applyUserProfilePicture(userResponse);
+        this.currentUserAgentId = userResponse.agentId ?? this.user?.agentId ?? null;
+        this.currentUserCommissionRate = Number(userResponse.commissionRate ?? 0);
+        this.resolveCurrentAgentAndFilter();
       },
       error: () => {
         // Silently fail - just don't show profile picture
         this.profilePictureUrl = null;
+        this.currentUserAgentId = this.user?.agentId ?? null;
+        this.currentUserCommissionRate = 0;
+        this.adminCommissionRatesByAgentCode.clear();
+        this.resolveCurrentAgentAndFilter();
       }
     });
+  }
+
+  applyUserProfilePicture(userResponse: UserResponse): void {
+    // Set profile picture URL from fileDetails or profilePath
+    if (userResponse.fileDetails && userResponse.fileDetails.file) {
+      const contentType = userResponse.fileDetails.contentType || 'image/png';
+      this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
+    } else if (userResponse.profilePath) {
+      this.profilePictureUrl = userResponse.profilePath;
+    } else {
+      this.profilePictureUrl = null;
+    }
   }
   
   loadReservations(): void {
@@ -143,6 +230,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (response: ReservationListResponse[]) => {
         this.allReservations = this.mappingService.mapReservationList(response);
         this.filterUpcomingReservations();
+        this.filterMonthlyCommissions();
         this.isLoadingReservations = false;
         // Recalculate property status when reservations are loaded
         if (this.allProperties.length > 0) {
@@ -153,6 +241,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.allReservations = [];
         this.upcomingArrivals = [];
         this.upcomingDepartures = [];
+        this.monthlyCommissions = [];
         this.isLoadingReservations = false;
       }
     });
@@ -193,6 +282,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getTomorrowTotal(): number {
     return this.tomorrowArrivals.length + this.tomorrowDepartures.length;
+  }
+
+  getMonthlyCommissionTotal(): number {
+    return this.monthlyCommissions.reduce((total, reservation) => total + (reservation.commission || 0), 0);
+  }
+
+  getMonthlyCommissionTotalDisplay(): string {
+    return `$${this.getMonthlyCommissionTotal().toFixed(2)}`;
+  }
+
+  getCurrentMonthDisplay(): string {
+    return new Date().toLocaleDateString('en-US', { month: 'long' });
+  }
+
+  getMonthlyCommissionTileRows(): MonthlyCommissionTileRow[] {
+    const totalsByAgent = new Map<string, number>();
+    this.monthlyCommissions.forEach(reservation => {
+      const code = (reservation.agentCode || '').trim() || 'No Agent';
+      totalsByAgent.set(code, (totalsByAgent.get(code) || 0) + (reservation.commission || 0));
+    });
+
+    return Array.from(totalsByAgent.entries())
+      .map(([agentCode, amount]) => ({ agentCode, amount }))
+      .sort((a, b) => a.agentCode.localeCompare(b.agentCode));
+  }
+
+  getCommissionAmountDisplay(amount: number): string {
+    if (this.showMonthlyCommissionAmount) {
+      return `$${amount.toFixed(2)}`;
+    }
+    if (amount <= 0) {
+      return '$0.00';
+    }
+    return '$******';
+  }
+
+  toggleMonthlyCommissionAmount(): void {
+    this.showMonthlyCommissionAmount = !this.showMonthlyCommissionAmount;
   }
   
   setTodayDate(): void {
@@ -281,6 +408,126 @@ export class DashboardComponent implements OnInit, OnDestroy {
       
       return departureDate.getTime() >= today.getTime() && 
              departureDate.getTime() <= fifteenDaysFromNow.getTime();
+    });
+  }
+
+  resolveCurrentAgentAndFilter(): void {
+    if (this.isAdminUser) {
+      this.currentUserAgentCode = 'ALL';
+      this.filterMonthlyCommissions();
+      return;
+    }
+
+    if (!this.currentUserAgentId) {
+      this.currentUserAgentCode = null;
+      this.filterMonthlyCommissions();
+      return;
+    }
+
+    this.agentService.getAgents().pipe(take(1)).subscribe({
+      next: (agents: AgentResponse[]) => {
+        const assignedAgent = (agents || []).find(agent => agent.agentId === this.currentUserAgentId) || null;
+        this.currentUserAgentCode = assignedAgent?.agentCode ?? null;
+        this.filterMonthlyCommissions();
+      },
+      error: () => {
+        this.currentUserAgentCode = null;
+        this.filterMonthlyCommissions();
+      }
+    });
+  }
+
+  filterMonthlyCommissions(): void {
+    if (!this.isAdminUser && !this.currentUserAgentCode) {
+      this.monthlyCommissions = [];
+      return;
+    }
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    monthStart.setHours(0, 0, 0, 0);
+    monthEnd.setHours(23, 59, 59, 999);
+
+    const overlapsCurrentMonth = (arrivalDate?: string, departureDate?: string): boolean => {
+      if (!arrivalDate || !departureDate) {
+        return false;
+      }
+      const reservationStart = new Date(arrivalDate);
+      const reservationEnd = new Date(departureDate);
+      reservationStart.setHours(0, 0, 0, 0);
+      reservationEnd.setHours(23, 59, 59, 999);
+      return reservationStart.getTime() <= monthEnd.getTime() && reservationEnd.getTime() >= monthStart.getTime();
+    };
+
+    const getDaysRentedInCurrentMonth = (arrivalDate?: string, departureDate?: string): number => {
+      if (!arrivalDate || !departureDate) {
+        return 0;
+      }
+      const reservationStart = new Date(arrivalDate);
+      const reservationEnd = new Date(departureDate);
+      reservationStart.setHours(0, 0, 0, 0);
+      reservationEnd.setHours(23, 59, 59, 999);
+
+      const overlapStart = reservationStart > monthStart ? reservationStart : monthStart;
+      const overlapEnd = reservationEnd < monthEnd ? reservationEnd : monthEnd;
+      if (overlapStart.getTime() > overlapEnd.getTime()) {
+        return 0;
+      }
+
+      // Inclusive day count.
+      return Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    };
+
+    const getCommission = (daysRented: number, commissionRate: number): number => {
+      if (daysRented <= 0) {
+        return 0;
+      }
+
+      const isFullMonth = daysRented === new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      if (isFullMonth || daysRented >= 30) {
+        return Number(commissionRate.toFixed(2));
+      }
+
+      return Number(((commissionRate / 30) * daysRented).toFixed(2));
+    };
+
+    const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
+    this.monthlyCommissions = this.allReservations
+      .filter(reservation =>
+        this.isAdminUser
+          ? (reservation.agentCode || '').trim().length > 0
+          : (reservation.agentCode || '').trim().toLowerCase() === agentCode
+      )
+      .filter(reservation =>
+        overlapsCurrentMonth(reservation.arrivalDate, reservation.departureDate)
+      )
+      .map(reservation => {
+        const normalizedReservationAgentCode = (reservation.agentCode || '').trim().toLowerCase();
+        const commissionRate = this.isAdminUser
+          ? Number(this.adminCommissionRatesByAgentCode.get(normalizedReservationAgentCode) ?? 0)
+          : this.currentUserCommissionRate;
+        const daysRented = getDaysRentedInCurrentMonth(reservation.arrivalDate, reservation.departureDate);
+        return {
+          ...reservation,
+          daysRented: daysRented,
+          commission: getCommission(daysRented, commissionRate)
+        };
+      });
+  }
+
+  hasAdminRole(user: JwtUser | null): boolean {
+    if (!user?.userGroups?.length) {
+      return false;
+    }
+
+    const adminIds = new Set<number>([UserGroups.Admin, UserGroups.SuperAdmin]);
+    return user.userGroups.some(group => {
+      if (group === 'Admin' || group === 'SuperAdmin') {
+        return true;
+      }
+      const parsed = parseInt(String(group), 10);
+      return !isNaN(parsed) && adminIds.has(parsed);
     });
   }
   //#endregion

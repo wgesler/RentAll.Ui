@@ -108,7 +108,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Startup Page</mat-label>
                 <mat-select formControlName="startupPageId" required>
                   @for (page of availableStartupPages; track page.value) {
@@ -118,6 +118,25 @@
                 @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
                   <mat-error>Startup Page is required</mat-error>
                 }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Agent</mat-label>
+                <mat-select formControlName="agentId">
+                  <mat-option [value]="null">None</mat-option>
+                  @for (agent of availableAgents; track agent.value) {
+                    <mat-option [value]="agent.value">{{ agent.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Commission Rate</mat-label>
+                <input matInput formControlName="commissionRate"
+                  (focus)="onCommissionRateFocus($event)"
+                  (input)="onCommissionRateInput($event)"
+                  (keydown)="onCommissionRateEnter($event)"
+                  (blur)="formatCommissionRate()">
               </mat-form-field>
 
               <!-- Profile Picture Section -->

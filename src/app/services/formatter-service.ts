@@ -131,6 +131,35 @@ export class FormatterService {
         }
     }
 
+    // Clears the default decimal placeholder (e.g., "0.00") on focus.
+    clearDefaultDecimalOnFocus(event: FocusEvent, control: AbstractControl | null, defaultValue: string = '0.00'): void {
+        const input = event.target as HTMLInputElement;
+        const currentValue = (input?.value ?? '').trim();
+
+        if (currentValue === defaultValue) {
+            if (input) {
+                input.value = '';
+            }
+            control?.setValue('', { emitEvent: false });
+        }
+    }
+
+    // Formats decimal value when Enter is pressed and exits the field.
+    formatDecimalOnEnter(event: KeyboardEvent, control: AbstractControl | null): void {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        this.formatDecimalControl(control);
+        (event.target as HTMLInputElement)?.blur();
+    }
+
+    // Formats decimal value on blur.
+    formatDecimalOnBlur(control: AbstractControl | null): void {
+        this.formatDecimalControl(control);
+    }
+
     
     /*******************  Phone Numbers *******************/
     // Formats a phone number - supports US (10 digits) and international (up to 15 digits)

@@ -10,12 +10,15 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
 import { StartupPage, UserGroups } from '../models/user-enums';
@@ -55,6 +58,8 @@ export class UserComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  agents: AgentResponse[] = [];
+  availableAgents: { value: string, label: string }[] = [];
   
   // Profile picture properties
   isUploadingProfilePicture: boolean = false;
@@ -76,7 +81,9 @@ export class UserComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private organizationListService: OrganizationListService,
     private officeService: OfficeService,
+    private agentService: AgentService,
     private authService: AuthService,
+    private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: UserDialogData,
@@ -97,6 +104,7 @@ export class UserComponent implements OnInit, OnDestroy {
     this.initializeStartupPages();
     this.loadOrganizations();
     this.loadOffices();
+    this.loadAgents();
     
     // If opened in dialog, use dialog data
     if (this.isDialog && this.userId) {
@@ -224,6 +232,9 @@ export class UserComponent implements OnInit, OnDestroy {
     const startupPageIdValue = formValue.startupPageId !== undefined && formValue.startupPageId !== null
       ? (typeof formValue.startupPageId === 'number' ? formValue.startupPageId : parseInt(String(formValue.startupPageId), 10))
       : 0;
+    const commissionRateValue = formValue.commissionRate !== undefined && formValue.commissionRate !== null && String(formValue.commissionRate).trim() !== ''
+      ? parseFloat(String(formValue.commissionRate).replace(/[^0-9.]/g, ''))
+      : null;
     
     console.log('Form startupPageId value:', formValue.startupPageId);
     console.log('Sending startupPageId to API:', startupPageIdValue);
@@ -239,6 +250,8 @@ export class UserComponent implements OnInit, OnDestroy {
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       profilePath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.profilePath,
       startupPageId: startupPageIdValue,
+      agentId: formValue.agentId || null,
+      commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
       isActive: formValue.isActive
     };
     
@@ -290,6 +303,7 @@ export class UserComponent implements OnInit, OnDestroy {
         JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
         userRequest.isActive !== this.user.isActive ||
         userRequest.organizationId !== this.user.organizationId ||
+        userRequest.commissionRate !== (this.user.commissionRate ?? null) ||
         hasProfilePictureChange
       ) : true; // If user data not loaded, assume there are updates to save
 
@@ -377,6 +391,24 @@ export class UserComponent implements OnInit, OnDestroy {
       });
     });
   }
+
+  loadAgents(): void {
+    this.agentService.getAgents().pipe(take(1)).subscribe({
+      next: (agents: AgentResponse[]) => {
+        this.agents = (agents || []).filter(agent => agent.isActive);
+        this.availableAgents = this.agents
+          .map(agent => ({
+            value: agent.agentId,
+            label: agent.agentCode
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+      },
+      error: () => {
+        this.agents = [];
+        this.availableAgents = [];
+      }
+    });
+  }
   //#endregion
 
   //#region Form methods
@@ -394,6 +426,8 @@ export class UserComponent implements OnInit, OnDestroy {
       changePassword: new FormControl(this.isAddMode ? true : false), // Toggle to enable/require password fields - default to true in add mode
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       startupPageId: new FormControl(0, [Validators.required]),
+      agentId: new FormControl(null),
+      commissionRate: new FormControl('0.00'),
       isActive: new FormControl(true)
     };
 
@@ -404,6 +438,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
     // Create form without form-level password validator initially - we'll add it conditionally
     this.form = this.fb.group(formControls);
+    this.applyCommissionRateState();
     
     // Setup changePassword toggle behavior
     this.form.get('changePassword')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((changePassword: boolean) => {
@@ -540,6 +575,10 @@ export class UserComponent implements OnInit, OnDestroy {
       // Clear office access when organization changes
       this.form.get('officeAccess')?.setValue([]);
     });
+
+    this.form.get('agentId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyCommissionRateState();
+    });
   }
 
   populateForm(): void {
@@ -586,6 +625,10 @@ export class UserComponent implements OnInit, OnDestroy {
         password: '', // Don't populate password in edit mode
         confirmPassword: '', // Don't populate confirm password in edit mode
         startupPageId: this.user.startupPageId ?? 0,
+        agentId: this.user.agentId ?? null,
+        commissionRate: this.user.commissionRate !== null && this.user.commissionRate !== undefined
+          ? Number(this.user.commissionRate).toFixed(2)
+          : '0.00',
         isActive: this.user.isActive
       });
       
@@ -899,6 +942,36 @@ export class UserComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  onCommissionRateInput(event: Event): void {
+    this.formatterService.formatDecimalInput(event, this.form.get('commissionRate'));
+  }
+
+  onCommissionRateFocus(event: FocusEvent): void {
+    this.formatterService.clearDefaultDecimalOnFocus(event, this.form.get('commissionRate'));
+  }
+
+  onCommissionRateEnter(event: KeyboardEvent): void {
+    this.formatterService.formatDecimalOnEnter(event, this.form.get('commissionRate'));
+  }
+
+  formatCommissionRate(): void {
+    this.formatterService.formatDecimalOnBlur(this.form.get('commissionRate'));
+  }
+
+  applyCommissionRateState(): void {
+    const agentId = this.form?.get('agentId')?.value;
+    const commissionRateControl = this.form?.get('commissionRate');
+    if (!commissionRateControl) {
+      return;
+    }
+
+    if (!agentId) {
+      commissionRateControl.disable({ emitEvent: false });
+    } else {
+      commissionRateControl.enable({ emitEvent: false });
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

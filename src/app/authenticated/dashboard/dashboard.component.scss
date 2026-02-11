@@ -58,6 +58,11 @@
   border-color: #A5D6A7;
 }
 
+.day-box-commissions {
+  background-color: #FFF3E0;
+  border-color: #FFCC80;
+}
+
 .day-box-content {
   display: flex;
   align-items: flex-start;
@@ -322,6 +327,19 @@
   color: #1976D2;
 }
 
+.commission-toggle-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: right;
+}
+
+.commission-amount {
+  font-size: 1.25rem;
+}
+
 .loading-container-small {
   display: flex;
   justify-content: center;
@@ -367,7 +385,7 @@
 
   .sidebar-content {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 

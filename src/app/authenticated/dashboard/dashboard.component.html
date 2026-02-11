@@ -96,6 +96,48 @@
               }
             </mat-expansion-panel>
 
+            <!-- Monthly Commissions Table -->
+            <mat-expansion-panel 
+              class="reservation-section"
+              [(expanded)]="monthlyCommissionsExpanded">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <h2 class="section-title">
+                    Monthly Commissions
+                    @if (currentUserAgentCode) {
+                      <span> - {{ currentUserAgentCode }}</span>
+                    }
+                  </h2>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              @if (isLoadingReservations) {
+                <div class="loading-container">
+                  <mat-spinner [diameter]="40"></mat-spinner>
+                  <p>Loading reservations...</p>
+                </div>
+              } @else if (!currentUserAgentId) {
+                <div class="tableDiv">
+                  <p>No agent is assigned to this user.</p>
+                </div>
+              } @else {
+                <div class="tableDiv">
+                  <app-data-table
+                    [data]="monthlyCommissions"
+                    [columns]="monthlyCommissionsDisplayedColumns"
+                    [hasColumnIndex]="false"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasActionsEdit]="false"
+                    [hasActionsDelete]="false"
+                    [itemsPerPage]="50"
+                    (rowClickEvent)="goToReservation($event)"
+                    (contactClickEvent)="goToContact($event)"/>
+                </div>
+              }
+            </mat-expansion-panel>
+
             <!-- Properties by Vacancy Table -->
             <mat-expansion-panel 
               class="reservation-section"
@@ -182,6 +224,31 @@
                       </div>
                     </div>
                   }
+                </div>
+              </div>
+
+              <!-- Monthly Commissions Box -->
+              <div class="day-box day-box-commissions">
+                <div class="day-box-text">
+                  <h4 class="day-title">
+                    <span>Monthly Commission</span>
+                    <span class="day-name">{{ getCurrentMonthDisplay() }}</span>
+                  </h4>
+                  <div class="reservations-stats">
+                    @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
+                      <div class="stat-row">
+                        <span class="stat-label">{{ row.agentCode }}</span>
+                        <button
+                          type="button"
+                          class="commission-toggle-button stat-value commission-amount"
+                          (click)="toggleMonthlyCommissionAmount()"
+                          [attr.aria-label]="showMonthlyCommissionAmount ? 'Hide monthly commission amount' : 'Show monthly commission amount'"
+                          [title]="showMonthlyCommissionAmount ? 'Click to hide amount' : 'Click to show amount'">
+                          {{ getCommissionAmountDisplay(row.amount) }}
+                        </button>
+                      </div>
+                    }
+                  </div>
                 </div>
               </div>
             </div>

@@ -35,6 +35,7 @@ export class JwtContainer {
         const startupPageId = startupPageIdRaw !== undefined && startupPageIdRaw !== null 
             ? (typeof startupPageIdRaw === 'number' ? startupPageIdRaw : parseInt(String(startupPageIdRaw), 10))
             : 0;
+        const agentId = user.AgentId || user.agentId || null;
         
         this.user = new JwtUser(
             user.UserId || user.userId || '',
@@ -43,7 +44,8 @@ export class JwtContainer {
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
             userGroups,
-            startupPageId
+            startupPageId,
+            agentId
         );
     }
 }
@@ -56,6 +58,7 @@ export class JwtUser {
     email: string;
     userGroups: string[];
     startupPageId: number;
+    agentId: string | null;
   
 
 
@@ -66,7 +69,8 @@ export class JwtUser {
         lastName: string,
         email: string,
         userGroups: string[],
-        startupPageId: number
+        startupPageId: number,
+        agentId: string | null = null
     ) {
         this.userId = userId;
         this.organizationId = organizationId;
@@ -75,5 +79,6 @@ export class JwtUser {
         this.email = email;
         this.userGroups = userGroups;
         this.startupPageId = startupPageId;
+        this.agentId = agentId;
     }
 }
