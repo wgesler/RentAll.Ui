@@ -93,23 +93,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '15ch' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '20ch' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: '  Paid', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
     applyAmount: { displayAs: 'Apply', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
 
   get invoicesDisplayedColumns(): ColumnSet {
-    let columns = { ...this.baseInvoicesDisplayedColumns };
-    
-    // Hide reservationCode column when amount column is visible in ledger lines
-    // (Amount is always visible in ledger lines, so hide reservationCode)
-    const { reservationCode, ...columnsWithoutReservationCode } = columns;
-    columns = columnsWithoutReservationCode;
+    const columns = { ...this.baseInvoicesDisplayedColumns };
     
     // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
     if (!this.isManualApplyMode) {
