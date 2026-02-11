@@ -4,7 +4,7 @@
 
 .dashboard-main-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
   gap: 24px;
   align-items: start;
 }
@@ -334,12 +334,28 @@
   }
 
   .dashboard-main-content {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    grid-template-columns: minmax(0, 1fr) minmax(165px, 220px);
     gap: 16px;
   }
 
   .day-box {
-    padding: 16px;
+    padding: 14px;
+  }
+
+  .day-title {
+    font-size: 0.95rem;
+  }
+
+  .day-name {
+    font-size: 0.95rem;
+  }
+
+  .stat-value {
+    font-size: 1.3rem;
+  }
+
+  .total-number {
+    font-size: 1.7rem;
   }
 }
 
