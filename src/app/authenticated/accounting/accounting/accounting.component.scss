@@ -23,7 +23,7 @@
     .mat-mdc-tab-body-content {
       overflow-x: hidden;
       max-width: 100%;
-      padding: 1rem;
+      padding: var(--global-page-inner-padding);
     }
 
     // Remove slide animation for Print Invoice tab (index 3)

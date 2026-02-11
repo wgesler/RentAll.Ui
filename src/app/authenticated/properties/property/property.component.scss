@@ -316,9 +316,7 @@
 
 // Ensure mat-card maintains consistent width and prevents width jumping
 section.content-card {
-  width: 85% !important;
   min-width: 0;
-  max-width: 85%;
   box-sizing: border-box;
   transition: none !important; // Remove width transition to prevent jumping
   

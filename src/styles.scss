@@ -9,6 +9,10 @@
   font-family: "Poppins", "Helvetica Neue", sans-serif;
 }
 
+:root {
+  --global-page-inner-padding: 15px;
+}
+
 .mobile-hide {
   @media (max-width: 768px) {
     display: none !important;
@@ -103,14 +107,22 @@
   }
 
   .content-card-content {
-    padding: 0 15px 15px 15px;
+    padding: 0 var(--global-page-inner-padding) var(--global-page-inner-padding) var(--global-page-inner-padding);
+  }
+
+  // Global edit/detail form spacing baseline (matches list/table inner spacing)
+  .info-form {
+    padding-left: var(--global-page-inner-padding);
+    padding-right: var(--global-page-inner-padding);
+    padding-bottom: var(--global-page-inner-padding);
+    box-sizing: border-box;
   }
 
   // Global list/table spacing baseline (matches user-list page)
   .tableDiv {
     width: 100%;
     overflow-x: auto;
-    padding: 15px;
+    padding: var(--global-page-inner-padding);
     box-sizing: border-box;
   }
 

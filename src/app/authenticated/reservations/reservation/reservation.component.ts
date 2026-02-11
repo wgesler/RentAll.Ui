@@ -555,6 +555,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       // Filter statuses and contacts based on reservation type
       this.updateReservationStatusesByReservationType();
       this.updateContactsByReservationType();
+      this.applyDefaultProrateTypeByReservationType(reservationTypeId);
       this.updateEnabledFieldsByReservationType();
 
        // Always clear reservation status when type changes
@@ -711,6 +712,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       // Make billing and fee fields readonly for Owner type
       this.disableFieldWithValidation('billingTypeId');
       this.disableFieldWithValidation('billingModelId');
+      this.disableFieldWithValidation('prorateTypeId');
       this.disableFieldWithValidation('billingRate');
       this.disableFieldWithValidation('depositType');      
       this.disableFieldWithValidation('deposit');
@@ -727,6 +729,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       // Enable fields for non-Owner types (with appropriate validators)
       this.enableFieldWithValidation('billingTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingModelId', [Validators.required]);
+      this.enableFieldWithValidation('prorateTypeId');
       this.enableFieldWithValidation('billingRate', [Validators.required]);
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);
@@ -743,6 +746,19 @@ export class ReservationComponent implements OnInit, OnDestroy {
       if (arrivalDate && !departureDate) {
         this.departureDateStartAt = new Date(arrivalDate);
       }
+    }
+  }
+
+  private applyDefaultProrateTypeByReservationType(reservationTypeId: number | null): void {
+    const prorateTypeControl = this.form.get('prorateTypeId');
+    if (!prorateTypeControl) {
+      return;
+    }
+
+    if (reservationTypeId === ReservationType.Private) {
+      prorateTypeControl.setValue(ProrateType.SecondMonth, { emitEvent: false });
+    } else if (reservationTypeId === ReservationType.Corporate) {
+      prorateTypeControl.setValue(ProrateType.FirstMonth, { emitEvent: false });
     }
   }
 

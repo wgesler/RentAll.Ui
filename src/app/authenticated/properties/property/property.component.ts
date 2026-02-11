@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { MaterialModule } from '../../../material.module';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap, catchError, of } from 'rxjs';
+import { take, finalize, filter, forkJoin, BehaviorSubject, Observable, map, Subscription, switchMap, catchError, of, Subject, takeUntil } from 'rxjs';
 import { PropertyService } from '../services/property.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
@@ -94,6 +94,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private destroy$ = new Subject<void>();
   
   // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = {
@@ -731,7 +732,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   //#region Setup and Initialize 
   setupConditionalFields(): void {
     // Subscribe to alarm checkbox changes to enable/disable alarm code field
-    this.form.get('alarm')?.valueChanges.subscribe(value => {
+    this.form.get('alarm')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const alarmCodeControl = this.form.get('alarmCode');
       if (alarmCodeControl) {
         if (value) {
@@ -744,7 +745,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
 
     // Subscribe to keypadAccess checkbox changes to enable/disable key code fields
-    this.form.get('keypadAccess')?.valueChanges.subscribe(value => {
+    this.form.get('keypadAccess')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const masterKeyCodeControl = this.form.get('masterKeyCode');
       const tenantKeyCodeControl = this.form.get('tenantKeyCode');
       if (masterKeyCodeControl) {
@@ -766,7 +767,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
 
     // Subscribe to parking checkbox changes to enable/disable parkingNotes field
-    this.form.get('parking')?.valueChanges.subscribe(value => {
+    this.form.get('parking')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const parkingNotesControl = this.form.get('parkingNotes');
       if (parkingNotesControl) {
         if (value) {
@@ -779,7 +780,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
 
     // Subscribe to petsAllowed checkbox changes to enable/disable pet-related fields
-    this.form.get('petsAllowed')?.valueChanges.subscribe(value => {
+    this.form.get('petsAllowed')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const dogsOkayControl = this.form.get('dogsOkay');
       const catsOkayControl = this.form.get('catsOkay');
       const poundLimitControl = this.form.get('poundLimit');
@@ -1050,6 +1051,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
