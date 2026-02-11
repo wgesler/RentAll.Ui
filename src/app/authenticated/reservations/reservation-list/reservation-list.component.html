@@ -5,6 +5,43 @@
         <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
         <span class="flex-shrink-0 text-xl font-medium">Reservations</span>
       </span>
+      <div class="flex items-center gap-2 header-date-controls">
+        <mat-form-field appearance="outline" class="header-date-field">
+          <mat-label>Start Date</mat-label>
+          <input
+            matInput
+            [matDatepicker]="startDatePicker"
+            [(ngModel)]="startDate"
+            [ngModelOptions]="{ standalone: true }"
+            (dateChange)="onStartDateChange()"
+            [max]="endDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #startDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="header-date-field">
+          <mat-label>End Date</mat-label>
+          <input
+            matInput
+            [matDatepicker]="endDatePicker"
+            [(ngModel)]="endDate"
+            [ngModelOptions]="{ standalone: true }"
+            (dateChange)="onEndDateChange()"
+            [min]="startDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #endDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <button 
+          mat-raised-button 
+          type="button" 
+          color="accent"
+          (click)="clearDateFilters()" 
+          class="header-clear-button"
+          [disabled]="!startDate && !endDate">
+          Clear
+        </button>
+      </div>
     </div>
     <mat-card>
       @if (isLoading$ | async) {
@@ -22,7 +59,7 @@
         </div>
       } @else {
         <div class="mat">
-          <!-- Office dropdown, date fields, and buttons row - just above data table -->
+          <!-- Office dropdown row - just above data table -->
           <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
             <div class="flex items-center gap-3" style="height: 56px;">
               @if (showOfficeDropdown) {
@@ -36,42 +73,6 @@
                   </mat-select>
                 </mat-form-field>
               }
-
-              <mat-form-field appearance="outline" class="date-field">
-                <mat-label>Start Date</mat-label>
-                <input
-                  matInput
-                  [matDatepicker]="startDatePicker"
-                  [(ngModel)]="startDate"
-                  [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onStartDateChange()"
-                  [max]="endDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #startDatePicker></mat-datepicker>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="date-field">
-                <mat-label>End Date</mat-label>
-                <input
-                  matInput
-                  [matDatepicker]="endDatePicker"
-                  [(ngModel)]="endDate"
-                  [ngModelOptions]="{ standalone: true }"
-                  (dateChange)="onEndDateChange()"
-                  [min]="startDate" />
-                <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #endDatePicker></mat-datepicker>
-              </mat-form-field>
-
-              <button 
-                mat-raised-button 
-                type="button" 
-                color="accent"
-                (click)="clearDateFilters()" 
-                class="scale-90 text-nowrap"
-                [disabled]="!startDate && !endDate">
-                Clear
-              </button>
             </div>
           </div>
           <div class="tableDiv">

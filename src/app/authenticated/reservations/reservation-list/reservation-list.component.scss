@@ -68,6 +68,141 @@ body {
   max-width: 300px;
 }
 
+// Header date controls - smaller version
+.header-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  flex-shrink: 0;
+  
+  // Ensure controls stay on one line on smaller screens
+  @media (max-width: 1200px) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.header-date-field {
+  min-width: 140px;
+  max-width: 160px;
+  font-size: 0.875rem;
+  
+  ::ng-deep {
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important; // Hide hint/error space for compact header
+    }
+    
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: 40px !important; // Force a shorter height
+    }
+    
+    .mat-mdc-form-field-infix {
+      min-height: 24px !important;
+      padding-top: 12px !important;
+      padding-bottom: 6px !important;
+    }
+    
+    // When field is empty, adjust padding to bring label up
+    .mat-mdc-form-field:not(.mat-form-field-should-float) .mat-mdc-form-field-infix {
+      padding-top: 2px !important;
+      padding-bottom: 16px !important;
+    }
+    
+    // More aggressive targeting for empty fields
+    .mdc-text-field:not(.mdc-text-field--filled):not(.mdc-text-field--focused) .mdc-floating-label--float-above {
+      display: none !important;
+    }
+    
+    .mdc-text-field:not(.mdc-text-field--filled):not(.mdc-text-field--focused) .mdc-floating-label {
+      top: 8px !important;
+      bottom: auto !important;
+      transform: none !important;
+    }
+    
+    .mat-mdc-form-field-label {
+      font-size: 0.7rem !important;
+    }
+    
+    .mat-mdc-input-element {
+      font-size: 0.8rem !important;
+      line-height: 1.2 !important;
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+      vertical-align: middle !important;
+    }
+    
+    .mat-mdc-form-field {
+      margin-bottom: 0 !important;
+    }
+    
+    // Position label consistently whether floating or not
+    .mat-mdc-form-field-label-wrapper {
+      top: -8px !important;
+    }
+    
+    // When label is floating (field has value)
+    .mat-mdc-form-field.mat-form-field-should-float .mat-mdc-form-field-label-wrapper,
+    .mat-mdc-form-field.mdc-text-field--filled .mat-mdc-form-field-label-wrapper {
+      top: -8px !important;
+    }
+    
+    // When label is not floating (field is empty) - bring it up from bottom
+    .mat-mdc-form-field:not(.mat-form-field-should-float):not(.mdc-text-field--focused) .mat-mdc-form-field-label-wrapper {
+      top: 6px !important;
+    }
+    
+    // Also target when not focused
+    .mat-mdc-form-field:not(.mdc-text-field--focused):not(.mat-form-field-should-float) .mat-mdc-form-field-label-wrapper {
+      top: 6px !important;
+    }
+    
+    // Target the label element directly when not floating
+    .mat-mdc-form-field:not(.mat-form-field-should-float) .mat-mdc-form-field-label {
+      position: relative !important;
+      top: 0 !important;
+      transform: none !important;
+      margin-top: 0 !important;
+      line-height: 1.2 !important;
+    }
+    
+    // Adjust label position using mdc classes
+    .mdc-text-field:not(.mdc-text-field--focused):not(.mdc-text-field--filled) .mdc-floating-label {
+      top: 6px !important;
+      transform: none !important;
+    }
+    
+    // Adjust the infix padding when label is not floating to push label up
+    .mat-mdc-form-field:not(.mat-form-field-should-float) .mat-mdc-form-field-infix {
+      padding-top: 2px !important;
+      padding-bottom: 10px !important;
+    }
+    
+    // Override Material's default minimum height
+    .mdc-text-field--outlined {
+      min-height: 40px !important;
+    }
+    
+    .mdc-notched-outline {
+      top: 0 !important;
+    }
+    
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-width: 1px !important;
+    }
+  }
+}
+
+.header-clear-button {
+  height: 32px;
+  font-size: 0.875rem;
+  padding: 0 16px;
+  min-width: auto;
+}
+
 // Reduce gap between Inactive toggle and Add button
 ::ng-deep #toggle-users {
   margin-right: 0.5rem !important;
