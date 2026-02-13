@@ -223,14 +223,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       isActive: formValue.isActive
     };
 
-    console.log('=== Accounting Office Save Request ===');
-    console.log('Is Add Mode:', this.isAddMode);
-    console.log('Linked Office ID:', officeIdNum);
-    console.log('Organization ID:', user.organizationId);
-    console.log('Request Object:', officeRequest);
-    console.log('Request JSON:', JSON.stringify(officeRequest, null, 2));
-    console.log('=====================================');
-
     if (this.isAddMode) {
       this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
@@ -253,13 +245,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
       officeRequest.officeId = officeIdNum;
       officeRequest.organizationId = this.accountingOffice?.organizationId || user?.organizationId || '';
-      
-      console.log('=== Accounting Office Update Request ===');
-      console.log('Office ID:', officeIdNum);
-      console.log('Organization ID:', officeRequest.organizationId);
-      console.log('Request Object:', officeRequest);
-      console.log('Request JSON:', JSON.stringify(officeRequest, null, 2));
-      console.log('========================================');
       
       this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {

@@ -1,15 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { take } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 import { DocumentExportService } from '../../services/document-export.service';
 import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-html.service';
 import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
+import { EmailRequest } from '../documents/models/email.model';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
+import { EmailService } from '../documents/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
 import { OfficeResponse } from '../organizations/models/office.model';
 import { OrganizationResponse } from '../organizations/models/organization.model';
 import { ReservationResponse } from '../reservations/models/reservation-model';
+import { FileDetails } from '../companies/models/file-details.model';
 
 export interface DocumentConfig {
   previewIframeHtml: string;
@@ -30,14 +33,17 @@ export interface DownloadConfig {
   noSelectionMessage: string;
   errorMessage?: string;
 }
-
 export interface EmailConfig {
   subject: string;
-  noPreviewMessage: string;
-  noEmailMessage: string;
+  toEmail: string;
+  toName: string;
+  fromEmail: string;
+  fromName: string;
+  documentType: DocumentType;
+  plainTextMessage: string;
+  fileDetails?: FileDetails | null;
   errorMessage?: string;
 }
-
 
 export abstract class BaseDocumentComponent {
   protected abstract getDocumentConfig(): DocumentConfig;
@@ -47,7 +53,8 @@ export abstract class BaseDocumentComponent {
     public documentService: DocumentService,
     public documentExportService: DocumentExportService,
     public documentHtmlService: DocumentHtmlService,
-    public toastr: ToastrService
+    public toastr: ToastrService,
+    protected emailService: EmailService
   ) {}
 
 
@@ -129,34 +136,77 @@ export abstract class BaseDocumentComponent {
     const config = this.getDocumentConfig();
 
     if (!config.previewIframeHtml) {
-      this.toastr.warning(emailConfig.noPreviewMessage, 'No Preview');
+      this.toastr.warning('No preview available to email.', 'No Preview');
       return;
     }
 
-    // Get tenant email by looking up contact from contactId
-    let tenantEmail = '';
-    if (config.selectedReservation?.contactId && config.contacts) {
-      const contact = config.contacts.find(c => c.contactId === config.selectedReservation?.contactId);
-      if (contact) {
-        tenantEmail = contact.email || '';
-      }
+    if (!config.organization?.organizationId || !config.selectedOffice?.officeId) {
+      this.toastr.warning('Organization or Office not available', 'No Selection');
+      return;
     }
 
-    if (!tenantEmail) {
-      this.toastr.warning(emailConfig.noEmailMessage, 'No Email');
+    const fromEmail = emailConfig?.fromEmail?.trim() || '';
+    const fromName = emailConfig?.fromName?.trim() || '';
+    if (!fromEmail || !fromName) {
+      this.toastr.warning('Current user email sender information is not available.', 'No Sender');
+      return;
+    }
+
+    const toEmail = emailConfig?.toEmail?.trim() || '';
+    const toName = emailConfig?.toName?.trim() || '';
+    if (!toEmail || !toName) {
+      this.toastr.warning('Recipient email information is missing.', 'No Email');
+      return;
+    }
+
+    const plainTextMessage = emailConfig?.plainTextMessage?.trim() || '';
+    if (!plainTextMessage) {
+      this.toastr.warning('Email message is missing.', 'No Message');
       return;
     }
 
     try {
-      await this.documentExportService.emailWithPDF({
-        recipientEmail: tenantEmail,
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+        config.previewIframeHtml,
+        config.previewIframeStyles,
+        config.printStyleOptions
+      );
+      const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: config.organization.organizationId,
+        officeId: config.selectedOffice.officeId,
+        officeName: config.selectedOffice.name,
+        propertyId: config.propertyId || null,
+        reservationId: config.selectedReservation?.reservationId || null,
+        documentTypeId: Number(emailConfig.documentType),
+        fileName: attachmentFileName
+      };
+      const pdfBlob = await firstValueFrom(this.documentService.generateDownload(generateDto));
+      const pdfBase64 = await this.blobToBase64(pdfBlob);
+
+      const emailRequest: EmailRequest = {
+        organizationId: config.organization.organizationId,
+        officeId: config.selectedOffice.officeId,
+        fromEmail,
+        fromName,
+        companyName: config.organization.name || '',
+        toEmail,
+        toName,
         subject: emailConfig.subject,
-        organizationName: config.organization?.name,
-        tenantName: config.selectedReservation?.tenantName,
-        htmlContent: '' // Not used anymore, but keeping for interface compatibility
-      });
+        plainTextContent: plainTextMessage,
+        htmlContent: '',
+        fileDetails: {
+          fileName: attachmentFileName,
+          contentType: pdfBlob.type || 'application/pdf',
+          file: pdfBase64
+        }
+      };
+
+      await firstValueFrom(this.emailService.sendEmail(emailRequest));
+      this.toastr.success('Email queued successfully.', 'Success');
     } catch (error) {
-      const errorMsg = emailConfig.errorMessage || 'Error opening email client. Please try again.';
+      const errorMsg = emailConfig.errorMessage || 'Error sending email. Please try again.';
       this.toastr.error(errorMsg, 'Error');
     }
   }
@@ -164,5 +214,18 @@ export abstract class BaseDocumentComponent {
   injectStylesIntoIframe(): void {
     const config = this.getDocumentConfig();
     this.documentHtmlService.injectStylesIntoIframe(config.previewIframeStyles);
+  }
+
+  private blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result?.includes(',') ? result.split(',')[1] : result;
+        resolve(base64 || '');
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 }

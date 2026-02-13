@@ -232,7 +232,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       if (iframeDoc && iframeDoc.readyState === 'complete' && iframeWin) {
         // Check if body exists
         if (!iframeDoc.body) {
-          console.log('Iframe body not ready yet, retrying...');
           if (attempts < maxAttempts) {
             setTimeout(() => {
               this.attemptClickPrintButton(iframe, attempts + 1, maxAttempts);
@@ -269,7 +268,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
                 try {
                   printButton = document.querySelector(selector);
                   if (printButton) {
-                    console.log('[IFRAME] Found print button:', selector);
                     break;
                   }
                 } catch (e) {}
@@ -277,7 +275,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
               
               if (!printButton) {
                 const allElements = document.querySelectorAll('button, a, [role="button"]');
-                console.log('[IFRAME] Searching through', allElements.length, 'elements');
                 for (let i = 0; i < allElements.length; i++) {
                   const elem = allElements[i];
                   const title = (elem.getAttribute('title') || '').toLowerCase();
@@ -288,18 +285,12 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
                   if (title.includes('print') || ariaLabel.includes('print') || 
                       id.includes('print') || className.includes('print')) {
                     printButton = elem;
-                    console.log('[IFRAME] Found print button by search:', {
-                      id: elem.id,
-                      title: elem.getAttribute('title'),
-                      tagName: elem.tagName
-                    });
                     break;
                   }
                 }
               }
               
               if (printButton) {
-                console.log('[IFRAME] Clicking print button...');
                 printButton.focus();
                 printButton.click();
                 
@@ -311,7 +302,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
                   printButton.dispatchEvent(mouseDown);
                   printButton.dispatchEvent(mouseUp);
                   printButton.dispatchEvent(click);
-                  console.log('[IFRAME] Mouse events dispatched');
                 } catch (e) {
                   console.warn('[IFRAME] Mouse events failed:', e);
                 }
@@ -323,7 +313,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
             
             // Try immediately
             if (findAndClickPrintButton()) {
-              console.log('[IFRAME] Print button clicked successfully');
               return;
             }
             
@@ -334,17 +323,14 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
               retries++;
               if (findAndClickPrintButton()) {
                 clearInterval(interval);
-                console.log('[IFRAME] Print button clicked on retry', retries);
               } else if (retries >= maxRetries) {
                 clearInterval(interval);
-                console.log('[IFRAME] Max retries reached, print button not found');
               }
             }, 300);
           })();
         `;
         
         iframeDoc.body.appendChild(script);
-        console.log('Injected script to find and click print button');
         return;
       }
     } catch (error) {
@@ -359,7 +345,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       }, 500);
     } else {
       // Fallback: use iframe's print method
-      console.log('Max attempts reached, using fallback print method');
       if (iframe.contentWindow) {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();

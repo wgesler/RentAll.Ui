@@ -235,9 +235,6 @@ export class UserComponent implements OnInit, OnDestroy {
       ? parseFloat(String(formValue.commissionRate).replace(/[^0-9.]/g, ''))
       : null;
     
-    console.log('Form startupPageId value:', formValue.startupPageId);
-    console.log('Sending startupPageId to API:', startupPageIdValue);
-    
     const userRequest: UserRequest = {
       organizationId: formValue.organizationId,
       firstName: formValue.firstName,
@@ -253,8 +250,6 @@ export class UserComponent implements OnInit, OnDestroy {
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
       isActive: formValue.isActive
     };
-    
-    console.log('UserRequest being sent:', userRequest);
     
     // For add mode, password is required if changePassword is enabled
     if (this.isAddMode && changePassword && !passwordValue) {

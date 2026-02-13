@@ -79,12 +79,7 @@ export class LoginComponent {
       next: () => {
         if (this.authService.getIsLoggedIn()) {
           const user = this.authService.getUser();
-          console.log('JWT User object:', user);
-          console.log('JWT startupPageId:', user?.startupPageId);
-          console.log('StartupPage enum values:', StartupPage);
-          
           const startupPageId = user?.startupPageId ?? StartupPage.Dashboard;
-          console.log('Using startupPageId value:', startupPageId);
           
           // Redirect based on user's startup page preference
           let redirectUrl: string;
@@ -109,7 +104,6 @@ export class LoginComponent {
               break;
           }
           
-          console.log('Redirecting to:', redirectUrl);
           this.router.navigateByUrl(redirectUrl);
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');

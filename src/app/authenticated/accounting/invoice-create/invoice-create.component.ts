@@ -22,6 +22,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { EmailService } from '../../documents/services/email.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
@@ -106,6 +107,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     private utilityService: UtilityService,
     private formatterService: FormatterService,
     private commonService: CommonService,
+    emailService: EmailService,
     private contactService: ContactService,
     private companyService: CompanyService,
     private http: HttpClient,
@@ -120,7 +122,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     private route: ActivatedRoute,
     private router: Router
   ) {
-    super(documentService, documentExportService, documentHtmlService, toastr);
+    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }
@@ -1200,10 +1202,29 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   override async onEmail(): Promise<void> {
+    const toEmail = this.contact?.email || '';
+    const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const companyName = this.organization?.name || '';
+    const plainTextMessage = `Dear ${toName},\n\nPlease find your invoice attached.\n\nBest regards,\n${companyName}`;
+    const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
+    const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+
     const emailConfig: EmailConfig = {
       subject: `Invoice: ${this.selectedInvoice?.invoiceCode || 'Invoice'}`,
-      noPreviewMessage: 'Please select an Office, Reservation, and Invoice to generate the invoice',
-      noEmailMessage: 'No email address found for this reservation'
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.Invoice,
+      plainTextMessage,
+      fileDetails: {
+        fileName: attachmentFileName,
+        contentType: 'application/pdf',
+        file: ''
+      }
     };
 
     await super.onEmail(emailConfig);

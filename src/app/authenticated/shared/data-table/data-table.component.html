@@ -110,7 +110,7 @@
                   {{dataSource.filteredData.indexOf(item)+1}}
                   } @case ('actions') {
                   <div class="flex items-center justify-start">
-                    @for (button of buttons; track buttons) {
+                    @for (button of buttons; track button.name) {
                       @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
                         <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip || button.name)"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"

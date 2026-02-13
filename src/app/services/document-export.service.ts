@@ -1,13 +1,5 @@
 import { Injectable } from '@angular/core';
 
-export interface EmailOptions {
-  recipientEmail: string;
-  subject: string;
-  organizationName?: string;
-  tenantName?: string;
-  htmlContent: string;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -95,29 +87,5 @@ export class DocumentExportService {
     }
   }
 
-  /**
-   * Opens email client with pre-filled content
-   * @param options Email options including recipient, subject, and HTML content
-   * @returns Promise<void>
-   */
-  async emailWithPDF(options: EmailOptions): Promise<void> {
-    try {
-      // Create email body with salutation and signature
-      const tenantName = options.tenantName || '[Guest Name]';
-      const companyName = options.organizationName || '[Your Name / Your Team]';
-      
-      const plainTextBody = `Dear ${tenantName},\n\nWe are excited to welcome you soon! Should you have any questions or need further assistance, your booking agent will be happy to help.\n\nWe look forward to your visit!\n\nBest regards,\n${companyName}\n\n**PASTE WELCOME LETTER CONTENTS HERE**`;
-
-      // Open email client
-      const subject = encodeURIComponent(options.subject);
-      const body = encodeURIComponent(plainTextBody);
-      const mailtoLink = `mailto:${options.recipientEmail}?subject=${subject}&body=${body}`;
-      window.location.href = mailtoLink;
-
-    } catch (error) {
-      console.error('Error opening email client:', error);
-      throw error;
-    }
-  }
 }
 

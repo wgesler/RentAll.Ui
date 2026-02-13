@@ -21,6 +21,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { EmailService } from '../../documents/services/email.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -30,7 +31,7 @@ import { PropertyHtmlResponse } from '../../properties/models/property-html.mode
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyHtmlService } from '../../properties/services/property-html.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { BillingType, DepositType, ReservationNotice } from '../models/reservation-enum';
 import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
@@ -94,6 +95,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private contactService: ContactService,
     private companyService: CompanyService,
     private commonService: CommonService,
+    emailService: EmailService,
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
     private authService: AuthService,
@@ -109,7 +111,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService
   ) {
-    super(documentService, documentExportService, documentHtmlService, toastr);
+    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
   }
 
@@ -1384,31 +1386,31 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   override async onEmail(): Promise<void> {
-    // Lease component uses contact (singular) instead of contacts array
-    // Override to handle this difference
-    const config = this.getDocumentConfig();
-    if (!config.previewIframeHtml) {
-      this.toastr.warning('Please select an office and reservation to generate the lease', 'No Preview');
-      return;
-    }
+    const toEmail = this.contact?.email || '';
+    const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const companyName = this.organization?.name || '';
+    const plainTextMessage = `Dear ${toName},\n\nPlease find your lease agreement attached.\n\nBest regards,\n${companyName}`;
+    const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
 
-    const tenantEmail = this.contact?.email || '';
-    if (!tenantEmail) {
-      this.toastr.warning('No email address found for this reservation', 'No Email');
-      return;
-    }
+    const emailConfig: EmailConfig = {
+      subject: 'Your Lease Agreement',
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.ReservationLease,
+      plainTextMessage,
+      fileDetails: {
+        fileName: attachmentFileName,
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
 
-    try {
-      await this.documentExportService.emailWithPDF({
-        recipientEmail: tenantEmail,
-        subject: 'Your Lease Agreement',
-        organizationName: config.organization?.name,
-        tenantName: config.selectedReservation?.tenantName,
-        htmlContent: ''
-      });
-    } catch (error) {
-      this.toastr.error('Error opening email client. Please try again.', 'Error');
-    }
+    await super.onEmail(emailConfig);
   }
   //#endregion
 

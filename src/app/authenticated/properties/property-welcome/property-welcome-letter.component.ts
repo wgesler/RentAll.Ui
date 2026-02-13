@@ -17,6 +17,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { EmailService } from '../../documents/services/email.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -79,6 +80,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private propertyLetterService: PropertyLetterService,
     private propertyService: PropertyService,
     private commonService: CommonService,
+    emailService: EmailService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
@@ -95,7 +97,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService
   ) {
-    super(documentService, documentExportService, documentHtmlService, toastr);
+    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
   }
 
@@ -844,10 +846,29 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onEmail(): Promise<void> {
+    const recipientContact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) || null;
+    const toEmail = recipientContact?.email || '';
+    const toName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const companyName = this.organization?.name || '';
+    const plainTextMessage = `Dear ${toName},\n\nWe are excited to welcome you soon! Should you have any questions or need further assistance, your booking agent will be happy to help.\n\nWe look forward to your visit!\n\nBest regards,\n${companyName}`;
+    const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
+
     const emailConfig: EmailConfig = {
       subject: 'Your Upcoming Visit',
-      noPreviewMessage: 'Please select an office and reservation to generate the welcome letter',
-      noEmailMessage: 'No email address found for this reservation'
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.PropertyLetter,
+      plainTextMessage,
+      fileDetails: {
+        fileName: attachmentFileName,
+        contentType: 'application/pdf',
+        file: ''
+      }
     };
 
     await super.onEmail(emailConfig);

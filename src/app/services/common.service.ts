@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, take } from 'rxjs';
+import { EmailRequest, EmailResponse } from '../authenticated/documents/models/email.model';
 import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
 import { CommonMessage } from '../enums/common-message.enum';
@@ -122,5 +123,9 @@ export class CommonService {
         }
       }
     });
+  }
+
+  sendEmail(request: EmailRequest): Observable<EmailResponse> {
+    return this.http.post<EmailResponse>(this.controller + 'send-email', request);
   }
 }
