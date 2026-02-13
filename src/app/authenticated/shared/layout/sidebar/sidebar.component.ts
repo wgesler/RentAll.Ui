@@ -69,6 +69,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
       excludedRoles: [] // No exclusions
     },
     {
+      icon: 'mail',
+      displayName: 'Emails',
+      url: RouterToken.EmailList,
+      requiredRoles: [], // Available to all
+      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
+    },
+    {
       icon: 'description',
       displayName: 'Documents',
       url: RouterToken.DocumentList,

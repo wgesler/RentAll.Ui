@@ -113,6 +113,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
+  @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
@@ -309,6 +310,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (rowItem.contactId || rowItem.owner1Id) {
       this.contactClickEvent.emit(rowItem);
     }
+  }
+
+  onAttachmentClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.attachmentClickEvent.emit(rowItem);
   }
 
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {

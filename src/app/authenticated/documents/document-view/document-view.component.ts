@@ -55,6 +55,13 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
 
   //#region Document-View
   ngOnInit(): void {
+    const queryParams = this.route.snapshot.queryParams;
+    this.returnTo = queryParams['returnTo'];
+    this.propertyId = queryParams['propertyId'];
+    this.reservationId = queryParams['reservationId'];
+    this.documentTypeId = queryParams['documentTypeId'] ? Number(queryParams['documentTypeId']) : undefined;
+    this.shouldPrint = queryParams['print'] === 'true';
+
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
       if (id) {
@@ -64,15 +71,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         this.toastr.error('Invalid document ID', CommonMessage.Error);
         this.back();
       }
-    });
-    
-    // Get query params for return context and print flag
-    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-      this.returnTo = queryParams['returnTo'];
-      this.propertyId = queryParams['propertyId'];
-      this.reservationId = queryParams['reservationId'];
-      this.documentTypeId = queryParams['documentTypeId'] ? Number(queryParams['documentTypeId']) : undefined;
-      this.shouldPrint = queryParams['print'] === 'true';
     });
   }
 
@@ -444,6 +442,11 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
 
   //#region Utility Methods
   back(): void {
+    if (this.returnTo === 'email') {
+      this.router.navigateByUrl(RouterUrl.EmailList);
+      return;
+    }
+
     // If we came from a tab, navigate back to that tab
     if (this.returnTo === 'tab' && this.propertyId && this.documentTypeId !== undefined) {
       if (this.documentTypeId === 2 && this.reservationId) {
@@ -483,5 +486,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.itemsToLoad$.complete();
   }
   //#endregion
+
 }
 

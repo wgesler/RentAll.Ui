@@ -30,9 +30,9 @@
               <mat-checkbox formControlName="isActive" color="primary">
                 Is Active
               </mat-checkbox>
-              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveInvoice()"
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
                 class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
-                {{ isPaymentMode ? 'Apply' : (isAddMode ? 'Create' : 'Modify') }}
+                {{ primaryActionLabel }}
               </button>
             </div>
             

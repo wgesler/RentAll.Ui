@@ -201,6 +201,15 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.performSave();
   }
 
+  onPrimaryAction(): void {
+    if (!this.isAddMode && !this.isPaymentMode && !this.hasChanges()) {
+      this.navigateToInvoiceCreate(this.invoice, this.form?.getRawValue());
+      return;
+    }
+
+    this.saveInvoice();
+  }
+
   async checkAndApplyCredit(): Promise<void> {
     if (!this.selectedReservation || !this.selectedOffice) {
       this.performSave();
@@ -475,39 +484,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           (this as any).appliedCreditAmount = null;
         }
         
-          // Navigate to invoice-create component to generate the document
-        const invoiceToUse = savedInvoice || this.invoice;
-        if (invoiceToUse && this.selectedOffice && this.selectedReservation) {
-          // Build query parameters for invoice-create component
-          const queryParams = this.route.snapshot.queryParams;
-          const returnTo = queryParams['returnTo'] || 'accounting'; // Default to accounting
-          
-          const params: string[] = [];
-          params.push(`returnTo=${returnTo}`);
-          
-          if (this.selectedOffice.officeId) {
-            params.push(`officeId=${this.selectedOffice.officeId}`);
-          }
-          if (this.selectedReservation.reservationId) {
-            params.push(`reservationId=${this.selectedReservation.reservationId}`);
-          }
-          if (invoiceToUse.invoiceId) {
-            params.push(`invoiceId=${invoiceToUse.invoiceId}`);
-          }
-          // Include companyId if it was passed in (from accounting-list)
-          if (this.companyId) {
-            params.push(`companyId=${this.companyId}`);
-          }
-          
-          // Navigate to invoice-create component
-          const invoiceCreateUrl = params.length > 0 
-            ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
-            : RouterUrl.InvoiceCreate;
-          this.router.navigateByUrl(invoiceCreateUrl);
-        } else {
-          // Fallback: navigate back if we don't have required data
-          this.navigateBack(formValue);
-        }
+        this.navigateToInvoiceCreate(savedInvoice || this.invoice, formValue);
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -1140,8 +1117,20 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     if (this.isAddMode) {
       return false;
     }
-    
-    return !this.hasChanges();
+
+    return false;
+  }
+
+  get primaryActionLabel(): string {
+    if (this.isPaymentMode) {
+      return 'Apply';
+    }
+
+    if (this.isAddMode) {
+      return 'Create';
+    }
+
+    return this.hasChanges() ? 'Modify' : 'View';
   }
 
   hasChanges(): boolean {
@@ -1478,6 +1467,36 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       ? `${RouterUrl.AccountingList}?${params.join('&')}`
       : RouterUrl.AccountingList;
     this.router.navigateByUrl(navigationUrl);
+  }
+
+  private navigateToInvoiceCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
+    if (!invoiceToUse?.invoiceId) {
+      this.navigateBack(formValue || this.form?.getRawValue() || {});
+      return;
+    }
+
+    const queryParams = this.route.snapshot.queryParams;
+    const returnTo = queryParams['returnTo'] || 'accounting';
+    const params: string[] = [`returnTo=${returnTo}`];
+
+    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
+    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
+
+    if (officeIdToUse) {
+      params.push(`officeId=${officeIdToUse}`);
+    }
+    if (reservationIdToUse) {
+      params.push(`reservationId=${reservationIdToUse}`);
+    }
+
+    params.push(`invoiceId=${invoiceToUse.invoiceId}`);
+
+    if (this.companyId) {
+      params.push(`companyId=${this.companyId}`);
+    }
+
+    const invoiceCreateUrl = `${RouterUrl.InvoiceCreate}?${params.join('&')}`;
+    this.router.navigateByUrl(invoiceCreateUrl);
   }
 
   //#endregion

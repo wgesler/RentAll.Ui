@@ -5,7 +5,7 @@ import { DocumentExportService } from '../../services/document-export.service';
 import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-html.service';
 import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
-import { EmailRequest } from '../documents/models/email.model';
+import { EmailRequest } from '../email/models/email.model';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
@@ -185,10 +185,11 @@ export abstract class BaseDocumentComponent {
 
       const emailRequest: EmailRequest = {
         organizationId: config.organization.organizationId,
-        officeId: config.selectedOffice.officeId,
+        officeId: config.selectedOffice.officeId.toString(),
+        propertyId: config.propertyId || undefined,
+        reservationId: config.selectedReservation?.reservationId || undefined,
         fromEmail,
         fromName,
-        companyName: config.organization.name || '',
         toEmail,
         toName,
         subject: emailConfig.subject,

@@ -13,6 +13,8 @@ import { DashboardComponent } from './authenticated/dashboard/dashboard.componen
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
+import { EmailListComponent } from './authenticated/email/email-list/email-list.component';
+import { EmailComponent } from './authenticated/email/email/email.component';
 import { AccountingOfficeListComponent } from './authenticated/organizations/accounting-office-list/accounting-office-list.component';
 import { AccountingOfficeComponent } from './authenticated/organizations/accounting-office/accounting-office.component';
 import { AgentListComponent } from './authenticated/organizations/agent-list/agent-list.component';
@@ -60,6 +62,8 @@ export enum RouterToken {
   DocumentList = 'documents',
   Document = RouterToken.DocumentList + '/:id',
   DocumentView = RouterToken.DocumentList + '/:id/view',
+  EmailList = 'emails',
+  Email = RouterToken.EmailList + '/:id',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
   InvoiceCreate = 'invoice-create',
@@ -105,6 +109,8 @@ export enum RouterUrl {
   DocumentList           = `${RouterToken.Auth}/${RouterToken.DocumentList}`,
   Document               = `${RouterToken.Auth}/${RouterToken.Document}`,
   DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
+  EmailList              = `${RouterToken.Auth}/${RouterToken.EmailList}`,
+  Email                  = `${RouterToken.Auth}/${RouterToken.Email}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
   InvoiceCreate          = `${RouterToken.Auth}/${RouterToken.InvoiceCreate}`,
@@ -157,6 +163,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.EmailList, component: EmailListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },

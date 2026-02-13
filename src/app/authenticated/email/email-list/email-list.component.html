@@ -1,24 +1,54 @@
 @if (isLoading) {
   <div class="loading-container">
-    <mat-spinner diameter="32"></mat-spinner>
-    <span>Loading emails...</span>
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading emails...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">mail</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Emails</span>
+        </span>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="flex gap-4 items-center mt-3 px-4">
+            @if (showOfficeDropdown) {
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+          </div>
+          <div class="tableDiv">
+            <app-data-table
+              [data]="emails"
+              [columns]="emailsDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasToggleTop]="false"
+              [hasActionsRowClick]="true"
+              [hasActionsView]="true"
+              [hasActionsEdit]="false"
+              [hasActionsDelete]="false"
+              [itemsPerPage]="100"
+              (viewEvent)="viewEmail($event)"
+              (attachmentClickEvent)="viewDocument($event)"
+              (rowClickEvent)="viewEmail($event)"/>
+          </div>
+        </div>
+      </mat-card>
+    </section>
   </div>
 } @else {
-  <div class="email-list-container">
-    <h2>Email List</h2>
-    @if (emails.length === 0) {
-      <p>No emails found.</p>
-    } @else {
-      <mat-list>
-        @for (email of emails; track email.emailId) {
-          <mat-list-item>
-            <div class="email-row">
-              <span class="email-subject">{{ email.subject }}</span>
-              <span class="email-recipient">{{ email.toName }} ({{ email.toEmail }})</span>
-            </div>
-          </mat-list-item>
-        }
-      </mat-list>
-    }
+  <div class="loading-container">
+    <p>Could not load emails at this time.</p>
   </div>
 }

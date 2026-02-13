@@ -1,4 +1,63 @@
-<div class="email-container">
-  <h2>Email</h2>
-  <p>Email detail/edit placeholder.</p>
-</div>
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading email...</p>
+  </div>
+} @else if (!isServiceError && email) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">mail</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">View Email</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <div class="email-container">
+          <div class="email-header-row">
+            <div class="email-subject">{{ email.subject }}</div>
+            <div class="email-created">{{ formattedCreatedOn }}</div>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">To:</span>
+            <span class="line-value">{{ email.toName }}&lt;{{ email.toEmail }}&gt;</span>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">From:</span>
+            <span class="line-value">{{ email.fromName }}&lt;{{ email.fromEmail }}&gt;</span>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">Attachments:</span>
+            <span class="line-value">
+              @if (email.attachmentName) {
+                {{ email.attachmentName }}
+                <mat-icon class="attachment-icon">attach_file</mat-icon>
+              } @else {
+                None
+              }
+            </span>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="email-body-pane" [innerHTML]="email.htmlContent || ''"></div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <div class="loading-container">
+    <p>Could not load this email.</p>
+  </div>
+}

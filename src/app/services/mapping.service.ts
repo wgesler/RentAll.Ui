@@ -8,6 +8,7 @@ import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
+import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -190,6 +191,38 @@ export class MappingService {
 
     // Some endpoints can return a single object instead of an array.
     return [this.mapEmailHtml(emailHtmlList)];
+  }
+
+  mapEmailListDisplays(emails: any): EmailListDisplay[] {
+    if (!emails) {
+      return [];
+    }
+
+    const emailArray = Array.isArray(emails) ? emails : [emails];
+    return emailArray.map<EmailListDisplay>((email: EmailResponse | any) => ({
+      // Treat attachmentPath as the linked document identifier/path.
+      // Rows without attachments cannot open a document preview.
+      emailId: email?.emailId ?? email?.EmailId ?? '',
+      officeId: String(email?.officeId ?? email?.OfficeId ?? ''),
+      officeName: email?.officeName ?? email?.OfficeName ?? '',
+      toEmail: email?.toEmail ?? email?.ToEmail ?? '',
+      toName: email?.toName ?? email?.ToName ?? '',
+      fromEmail: email?.fromEmail ?? email?.FromEmail ?? '',
+      fromName: email?.fromName ?? email?.FromName ?? '',
+      subject: email?.subject ?? email?.Subject ?? '',
+      attachmentName: email?.attachmentName ?? email?.AttachmentName ?? '',
+      attachmentPath: email?.attachmentPath ?? email?.AttachmentPath ?? '',
+      documentId: email?.documentId ?? email?.DocumentId ?? email?.attachmentDocumentId ?? email?.AttachmentDocumentId ?? undefined,
+      canView: Boolean(
+        email?.documentId ??
+        email?.DocumentId ??
+        email?.attachmentDocumentId ??
+        email?.AttachmentDocumentId ??
+        email?.attachmentPath ??
+        email?.AttachmentPath
+      ),
+      createdOn: this.formatter.formatDateTimeString(email?.createdOn ?? email?.CreatedOn) || (email?.createdOn ?? email?.CreatedOn ?? '')
+    }));
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {

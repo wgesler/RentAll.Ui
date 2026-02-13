@@ -176,6 +176,16 @@
                     id="table-owner-link-{{templateTableId}}-{{i}}">
                     {{item[column.name]}}
                   </span>
+                  } @case ('attachmentPath') {
+                  @if (item[column.name]) {
+                    <button mat-icon-button
+                      type="button"
+                      (click)="onAttachmentClick($event, item)"
+                      [matTooltip]="'View Document'"
+                      id="table-attachment-link-{{templateTableId}}-{{i}}">
+                      <mat-icon>description</mat-icon>
+                    </button>
+                  }
                   } @case ('website') {
                   @if (item[column.name]) {
                     <a [href]="item[column.name]"
