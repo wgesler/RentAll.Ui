@@ -14,6 +14,7 @@ import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CompanyResponse } from '../../companies/models/company.model';
 import { CompanyService } from '../../companies/services/company.service';
@@ -22,7 +23,9 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
-import { EmailService } from '../../documents/services/email.service';
+import { EmailService } from '../../email/services/email.service';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
@@ -83,6 +86,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
+  emailHtml: EmailHtmlResponse | null = null;
   
   companyId: string | null = null; // Store companyId from query params
 
@@ -94,7 +98,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -106,8 +110,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     private fb: FormBuilder,
     private utilityService: UtilityService,
     private formatterService: FormatterService,
+    private mappingService: MappingService,
     private commonService: CommonService,
     emailService: EmailService,
+    private emailHtmlService: EmailHtmlService,
     private contactService: ContactService,
     private companyService: CompanyService,
     private http: HttpClient,
@@ -156,6 +162,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadReservations();
       this.loadOrganization();
       this.loadContacts();
+      this.loadEmailHtml();
       
       // Wait for all items to load before proceeding
       this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
@@ -593,6 +600,19 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
       });
+    });
+  }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: (response: EmailHtmlResponse) => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response as any);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
     });
   }
 
@@ -1207,19 +1227,28 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const companyName = this.organization?.name || '';
-    const plainTextMessage = `Dear ${toName},\n\nPlease find your invoice attached.\n\nBest regards,\n${companyName}`;
+    const companyName = this.organization?.name;
+    const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
+    const emailSubject = this.emailHtml?.invoiceSubject?.trim()
+      .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+    const emailBodyHtml = (this.emailHtml?.invoice || '')
+      .replace(/\$\{\{toName\}\}/g, toName)
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\$\{\{companyName\}\}/g, companyName || '')
+      .replace(/\{\{companyName\}\}/g, companyName || '');
+
     const emailConfig: EmailConfig = {
-      subject: `Invoice: ${this.selectedInvoice?.invoiceCode || 'Invoice'}`,
+      subject: emailSubject,
       toEmail,
       toName,
       fromEmail,
       fromName,
       documentType: DocumentType.Invoice,
-      plainTextMessage,
+      plainTextContent,
+      htmlContent: emailBodyHtml,
       fileDetails: {
         fileName: attachmentFileName,
         contentType: 'application/pdf',

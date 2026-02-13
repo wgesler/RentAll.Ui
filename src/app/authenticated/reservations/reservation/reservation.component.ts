@@ -35,7 +35,6 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { LeaseInformationComponent } from '../lease-information/lease-information.component';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
 import { ExtraFeeLineRequest, ReservationRequest, ReservationResponse } from '../models/reservation-model';
@@ -54,7 +53,7 @@ interface ExtraFeeLineDisplay {
 
 @Component({
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, LeaseInformationComponent, DocumentListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, DocumentListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })

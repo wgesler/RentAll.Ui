@@ -1,0 +1,24 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner diameter="32"></mat-spinner>
+    <span>Loading emails...</span>
+  </div>
+} @else {
+  <div class="email-list-container">
+    <h2>Email List</h2>
+    @if (emails.length === 0) {
+      <p>No emails found.</p>
+    } @else {
+      <mat-list>
+        @for (email of emails; track email.emailId) {
+          <mat-list-item>
+            <div class="email-row">
+              <span class="email-subject">{{ email.subject }}</span>
+              <span class="email-recipient">{{ email.toName }} ({{ email.toEmail }})</span>
+            </div>
+          </mat-list-item>
+        }
+      </mat-list>
+    }
+  </div>
+}

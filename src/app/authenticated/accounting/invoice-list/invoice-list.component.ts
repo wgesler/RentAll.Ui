@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -33,7 +33,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     selector: 'app-invoice-list',
     templateUrl: './invoice-list.component.html',
     styleUrls: ['./invoice-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DatePipe]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {

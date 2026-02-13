@@ -15,6 +15,14 @@ export class EmailService {
     private configService: ConfigService
   ) {}
 
+  getEmails(): Observable<EmailResponse[]> {
+    return this.http.get<EmailResponse[]>(this.controller);
+  }
+
+  getEmailByGuid(emailId: string): Observable<EmailResponse> {
+    return this.http.get<EmailResponse>(this.controller + emailId);
+  }
+
   sendEmail(request: EmailRequest): Observable<EmailResponse> {
     return this.http.post<EmailResponse>(this.controller, request);
   }

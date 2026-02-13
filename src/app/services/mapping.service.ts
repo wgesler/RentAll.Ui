@@ -8,6 +8,7 @@ import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
+import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
@@ -161,6 +162,34 @@ export class MappingService {
         canView: canView,
        };
     });
+  }
+
+  mapEmailHtml(emailHtml: any): EmailHtmlResponse {
+    return {
+      organizationId: emailHtml?.organizationId ?? emailHtml?.OrganizationId ?? '',
+      welcomeLetter: emailHtml?.welcomeLetter ?? emailHtml?.WelcomeLetter ?? '',
+      corporateLetter: emailHtml?.corporateLetter ?? emailHtml?.CorporateLetter ?? '',
+      lease: emailHtml?.lease ?? emailHtml?.Lease ?? '',
+      invoice: emailHtml?.invoice ?? emailHtml?.Invoice ?? '',
+      letterSubject: emailHtml?.letterSubject ?? emailHtml?.LetterSubject ?? '',
+      leaseSubject: emailHtml?.leaseSubject ?? emailHtml?.LeaseSubject ?? '',
+      invoiceSubject: emailHtml?.invoiceSubject ?? emailHtml?.InvoiceSubject ?? '',
+      createdOn: emailHtml?.createdOn ?? emailHtml?.CreatedOn ?? '',
+      modifiedOn: emailHtml?.modifiedOn ?? emailHtml?.ModifiedOn
+    };
+  }
+
+  mapEmailHtmls(emailHtmlList: any): EmailHtmlResponse[] {
+    if (!emailHtmlList) {
+      return [];
+    }
+
+    if (Array.isArray(emailHtmlList)) {
+      return emailHtmlList.map((item: any) => this.mapEmailHtml(item));
+    }
+
+    // Some endpoints can return a single object instead of an array.
+    return [this.mapEmailHtml(emailHtmlList)];
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {

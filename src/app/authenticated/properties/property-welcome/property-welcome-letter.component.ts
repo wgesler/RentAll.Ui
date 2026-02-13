@@ -2,6 +2,7 @@ import { AsyncPipe, CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, of, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -11,13 +12,16 @@ import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
-import { EmailService } from '../../documents/services/email.service';
+import { EmailService } from '../../email/services/email.service';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -35,6 +39,7 @@ import { PropertyHtmlService } from '../services/property-html.service';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
+import { EntityType } from '../../contacts/models/contact-enum';
 
 @Component({
     selector: 'app-property-welcome-letter',
@@ -55,6 +60,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
   propertyLetter: PropertyLetterResponse | null = null;
+  emailHtml: EmailHtmlResponse | null = null;
   organization: OrganizationResponse | null = null;
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -66,13 +72,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   previewIframeHtml: string = '';
+  safeHtml: SafeHtml = '';
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
   welcomeLetterReloadSubscription?: Subscription;
   debuggingHtml: boolean = true;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -81,11 +88,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private propertyService: PropertyService,
     private commonService: CommonService,
     emailService: EmailService,
+    private emailHtmlService: EmailHtmlService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
     private fb: FormBuilder,
+    private sanitizer: DomSanitizer,
     private formatterService: FormatterService,
+    private mappingService: MappingService,
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
@@ -105,6 +115,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   ngOnInit(): void {
     // Always load offices, even in Add mode (when propertyId is null)
     this.loadOffices();
+    this.loadEmailHtml();
     
     if (!this.propertyId) {
       // In Add mode, still load organization and contacts for defaults
@@ -415,6 +426,19 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       }
     });
   }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: (response: EmailHtmlResponse) => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response as any);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
   //#endregion
 
   //#region Form Response Functions
@@ -682,6 +706,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     // Only generate preview if both office and reservation are selected
     if (!this.selectedOffice || !this.selectedReservation) {
       this.previewIframeHtml = '';
+      this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
       return;
     }
 
@@ -698,6 +723,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
       this.previewIframeHtml = '';
+      this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
       return;
     }
 
@@ -774,10 +800,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.processAndSetHtml(combinedHtml);
         } catch (error) {
           this.previewIframeHtml = '';
+          this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
         }
       },
       error: () => {
         this.previewIframeHtml = '';
+        this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
       }
     });
   }
@@ -785,6 +813,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   processAndSetHtml(html: string): void {
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.previewIframeStyles = result.extractedStyles;
     this.iframeKey++; // Force iframe refresh
   }
@@ -848,22 +877,46 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   override async onEmail(): Promise<void> {
     const recipientContact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) || null;
     const toEmail = recipientContact?.email || '';
-    const toName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
+
+    let toName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
+    let contactName = '';
+    if(recipientContact.entityTypeId == EntityType.Company) {
+      toName = this.selectedReservation.tenantName || '';
+      contactName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
+    }
+
     const currentUser = this.authService.getUser();
+    const agentName = currentUser.firstName + ' ' + currentUser.lastName
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const companyName = this.organization?.name || '';
-    const plainTextMessage = `Dear ${toName},\n\nWe are excited to welcome you soon! Should you have any questions or need further assistance, your booking agent will be happy to help.\n\nWe look forward to your visit!\n\nBest regards,\n${companyName}`;
+    const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
+    const companyName = this.organization?.name;
+
+    const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
+    let emailBodyHtml = (this.emailHtml?.welcomeLetter || '')
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\{\{agentName\}\}/g, agentName || '')
+      .replace(/\{\{contactName\}\}/g, contactName || '')
+      .replace(/\{\{companyName\}\}/g, companyName || '');
+
+    if(recipientContact.entityTypeId == EntityType.Company) {
+      emailBodyHtml = (this.emailHtml?.corporateLetter || '')
+        .replace(/\{\{toName\}\}/g, toName)
+        .replace(/\{\{agentName\}\}/g, agentName || '')
+        .replace(/\{\{contactName\}\}/g, contactName || '')
+        .replace(/\{\{companyName\}\}/g, companyName || '');
+    }
 
     const emailConfig: EmailConfig = {
-      subject: 'Your Upcoming Visit',
+      subject: emailSubject,
       toEmail,
       toName,
       fromEmail,
       fromName,
       documentType: DocumentType.PropertyLetter,
-      plainTextMessage,
+      plainTextContent,
+      htmlContent: emailBodyHtml,
       fileDetails: {
         fileName: attachmentFileName,
         contentType: 'application/pdf',

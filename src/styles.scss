@@ -1,9 +1,9 @@
+@use "./reset.scss";
+@use "./styles/mixins" as *;
+@use "./styles/theme";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import "./reset.scss";
-@import "./styles/mixins";
-@import "./styles/theme";
 
 * {
   font-family: "Poppins", "Helvetica Neue", sans-serif;

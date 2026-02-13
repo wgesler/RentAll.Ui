@@ -21,7 +21,9 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
-import { EmailService } from '../../documents/services/email.service';
+import { EmailService } from '../../email/services/email.service';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -60,6 +62,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservation: ReservationResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
+  emailHtml: EmailHtmlResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
@@ -84,7 +87,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -96,6 +99,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private companyService: CompanyService,
     private commonService: CommonService,
     emailService: EmailService,
+    private emailHtmlService: EmailHtmlService,
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
     private authService: AuthService,
@@ -120,6 +124,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.applyOfficeSelectionLockState();
     this.loadOrganization();
     this.loadContacts();
+    this.loadEmailHtml();
     this.loadOffices();
     this.loadReservations();
     this.loadReservation();
@@ -532,6 +537,19 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       error: (err: HttpErrorResponse) => {
         if (err.status !== 400) {
           this.toastr.error('Could not load reservation at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: (response: EmailHtmlResponse) => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response as any);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
     });
@@ -1391,18 +1409,28 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const companyName = this.organization?.name || '';
-    const plainTextMessage = `Dear ${toName},\n\nPlease find your lease agreement attached.\n\nBest regards,\n${companyName}`;
+    const companyName = this.organization?.name;
+    const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
+    const reservationCode = this.selectedReservation?.reservationCode;
+
+    const emailSubject = this.emailHtml?.leaseSubject?.trim()
+       .replace(/\{\{reservationCode\}\}/g, reservationCode || '');
+    const emailBodyHtml = (this.emailHtml?.lease || '')
+      .replace(/\$\{\{toName\}\}/g, toName)
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\$\{\{companyName\}\}/g, companyName || '')
+      .replace(/\{\{companyName\}\}/g, companyName || '');
 
     const emailConfig: EmailConfig = {
-      subject: 'Your Lease Agreement',
+      subject: emailSubject,
       toEmail,
       toName,
       fromEmail,
       fromName,
       documentType: DocumentType.ReservationLease,
-      plainTextMessage,
+      plainTextContent,
+      htmlContent: emailBodyHtml,
       fileDetails: {
         fileName: attachmentFileName,
         contentType: 'application/pdf',

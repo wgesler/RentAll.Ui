@@ -68,7 +68,7 @@
           <!-- Preview iframe when both office and reservation are selected -->
           <div class="preview-section">
             <iframe 
-              [srcdoc]="previewIframeHtml" 
+              [srcdoc]="safeHtml" 
               class="preview-iframe"
               [attr.key]="iframeKey"
               (load)="injectStylesIntoIframe()"

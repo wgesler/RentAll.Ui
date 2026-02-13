@@ -8,12 +8,11 @@ import { RouterToken } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { UserGroups } from '../../../users/models/user-enums';
-import { HeaderComponent } from '../header/header.component';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
     selector: 'app-sidebar',
-    imports: [CommonModule, MaterialModule, RouterOutlet, RouterLink, RouterLinkActive, HeaderComponent],
+    imports: [CommonModule, MaterialModule, RouterOutlet, RouterLink, RouterLinkActive],
     templateUrl: './sidebar.component.html',
     styleUrl: './sidebar.component.scss'
 })

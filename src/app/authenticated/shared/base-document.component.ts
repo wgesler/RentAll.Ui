@@ -7,7 +7,7 @@ import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
 import { EmailRequest } from '../documents/models/email.model';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
-import { EmailService } from '../documents/services/email.service';
+import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
 import { OfficeResponse } from '../organizations/models/office.model';
 import { OrganizationResponse } from '../organizations/models/organization.model';
@@ -40,7 +40,8 @@ export interface EmailConfig {
   fromEmail: string;
   fromName: string;
   documentType: DocumentType;
-  plainTextMessage: string;
+  plainTextContent: string;
+  htmlContent?: string;
   fileDetails?: FileDetails | null;
   errorMessage?: string;
 }
@@ -159,12 +160,9 @@ export abstract class BaseDocumentComponent {
       return;
     }
 
-    const plainTextMessage = emailConfig?.plainTextMessage?.trim() || '';
-    if (!plainTextMessage) {
-      this.toastr.warning('Email message is missing.', 'No Message');
-      return;
-    }
-
+    const plainTextContent = emailConfig?.plainTextContent?.trim() || '';
+    const htmlContent = emailConfig?.htmlContent?.trim() || '';
+ 
     try {
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
         config.previewIframeHtml,
@@ -194,8 +192,8 @@ export abstract class BaseDocumentComponent {
         toEmail,
         toName,
         subject: emailConfig.subject,
-        plainTextContent: plainTextMessage,
-        htmlContent: '',
+        plainTextContent: plainTextContent,
+        htmlContent,
         fileDetails: {
           fileName: attachmentFileName,
           contentType: pdfBlob.type || 'application/pdf',
@@ -204,7 +202,7 @@ export abstract class BaseDocumentComponent {
       };
 
       await firstValueFrom(this.emailService.sendEmail(emailRequest));
-      this.toastr.success('Email queued successfully.', 'Success');
+      this.toastr.success('Email sent successfully.', 'Success');
     } catch (error) {
       const errorMsg = emailConfig.errorMessage || 'Error sending email. Please try again.';
       this.toastr.error(errorMsg, 'Error');
