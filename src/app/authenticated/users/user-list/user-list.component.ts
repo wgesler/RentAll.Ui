@@ -8,6 +8,7 @@ import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, 
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -41,6 +42,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '18ch' },
     'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '40ch'},
     'isActive': { displayAs: 'Is Active', isCheckbox: true, maxWidth: '15ch', sort: false, wrap: false, alignment: 'left' }
@@ -56,6 +58,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     private ngZone: NgZone,
+    private formatterService: FormatterService,
     public mappingService: MappingService) {
   }
 
@@ -101,6 +104,7 @@ export class UserListComponent implements OnInit, OnDestroy {
             userId: user.userId,
             fullName: user.firstName + ' ' + user.lastName,
             email: user.email,
+            phone: this.formatterService.phoneNumber(user.phone || ''),
             organizationName: orgMap.get(user.organizationId) || '',
             officeAccess: (user.officeAccess || []).map(id => Number(id)).filter(id => !isNaN(id)),
             startupPageDisplay: getStartupPage(user.startupPageId),

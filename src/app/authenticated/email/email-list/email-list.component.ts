@@ -45,18 +45,21 @@ export class EmailListComponent implements OnInit, OnDestroy {
     private officeService: OfficeService
   ) {}
 
+  //#region Email-List
   ngOnInit(): void {
     this.loadOffices();
     this.loadEmails();
   }
+  //#endregion
 
+  //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription?.unsubscribe();
       this.officesSubscription = this.officeService.getAllOffices().subscribe({
         next: (allOffices: OfficeResponse[]) => {
           this.offices = allOffices || [];
-          this.mapOfficeNames();
+          this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
 
           if (this.offices.length === 1) {
             this.selectedOfficeId = this.offices[0].officeId;
@@ -75,12 +78,12 @@ export class EmailListComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadEmails(): void {
+  loadEmails(): void {
     this.isLoading = true;
     this.emailService.getEmails().subscribe({
       next: (emails) => {
         this.allEmails = this.mappingService.mapEmailListDisplays(emails || []);
-        this.mapOfficeNames();
+        this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
         this.applyFilters();
         this.isServiceError = false;
         this.isLoading = false;
@@ -93,7 +96,9 @@ export class EmailListComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   onOfficeChange(): void {
     this.applyFilters();
   }
@@ -106,21 +111,6 @@ export class EmailListComponent implements OnInit, OnDestroy {
     }
 
     this.emails = filtered;
-  }
-
-  private mapOfficeNames(): void {
-    if (!this.allEmails || this.allEmails.length === 0 || !this.offices || this.offices.length === 0) {
-      return;
-    }
-
-    const officeNameById = new Map<string, string>(
-      this.offices.map(office => [office.officeId.toString(), office.name])
-    );
-
-    this.allEmails = this.allEmails.map(email => ({
-      ...email,
-      officeName: officeNameById.get(email.officeId) || email.officeName || ''
-    }));
   }
 
   viewDocument(email: EmailListDisplay): void {
@@ -142,8 +132,11 @@ export class EmailListComponent implements OnInit, OnDestroy {
   viewEmail(email: EmailListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Email, [email.emailId]));
   }
+  //#endregion
 
+    //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
   }
+  //#endregion
 }

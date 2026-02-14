@@ -116,6 +116,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     // Always load offices, even in Add mode (when propertyId is null)
     this.loadOffices();
     this.loadEmailHtml();
+    this.loadUser();
     
     if (!this.propertyId) {
       // In Add mode, still load organization and contacts for defaults
@@ -438,6 +439,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         }
       }
     });
+  }
+
+  loadUser(): void {
+    
   }
   //#endregion
 
@@ -886,27 +891,23 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
     const currentUser = this.authService.getUser();
-    const agentName = currentUser.firstName + ' ' + currentUser.lastName
+    const agentName = currentUser.firstName + ' ' + currentUser.lastName;
+    const agentPhone = this.formatterService.phoneNumber(currentUser?.phone || '') || '';
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
-    const companyName = this.organization?.name;
-
+  
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
-    let emailBodyHtml = (this.emailHtml?.welcomeLetter || '')
+    const emailTemplateHtml = recipientContact?.entityTypeId == EntityType.Company
+      ? (this.emailHtml?.corporateLetter || '')
+      : (this.emailHtml?.welcomeLetter || '');
+
+    const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{toName\}\}/g, toName)
       .replace(/\{\{agentName\}\}/g, agentName || '')
-      .replace(/\{\{contactName\}\}/g, contactName || '')
-      .replace(/\{\{companyName\}\}/g, companyName || '');
-
-    if(recipientContact.entityTypeId == EntityType.Company) {
-      emailBodyHtml = (this.emailHtml?.corporateLetter || '')
-        .replace(/\{\{toName\}\}/g, toName)
-        .replace(/\{\{agentName\}\}/g, agentName || '')
-        .replace(/\{\{contactName\}\}/g, contactName || '')
-        .replace(/\{\{companyName\}\}/g, companyName || '');
-    }
+      .replace(/\{\{agentPhone\}\}/g, agentPhone || '')
+      .replace(/\{\{contactName\}\}/g, contactName || '');
 
     const emailConfig: EmailConfig = {
       subject: emailSubject,

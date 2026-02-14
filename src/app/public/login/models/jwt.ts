@@ -43,6 +43,7 @@ export class JwtContainer {
             user.FirstName || user.firstName || '',
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
+            user.Phone || user.phone || '',
             userGroups,
             startupPageId,
             agentId
@@ -56,6 +57,7 @@ export class JwtUser {
     firstName: string;
     lastName: string;
     email: string;
+    phone: string;
     userGroups: string[];
     startupPageId: number;
     agentId: string | null;
@@ -68,6 +70,7 @@ export class JwtUser {
         firstName: string,
         lastName: string,
         email: string,
+        phone: string,
         userGroups: string[],
         startupPageId: number,
         agentId: string | null = null
@@ -77,6 +80,7 @@ export class JwtUser {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
+        this.phone = phone;
         this.userGroups = userGroups;
         this.startupPageId = startupPageId;
         this.agentId = agentId;

@@ -6,6 +6,7 @@ export interface UserRequest {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string | null;
   userGroups: string[];
   officeAccess: number[];
@@ -24,6 +25,7 @@ export interface UserResponse {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string;
   userGroups: string[];
   officeAccess: number[];
@@ -41,6 +43,7 @@ export interface UserListDisplay {
   officeAccess: number[];
   fullName: string;
   email: string;
+  phone: string;
   startupPageDisplay: string;
   userGroups: string[];
   userGroupsDisplay: string;

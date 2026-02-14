@@ -1227,7 +1227,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const companyName = this.organization?.name;
+    const accountingName = this.selectedAccountingOffice?.name;
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -1235,10 +1236,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const emailSubject = this.emailHtml?.invoiceSubject?.trim()
       .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
     const emailBodyHtml = (this.emailHtml?.invoice || '')
-      .replace(/\$\{\{toName\}\}/g, toName)
       .replace(/\{\{toName\}\}/g, toName)
-      .replace(/\$\{\{companyName\}\}/g, companyName || '')
-      .replace(/\{\{companyName\}\}/g, companyName || '');
+      .replace(/\{\{accountingName\}\}/g, accountingName || '')
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
 
     const emailConfig: EmailConfig = {
       subject: emailSubject,

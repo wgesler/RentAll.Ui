@@ -273,7 +273,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       propertyId: formValue.propertyId,
       agentId: agentId,
       contactId: formValue.contactId,
-      reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Private,
+      reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Individual,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
       reservationNoticeId: formValue.reservationNoticeId !== null && formValue.reservationNoticeId !== undefined ? Number(formValue.reservationNoticeId) : ReservationNotice.ThirtyDays,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
@@ -666,7 +666,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     const reservationTypeId = this.form.get('reservationTypeId')?.value as number;
     const contactId = this.form.get('contactId')?.value || this.reservation?.contactId;
 
-    if (reservationTypeId === ReservationType.Private) 
+    if (reservationTypeId === ReservationType.Individual) 
       this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
     else if (reservationTypeId === ReservationType.Corporate) 
       this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
@@ -753,7 +753,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (reservationTypeId === ReservationType.Private) {
+    if (reservationTypeId === ReservationType.Individual) {
       prorateTypeControl.setValue(ProrateType.SecondMonth, { emitEvent: false });
     } else if (reservationTypeId === ReservationType.Corporate) {
       prorateTypeControl.setValue(ProrateType.FirstMonth, { emitEvent: false });

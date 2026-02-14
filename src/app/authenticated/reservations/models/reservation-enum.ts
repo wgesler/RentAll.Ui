@@ -43,7 +43,7 @@ export function getReservationStatuses(): { value: number, label: string }[] {
 
 //#region ReservationType
 export enum ReservationType {
- 	Private = 0,
+ 	Individual = 0,
 	Corporate = 1,
 	Owner = 2
 }
@@ -52,7 +52,7 @@ export function getReservationType(reservationTypeId: number | undefined): strin
   if (reservationTypeId === undefined || reservationTypeId === null) return '';
   
   const typeMap: { [key: number]: string } = {
-    [ReservationType.Private]: 'Private',
+    [ReservationType.Individual]: 'Individual',
     [ReservationType.Corporate]: 'Corporate',
     [ReservationType.Owner]: 'Owner'
   };
@@ -63,7 +63,7 @@ export function getReservationType(reservationTypeId: number | undefined): strin
 // Gets the array of reservation type options for dropdowns
 export function getReservationTypes(): { value: number, label: string }[] {
   return [
-    { value: ReservationType.Private, label: getReservationType(ReservationType.Private) },
+    { value: ReservationType.Individual, label: getReservationType(ReservationType.Individual) },
     { value: ReservationType.Corporate, label: getReservationType(ReservationType.Corporate) },
     { value: ReservationType.Owner, label: getReservationType(ReservationType.Owner) }
   ];

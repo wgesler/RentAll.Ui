@@ -97,6 +97,11 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
+                <mat-label>Phone</mat-label>
+                <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>User Groups</mat-label>
                 <mat-select formControlName="userGroups" multiple required>
                   @for (group of availableUserGroups; track group.value) {

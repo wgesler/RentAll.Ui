@@ -1410,6 +1410,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const companyName = this.organization?.name;
+    const companyPhone = this.formatterService.phoneNumber(this.organization?.phone) || '';
     const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
     const reservationCode = this.selectedReservation?.reservationCode;
@@ -1417,10 +1418,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const emailSubject = this.emailHtml?.leaseSubject?.trim()
        .replace(/\{\{reservationCode\}\}/g, reservationCode || '');
     const emailBodyHtml = (this.emailHtml?.lease || '')
-      .replace(/\$\{\{toName\}\}/g, toName)
       .replace(/\{\{toName\}\}/g, toName)
-      .replace(/\$\{\{companyName\}\}/g, companyName || '')
-      .replace(/\{\{companyName\}\}/g, companyName || '');
+      .replace(/\{\{companyName\}\}/g, companyName || '')
+      .replace(/\{\{companyPhone\}\}/g, companyPhone || '');
 
     const emailConfig: EmailConfig = {
       subject: emailSubject,

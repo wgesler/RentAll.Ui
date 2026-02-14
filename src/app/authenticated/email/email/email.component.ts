@@ -26,10 +26,8 @@ export class EmailComponent implements OnInit {
     private formatter: FormatterService
   ) {}
 
-  get formattedCreatedOn(): string {
-    return this.formatter.formatDateTimeString(this.email?.createdOn) || (this.email?.createdOn || '');
-  }
 
+  //#region Email
   ngOnInit(): void {
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       const id = paramMap.get('id');
@@ -43,11 +41,7 @@ export class EmailComponent implements OnInit {
     });
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.EmailList);
-  }
-
-  private loadEmail(): void {
+  loadEmail(): void {
     this.isLoading = true;
     this.isServiceError = false;
 
@@ -63,4 +57,15 @@ export class EmailComponent implements OnInit {
       }
     });
   }
+  //#endregion
+
+  //#region Utility Methods
+  get formattedCreatedOn(): string {
+    return this.formatter.formatDateTimeString(this.email?.createdOn) || (this.email?.createdOn || '');
+  }
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.EmailList);
+  }
+  //#endregion
+  
 }

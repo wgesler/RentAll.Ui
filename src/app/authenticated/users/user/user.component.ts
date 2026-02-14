@@ -240,6 +240,7 @@ export class UserComponent implements OnInit, OnDestroy {
       firstName: formValue.firstName,
       lastName: formValue.lastName,
       email: formValue.email,
+      phone: formValue.phone ? this.formatterService.stripPhoneFormatting(formValue.phone) : '',
       password: (changePassword && passwordValue) ? passwordValue : null, // null if not changing password
       userGroups: formValue.userGroups || [],
       officeAccess: formValue.officeAccess || [],
@@ -293,6 +294,7 @@ export class UserComponent implements OnInit, OnDestroy {
         userRequest.firstName !== this.user.firstName ||
         userRequest.lastName !== this.user.lastName ||
         userRequest.email !== this.user.email ||
+        userRequest.phone !== this.user.phone ||
         JSON.stringify(userRequest.userGroups) !== JSON.stringify(this.user.userGroups) ||
         JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
         userRequest.isActive !== this.user.isActive ||
@@ -413,6 +415,7 @@ export class UserComponent implements OnInit, OnDestroy {
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
       email: new FormControl('', [Validators.required, Validators.email]),
+      phone: new FormControl(''),
       password: new FormControl('', [this.passwordStrengthValidator]),
       confirmPassword: new FormControl('', [this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]),
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
@@ -616,6 +619,7 @@ export class UserComponent implements OnInit, OnDestroy {
         firstName: this.user.firstName,
         lastName: this.user.lastName,
         email: this.user.email,
+        phone: this.user.phone ? this.formatterService.phoneNumber(this.user.phone) : '',
         password: '', // Don't populate password in edit mode
         confirmPassword: '', // Don't populate confirm password in edit mode
         startupPageId: this.user.startupPageId ?? 0,
@@ -731,6 +735,16 @@ export class UserComponent implements OnInit, OnDestroy {
 
   get allUserGroupOptions(): string[] {
     return this.availableUserGroups.map(g => g.value);
+  }
+  //#endregion
+
+  //#region Phone Helpers
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
+
+  onPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
   //#endregion
 

@@ -225,6 +225,21 @@ export class MappingService {
     }));
   }
 
+  mapEmailOfficeNames(emails: EmailListDisplay[], offices: OfficeResponse[]): EmailListDisplay[] {
+    if (!emails || emails.length === 0 || !offices || offices.length === 0) {
+      return emails || [];
+    }
+
+    const officeNameById = new Map<string, string>(
+      offices.map(office => [office.officeId.toString(), office.name])
+    );
+
+    return emails.map(email => ({
+      ...email,
+      officeName: officeNameById.get(email.officeId) || email.officeName || ''
+    }));
+  }
+
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
       const costCodeId = line.costCodeId || null;
