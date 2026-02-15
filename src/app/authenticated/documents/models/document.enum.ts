@@ -21,3 +21,12 @@ export function getDocumentType(documentTypeId: number | undefined): string {
 export function getDocumentTypeLabel(documentType: DocumentType): string {
   return getDocumentType(documentType) || DocumentType[documentType] || 'Other';
 }
+
+export function getDocumentTypes(): { value: DocumentType, label: string }[] {
+  return [
+    { value: DocumentType.Other, label: getDocumentType(DocumentType.Other) },
+    { value: DocumentType.PropertyLetter, label: getDocumentType(DocumentType.PropertyLetter) },
+    { value: DocumentType.ReservationLease, label: getDocumentType(DocumentType.ReservationLease) },
+    { value: DocumentType.Invoice, label: getDocumentType(DocumentType.Invoice) }
+  ];
+}

@@ -686,11 +686,27 @@
               (officeIdChange)="onWelcomeLetterOfficeIdChange($event)">
             </app-property-welcome-letter>
           </mat-tab>
+
+          <mat-tab label="Emails">
+            <app-email-list
+              #propertyEmailList
+              [propertyId]="isAddMode ? null : propertyId"
+              [propertyCode]="form?.get('propertyCode')?.value || property?.propertyCode || null"
+              [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null"
+              [reservationId]="selectedReservationId"
+              [emailTypeId]="EmailType.PropertyLetter"
+              [source]="'property'"
+              [hideHeader]="true"
+              (reservationIdChange)="onEmailReservationSelected($event)"
+              (officeIdChange)="onEmailOfficeIdChange($event)">
+            </app-email-list>
+          </mat-tab>
           
           <mat-tab label="Documents">
             <app-document-list 
               #propertyDocumentList
               [propertyId]="isAddMode ? null : propertyId" 
+              [propertyCode]="form?.get('propertyCode')?.value || property?.propertyCode || null"
               [documentTypeId]="DocumentType.PropertyLetter"
               [officeId]="selectedOffice?.officeId || form?.get('officeId')?.value || null"
               [reservationId]="selectedReservationId"

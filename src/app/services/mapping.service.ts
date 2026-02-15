@@ -204,6 +204,9 @@ export class MappingService {
       // Rows without attachments cannot open a document preview.
       emailId: email?.emailId ?? email?.EmailId ?? '',
       officeId: String(email?.officeId ?? email?.OfficeId ?? ''),
+      propertyId: email?.propertyId ?? email?.PropertyId ?? undefined,
+      reservationId: email?.reservationId ?? email?.ReservationId ?? undefined,
+      reservationCode: email?.reservationCode ?? email?.ReservationCode ?? '',
       officeName: email?.officeName ?? email?.OfficeName ?? '',
       toEmail: email?.toEmail ?? email?.ToEmail ?? '',
       toName: email?.toName ?? email?.ToName ?? '',
@@ -213,6 +216,7 @@ export class MappingService {
       attachmentName: email?.attachmentName ?? email?.AttachmentName ?? '',
       attachmentPath: email?.attachmentPath ?? email?.AttachmentPath ?? '',
       documentId: email?.documentId ?? email?.DocumentId ?? email?.attachmentDocumentId ?? email?.AttachmentDocumentId ?? undefined,
+      emailTypeId: Number(email?.emailTypeId ?? email?.EmailTypeId ?? 0),
       canView: Boolean(
         email?.documentId ??
         email?.DocumentId ??

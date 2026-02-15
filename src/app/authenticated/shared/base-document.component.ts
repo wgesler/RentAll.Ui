@@ -6,6 +6,7 @@ import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-
 import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
 import { EmailRequest } from '../email/models/email.model';
+import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
@@ -40,6 +41,7 @@ export interface EmailConfig {
   fromEmail: string;
   fromName: string;
   documentType: DocumentType;
+  emailType: EmailType;
   plainTextContent: string;
   htmlContent?: string;
   fileDetails?: FileDetails | null;
@@ -186,8 +188,8 @@ export abstract class BaseDocumentComponent {
       const emailRequest: EmailRequest = {
         organizationId: config.organization.organizationId,
         officeId: config.selectedOffice.officeId.toString(),
-        propertyId: config.propertyId || undefined,
-        reservationId: config.selectedReservation?.reservationId || undefined,
+        propertyId: config.propertyId || null,
+        reservationId: config.selectedReservation?.reservationId || null,
         fromEmail,
         fromName,
         toEmail,
@@ -195,6 +197,7 @@ export abstract class BaseDocumentComponent {
         subject: emailConfig.subject,
         plainTextContent: plainTextContent,
         htmlContent,
+        emailTypeId: Number(emailConfig.emailType),
         fileDetails: {
           fileName: attachmentFileName,
           contentType: pdfBlob.type || 'application/pdf',

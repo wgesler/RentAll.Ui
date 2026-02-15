@@ -96,6 +96,7 @@ export interface ReservationListResponse {
   officeId: number;
   officeName: string;
   contactId: string;
+  entityId?: string | null;
   contactName: string;
   tenantName: string;
   companyName: string;
@@ -120,6 +121,7 @@ export interface ReservationListDisplay {
   officeName: string;
   office?: string;
   contactId: string;
+  entityId?: string | null;
   contactName: string;
   tenantName: string;
   companyName: string;

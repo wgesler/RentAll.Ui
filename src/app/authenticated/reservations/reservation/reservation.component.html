@@ -600,14 +600,6 @@
             }
           </mat-tab>
           
-          <mat-tab label="Invoices">
-            <app-invoice-list 
-              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
-              [reservationId]="isAddMode ? null : reservationId"
-              [source]="'reservation'">
-            </app-invoice-list>
-          </mat-tab>
-          
           <mat-tab label="Lease">
             <app-lease 
               [reservationId]="isAddMode ? '' : reservationId" 
@@ -617,11 +609,33 @@
               (officeIdChange)="onLeaseOfficeIdChange($event)">
             </app-lease>
           </mat-tab>
+
+          <mat-tab label="Invoices">
+            <app-invoice-list 
+              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
+              [reservationId]="isAddMode ? null : reservationId"
+              [source]="'reservation'">
+            </app-invoice-list>
+          </mat-tab>
+
+          <mat-tab label="Emails">
+            <app-email-list
+              #reservationEmailList
+              [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null"
+              [propertyCode]="form?.get('propertyCode')?.value || selectedProperty?.propertyCode || null"
+              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
+              [reservationId]="isAddMode ? null : reservationId"
+              [emailTypeId]="EmailType.ReservationLease"
+              [source]="'reservation'"
+              [hideHeader]="true">
+            </app-email-list>
+          </mat-tab>
           
           <mat-tab label="Documents">
             <app-document-list 
               #reservationDocumentList
               [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null" 
+              [propertyCode]="form?.get('propertyCode')?.value || selectedProperty?.propertyCode || null"
               [documentTypeId]="DocumentType.ReservationLease"
               [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
               [reservationId]="isAddMode ? null : reservationId"

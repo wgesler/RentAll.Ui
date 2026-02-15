@@ -16,29 +16,59 @@
           </mat-form-field>
         }
         @if (source === 'reservation' || source === 'invoice') {
+          @if (source === 'reservation') {
+            <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+              <mat-label>Property Code</mat-label>
+              <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+            </mat-form-field>
+          }
+          @if (source === 'invoice') {
+            <mat-form-field appearance="outline" style="width: 300px;">
+              <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
+              <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+                <mat-option [value]="null">All Companies</mat-option>
+                @for (company of availableCompanies; track company.value.companyId) {
+                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
           <!-- Reservation field for Reservations or Accounting source -->
           <mat-form-field appearance="outline" style="width: 300px;">
-            <mat-label>Reservation</mat-label>
+            <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
             <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
-              <mat-option [value]="null">Select Reservation</mat-option>
+              <mat-option [value]="null">{{ source === 'invoice' ? 'All Reservations' : 'Select Reservation' }}</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
         } @else if (source === 'property') {
-          <!-- PropertyCode field for Properties source -->
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <!-- Property Code and Reservation fields for Properties source -->
+          <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
             <mat-label>Property Code</mat-label>
-            <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyChange()" [disabled]="!selectedOfficeId">
-              <mat-option [value]="null">Select Property</mat-option>
-              @for (property of availableProperties; track property.value.propertyId) {
-                <mat-option [value]="property.value.propertyId">{{ property.label }}</mat-option>
+            <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Reservation</mat-label>
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+              <mat-option [value]="null">Select Reservation</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
         } @else if (source === 'documents') {
-          <!-- DocumentType field for Documents source -->
+          <!-- Reservation and DocumentType fields for Documents source -->
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Reservation</mat-label>
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+              <mat-option [value]="null">All Reservations</mat-option>
+              @for (reservation of availableReservations; track reservation.value.reservationId) {
+                <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>Document Type</mat-label>
             <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
@@ -100,29 +130,59 @@
                   </mat-form-field>
                 }
                 @if (source === 'reservation' || source === 'invoice') {
+                  @if (source === 'reservation') {
+                    <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+                      <mat-label>Property Code</mat-label>
+                      <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+                    </mat-form-field>
+                  }
+                  @if (source === 'invoice') {
+                    <mat-form-field appearance="outline" style="width: 300px;">
+                      <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
+                      <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+                        <mat-option [value]="null">All Companies</mat-option>
+                        @for (company of availableCompanies; track company.value.companyId) {
+                          <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  }
                   <!-- Reservation field for Reservations or Accounting source -->
                   <mat-form-field appearance="outline" style="width: 300px;">
-                    <mat-label>Reservation</mat-label>
+                    <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
                     <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
-                      <mat-option [value]="null">Select Reservation</mat-option>
+                      <mat-option [value]="null">{{ source === 'invoice' ? 'All Reservations' : 'Select Reservation' }}</mat-option>
                       @for (reservation of availableReservations; track reservation.value.reservationId) {
                         <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
                 } @else if (source === 'property') {
-                  <!-- PropertyCode field for Properties source -->
-                  <mat-form-field appearance="outline" style="width: 300px;">
+                  <!-- Property Code and Reservation fields for Properties source -->
+                  <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
                     <mat-label>Property Code</mat-label>
-                    <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyChange()" [disabled]="!selectedOfficeId">
-                      <mat-option [value]="null">Select Property</mat-option>
-                      @for (property of availableProperties; track property.value.propertyId) {
-                        <mat-option [value]="property.value.propertyId">{{ property.label }}</mat-option>
+                    <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Reservation</mat-label>
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+                      <mat-option [value]="null">Select Reservation</mat-option>
+                      @for (reservation of availableReservations; track reservation.value.reservationId) {
+                        <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
                 } @else if (source === 'documents') {
-                  <!-- DocumentType field for Documents source -->
+                  <!-- Reservation and DocumentType fields for Documents source -->
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Reservation</mat-label>
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+                      <mat-option [value]="null">All Reservations</mat-option>
+                      @for (reservation of availableReservations; track reservation.value.reservationId) {
+                        <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
                   <mat-form-field appearance="outline" style="width: 300px;">
                     <mat-label>Document Type</mat-label>
                     <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">

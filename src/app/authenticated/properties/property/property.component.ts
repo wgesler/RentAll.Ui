@@ -19,6 +19,8 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { EmailListComponent } from '../../email/email-list/email-list.component';
+import { EmailType } from '../../email/models/email.enum';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -47,7 +49,8 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
         ReactiveFormsModule,
         PropertyWelcomeLetterComponent,
         PropertyInformationComponent,
-        DocumentListComponent
+        DocumentListComponent,
+        EmailListComponent
     ],
     templateUrl: './property.component.html',
     styleUrls: ['./property.component.scss']
@@ -55,9 +58,11 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 
 export class PropertyComponent implements OnInit, OnDestroy {
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
+  @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild(PropertyInformationComponent) propertyInformationComponent?: PropertyInformationComponent;
   
   DocumentType = DocumentType;
+  EmailType = EmailType;
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
   form: FormGroup;
@@ -206,7 +211,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     // Check query params for tab selection
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
-        this.selectedTabIndex = 3; // Documents tab
+        this.selectedTabIndex = 4; // Documents tab
+      } else if (queryParams['tab'] === 'email') {
+        this.selectedTabIndex = 3; // Email tab
       }
     });
     
@@ -982,7 +989,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   
   onTabChange(event: any): void {
-     if (event.index === 3 && this.propertyDocumentList) {
+    if (event.index === 3 && this.propertyEmailList) {
+      this.propertyEmailList.reload();
+    }
+    if (event.index === 4 && this.propertyDocumentList) {
       this.propertyDocumentList.reload();
     }
   }
@@ -1003,8 +1013,19 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.selectedReservationId = reservationId;
   }
 
+  onEmailReservationSelected(reservationId: string | null): void {
+    this.selectedReservationId = reservationId;
+  }
+
   onDocumentOfficeIdChange(officeId: number | null): void {
     // Update form officeId when document tab office changes
+    if (officeId !== this.form?.get('officeId')?.value) {
+      this.form?.patchValue({ officeId });
+      this.onOfficeChange();
+    }
+  }
+
+  onEmailOfficeIdChange(officeId: number | null): void {
     if (officeId !== this.form?.get('officeId')?.value) {
       this.form?.patchValue({ officeId });
       this.onOfficeChange();

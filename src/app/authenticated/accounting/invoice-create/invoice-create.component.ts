@@ -25,6 +25,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentService } from '../../documents/services/document.service';
@@ -1247,6 +1248,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       fromEmail,
       fromName,
       documentType: DocumentType.Invoice,
+      emailType: EmailType.Invoice,
       plainTextContent,
       htmlContent: emailBodyHtml,
       fileDetails: {

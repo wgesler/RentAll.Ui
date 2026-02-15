@@ -127,8 +127,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   get useRouteQueryParams(): boolean {
-    // When embedded in Reservation tabs, parent inputs are the source of truth.
-    return this.source !== 'reservation';
+    // When embedded in parent tabs, parent inputs are the source of truth.
+    // Keep Accounting defaults at All* and avoid route-driven preselection.
+    return this.source !== 'reservation' && this.source !== 'accounting';
   }
 
   constructor(
@@ -290,14 +291,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       // Update if the value changed (including initial load when previousCompanyId is undefined)
       if (previousCompanyId === undefined || newCompanyId !== previousCompanyId) {
-        // If companies are already loaded, apply immediately; otherwise filterCompanies() will handle it
-        if (this.companies.length > 0 && this.selectedOffice && newCompanyId) {
-          const matchingCompany = this.companies.find(c => 
-            c.companyId === newCompanyId && c.officeId === this.selectedOffice?.officeId
-          ) || null;
-          if (matchingCompany && matchingCompany !== this.selectedCompany) {
-            this.selectedCompany = matchingCompany;
-            this.applyFilters();
+        // If companies are already loaded, apply immediately; otherwise filterCompanies() will handle it.
+        if (this.companies.length > 0) {
+          if (!newCompanyId) {
+            if (this.selectedCompany !== null) {
+              this.selectedCompany = null;
+              this.filterReservations();
+              this.applyFilters();
+            }
+          } else {
+            const matchingCompany = this.companies.find(c =>
+              c.companyId === newCompanyId &&
+              (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
+            ) || null;
+            if (matchingCompany !== this.selectedCompany) {
+              this.selectedCompany = matchingCompany;
+              this.filterReservations();
+              this.applyFilters();
+            }
           }
         }
       }
@@ -606,28 +617,41 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   filterReservations(): void {
-    if (!this.selectedOffice) {
-      this.availableReservations = [];
-      this.selectedReservation = null;
-      return;
+    // When All Offices is selected, show the full reservation list as loaded for this login.
+    let filteredReservations = this.selectedOffice
+      ? this.reservations.filter(r => r.officeId === this.selectedOffice!.officeId)
+      : this.reservations;
+
+    // In Accounting mode, when a company is selected, only show reservations linked to that company.
+    if (this.source === 'accounting' && this.selectedCompany?.companyId) {
+      const selectedCompanyId = this.selectedCompany.companyId;
+      filteredReservations = filteredReservations.filter(r => {
+        const reservationAny = r as ReservationListResponse & {
+          entityId?: string | null;
+          EntityId?: string | null;
+        };
+        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
+        return reservationEntityId === selectedCompanyId;
+      });
     }
-    
-    const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
+
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
       label: this.utilityService.getReservationLabel(r)
     }));
     
-    // Clear selected reservation if it doesn't belong to the selected office
-    if (this.selectedReservation && this.selectedReservation.officeId !== this.selectedOffice.officeId) {
+    // Clear selected reservation if it no longer exists in the available list.
+    if (this.selectedReservation && !filteredReservations.some(r => r.reservationId === this.selectedReservation?.reservationId)) {
       this.selectedReservation = null;
+      this.reservationIdChange.emit(null);
       this.applyFilters();
     }
     
     // Ensure reservationId from @Input is set after filtering
-    if (this.reservationId !== null && this.reservationId !== undefined && this.selectedOffice && this.reservations.length > 0) {
+    if (this.reservationId !== null && this.reservationId !== undefined && this.reservations.length > 0) {
       const matchingReservation = this.reservations.find(r => 
-        r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
+        r.reservationId === this.reservationId &&
+        (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
       ) || null;
       if (matchingReservation && matchingReservation !== this.selectedReservation) {
         this.selectedReservation = matchingReservation;
@@ -637,33 +661,31 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   filterCompanies(): void {
-    if (!this.selectedOffice) {
-      this.availableCompanies = [];
-      this.selectedCompany = null;
-      return;
-    }
-    
-    // Filter companies by office (this doesn't change - always filters by selectedOffice)
-    const filteredCompanies = this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive);
+    // When All Offices is selected, show all active companies loaded for this login.
+    const filteredCompanies = this.selectedOffice
+      ? this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive)
+      : this.companies.filter(c => c.isActive);
     this.availableCompanies = filteredCompanies.map(c => ({
       value: c,
       label: `${c.companyCode || ''} - ${c.name}`.trim()
     }));
     
-    // Clear selected company if it doesn't belong to the selected office
-    if (this.selectedCompany && this.selectedCompany.officeId !== this.selectedOffice.officeId) {
+    // Clear selected company if it no longer exists in the available list.
+    if (this.selectedCompany && !filteredCompanies.some(c => c.companyId === this.selectedCompany?.companyId)) {
       this.selectedCompany = null;
+      this.companyIdChange.emit(null);
       this.applyFilters();
     }
     
-    // After filtering by office, check if there's a companyId to select in the dropdown
+    // After filtering, check if there's a companyId to select in the dropdown
     // This only sets selectedCompany - it doesn't change the filtered list
-    if (this.companies.length > 0 && this.selectedOffice) {
+    if (this.companies.length > 0) {
       const companyIdToApply = this.getCompanyIdToApply();
       
       if (companyIdToApply) {
         const matchingCompany = this.companies.find(c => 
-          c.companyId === companyIdToApply && c.officeId === this.selectedOffice?.officeId
+          c.companyId === companyIdToApply &&
+          (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
         );
         if (matchingCompany && matchingCompany !== this.selectedCompany) {
           this.selectedCompany = matchingCompany;
@@ -736,8 +758,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
-        // Auto-select if only one office available (unless officeId input is provided)
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
+        // For Accounting tab, keep default as All Offices.
+        // Only auto-select single office for non-accounting contexts.
+        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'accounting') {
           this.selectedOffice = this.offices[0];
           this.showOfficeDropdown = false;
         } else {
@@ -765,7 +788,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               this.loadAllInvoices();
             }
           }
-        } else if (this.selectedOffice && this.offices.length === 1) {
+        } else if (this.selectedOffice && this.offices.length === 1 && this.source !== 'accounting') {
           // If auto-selected, apply filters
           this.filterCostCodes();
           this.filterCompanies();
@@ -895,6 +918,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   onCompanyChange(): void {
     // Emit company change to parent
     this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+
+    // Re-filter reservations based on selected company.
+    this.filterReservations();
     
     // Filter invoices client-side by selected company
     this.applyFilters();

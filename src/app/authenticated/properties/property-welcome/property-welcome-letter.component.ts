@@ -21,6 +21,7 @@ import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/m
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
@@ -916,6 +917,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       fromEmail,
       fromName,
       documentType: DocumentType.PropertyLetter,
+      emailType: EmailType.PropertyLetter,
       plainTextContent,
       htmlContent: emailBodyHtml,
       fileDetails: {

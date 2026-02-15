@@ -41,8 +41,26 @@
         <mat-tab label="General Ledger">
           <app-general-ledger 
             [officeId]="selectedOfficeId"
-            (officeIdChange)="onGeneralLedgerOfficeChange($event)">
+            [reservationId]="selectedReservationId"
+            [companyId]="selectedCompanyId"
+            (officeIdChange)="onGeneralLedgerOfficeChange($event)"
+            (reservationIdChange)="onGeneralLedgerReservationChange($event)"
+            (companyIdChange)="onGeneralLedgerCompanyChange($event)">
           </app-general-ledger>
+        </mat-tab>
+        <mat-tab label="Emails">
+          <app-email-list
+            #accountingEmailList
+            [hideHeader]="true"
+            [officeId]="selectedOfficeId"
+            [reservationId]="selectedReservationId"
+            [companyId]="selectedCompanyId"
+            [emailTypeId]="EmailType.Invoice"
+            [source]="'invoice'"
+            (officeIdChange)="onEmailsOfficeChange($event)"
+            (reservationIdChange)="onEmailsReservationChange($event)"
+            (companyIdChange)="onEmailsCompanyChange($event)">
+          </app-email-list>
         </mat-tab>
         <mat-tab label="Documents">
           <app-document-list 
@@ -51,9 +69,11 @@
             [hideHeader]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
+            [companyId]="selectedCompanyId"
             [source]="'invoice'"
             (officeIdChange)="onDocumentsOfficeChange($event)"
-            (reservationIdChange)="onDocumentsReservationChange($event)">
+            (reservationIdChange)="onDocumentsReservationChange($event)"
+            (companyIdChange)="onDocumentsCompanyChange($event)">
           </app-document-list>
         </mat-tab>
       </mat-tab-group>

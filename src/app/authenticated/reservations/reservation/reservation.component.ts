@@ -25,6 +25,8 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { EmailListComponent } from '../../email/email-list/email-list.component';
+import { EmailType } from '../../email/models/email.enum';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -53,13 +55,14 @@ interface ExtraFeeLineDisplay {
 
 @Component({
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, DocumentListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })
 
 export class ReservationComponent implements OnInit, OnDestroy {
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
+  @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
@@ -71,6 +74,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   ReservationType = ReservationType; // Expose enum to template
   EntityType = EntityType; // Expose enum to template
   DocumentType = DocumentType; // Expose enum to template
+  EmailType = EmailType; // Expose enum to template
   departureDateStartAt: Date | null = null;
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
@@ -113,9 +117,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   readonly tabParamToIndex: Record<string, number> = {
-    invoices: 1,
-    lease: 2,
-    documents: 3
+    lease: 1,
+    invoices: 2,
+    email: 3,
+    documents: 4
   };
 
   constructor(
@@ -1427,8 +1432,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
 
-    // When Documents tab (index 3) is selected, reload the document list
-    if (event.index === 3 && this.reservationDocumentList) {
+    // When Email tab (index 3) is selected, reload the email list
+    if (event.index === 3 && this.reservationEmailList) {
+      this.reservationEmailList.reload();
+    }
+
+    // When Documents tab (index 4) is selected, reload the document list
+    if (event.index === 4 && this.reservationDocumentList) {
       this.reservationDocumentList.reload();
     }
   }
@@ -1444,10 +1454,12 @@ export class ReservationComponent implements OnInit, OnDestroy {
   getTabParamFromIndex(tabIndex: number): string | null {
     switch (tabIndex) {
       case 1:
-        return 'invoices';
-      case 2:
         return 'lease';
+      case 2:
+        return 'invoices';
       case 3:
+        return 'email';
+      case 4:
         return 'documents';
       default:
         return null;

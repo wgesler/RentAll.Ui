@@ -7,6 +7,8 @@ import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { EmailListComponent } from '../../email/email-list/email-list.component';
+import { EmailType } from '../../email/models/email.enum';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
@@ -23,15 +25,18 @@ import { CostCodesService } from '../services/cost-codes.service';
     CostCodesListComponent,
     CostCodesComponent,
     GeneralLedgerComponent,
-    DocumentListComponent
+    DocumentListComponent,
+    EmailListComponent
 ],
     templateUrl: './accounting.component.html',
     styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
   @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
+  @ViewChild('accountingEmailList') accountingEmailList?: EmailListComponent;
   
   DocumentType = DocumentType; // Expose DocumentType enum to template
+  EmailType = EmailType; // Expose EmailType enum to template
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   selectedOfficeId: number | null = null; // Shared office selection state
   selectedReservationId: string | null = null; // Shared reservation selection state
@@ -62,28 +67,21 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
-    // Update URL query params when tab changes manually (user clicks tab)
+    // Keep URL tab-only to avoid preselecting dropdowns from query params.
     const queryParams: any = { tab: event.index.toString() };
-    if (this.selectedOfficeId) {
-      queryParams.officeId = this.selectedOfficeId.toString();
-    }
-    if (this.selectedReservationId) {
-      queryParams.reservationId = this.selectedReservationId;
-    }
-    if (this.selectedInvoiceId) {
-      queryParams.invoiceId = this.selectedInvoiceId;
-    }
-    if (this.selectedCompanyId) {
-      queryParams.companyId = this.selectedCompanyId;
-    }
     this.router.navigate([], { 
       relativeTo: this.route,
       queryParams,
       queryParamsHandling: 'merge'
     });
     
-    // When Documents tab (index 3) is selected, reload the document list
-    if (event.index === 3 && this.accountingDocumentList) {
+    // When Emails tab (index 3) is selected, reload the email list
+    if (event.index === 3 && this.accountingEmailList) {
+      this.accountingEmailList.reload();
+    }
+
+    // When Documents tab (index 4) is selected, reload the document list
+    if (event.index === 4 && this.accountingDocumentList) {
       this.accountingDocumentList.reload();
     }
   }
@@ -109,25 +107,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   onInvoiceCompanyChange(companyId: string | null): void {
     if (this.selectedCompanyId !== companyId) {
       this.selectedCompanyId = companyId;
-      // Update URL query params to include companyId
-      const queryParams: any = { tab: this.selectedTabIndex.toString() };
-      if (this.selectedOfficeId) {
-        queryParams.officeId = this.selectedOfficeId.toString();
-      }
-      if (this.selectedReservationId) {
-        queryParams.reservationId = this.selectedReservationId;
-      }
-      if (this.selectedInvoiceId) {
-        queryParams.invoiceId = this.selectedInvoiceId;
-      }
-      if (this.selectedCompanyId) {
-        queryParams.companyId = this.selectedCompanyId;
-      }
-      this.router.navigate([], { 
-        relativeTo: this.route,
-        queryParams,
-        queryParamsHandling: 'merge'
-      });
     }
   }
 
@@ -140,6 +119,18 @@ export class AccountingComponent implements OnInit, OnDestroy {
   onGeneralLedgerOfficeChange(officeId: number | null): void {
      if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
+    }
+  }
+
+  onGeneralLedgerReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+    }
+  }
+
+  onGeneralLedgerCompanyChange(companyId: string | null): void {
+    if (this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
     }
   }
 
@@ -159,6 +150,30 @@ export class AccountingComponent implements OnInit, OnDestroy {
        if (this.accountingDocumentList) {
         this.accountingDocumentList.reload();
       }
+    }
+  }
+
+  onDocumentsCompanyChange(companyId: string | null): void {
+    if (this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
+    }
+  }
+
+  onEmailsOfficeChange(officeId: number | null): void {
+    if (this.selectedOfficeId !== officeId) {
+      this.selectedOfficeId = officeId;
+    }
+  }
+
+  onEmailsReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+    }
+  }
+
+  onEmailsCompanyChange(companyId: string | null): void {
+    if (this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
     }
   }
 
@@ -222,29 +237,9 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   applyQueryParamState(params: Record<string, string>): void {
-    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    const tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
     if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
       this.selectedTabIndex = tabIndex;
-    }
-
-    const officeId = getNumberQueryParam(params, 'officeId');
-    if (officeId !== null && this.selectedOfficeId !== officeId) {
-      this.selectedOfficeId = officeId;
-    }
-
-    const reservationId = getStringQueryParam(params, 'reservationId');
-    if (reservationId !== null && this.selectedReservationId !== reservationId) {
-      this.selectedReservationId = reservationId;
-    }
-
-    const invoiceId = getStringQueryParam(params, 'invoiceId');
-    if (invoiceId !== null && this.selectedInvoiceId !== invoiceId) {
-      this.selectedInvoiceId = invoiceId;
-    }
-
-    const companyId = getStringQueryParam(params, 'companyId');
-    if (companyId !== null && this.selectedCompanyId !== companyId) {
-      this.selectedCompanyId = companyId;
     }
   }
   ngOnDestroy(): void {

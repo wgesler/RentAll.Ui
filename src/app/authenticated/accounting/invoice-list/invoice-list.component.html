@@ -59,8 +59,8 @@
         }
         @if (source === 'accounting') {
           <mat-form-field appearance="outline" class="company-dropdown">
-            <mat-label>All Companies</mat-label>
-            <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()" [disabled]="!selectedOffice">
+            <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
+            <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
               <mat-option [value]="null">All Companies</mat-option>
               @for (company of availableCompanies; track company.value.companyId) {
                 <mat-option [value]="company.value">{{ company.label }}</mat-option>
@@ -69,8 +69,8 @@
           </mat-form-field>
         }
         <mat-form-field appearance="outline" class="reservation-dropdown">
-          <mat-label>All Reservations</mat-label>
-          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [disabled]="!selectedOffice || source === 'reservation'">
+          <mat-label>{{ selectedReservation ? 'Reservation' : 'All Reservations' }}</mat-label>
+          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()">
             <mat-option [value]="null">All Reservations</mat-option>
             @for (reservation of availableReservations; track reservation.value.reservationId) {
               <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>

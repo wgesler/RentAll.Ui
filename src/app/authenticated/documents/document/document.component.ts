@@ -13,7 +13,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { DocumentType, getDocumentType } from '../models/document.enum';
+import { DocumentType, getDocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentRequest, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
@@ -44,11 +44,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
  organizationId: string = '';
 
-  documentTypes: { value: DocumentType, label: string }[] = [
-    { value: DocumentType.Other, label: 'Other' },
-    { value: DocumentType.PropertyLetter, label: 'Welcome Letter' },
-    { value: DocumentType.ReservationLease, label: 'Reservation Lease' }
-  ];
+  documentTypes: { value: DocumentType, label: string }[] = getDocumentTypes();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));

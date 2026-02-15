@@ -23,6 +23,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -1429,6 +1430,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       fromEmail,
       fromName,
       documentType: DocumentType.ReservationLease,
+      emailType: EmailType.ReservationLease,
       plainTextContent,
       htmlContent: emailBodyHtml,
       fileDetails: {
