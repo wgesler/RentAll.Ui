@@ -1,3 +1,16 @@
 .general-ledger-container {
   // Padding removed - now handled by mat-tab-body-content in accounting.component.scss
 }
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}

@@ -73,6 +73,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   selectedCompany: CompanyResponse | null = null;
  
   costCodes: CostCodesResponse[] = [];
+  allCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
@@ -561,10 +562,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const rawLedgerLines = invoice['ledgerLines'] ?? [];
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
-      const paidAmount = invoice.paidAmount || 0;
+      const paidAmount = this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
       
       // Calculate due amount: Total - Paid
-      const dueAmount = totalAmount - Math.abs(paidAmount);
+      const dueAmount = totalAmount - paidAmount;
       const dueAmountValue = dueAmount; // Store raw value for validation
       
       // Store original due amount value when entering manual mode (for editability check)
@@ -614,6 +615,34 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
     // Update isAllExpanded state after filtering
     this.updateIsAllExpanded();
+  }
+
+  private getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
+    if (!ledgerLines || ledgerLines.length === 0) {
+      return 0;
+    }
+
+    return ledgerLines.reduce((sum, line) => {
+      const transactionTypeId = line?.transactionTypeId ?? this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
+      const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
+      const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
+
+      if (isPaymentLine) {
+        const amount = Number(line?.amount || 0);
+        return sum + Math.abs(isNaN(amount) ? 0 : amount);
+      }
+
+      return sum;
+    }, 0);
+  }
+
+  private getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
+    if (!costCodeId) {
+      return null;
+    }
+
+    const matchingCostCode = this.allCostCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId);
+    return matchingCostCode?.transactionTypeId ?? null;
   }
 
   filterReservations(): void {
@@ -862,7 +891,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   loadCostCodes(): void {
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+        this.allCostCodes = accounts || [];
         this.filterCostCodes();
+        this.applyFilters();
       });
     });
   }

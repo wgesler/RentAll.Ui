@@ -629,6 +629,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         (line as any).isNew = false;
       }
     });
+    this.normalizePaymentLineSigns();
     
     // Store original state for change detection (deep clone)
     this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
@@ -660,6 +661,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
+        this.normalizePaymentLineSigns();
         // Store original state for change detection (deep clone)
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
@@ -1029,8 +1031,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return 0;
     }
     return this.ledgerLines.reduce((sum, line) => {
-      const transactionTypeId = (line as any).transactionTypeId;
-      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId !== TransactionType.Payment) {
+      if (!this.isPaymentLine(line)) {
         const amount = line.amount || 0;
         return sum + amount;
       }
@@ -1043,9 +1044,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return 0;
     }
     return this.ledgerLines.reduce((sum, line) => {
-      const transactionTypeId = (line as any).transactionTypeId;
       // These amounts are stored as negative, so we sum the absolute values
-      if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
+      if (this.isPaymentLine(line)) {
         const amount = Math.abs(line.amount || 0);
         return sum + amount;
       }
@@ -1197,8 +1197,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     value = value.replace(/[^0-9.]/g, '');
     
     // Check if this line has a credit transaction type 
-    const transactionTypeId = (line as any).transactionTypeId;
-    const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment;
+    const isCreditType = this.isPaymentLine(line);
     
     // For credit types, automatically add negative sign
     if (isCreditType && !isNegative && value !== '') {
@@ -1244,8 +1243,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       let formattedValue: string;
       
       // Check if this line has a credit transaction type (>= StartOfCredits)
-      const transactionTypeId = (line as any).transactionTypeId;
-      const isCreditType = transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment;
+      const isCreditType = this.isPaymentLine(line);
       
       if (rawValue !== '' && rawValue !== null) {
         const parsed = parseFloat(rawValue);
@@ -1273,6 +1271,23 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       // Recalculate total
       this.updateTotalAmount();
     }
+  }
+
+  private normalizePaymentLineSigns(): void {
+    if (!this.ledgerLines || this.ledgerLines.length === 0) {
+      return;
+    }
+
+    this.ledgerLines.forEach(line => {
+      if (!this.isPaymentLine(line)) {
+        return;
+      }
+
+      const currentAmount = line.amount ?? 0;
+      if (currentAmount > 0) {
+        line.amount = -Math.abs(currentAmount);
+      }
+    });
   }
 
   generateLedgerLines(): void {
