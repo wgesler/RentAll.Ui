@@ -29,12 +29,22 @@
 
           <div class="email-address-line">
             <span class="line-label">To:</span>
-            <span class="line-value">{{ email.toName }}&lt;{{ email.toEmail }}&gt;</span>
+            <span class="line-value">{{ toRecipientsLine || 'None' }}</span>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">CC:</span>
+            <span class="line-value">{{ ccRecipientsLine || 'None' }}</span>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">BCC:</span>
+            <span class="line-value">{{ bccRecipientsLine || 'None' }}</span>
           </div>
 
           <div class="email-address-line">
             <span class="line-label">From:</span>
-            <span class="line-value">{{ email.fromName }}&lt;{{ email.fromEmail }}&gt;</span>
+            <span class="line-value">{{ fromRecipientLine || 'None' }}</span>
           </div>
 
           <div class="email-address-line">

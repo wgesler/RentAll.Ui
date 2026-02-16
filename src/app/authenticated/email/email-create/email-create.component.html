@@ -1,0 +1,81 @@
+@if (isMissingDraft) {
+  <div class="loading-container">
+    <p>Email draft is no longer available.</p>
+    <button mat-raised-button type="button" color="accent" (click)="cancel()">Back</button>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">mail</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Create Email</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" (click)="cancel()" class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>close</mat-icon>
+            Cancel
+          </button>
+          <button mat-raised-button type="button" color="primary" (click)="send()" [disabled]="isSending" class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>send</mat-icon>
+            {{ isSending ? 'Sending...' : 'Send' }}
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <form [formGroup]="form" class="email-container">
+          <div class="email-address-line">
+            <span class="line-label">To:</span>
+            <span class="line-value">{{ toRecipientLine || 'None' }}</span>
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">From:</span>
+            <span class="line-value">{{ fromRecipientLine || 'None' }}</span>
+          </div>
+
+          <div class="email-address-line email-address-grid">
+            <span class="line-label">CC:</span>
+            <input
+              type="text"
+              class="email-line-input"
+              formControlName="ccEmails"
+              placeholder="Comma-separated emails"
+            />
+          </div>
+
+          <div class="email-address-line email-address-grid">
+            <span class="line-label">BCC:</span>
+            <input
+              type="text"
+              class="email-line-input"
+              formControlName="bccEmails"
+              placeholder="Comma-separated emails"
+            />
+          </div>
+
+          <div class="email-address-line">
+            <span class="line-label">Attachment:</span>
+            <span class="line-value">
+              {{ attachmentName }}
+              <mat-icon class="attachment-icon">attach_file</mat-icon>
+            </span>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <mat-form-field appearance="outline" class="email-body-field">
+            <mat-label>Subject</mat-label>
+            <input matInput type="text" formControlName="subject" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="email-body-field">
+            <mat-label>Email Body</mat-label>
+            <textarea matInput rows="14" formControlName="plainTextContent"></textarea>
+          </mat-form-field>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

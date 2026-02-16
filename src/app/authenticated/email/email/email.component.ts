@@ -4,7 +4,7 @@ import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
-import { EmailResponse } from '../models/email.model';
+import { EmailAddress, EmailResponse } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 
 @Component({
@@ -63,9 +63,53 @@ export class EmailComponent implements OnInit {
   get formattedCreatedOn(): string {
     return this.formatter.formatDateTimeString(this.email?.createdOn) || (this.email?.createdOn || '');
   }
+
+  get toRecipientsLine(): string {
+    return this.formatRecipients(this.email?.toRecipients);
+  }
+
+  get ccRecipientsLine(): string {
+    return this.formatRecipients(this.email?.ccRecipients);
+  }
+
+  get bccRecipientsLine(): string {
+    return this.formatRecipients(this.email?.bccRecipients);
+  }
+
+  get fromRecipientLine(): string {
+    const from = this.email?.fromRecipient;
+    if (!from?.email && !from?.name) {
+      return '';
+    }
+
+    if (from.name && from.email) {
+      return `${from.name}<${from.email}>`;
+    }
+
+    return from.email || from.name || '';
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.EmailList);
   }
   //#endregion
-  
+
+  private formatRecipients(recipients: EmailAddress[] | undefined): string {
+    if (!recipients || recipients.length === 0) {
+      return '';
+    }
+
+    return recipients
+      .map(recipient => {
+        const email = recipient?.email || '';
+        const name = recipient?.name || '';
+        if (name && email) {
+          return `${name}<${email}>`;
+        }
+
+        return email || name;
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
 }

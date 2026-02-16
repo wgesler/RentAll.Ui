@@ -27,6 +27,7 @@ import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
@@ -127,7 +128,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     documentHtmlService: DocumentHtmlService,
     private accountingOfficeService: AccountingOfficeService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private emailCreateDraftService: EmailCreateDraftService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
@@ -1258,7 +1260,12 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       }
     };
 
-    await super.onEmail(emailConfig);
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 

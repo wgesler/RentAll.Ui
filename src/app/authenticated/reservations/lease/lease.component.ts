@@ -3,10 +3,12 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, catchError, filter, finalize, forkJoin, map, of, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
@@ -25,6 +27,7 @@ import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -114,7 +117,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
-    documentHtmlService: DocumentHtmlService
+    documentHtmlService: DocumentHtmlService,
+    private router: Router,
+    private emailCreateDraftService: EmailCreateDraftService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
@@ -1440,7 +1445,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       }
     };
 
-    await super.onEmail(emailConfig);
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 

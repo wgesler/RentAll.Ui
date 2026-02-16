@@ -208,10 +208,10 @@ export class MappingService {
       reservationId: email?.reservationId ?? email?.ReservationId ?? undefined,
       reservationCode: email?.reservationCode ?? email?.ReservationCode ?? '',
       officeName: email?.officeName ?? email?.OfficeName ?? '',
-      toEmail: email?.toEmail ?? email?.ToEmail ?? '',
-      toName: email?.toName ?? email?.ToName ?? '',
-      fromEmail: email?.fromEmail ?? email?.FromEmail ?? '',
-      fromName: email?.fromName ?? email?.FromName ?? '',
+      toEmail: this.getPrimaryRecipientEmail(email?.toRecipients ?? email?.ToRecipients, email?.toEmail ?? email?.ToEmail),
+      toName: this.getPrimaryRecipientName(email?.toRecipients ?? email?.ToRecipients, email?.toName ?? email?.ToName),
+      fromEmail: (email?.fromRecipient ?? email?.FromRecipient)?.email ?? email?.fromEmail ?? email?.FromEmail ?? '',
+      fromName: (email?.fromRecipient ?? email?.FromRecipient)?.name ?? email?.fromName ?? email?.FromName ?? '',
       subject: email?.subject ?? email?.Subject ?? '',
       attachmentName: email?.attachmentName ?? email?.AttachmentName ?? '',
       attachmentPath: email?.attachmentPath ?? email?.AttachmentPath ?? '',
@@ -227,6 +227,24 @@ export class MappingService {
       ),
       createdOn: this.formatter.formatDateTimeString(email?.createdOn ?? email?.CreatedOn) || (email?.createdOn ?? email?.CreatedOn ?? '')
     }));
+  }
+
+  private getPrimaryRecipientEmail(recipients: any, fallback: string = ''): string {
+    if (Array.isArray(recipients) && recipients.length > 0) {
+      const first = recipients[0];
+      return first?.email ?? first?.Email ?? fallback ?? '';
+    }
+
+    return fallback ?? '';
+  }
+
+  private getPrimaryRecipientName(recipients: any, fallback: string = ''): string {
+    if (Array.isArray(recipients) && recipients.length > 0) {
+      const first = recipients[0];
+      return first?.name ?? first?.Name ?? fallback ?? '';
+    }
+
+    return fallback ?? '';
   }
 
   mapEmailOfficeNames(emails: EmailListDisplay[], offices: OfficeResponse[]): EmailListDisplay[] {

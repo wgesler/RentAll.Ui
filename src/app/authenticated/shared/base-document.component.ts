@@ -1,11 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { firstValueFrom, take } from 'rxjs';
+import { take } from 'rxjs';
 import { DocumentExportService } from '../../services/document-export.service';
 import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-html.service';
 import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
-import { EmailRequest } from '../email/models/email.model';
 import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { EmailService } from '../email/services/email.service';
@@ -14,6 +13,7 @@ import { OfficeResponse } from '../organizations/models/office.model';
 import { OrganizationResponse } from '../organizations/models/organization.model';
 import { ReservationResponse } from '../reservations/models/reservation-model';
 import { FileDetails } from '../companies/models/file-details.model';
+import { sendDocumentEmail } from '../email/utils/send-document-email';
 
 export interface DocumentConfig {
   previewIframeHtml: string;
@@ -38,6 +38,8 @@ export interface EmailConfig {
   subject: string;
   toEmail: string;
   toName: string;
+  ccEmails?: string[];
+  bccEmails?: string[];
   fromEmail: string;
   fromName: string;
   documentType: DocumentType;
@@ -166,46 +168,23 @@ export abstract class BaseDocumentComponent {
     const htmlContent = emailConfig?.htmlContent?.trim() || '';
  
     try {
-      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
-        config.previewIframeHtml,
-        config.previewIframeStyles,
-        config.printStyleOptions
-      );
-      const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
-      const generateDto: GenerateDocumentFromHtmlDto = {
-        htmlContent: htmlWithStyles,
-        organizationId: config.organization.organizationId,
-        officeId: config.selectedOffice.officeId,
-        officeName: config.selectedOffice.name,
-        propertyId: config.propertyId || null,
-        reservationId: config.selectedReservation?.reservationId || null,
-        documentTypeId: Number(emailConfig.documentType),
-        fileName: attachmentFileName
-      };
-      const pdfBlob = await firstValueFrom(this.documentService.generateDownload(generateDto));
-      const pdfBase64 = await this.blobToBase64(pdfBlob);
-
-      const emailRequest: EmailRequest = {
-        organizationId: config.organization.organizationId,
-        officeId: config.selectedOffice.officeId.toString(),
-        propertyId: config.propertyId || null,
-        reservationId: config.selectedReservation?.reservationId || null,
-        fromEmail,
-        fromName,
-        toEmail,
-        toName,
-        subject: emailConfig.subject,
-        plainTextContent: plainTextContent,
-        htmlContent,
-        emailTypeId: Number(emailConfig.emailType),
-        fileDetails: {
-          fileName: attachmentFileName,
-          contentType: pdfBlob.type || 'application/pdf',
-          file: pdfBase64
+      await sendDocumentEmail(
+        {
+          documentService: this.documentService,
+          documentHtmlService: this.documentHtmlService,
+          emailService: this.emailService
+        },
+        config,
+        {
+          ...emailConfig,
+          fromEmail,
+          fromName,
+          toEmail,
+          toName,
+          plainTextContent,
+          htmlContent
         }
-      };
-
-      await firstValueFrom(this.emailService.sendEmail(emailRequest));
+      );
       this.toastr.success('Email sent successfully.', 'Success');
     } catch (error) {
       const errorMsg = emailConfig.errorMessage || 'Error sending email. Please try again.';
@@ -218,16 +197,4 @@ export abstract class BaseDocumentComponent {
     this.documentHtmlService.injectStylesIntoIframe(config.previewIframeStyles);
   }
 
-  private blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        const base64 = result?.includes(',') ? result.split(',')[1] : result;
-        resolve(base64 || '');
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
 }
