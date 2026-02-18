@@ -2,6 +2,7 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
@@ -10,11 +11,14 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
 import { PropertyListDisplay } from '../models/property.model';
+import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from './property-calendar-url-dialog.component';
 import { PropertyService } from '../services/property.service';
 
 @Component({
@@ -60,9 +64,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
+    private authService: AuthService,
     private officeService: OfficeService,
     private route: ActivatedRoute,
     private utilityService: UtilityService,
+    private dialog: MatDialog,
     private ngZone: NgZone) {
   }
 
@@ -143,6 +149,34 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   copyProperty(event: PropertyListDisplay): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
     this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
+  }
+
+  openPropertyCalendar(property: PropertyListDisplay): void {
+    this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
+      next: (response: CalendarUrlResponse) => {
+        if (!response?.subscriptionUrl) {
+          this.toastr.error('No calendar URL was returned for this property.', CommonMessage.ServiceError);
+          return;
+        }
+
+        const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
+          width: '700px',
+          autoFocus: true,
+          restoreFocus: true,
+          disableClose: false,
+          hasBackdrop: true,
+          data: {
+            propertyCode: property.propertyCode,
+            subscriptionUrl: response.subscriptionUrl
+          }
+        };
+
+        this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
+      },
+      error: () => {
+        this.toastr.error('Could not load the calendar URL at this time.', CommonMessage.ServiceError);
+      }
+    });
   }
 
   deleteProperty(property: PropertyListDisplay): void {

@@ -1,0 +1,36 @@
+<div class="flex flex-row flex-wrap">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">calendar_month</mat-icon>
+      Property Calendar URL
+    </span>
+    <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit-calendar-url-dialog" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="flex-shrink-0 w-full p-6">
+    <p class="mb-3">Use this URL to subscribe to the calendar for <strong>{{ data.propertyCode }}</strong>.</p>
+
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Calendar URL</mat-label>
+      <input matInput [value]="data.subscriptionUrl" readonly>
+      <button
+        mat-icon-button
+        matSuffix
+        type="button"
+        aria-label="Copy calendar URL"
+        matTooltip="Copy URL"
+        (click)="copyUrl()">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button color="primary" (click)="closeDialog()" id="close-calendar-url-dialog">
+      Close
+    </button>
+  </div>
+</div>

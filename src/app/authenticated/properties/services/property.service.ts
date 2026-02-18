@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 
@@ -56,6 +57,11 @@ export class PropertyService {
   // POST: Get properties by selection criteria
   getPropertiesBySelectionCritera(userId: string): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
+  }
+
+  // GET: Get calendar URL/tokenized calendar response for a property
+  getPropertyCalendarUrl(propertyId: string): Observable<CalendarUrlResponse> {
+    return this.http.get<CalendarUrlResponse>(this.controller + propertyId + '/calendar/subscription-url');
   }
 }
 
