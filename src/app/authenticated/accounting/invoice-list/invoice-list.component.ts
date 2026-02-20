@@ -26,7 +26,7 @@ import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
-import { AccountingService } from '../services/accounting.service';
+import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
@@ -134,7 +134,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   constructor(
-    public accountingService: AccountingService,
+    public accountingService: InvoiceService,
     public toastr: ToastrService,
     public router: Router,
     public route: ActivatedRoute,

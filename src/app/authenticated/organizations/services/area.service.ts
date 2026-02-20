@@ -10,7 +10,7 @@ import { AreaRequest, AreaResponse } from '../models/area.model';
 
 export class AreaService {
   
-  private readonly controller = this.configService.config().apiUrl + 'area/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/area/';
 
   constructor(
       private http: HttpClient,

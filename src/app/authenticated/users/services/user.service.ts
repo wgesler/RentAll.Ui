@@ -10,7 +10,7 @@ import { UserRequest, UserResponse } from '../models/user.model';
 
 export class UserService {
   
-  private readonly controller = this.configService.config().apiUrl + 'user/';
+  private readonly controller = this.configService.config().apiUrl + 'auth/user/';
 
   constructor(
       private http: HttpClient,

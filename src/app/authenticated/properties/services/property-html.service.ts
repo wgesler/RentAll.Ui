@@ -11,7 +11,7 @@ import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-ht
 })
 export class PropertyHtmlService {
   
-  private readonly controller = this.configService.config().apiUrl + 'propertyhtml/';
+  private readonly controller = this.configService.config().apiUrl + 'property/property-html/';
 
   constructor(
       private http: HttpClient,

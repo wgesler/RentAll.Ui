@@ -8,7 +8,7 @@ import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRe
     providedIn: 'root'
 })
 
-export class AccountingService {
+export class InvoiceService {
   
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
 

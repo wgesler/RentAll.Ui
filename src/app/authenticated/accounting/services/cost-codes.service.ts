@@ -11,7 +11,7 @@ import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model'
 
 export class CostCodesService {
   
-  private readonly controller = this.configService.config().apiUrl + 'costcode/';
+  private readonly controller = this.configService.config().apiUrl + 'accounting/cost-code/';
   private allCostCodes$ = new BehaviorSubject<CostCodesResponse[]>([]);
   private costCodesLoaded$ = new BehaviorSubject<boolean>(false);
 

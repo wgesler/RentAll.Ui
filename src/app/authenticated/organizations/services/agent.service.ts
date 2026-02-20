@@ -10,7 +10,7 @@ import { AgentRequest, AgentResponse } from '../models/agent.model';
 
 export class AgentService {
   
-  private readonly controller = this.configService.config().apiUrl + 'agent/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/agent/';
 
   constructor(
       private http: HttpClient,

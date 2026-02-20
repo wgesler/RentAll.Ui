@@ -10,7 +10,7 @@ import { OfficeRequest, OfficeResponse } from '../models/office.model';
 
 export class OfficeService {
   
-  private readonly controller = this.configService.config().apiUrl + 'office/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/office/';
   private allOffices$ = new BehaviorSubject<OfficeResponse[]>([]);
   private officesLoaded$ = new BehaviorSubject<boolean>(false);
 

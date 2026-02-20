@@ -10,7 +10,7 @@ import { RegionRequest, RegionResponse } from '../models/region.model';
 
 export class RegionService {
   
-  private readonly controller = this.configService.config().apiUrl + 'region/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/region/';
 
   constructor(
       private http: HttpClient,

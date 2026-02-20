@@ -22,7 +22,7 @@ import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
-import { AccountingService } from '../services/accounting.service';
+import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
@@ -72,7 +72,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
 
   constructor(
-    public accountingService: AccountingService,
+    public accountingService: InvoiceService,
     public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,

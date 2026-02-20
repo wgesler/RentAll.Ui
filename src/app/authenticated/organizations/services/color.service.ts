@@ -10,7 +10,7 @@ import { ColorRequest, ColorResponse } from '../models/color.model';
 
 export class ColorService {
   
-  private readonly controller = this.configService.config().apiUrl + 'color/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/color/';
 
   constructor(
       private http: HttpClient,

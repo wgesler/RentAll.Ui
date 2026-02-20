@@ -8,7 +8,7 @@ import { EmailHtmlRequest, EmailHtmlResponse } from '../models/email-html.model'
   providedIn: 'root'
 })
 export class EmailHtmlService {
-  private readonly controller = this.configService.config().apiUrl + 'emailhtml/';
+  private readonly controller = this.configService.config().apiUrl + 'email/email-html/';
 
   constructor(
     private http: HttpClient,

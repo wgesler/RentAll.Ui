@@ -9,7 +9,7 @@ import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lea
 })
 export class LeaseInformationService {
   
-  private readonly controller = this.configService.config().apiUrl + 'leaseinformation/';
+  private readonly controller = this.configService.config().apiUrl + 'reservation/lease-information/';
 
   constructor(
       private http: HttpClient,

@@ -17,7 +17,7 @@ import { CompanyService } from '../../companies/services/company.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionType } from '../models/accounting-enum';
 import { InvoiceResponse } from '../models/invoice.model';
-import { AccountingService } from '../services/accounting.service';
+import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { UtilityService } from '../../../services/utility.service';
 
@@ -95,7 +95,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     private mappingService: MappingService,
     private reservationService: ReservationService,
     private companyService: CompanyService,
-    private accountingService: AccountingService,
+    private accountingService: InvoiceService,
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
     private formatter: FormatterService

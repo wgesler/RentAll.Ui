@@ -9,7 +9,7 @@ import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { InvoicePaymentRequest } from '../../../accounting/models/invoice.model';
-import { AccountingService } from '../../../accounting/services/accounting.service';
+import { InvoiceService } from '../../../accounting/services/invoice.service';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest, ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 
@@ -40,7 +40,7 @@ export class ApplyCreditDialogComponent implements OnInit {
     private reservationService: ReservationService,
     private toastr: ToastrService,
     private formatter: FormatterService,
-    private accountingService: AccountingService
+    private accountingService: InvoiceService
   ) {}
   
   ngOnInit(): void {

@@ -10,7 +10,7 @@ import { VendorRequest, VendorResponse } from '../models/vendor.model';
 
 export class VendorService {
   
-  private readonly controller = this.configService.config().apiUrl + 'vendor/';
+  private readonly controller = this.configService.config().apiUrl + 'company/vendor/';
 
   constructor(
       private http: HttpClient,

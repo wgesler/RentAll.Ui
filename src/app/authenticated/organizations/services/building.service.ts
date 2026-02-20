@@ -10,7 +10,7 @@ import { BuildingRequest, BuildingResponse } from '../models/building.model';
 
 export class BuildingService {
   
-  private readonly controller = this.configService.config().apiUrl + 'building/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/building/';
 
   constructor(
       private http: HttpClient,

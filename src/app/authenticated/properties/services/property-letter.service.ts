@@ -10,7 +10,7 @@ import { PropertyLetterRequest, PropertyLetterResponse } from '../models/propert
 
 export class PropertyLetterService {
   
-  private readonly controller = this.configService.config().apiUrl + 'propertyletter/';
+  private readonly controller = this.configService.config().apiUrl + 'property/property-letter/';
 
   constructor(
       private http: HttpClient,

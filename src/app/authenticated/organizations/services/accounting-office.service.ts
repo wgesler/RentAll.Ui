@@ -10,7 +10,7 @@ import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/acc
 
 export class AccountingOfficeService {
   
-  private readonly controller = this.configService.config().apiUrl + 'accounting-office/';
+  private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
   private allAccountingOffices$ = new BehaviorSubject<AccountingOfficeResponse[]>([]);
   private accountingOfficesLoaded$ = new BehaviorSubject<boolean>(false);
 

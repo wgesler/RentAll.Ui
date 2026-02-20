@@ -44,7 +44,7 @@ import { ReservationListResponse, ReservationResponse } from '../../reservations
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { InvoiceResponse } from '../models/invoice.model';
-import { AccountingService } from '../services/accounting.service';
+import { InvoiceService } from '../services/invoice.service';
 
 @Component({
     selector: 'app-invoice-create',
@@ -105,7 +105,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
-    private accountingService: AccountingService,
+    private accountingService: InvoiceService,
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private officeService: OfficeService,
