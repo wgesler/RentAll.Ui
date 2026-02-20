@@ -140,7 +140,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(properties, this.reservations);
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(properties || [], this.reservations);
       },
       error: (err: HttpErrorResponse) => {
         this.properties = [];
@@ -240,6 +240,56 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return groups;
   }
 
+  private parseDateOnly(value: string | Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      const d = new Date(value);
+      d.setHours(0, 0, 0, 0);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Parse YYYY-MM-DD as a local date to avoid timezone shifts.
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]) - 1;
+      const day = Number(match[3]);
+      const parsed = new Date(year, month, day);
+      parsed.setHours(0, 0, 0, 0);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const fallback = new Date(value);
+    fallback.setHours(0, 0, 0, 0);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  isDateBlockedByAvailability(property: BoardProperty, date: Date): boolean {
+    if (!property) {
+      return false;
+    }
+
+    const compareDate = this.parseDateOnly(date);
+    if (!compareDate) {
+      return false;
+    }
+
+    const availableFromDate = this.parseDateOnly(property.availableFrom);
+    if (availableFromDate && compareDate.getTime() < availableFromDate.getTime()) {
+      return true;
+    }
+
+    const availableUntilDate = this.parseDateOnly(property.availableUntil);
+    if (availableUntilDate && compareDate.getTime() > availableUntilDate.getTime()) {
+      return true;
+    }
+
+    return false;
+  }
+
   getReservationForPropertyAndDate(propertyId: string, date: Date): ReservationListResponse | null {
     const matchingReservations = this.reservations.filter(r => {
       if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
@@ -317,12 +367,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     departure.setHours(0, 0, 0, 0);
 
     if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
-      return '#3b82f6'; // Blue for arrival/departure
+      return this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
     }
     
     // Get color from API based on reservation status
     const color = this.colorMap.get(reservation.reservationStatusId);
     return color || null;
+  }
+
+  getBlockedAvailabilityColor(): string | null {
+    return this.colorMap.get(ReservationStatus.Offline) || null;
   }
 
   getTextColor(backgroundColor: string | null): string {
@@ -480,6 +534,21 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   navigateToReservation(reservationId: string): void {
     this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
+  }
+
+  navigateToNewReservation(propertyId: string, date: Date): void {
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    this.router.navigate(
+      ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, ['new'])],
+      {
+        queryParams: {
+          propertyId,
+          startDate: selectedDate.toISOString().split('T')[0]
+        }
+      }
+    );
   }
 
   goToBoardSelection(): void {

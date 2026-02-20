@@ -413,16 +413,16 @@ export class MappingService {
   }
 
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {
-    return (properties || []).map(p => {
-      return {
-        propertyId: p.propertyId,
-        propertyCode: p.propertyCode,
-        address: p.shortAddress,
-        monthlyRate: p.monthlyRate,
-        bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
-        statusLetter: getPropertyStatusLetter(p.propertyStatusId)
-      };
-    });
+    return (properties || []).map(p => ({
+      propertyId: p.propertyId,
+      propertyCode: p.propertyCode,
+      address: p.shortAddress,
+      monthlyRate: p.monthlyRate,
+      bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
+      statusLetter: getPropertyStatusLetter(p.propertyStatusId),
+      availableFrom: p.availableFrom,
+      availableUntil: p.availableUntil
+    }));
   }
 
   mapRegions(regions: RegionResponse[]): RegionListDisplay[] {

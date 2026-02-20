@@ -191,10 +191,55 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.setupFormHandlers();
       
-       if (!this.isAddMode) {
+      if (this.isAddMode) {
+        this.applyAddModePrefillFromQueryParams();
+      } else {
         this.getReservation();
       }
     });
+  }
+
+  private applyAddModePrefillFromQueryParams(): void {
+    this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+      const propertyId = queryParams['propertyId'] as string | undefined;
+      const startDateParam = (queryParams['startDate'] || queryParams['arrivalDate']) as string | undefined;
+
+      const patch: Record<string, unknown> = {};
+
+      if (propertyId && this.properties.some(p => p.propertyId === propertyId)) {
+        patch['propertyId'] = propertyId;
+      }
+
+      const parsedStartDate = this.parseDateFromQuery(startDateParam);
+      if (parsedStartDate) {
+        patch['arrivalDate'] = parsedStartDate;
+        this.departureDateStartAt = new Date(parsedStartDate);
+      }
+
+      if (Object.keys(patch).length > 0) {
+        this.form.patchValue(patch);
+      }
+    });
+  }
+
+  private parseDateFromQuery(value?: string): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (ymdMatch) {
+      const year = Number(ymdMatch[1]);
+      const month = Number(ymdMatch[2]) - 1;
+      const day = Number(ymdMatch[3]);
+      const localDate = new Date(year, month, day);
+      localDate.setHours(0, 0, 0, 0);
+      return isNaN(localDate.getTime()) ? null : localDate;
+    }
+
+    const parsed = new Date(value);
+    parsed.setHours(0, 0, 0, 0);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }
 
   getReservation(): void {

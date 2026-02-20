@@ -5,6 +5,8 @@ export interface BoardProperty {
   monthlyRate: number;
   bedsBaths: string;
   statusLetter: string;
+  availableFrom?: string;
+  availableUntil?: string;
 }
 
 export interface CalendarDay {

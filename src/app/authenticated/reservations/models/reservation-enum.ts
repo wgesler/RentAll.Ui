@@ -7,7 +7,8 @@ export enum ReservationStatus {
   FirstRightRefusal = 4,
   Maintenance = 5,
   OwnerBlocked = 6,
-  ArrivalDeparture = 7
+  ArrivalDeparture = 7,
+  Offline = 8
 }
 
 export function getReservationStatus(reservationStatusId: number | undefined): string {
@@ -21,7 +22,8 @@ export function getReservationStatus(reservationStatusId: number | undefined): s
     [ReservationStatus.FirstRightRefusal]: 'First Right of Refusal',
     [ReservationStatus.Maintenance]: 'Maintenance',
     [ReservationStatus.OwnerBlocked]: 'Owner Blocked',
-    [ReservationStatus.ArrivalDeparture]: 'Arrival/Departure' 
+    [ReservationStatus.ArrivalDeparture]: 'Arrival/Departure',
+    [ReservationStatus.Offline]: 'Offline',
   };
   
   return statusMap[reservationStatusId] || '';

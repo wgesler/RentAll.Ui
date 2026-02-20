@@ -592,24 +592,6 @@
     }
   }
 
-  &.reservation-arrival {
-    background-color: #3b82f6 !important; // blue for arrival/departure
-    color: white;
-    
-    &:hover {
-      background-color: #2563eb !important; // darker blue on hover
-    }
-  }
-
-  &.reservation-departure {
-    background-color: #3b82f6 !important; // blue for arrival/departure
-    color: white;
-    
-    &:hover {
-      background-color: #2563eb !important; // darker blue on hover
-    }
-  }
-
   .reservation-link {
     text-decoration: underline;
     color: inherit;
@@ -622,6 +604,10 @@
 
   // Status-based colors are now handled via inline styles from API
   // No hard-coded CSS classes for status colors
+}
+
+.calendar-cell.blocked-availability {
+  font-weight: 600;
 }
 
 .month-header-cell,

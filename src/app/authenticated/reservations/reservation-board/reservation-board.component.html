@@ -92,7 +92,15 @@
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell">{{ property.statusLetter }}</td>
                 @for (day of calendarDays; track day.date.getTime()) {
-                  @if (getReservationForPropertyAndDate(property.propertyId, day.date); as reservation) {
+                  @if (isDateBlockedByAvailability(property, day.date)) {
+                    @if (getBlockedAvailabilityColor(); as blockedColor) {
+                      <td class="calendar-cell blocked-availability"
+                          [style.backgroundColor]="blockedColor"
+                          [style.color]="getTextColor(blockedColor)">B</td>
+                    } @else {
+                      <td class="calendar-cell blocked-availability">B</td>
+                    }
+                  } @else if (getReservationForPropertyAndDate(property.propertyId, day.date); as reservation) {
                     @if (getReservationColor(reservation, day.date); as bgColor) {
                       @if (getReservationDisplayText(reservation, day.date) === 'A' || getReservationDisplayText(reservation, day.date) === 'D') {
                         @if (getReservationStatusClass(reservation, day.date) === 'reservation-arrival' || getReservationStatusClass(reservation, day.date) === 'reservation-departure') {
@@ -143,7 +151,7 @@
                       }
                     }
                   } @else {
-                    <td class="calendar-cell"></td>
+                    <td class="calendar-cell clickable" (click)="navigateToNewReservation(property.propertyId, day.date)"> </td>
                   }
                 }
               </tr>

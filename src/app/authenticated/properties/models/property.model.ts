@@ -233,6 +233,8 @@ export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;
   shortAddress: string;
+  availableFrom?: string;
+  availableUntil?: string;
   officeId: number;  
   officeName: string;
   owner1Id: string;

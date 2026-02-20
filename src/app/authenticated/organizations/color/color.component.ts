@@ -9,7 +9,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
-import { ReservationStatus } from '../../reservations/models/reservation-enum';
+import { getReservationStatuses } from '../../reservations/models/reservation-enum';
 import { ColorRequest, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
@@ -31,15 +31,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
-  reservationStatuses = [
-    { value: ReservationStatus.PreBooking, label: 'Pre-Booking' },
-    { value: ReservationStatus.Confirmed, label: 'Confirmed' },
-    { value: ReservationStatus.CheckedIn, label: 'Checked In' },
-    { value: ReservationStatus.GaveNotice, label: 'Gave Notice' },
-    { value: ReservationStatus.FirstRightRefusal, label: 'First Right of Refusal' },
-    { value: ReservationStatus.Maintenance, label: 'Maintenance' },
-    { value: ReservationStatus.OwnerBlocked, label: 'Owner Blocked' }
-  ];
+  reservationStatuses = getReservationStatuses();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
