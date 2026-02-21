@@ -14,7 +14,9 @@
         width: auto;
         max-width: min(640px, 78vw);
         object-fit: contain;
-        filter: brightness(1.16) saturate(1.12) drop-shadow(0 0 8px rgba(255, 255, 255, 0.35));
+        filter: brightness(1.26) saturate(1.16) drop-shadow(0 0 6px rgba(255, 255, 255, 0.32));
+        margin-left: -7px;
+        transform: translateY(-3px);
     }
 
     & .login-stage {

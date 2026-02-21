@@ -42,7 +42,8 @@
   max-width: min(640px, 72vw);
   object-fit: contain;
   filter: brightness(1.26) saturate(1.16) drop-shadow(0 0 6px rgba(255, 255, 255, 0.32));
-  margin-left: -18px;
+  margin-left: -7px;
+  transform: translateY(-3px);
 }
 
 // Daily Quote

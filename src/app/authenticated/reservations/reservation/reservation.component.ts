@@ -1276,6 +1276,23 @@ export class ReservationComponent implements OnInit, OnDestroy {
     arrival.setHours(0, 0, 0, 0);
     departure.setHours(0, 0, 0, 0);
 
+    const selectedProperty = this.selectedProperty?.propertyId === propertyId
+      ? this.selectedProperty : this.properties.find(p => p.propertyId === propertyId) || null;
+
+    const availableFrom = this.parseDateOnly(selectedProperty?.availableFrom);
+    if (availableFrom && arrival < availableFrom) {
+      const message = `This property is not available until ${this.formatDateForMessage(availableFrom)}.`;
+      this.handleAvailabilityDateError(message, offendingField === 'save' ? 'arrivalDate' : offendingField, offendingField === 'save');
+      return;
+    }
+
+    const availableUntil = this.parseDateOnly(selectedProperty?.availableUntil);
+    if (availableUntil && departure > availableUntil) {
+      const message = `This property is not available after ${this.formatDateForMessage(availableUntil)}.`;
+      this.handleAvailabilityDateError(message, offendingField === 'save' ? 'departureDate' : offendingField, offendingField === 'save');
+      return;
+    }
+
     // Get all reservations for this property
     this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1),catchError(() => of([] as ReservationResponse[]))
     ).subscribe(reservations => {
@@ -1316,6 +1333,35 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.performSave();
       }
     });
+  }
+
+  private parseDateOnly(value: string | Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = value instanceof Date ? new Date(value) : new Date(value);
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  }
+
+  private formatDateForMessage(date: Date): string {
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  }
+
+  private handleAvailabilityDateError(
+    message: string,
+    fieldToClear: 'arrivalDate' | 'departureDate',
+    preserveOnSave: boolean
+  ): void {
+    this.toastr.error(message, CommonMessage.Error);
+    if (!preserveOnSave) {
+      this.clearOffendingDate(fieldToClear);
+    }
   }
 
   clearOffendingDate(field: 'arrivalDate' | 'departureDate'): void {
