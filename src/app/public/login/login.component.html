@@ -1,14 +1,12 @@
 <div id="loginPage">
   <mat-toolbar id="header" color="primary" class="flex justify-between">
-    <span>
-      <mat-icon class="align-sub mr-3 ml-2">library_add_check</mat-icon>
-      <span>RentAll</span>
-    </span>
+    <img src="assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png" alt="RentAll Exchange" class="login-header-logo ml-2" />
   </mat-toolbar>
-  <div class="background"></div>
-  <div class="cardContainer">
-    <mat-card-content class="centerContainer">
-      <mat-card class="loginContainer">
+  <div class="login-stage">
+    <div class="login-composition">
+      <img class="composition-art" src="assets/images/login-backdrop-rentall-exchange.png" alt="" aria-hidden="true" />
+      <mat-card-content class="centerContainer">
+        <mat-card class="loginContainer">
         <mat-card-title>Login</mat-card-title>
         <form [formGroup]="form" (submit)="onSubmit()">
 
@@ -41,7 +39,8 @@
             <button mat-raised-button color="primary">Login</button>
           </mat-card-actions>
         </form>
-      </mat-card>
-    </mat-card-content>
+        </mat-card>
+      </mat-card-content>
+    </div>
   </div>
 </div>

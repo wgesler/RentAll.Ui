@@ -36,6 +36,15 @@
   padding-left: 2.5rem;
 }
 
+.header-brand-logo {
+  height: 92px;
+  width: auto;
+  max-width: min(640px, 72vw);
+  object-fit: contain;
+  filter: brightness(1.26) saturate(1.16) drop-shadow(0 0 6px rgba(255, 255, 255, 0.32));
+  margin-left: -18px;
+}
+
 // Daily Quote
 .quote {
     display: flex;
