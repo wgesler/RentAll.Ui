@@ -19,9 +19,9 @@ export class OfficeService {
       private configService: ConfigService) {
   }
 
-  // Load all offices on startup
-  loadAllOffices(): void {
-    const url = this.controller;
+  // Load offices on startup (optionally scoped by organization)
+  loadAllOffices(organizationId?: string): void {
+    const url = organizationId ? this.controller + organizationId : this.controller;
     
     this.http.get<OfficeResponse[]>(url).subscribe({
       next: (offices) => {
@@ -60,6 +60,11 @@ export class OfficeService {
   // GET: Get all offices
   getOffices(): Observable<OfficeResponse[]> {
     return this.http.get<OfficeResponse[]>(this.controller);
+  }
+
+  // GET: Get offices by organization
+  getOfficesByOrganization(organizationId: string): Observable<OfficeResponse[]> {
+    return this.http.get<OfficeResponse[]>(this.controller + organizationId);
   }
 
   // GET: Get office by ID

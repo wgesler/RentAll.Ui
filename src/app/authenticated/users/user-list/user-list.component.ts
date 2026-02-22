@@ -8,6 +8,7 @@ import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, 
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -15,7 +16,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { getStartupPage } from '../models/user-enums';
+import { getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -37,6 +38,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   officesSubscription?: Subscription;
+  isSuperAdminUser: boolean = false;
 
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
@@ -55,6 +57,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     public userService: UserService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
+    private authService: AuthService,
     public toastr: ToastrService,
     public router: Router,
     private ngZone: NgZone,
@@ -64,6 +67,7 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region User-List
   ngOnInit(): void {
+    this.isSuperAdminUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.getUsers();
   }
@@ -157,7 +161,7 @@ export class UserListComponent implements OnInit, OnDestroy {
       ? this.allUsers
       : this.allUsers.filter(user => user.isActive);
 
-    if (this.selectedOffice) {
+    if (this.selectedOffice && !this.isSuperAdminUser) {
       filtered = filtered.filter(user => (user.officeAccess || []).includes(this.selectedOffice!.officeId));
     }
 
@@ -203,6 +207,26 @@ export class UserListComponent implements OnInit, OnDestroy {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
+  }
+
+  private hasRole(role: UserGroups): boolean {
+    const userGroups = this.authService.getUser()?.userGroups || [];
+    if (!userGroups.length) {
+      return false;
+    }
+
+    return userGroups.some(group => {
+      if (typeof group === 'string') {
+        if (group === UserGroups[role]) {
+          return true;
+        }
+
+        const groupAsNumber = Number(group);
+        return !isNaN(groupAsNumber) && groupAsNumber === role;
+      }
+
+      return typeof group === 'number' && group === role;
+    });
   }
 
   ngOnDestroy(): void {

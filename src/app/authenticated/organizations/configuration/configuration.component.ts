@@ -89,6 +89,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   organizations: OrganizationResponse[] = [];
   selectedOrganizationId: string | null = null;
 
+  currentUserOrganizationId: string | null = null;
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
@@ -105,6 +107,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     
     // Check if user is SuperAdmin
     const user = this.authService.getUser();
+    this.currentUserOrganizationId = user?.organizationId || null;
     if (user && user.userGroups) {
       const userGroupNumbers = user.userGroups.map(group => {
         if (typeof group === 'string') {
@@ -134,9 +137,11 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.organizationService.getOrganizations().pipe(take(1)).subscribe({
       next: (organizations) => {
         this.organizations = organizations || [];
-        // Optionally set default selection to first organization
         if (this.organizations.length > 0 && !this.selectedOrganizationId) {
-          this.selectedOrganizationId = this.organizations[0].organizationId;
+          const matchingOrganization = this.organizations.find(
+            org => org.organizationId === this.currentUserOrganizationId
+          );
+          this.selectedOrganizationId = matchingOrganization?.organizationId || this.organizations[0].organizationId;
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -150,6 +155,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onOrganizationChange(): void {
     // When organization changes, the selected organizationId will be passed to office-list
     // which will then pass it to office component
+  }
+
+  get effectiveOrganizationId(): string | null {
+    return this.selectedOrganizationId || this.currentUserOrganizationId;
   }
 
   onCostCodesOfficeChangeFromList(officeId: number | null): void {

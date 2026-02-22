@@ -129,6 +129,12 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        if (!this.offices.length) {
+          this.allAccountingOffices = [];
+          this.accountingOfficesDisplay = [];
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+          return;
+        }
         this.getAccountingOffices();
       });
     });

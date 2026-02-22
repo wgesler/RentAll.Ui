@@ -59,6 +59,8 @@ export class UserComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   agents: AgentResponse[] = [];
   availableAgents: { value: string, label: string }[] = [];
+  isPopulatingUserForm: boolean = false;
+  isPrivilegedOfficeEditor: boolean = false;
   
   // Profile picture properties
   isUploadingProfilePicture: boolean = false;
@@ -99,10 +101,13 @@ export class UserComponent implements OnInit, OnDestroy {
 
   //#region User
   ngOnInit(): void {
+    this.isPrivilegedOfficeEditor = this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
     this.initializeUserGroups();
     this.initializeStartupPages();
     this.loadOrganizations();
-    this.loadOffices();
+    if (!this.isPrivilegedOfficeEditor) {
+      this.loadOffices();
+    }
     this.loadAgents();
     
     // If opened in dialog, use dialog data
@@ -136,6 +141,10 @@ export class UserComponent implements OnInit, OnDestroy {
     this.userService.getUserByGuid(this.userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user'); })).subscribe({
       next: (response: UserResponse) => {
         this.user = response;
+        if (this.isPrivilegedOfficeEditor && response.organizationId) {
+          this.loadOfficesForUserOrganization(response.organizationId, response.officeAccess || []);
+        }
+
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
           this.hasNewFileUpload = false; 
@@ -388,6 +397,37 @@ export class UserComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadOfficesForUserOrganization(organizationId: string, officeAccess: Array<number | string>): void {
+    if (!this.isPrivilegedOfficeEditor) {
+       return;
+    }
+
+    const selectedOfficeIds = new Set<number>(
+      (officeAccess || [])
+        .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+        .filter(id => !isNaN(id))
+    );
+
+    this.officeService.getOfficesByOrganization(organizationId).pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        const scopedOffices = (offices || []).filter(office =>
+          office.isActive || selectedOfficeIds.has(office.officeId)
+        );
+
+        this.offices = scopedOffices;
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(scopedOffices);
+
+        // Ensure selected user's office access remains checked after the office options refresh.
+        if (this.form) {
+          this.form.get('officeAccess')?.setValue([...selectedOfficeIds], { emitEvent: false });
+        }
+      },
+      error: () => {
+        this.availableOffices = [];
+      }
+    });
+  }
+
   loadAgents(): void {
     this.agentService.getAgents().pipe(take(1)).subscribe({
       next: (agents: AgentResponse[]) => {
@@ -567,10 +607,17 @@ export class UserComponent implements OnInit, OnDestroy {
     }
     
     // Reload offices when organization changes
-    this.form.get('organizationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.filterOfficesByOrganization();
-      // Clear office access when organization changes
-      this.form.get('officeAccess')?.setValue([]);
+    this.form.get('organizationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((organizationId: string) => {
+      if (this.isPrivilegedOfficeEditor && organizationId) {
+        this.loadOfficesForUserOrganization(organizationId, this.form.get('officeAccess')?.value || []);
+      } else {
+        this.filterOfficesByOrganization();
+      }
+      // Clear office access only for user-initiated organization changes.
+      // Do not clear during initial populate from the loaded user record.
+      if (!this.isPopulatingUserForm) {
+        this.form.get('officeAccess')?.setValue([]);
+      }
     });
 
     this.form.get('agentId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -580,6 +627,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
   populateForm(): void {
     if (this.user && this.form) {
+      this.isPopulatingUserForm = true;
       // Normalize userGroups - convert numeric values or enum names to match our dropdown values
       const normalizeGroup = (group: string | number): string | null => {
         const groupStr = String(group).trim();
@@ -628,7 +676,7 @@ export class UserComponent implements OnInit, OnDestroy {
           ? Number(this.user.commissionRate).toFixed(2)
           : '0.00',
         isActive: this.user.isActive
-      });
+      }, { emitEvent: false });
       
       // Set userGroups separately to ensure the array is properly set
       this.form.get('userGroups')?.setValue(validUserGroups);
@@ -639,6 +687,9 @@ export class UserComponent implements OnInit, OnDestroy {
         ? officeAccess.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id))
         : [];
       this.form.get('officeAccess')?.setValue(officeAccessNumbers);
+      this.filterOfficesByOrganization();
+      this.applyCommissionRateState();
+      this.isPopulatingUserForm = false;
      }
   }
   //#endregion
@@ -647,16 +698,35 @@ export class UserComponent implements OnInit, OnDestroy {
   filterOfficesByOrganization(): void {
     // Get organization from form if available, otherwise from logged-in user
     const organizationId = this.form?.get('organizationId')?.value || this.authService.getUser()?.organizationId;
+    const selectedOfficeIds = new Set<number>(
+      ((this.form?.get('officeAccess')?.value as Array<number | string>) || this.user?.officeAccess || [])
+        .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+        .filter(id => !isNaN(id))
+    );
     
     if (organizationId) {
       const filteredOffices = this.offices.filter(office => 
-        office.organizationId === organizationId && office.isActive
+        office.organizationId === organizationId && (office.isActive || selectedOfficeIds.has(office.officeId))
       );
       this.availableOffices = this.mappingService.mapOfficesToDropdown(filteredOffices);
     } else {
       // If no organization selected, show all active offices (fallback)
       this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices.filter(office => office.isActive));
     }
+  }
+
+  private hasRole(role: UserGroups): boolean {
+    const groups = this.authService.getUser()?.userGroups || [];
+    return groups.some(group => {
+      if (typeof group === 'string') {
+        if (group === UserGroups[role]) {
+          return true;
+        }
+        const parsed = Number(group);
+        return !isNaN(parsed) && parsed === role;
+      }
+      return typeof group === 'number' && group === role;
+    });
   }
 
   initializeUserGroups(): void {

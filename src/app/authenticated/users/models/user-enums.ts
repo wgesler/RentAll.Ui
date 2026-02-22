@@ -51,7 +51,8 @@ export enum StartupPage {
   Boards = 1,
   Reservations = 2,
   Properties = 3,
-  Accounting = 4
+  Accounting = 4,
+  Organizations = 5
 }
 
 export function getStartupPage(startupPage: number | undefined): string {
@@ -62,7 +63,8 @@ export function getStartupPage(startupPage: number | undefined): string {
     [StartupPage.Boards]: 'Boards',
     [StartupPage.Reservations]: 'Reservations',
     [StartupPage.Properties]: 'Properties',
-    [StartupPage.Accounting]: 'Accounting'
+    [StartupPage.Accounting]: 'Accounting',
+    [StartupPage.Organizations]: 'Organizations'
   };
   
   return pageSizeMap[startupPage] || '';

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -57,25 +57,21 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#region Organization
   ngOnInit(): void {
     this.loadStates();
-    this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.organizationId = paramMap.get('id');
-        this.isAddMode = this.organizationId === 'new';
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-          this.buildForm();
-        } else {
-          this.getOrganization();
-        }
-      }
-    });
-    if (!this.isAddMode) {
+    const routeId = this.route.snapshot.paramMap.get('id');
+    this.organizationId = routeId || '';
+    this.isAddMode = this.organizationId === 'new';
+
+    if (this.isAddMode) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       this.buildForm();
+    } else {
+      this.buildForm();
+      this.getOrganization();
     }
   }
 
   getOrganization(): void {
-    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1)).subscribe({
       next: (response: OrganizationResponse) => {
         this.organization = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -93,11 +89,12 @@ export class OrganizationComponent implements OnInit, OnDestroy {
           this.logoPath = response.logoPath;
           this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
-        this.buildForm();
         this.populateForm();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }

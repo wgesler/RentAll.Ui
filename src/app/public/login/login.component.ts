@@ -99,7 +99,10 @@ export class LoginComponent {
             case StartupPage.Accounting:
               redirectUrl = RouterUrl.AccountingList;
               break;
-            default:
+            case StartupPage.Organizations:
+              redirectUrl = RouterUrl.OrganizationList;
+              break;
+             default:
               redirectUrl = RouterUrl.Dashboard;
               break;
           }

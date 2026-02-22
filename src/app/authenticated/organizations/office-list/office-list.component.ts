@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,7 +21,7 @@ import { OfficeService } from '../services/office.service';
     imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
-export class OfficeListComponent implements OnInit, OnDestroy {
+export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
@@ -56,6 +56,12 @@ export class OfficeListComponent implements OnInit, OnDestroy {
     this.getOffices();
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['organizationId'] && !changes['organizationId'].firstChange) {
+      this.getOffices();
+    }
+  }
+
   addOffice(): void {
     if (this.embeddedInSettings) {
       this.officeSelected.emit('new');
@@ -66,7 +72,11 @@ export class OfficeListComponent implements OnInit, OnDestroy {
   }
 
   getOffices(): void {
-    this.officeService.getOffices().pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+    const officesRequest$ = this.organizationId
+      ? this.officeService.getOfficesByOrganization(this.organizationId)
+      : this.officeService.getOffices();
+
+    officesRequest$.pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();

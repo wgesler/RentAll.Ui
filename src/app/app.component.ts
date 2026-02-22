@@ -103,11 +103,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    this.officeService.loadAllOffices();
+    const organizationId = this.authService.getUser()?.organizationId || '';
+    this.officeService.loadAllOffices(organizationId);
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
-        // After offices are loaded, load cost codes
-        this.loadCostCodes();
+         this.loadCostCodes();
       },
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');

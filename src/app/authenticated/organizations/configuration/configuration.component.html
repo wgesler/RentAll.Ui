@@ -37,9 +37,9 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingOffice && officeId) {
-                <app-office [id]="officeId" [organizationId]="selectedOrganizationId" (backEvent)="onOfficeBack()"></app-office>
+                <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" (backEvent)="onOfficeBack()"></app-office>
               } @else {
-                <app-office-list [embeddedInSettings]="true" [organizationId]="selectedOrganizationId" (officeSelected)="onOfficeSelected($event)"></app-office-list>
+                <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)"></app-office-list>
               }
             </div>
           </mat-expansion-panel>
