@@ -80,21 +80,7 @@
         </mat-form-field>
       </div>
       }
-      <!-- Action buttons row - Second Row (right justified) -->
-      @if (!showPaymentForm) {
-        <div class="list-top-actions list-top-actions--tabbed flex gap-2 mt-0 px-4 justify-end">
-          <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-            Inactive
-          </mat-slide-toggle>
-          <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompany && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
-            Apply Payment
-          </button>
-          <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
-      } @else {
+      @if (showPaymentForm) {
         <!-- Payment form fields - Second Row (right justified) -->
         <div class="flex justify-end mt-0 px-4">
           <div class="payment-form-box" style="font-size: 11px !important;">
@@ -150,7 +136,21 @@
         </div>
       }
       <!-- Filter and data table below -->
-      <div class="tableDiv">
+      <div class="tableDiv table-filter-row-actions-wrap">
+        @if (!showPaymentForm) {
+          <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex gap-2 px-4 justify-end">
+            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+              Inactive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompany && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
+              Apply Payment
+            </button>
+            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+              <mat-icon class="text-base">add</mat-icon>
+              <span>Add</span>
+            </button>
+          </div>
+        }
         <app-data-table
           [data]="invoicesDisplay"
           [columns]="invoicesDisplayedColumns"

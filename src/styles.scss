@@ -312,8 +312,9 @@ mat-form-field input,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  padding-left: var(--global-page-inner-padding);
-  padding-right: var(--global-page-inner-padding);
+  // Match app-data-table filter horizontal start: tableDiv padding + datatable px-4
+  padding-left: calc(var(--global-page-inner-padding) + 1rem);
+  padding-right: calc(var(--global-page-inner-padding) + 1rem);
   box-sizing: border-box;
 }
 
@@ -342,8 +343,9 @@ mat-form-field input,
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  padding-left: var(--global-page-inner-padding);
-  padding-right: var(--global-page-inner-padding);
+  // Keep action row aligned to the same filter/grid baseline
+  padding-left: calc(var(--global-page-inner-padding) + 1rem);
+  padding-right: calc(var(--global-page-inner-padding) + 1rem);
   box-sizing: border-box;
 }
 
@@ -399,4 +401,27 @@ mat-form-field input,
 .list-layout-tabbed app-data-table .datatable-add-btn {
   min-height: 34px;
   border-radius: 4px;
+}
+
+/* Shared pattern: align external action buttons with data-table filter row */
+.table-filter-row-actions-wrap {
+  --filter-row-actions-top: 2.6rem;
+  --filter-row-actions-reserve: 24rem;
+  position: relative;
+}
+
+.table-filter-row-actions-wrap--compact {
+  --filter-row-actions-reserve: 18rem;
+}
+
+.table-filter-row-actions {
+  position: absolute;
+  top: var(--filter-row-actions-top);
+  right: calc(var(--global-page-inner-padding) + 1rem);
+  z-index: 2;
+  margin-top: 0 !important;
+}
+
+.table-filter-row-actions-wrap app-data-table .datatable-search-wrap {
+  padding-right: var(--filter-row-actions-reserve) !important;
 }

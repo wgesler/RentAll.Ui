@@ -34,24 +34,22 @@
     </div>
   }
   
-  <!-- Action buttons row -->
-  <div class="list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 mt-3 px-4">
-    <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-      Inactive
-    </mat-slide-toggle>
-    <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
-      <mat-icon class="text-base">add</mat-icon>
-      <span>Add</span>
-    </button>
-  </div>
-  
-  <div class="mt-4 px-4">
+  <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact mt-4">
     @if (isLoading) {
       <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading ledger lines...</p>
       </div>
     } @else {
+      <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
+        <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+          Inactive
+        </mat-slide-toggle>
+        <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+          <mat-icon class="text-base">add</mat-icon>
+          <span>Add</span>
+        </button>
+      </div>
       <app-data-table
         [data]="ledgerRows"
         [columns]="generalLedgerColumns"

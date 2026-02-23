@@ -9,22 +9,22 @@
       </span>
     </div>
 
-    <!-- Organization dropdown for SuperAdmin -->
-    @if (isSuperAdmin) {
-      <div class="flex gap-4 items-center mt-3 px-4 mb-4">
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>Organization</mat-label>
-          <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }">
-            <mat-option [value]="null">Select Organization</mat-option>
-            @for (organization of organizations; track organization.organizationId) {
-              <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      </div>
-    }
-
     <mat-card>
+      @if (isSuperAdmin) {
+        <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+          <div class="flex items-center gap-3" style="height: 56px;">
+            <mat-form-field appearance="outline" class="organization-dropdown">
+              <mat-label>Organization</mat-label>
+              <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }">
+                <mat-option [value]="null">Select Organization</mat-option>
+                @for (organization of organizations; track organization.organizationId) {
+                  <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      }
       <div class="info-form mb-8 pt-5 tableDiv">
         <mat-accordion multi="true">
           <!-- Offices Section -->

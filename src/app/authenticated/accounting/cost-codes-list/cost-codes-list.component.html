@@ -15,19 +15,20 @@
           </mat-form-field>
         </div>
       }
-      <!-- Action buttons row -->
-      <div class="list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 mt-3 px-4">
-        <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-          Inactive
-        </mat-slide-toggle>
-        <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
-          <mat-icon class="text-base">add</mat-icon>
-          <span>Add</span>
-        </button>
-      </div>
     }
     <!-- Filter and data table below -->
-    <div class="tableDiv">
+    <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
+      @if (showInactiveInput === undefined) {
+        <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
+          <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
+        </div>
+      }
       <app-data-table
         [data]="costCodesDisplay"
         [columns]="costCodesDisplayedColumns"
