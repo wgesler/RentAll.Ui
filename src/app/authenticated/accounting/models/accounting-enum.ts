@@ -9,7 +9,7 @@ export const TransactionTypeLabels: { value: TransactionType, label: string }[] 
   { value: TransactionType.Charge, label: 'Charge' },
   { value: TransactionType.Payment, label: 'Payment' },
   { value: TransactionType.Deposit, label: 'Deposit' },
-  { value: TransactionType.Deposit, label: 'SDW' }
+  { value: TransactionType.Sdw, label: 'SDW' }
 ];
 
 export function getTransactionType(transactionTypeId: number | undefined): string {

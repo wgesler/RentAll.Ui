@@ -38,6 +38,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
+  @Input() hideFilters: boolean = false;
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
@@ -786,6 +787,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+
+        // During logout, office cache is cleared before navigation completes.
+        // Avoid invoice requests with an invalid/cleared auth context.
+        if (!this.offices.length) {
+          this.selectedOffice = null;
+          this.selectedReservation = null;
+          this.selectedCompany = null;
+          this.availableReservations = [];
+          this.availableCompanies = [];
+          this.allInvoices = [];
+          this.invoicesDisplay = [];
+          return;
+        }
         
         // For Accounting tab, keep default as All Offices.
         // Only auto-select single office for non-accounting contexts.
@@ -798,6 +812,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         
         // Set selectedOffice from input
         // Always check current officeId input value to sync with other tabs
+        let requestedInvoices = false;
         if (this.officeId !== null && this.officeId !== undefined) {
           const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
           if (matchingOffice !== this.selectedOffice) {
@@ -809,12 +824,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               // Load invoices for selected office
               this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
               this.getInvoices();
+              requestedInvoices = true;
             } else {
               this.selectedReservation = null;
               this.selectedCompany = null;
               // Load all invoices when "All Offices" is selected
               this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
               this.loadAllInvoices();
+              requestedInvoices = true;
             }
           }
         } else if (this.selectedOffice && this.offices.length === 1 && this.source !== 'accounting') {
@@ -825,16 +842,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.applyFilters();
         }
         
-        // Load invoices - show all if no office selected, or filter by office if selected
-        if (this.selectedOffice) {
-          this.filterCostCodes();
-          this.filterCompanies();
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-          this.getInvoices();
-        } else {
-          // Load all invoices when no office is selected
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-          this.loadAllInvoices();
+        // Request invoices once per office update.
+        if (!requestedInvoices) {
+          if (this.selectedOffice) {
+            this.filterCostCodes();
+            this.filterCompanies();
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.getInvoices();
+          } else {
+            // Load all invoices when no office is selected
+            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+            this.loadAllInvoices();
+          }
         }
       });
     });

@@ -9,7 +9,7 @@
 
       <!-- Office, Reservation, and Property Code Section -->
       <div class="input-controls">
-        <div class="flex gap-3 items-center mt-3 px-4">
+        <div class="list-top-controls list-top-controls--standard flex gap-3 items-center mt-3 px-4">
           <!-- Office Dropdown -->
           <mat-form-field appearance="outline" class="office-dropdown">
             <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
@@ -22,7 +22,7 @@
           </mat-form-field>
 
           <!-- Property Code (disabled when coming from reservation) -->
-          <mat-form-field appearance="outline" class="property-code-field">
+          <mat-form-field appearance="outline" class="property-code-field" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
             <mat-label>Property Code</mat-label>
             <input matInput [value]="property?.propertyCode || ''" [disabled]="!!reservationId">
           </mat-form-field>

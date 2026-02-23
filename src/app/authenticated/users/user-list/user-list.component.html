@@ -8,11 +8,22 @@
         </span>
       </div>
       <mat-card>
-        <div class="mat">
+        <div class="mat list-layout-standard">
           <!-- Office dropdown row - just above data table -->
-          <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+          <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
             <div class="flex items-center gap-3" style="height: 56px;">
-              @if (showOfficeDropdown) {
+              @if (isSuperAdminUser) {
+                <mat-form-field appearance="outline" class="office-dropdown">
+                  <mat-label>{{ selectedOrganization ? 'Organization' : 'All Organizations' }}</mat-label>
+                  <mat-select [(ngModel)]="selectedOrganization" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Organizations">
+                    <mat-option [value]="null">All Organizations</mat-option>
+                    @for (organization of organizations; track organization.organizationId) {
+                      <mat-option [value]="organization">{{ organization.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+              @if (showOfficeDropdown && !isSuperAdminUser) {
                 <mat-form-field appearance="outline" class="office-dropdown">
                   <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
                   <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">

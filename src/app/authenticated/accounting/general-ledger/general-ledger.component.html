@@ -1,39 +1,41 @@
-<div class="general-ledger-container">
-  <!-- Shared dropdown row -->
-  <div class="flex gap-4 items-center mt-3 px-4">
-    @if (showOfficeDropdown) {
+<div class="general-ledger-container list-layout-tabbed">
+  @if (!hideFilters) {
+    <!-- Shared dropdown row -->
+    <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+      @if (showOfficeDropdown) {
+        <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+            <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
+              <mat-option [value]="null">All Offices</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
       <mat-form-field appearance="outline" style="width: 300px;">
-        <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-          <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
-            <mat-option [value]="null">All Offices</mat-option>
-          @for (office of offices; track office.officeId) {
-            <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+        <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
+          <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+            <mat-option [value]="null">All Companies</mat-option>
+          @for (company of availableCompanies; track company.value.companyId) {
+            <mat-option [value]="company.value">{{ company.label }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
-    }
-    <mat-form-field appearance="outline" style="width: 300px;">
-      <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
-        <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
-          <mat-option [value]="null">All Companies</mat-option>
-        @for (company of availableCompanies; track company.value.companyId) {
-          <mat-option [value]="company.value">{{ company.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-    <mat-form-field appearance="outline" style="width: 300px;">
-      <mat-label>{{ selectedReservationId ? 'Reservation' : 'All Reservations' }}</mat-label>
-        <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
-          <mat-option [value]="null">All Reservations</mat-option>
-        @for (reservation of availableReservations; track reservation.value.reservationId) {
-          <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-  </div>
+      <mat-form-field appearance="outline" style="width: 300px;">
+        <mat-label>{{ selectedReservationId ? 'Reservation' : 'All Reservations' }}</mat-label>
+          <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+            <mat-option [value]="null">All Reservations</mat-option>
+          @for (reservation of availableReservations; track reservation.value.reservationId) {
+            <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  }
   
   <!-- Action buttons row -->
-  <div class="flex justify-end items-center gap-5 mt-3 px-4">
+  <div class="list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 mt-3 px-4">
     <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
       Inactive
     </mat-slide-toggle>

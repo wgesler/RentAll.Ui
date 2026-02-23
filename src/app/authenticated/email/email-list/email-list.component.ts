@@ -33,6 +33,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() emailTypeId?: number;
   @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | null = null;
   @Input() hideHeader: boolean = false;
+  @Input() hideFilters: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();

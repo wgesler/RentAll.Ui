@@ -306,3 +306,97 @@ mat-form-field input,
 .mat-expansion-panel-header .mat-expansion-indicator svg path {
   fill: #000000 !important;
 }
+
+/* Global list top-controls sizing/shape baseline */
+.list-top-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  box-sizing: border-box;
+}
+
+.list-top-controls--standard {
+  min-height: 56px;
+  margin-top: 1rem;
+}
+
+.list-top-controls--tabbed {
+  min-height: 48px;
+  margin-top: 0.75rem;
+}
+
+.list-top-controls .office-dropdown,
+.list-top-controls .company-dropdown,
+.list-top-controls .reservation-dropdown,
+.list-top-controls .organization-dropdown,
+.list-top-controls mat-form-field {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+}
+
+.list-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  box-sizing: border-box;
+}
+
+.list-top-actions--standard {
+  min-height: 56px;
+  gap: 0.75rem;
+  margin-top: 0;
+}
+
+.list-top-actions--tabbed {
+  min-height: 48px;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.list-top-actions--standard button[mat-raised-button] {
+  height: 36px;
+  border-radius: 6px;
+  padding: 0 14px;
+}
+
+.list-top-actions--tabbed button[mat-raised-button] {
+  height: 34px;
+  border-radius: 4px;
+  padding: 0 12px;
+}
+
+/* Shared app-data-table top-row styles for non-tabbed pages */
+.list-layout-standard app-data-table .datatable-search-wrap {
+  margin-top: 1rem !important;
+}
+
+.list-layout-standard app-data-table .datatable-search-wrap .flex.justify-center {
+  gap: 0.75rem !important;
+  margin-bottom: 0 !important;
+}
+
+.list-layout-standard app-data-table .datatable-add-btn {
+  min-height: 36px;
+  border-radius: 6px;
+}
+
+/* Shared app-data-table top-row styles for tabbed pages */
+.list-layout-tabbed app-data-table .datatable-search-wrap {
+  margin-top: 0.75rem !important;
+}
+
+.list-layout-tabbed app-data-table .datatable-search-wrap .flex.justify-center {
+  gap: 0.5rem !important;
+  margin-bottom: 0 !important;
+}
+
+.list-layout-tabbed app-data-table .datatable-add-btn {
+  min-height: 34px;
+  border-radius: 4px;
+}

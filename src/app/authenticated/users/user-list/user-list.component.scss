@@ -44,33 +44,3 @@ body {
   padding: var(--global-page-inner-padding);
 }
 
-.office-dropdown {
-  min-width: 250px;
-  width: 100%;
-  max-width: 300px;
-}
-
-// Ensure consistent row height for office dropdown row
-.flex.justify-between.items-center.mt-4 {
-  height: 56px !important;
-  align-items: center;
-  display: flex !important;
-}
-
-// Ensure the left side container maintains height
-.flex.items-center.gap-3 {
-  height: 56px;
-  align-items: center;
-  display: flex;
-}
-
-
-
-
-
-
-
-
-
-
-

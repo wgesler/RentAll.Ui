@@ -9,7 +9,29 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
+          @if (isSuperAdmin) {
+            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Organization</mat-label>
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of availableOffices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
           <app-invoice-list 
+            [hideFilters]="isSuperAdmin"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -39,7 +61,29 @@
           }
         </mat-tab>
         <mat-tab label="General Ledger">
+          @if (isSuperAdmin) {
+            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Organization</mat-label>
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of availableOffices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
           <app-general-ledger 
+            [hideFilters]="isSuperAdmin"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -49,9 +93,31 @@
           </app-general-ledger>
         </mat-tab>
         <mat-tab label="Emails">
+          @if (isSuperAdmin) {
+            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Organization</mat-label>
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of availableOffices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
           <app-email-list
             #accountingEmailList
             [hideHeader]="true"
+            [hideFilters]="isSuperAdmin"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -63,10 +129,32 @@
           </app-email-list>
         </mat-tab>
         <mat-tab label="Documents">
+          @if (isSuperAdmin) {
+            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>Organization</mat-label>
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" style="width: 300px;">
+                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of availableOffices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
           <app-document-list 
             #accountingDocumentList
             [documentTypeId]="DocumentType.Invoice"
             [hideHeader]="true"
+            [hideFilters]="isSuperAdmin"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"

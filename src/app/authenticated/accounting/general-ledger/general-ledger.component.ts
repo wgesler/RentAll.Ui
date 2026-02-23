@@ -52,6 +52,7 @@ interface LedgerLineWithDateFields {
     styleUrls: ['./general-ledger.component.scss']
 })
 export class GeneralLedgerComponent implements OnInit, OnChanges {
+  @Input() hideFilters: boolean = false;
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent

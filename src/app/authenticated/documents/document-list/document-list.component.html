@@ -1,9 +1,10 @@
 @if (!(isLoading$ | async)) {
   @if (hideHeader) {
     <!-- Full-page layout when inside a tab -->
-    <div class="document-list-tab-container">
+    <div class="document-list-tab-container list-layout-tabbed">
+      @if (!hideFilters) {
       <!-- Office and conditional field dropdown row -->
-      <div class="flex gap-4 items-center mt-3 px-4">
+      <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
         @if (showOfficeDropdown) {
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
@@ -80,8 +81,9 @@
           </mat-form-field>
         }
       </div>
+      }
       <mat-card class="full-height-card">
-        <div class="mat">
+        <div class="mat list-layout-tabbed">
           <div class="tableDiv">
             <app-data-table
               [data]="documentsDisplay"
@@ -114,9 +116,10 @@
           </span>
         </div>
         <mat-card>
-          <div class="mat">
+          <div class="mat list-layout-standard">
+            @if (!hideFilters) {
             <!-- Office and conditional field dropdown row -->
-            <div class="flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+            <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
               <div class="flex items-center gap-3" style="height: 56px;">
                 @if (showOfficeDropdown) {
                   <mat-form-field appearance="outline" style="width: 300px;">
@@ -195,6 +198,7 @@
                 }
               </div>
             </div>
+            }
             <div class="tableDiv">
               <app-data-table
                 [data]="documentsDisplay"

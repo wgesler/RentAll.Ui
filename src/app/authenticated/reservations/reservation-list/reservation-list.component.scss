@@ -63,12 +63,6 @@ body {
   }
 }
 
-.office-dropdown {
-  min-width: 250px;
-  width: 100%;
-  max-width: 300px;
-}
-
 .date-field {
   min-width: 250px;
   width: 100%;
@@ -119,36 +113,3 @@ body {
   padding: 0 16px;
   min-width: auto;
 }
-
-// Reduce gap between Inactive toggle and Add button
-::ng-deep #toggle-users {
-  margin-right: 0.5rem !important;
-}
-
-::ng-deep .datatable-search-wrap .flex.justify-center {
-  gap: 0.5rem !important;
-}
-
-// Ensure consistent row height for office dropdown row - match Properties page
-.flex.justify-between.items-center.mt-4 {
-  height: 56px !important; // Fixed height to match Properties page
-  align-items: center; // Ensure vertical alignment
-  display: flex !important;
-}
-
-// Ensure the left side container maintains height
-.flex.items-center.gap-3 {
-  height: 56px;
-  align-items: center;
-  display: flex;
-}
-
-
-
-
-
-
-
-
-
-

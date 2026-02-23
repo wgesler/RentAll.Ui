@@ -51,24 +51,6 @@
   }
 }
 
-.office-dropdown {
-  min-width: 250px;
-  width: 100%;
-  max-width: 300px;
-}
-
-.company-dropdown {
-  min-width: 300px;
-  width: 100%;
-  max-width: 400px;
-}
-
-.reservation-dropdown {
-  min-width: 300px;
-  width: 100%;
-  max-width: 400px;
-}
-
 .payment-form-box {
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -76,7 +58,7 @@
   background-color: #fafafa;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-size: 11px !important;
-  margin-bottom: 16px !important;
+  margin-bottom: 0 !important;
   
   ::ng-deep {
     * {

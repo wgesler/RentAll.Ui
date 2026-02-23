@@ -65,7 +65,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
       icon: 'account_balance',
       displayName: 'Accounting',
       url: RouterToken.AccountingList,
-      requiredRoles: [UserGroups.Accounting, UserGroups.Admin], // Accounting and Admin only
+      requiredRoles: [UserGroups.Accounting, UserGroups.Admin, UserGroups.SuperAdmin], // Accounting, Admin, and SuperAdmin
       excludedRoles: [] // No exclusions
     },
     {
@@ -182,8 +182,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
       return typeof group === 'number' ? group : null;
     }).filter(num => num !== null) as number[];
 
+    const isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
+
     // Filter nav items based on user roles
-    this.navItems = this.allNavItems.filter(item => {
+    const filteredNavItems = this.allNavItems.filter(item => {
       // First check if user is excluded
       if (item.excludedRoles && item.excludedRoles.length > 0) {
         const isExcluded = item.excludedRoles.some(role => userGroupNumbers.includes(role));
@@ -200,6 +202,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
       // Check if user has at least one of the required roles
       return item.requiredRoles.some(role => userGroupNumbers.includes(role));
     });
+
+    if (isSuperAdmin) {
+      const organizationsItem = filteredNavItems.find(item => item.url === RouterToken.OrganizationList);
+      const otherItems = filteredNavItems.filter(item => item.url !== RouterToken.OrganizationList);
+      this.navItems = organizationsItem ? [organizationsItem, ...otherItems] : otherItems;
+      return;
+    }
+
+    this.navItems = filteredNavItems;
   }
 
   sideNavToggleHandler(): void {

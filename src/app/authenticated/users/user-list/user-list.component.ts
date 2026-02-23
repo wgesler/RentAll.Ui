@@ -12,6 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -39,6 +40,8 @@ export class UserListComponent implements OnInit, OnDestroy {
   showOfficeDropdown: boolean = true;
   officesSubscription?: Subscription;
   isSuperAdminUser: boolean = false;
+  organizations: OrganizationResponse[] = [];
+  selectedOrganization: OrganizationResponse | null = null;
 
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
@@ -88,6 +91,8 @@ export class UserListComponent implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: ({ users, organizations }) => {
+        this.organizations = organizations || [];
+
         // Create lookup map for organizations
         const orgMap = new Map<string, string>();
         organizations.forEach(org => {
@@ -165,6 +170,10 @@ export class UserListComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(user => (user.officeAccess || []).includes(this.selectedOffice!.officeId));
     }
 
+    if (this.isSuperAdminUser && this.selectedOrganization) {
+      filtered = filtered.filter(user => user.organizationName === this.selectedOrganization?.name);
+    }
+
     this.usersDisplay = filtered;
   }
 
@@ -174,6 +183,10 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    this.applyFilters();
+  }
+
+  onOrganizationChange(): void {
     this.applyFilters();
   }
   //#endregion

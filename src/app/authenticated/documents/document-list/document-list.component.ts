@@ -36,6 +36,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyCode: string | null = null;
   @Input() documentTypeId?: number;
   @Input() hideHeader: boolean = false;
+  @Input() hideFilters: boolean = false;
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
