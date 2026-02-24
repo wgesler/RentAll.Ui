@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { UserGroups } from '../authenticated/users/models/user-enums';
 
 @Injectable({
   providedIn: 'root'
@@ -52,5 +53,22 @@ export class UtilityService {
     }
     
     return fileName;
+  }
+
+  hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
+    if (!groups || groups.length === 0) {
+      return false;
+    }
+
+    return groups.some(group => {
+      if (typeof group === 'string') {
+        if (group === UserGroups[role]) {
+          return true;
+        }
+        const parsed = Number(group);
+        return !isNaN(parsed) && parsed === role;
+      }
+      return typeof group === 'number' && group === role;
+    });
   }
 }

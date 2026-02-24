@@ -37,13 +37,15 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() documentTypeId?: number;
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
-  @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() source: 'property' | 'reservation' | 'invoice' | 'documents' | null = null; // Source component where document-list is embedded
+  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() companyId: string | null = null; // Input to accept companyId from parent
+  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
+  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -126,14 +128,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedReservationId = this.reservationId;
     }
     
-    // Pre-select propertyId if provided and source is 'property'
     if (this.source === 'property' && this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
       this.selectedPropertyId = this.propertyId;
     }
     
     // Add 'documents' to loading set before loading
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
-    
     this.loadOffices();
     
     // Load data based on source

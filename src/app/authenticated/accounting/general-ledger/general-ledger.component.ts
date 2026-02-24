@@ -53,12 +53,14 @@ interface LedgerLineWithDateFields {
 })
 export class GeneralLedgerComponent implements OnInit, OnChanges {
   @Input() hideFilters: boolean = false;
+  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
+  @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Input() companyId: string | null = null; // Input to accept companyId from parent
+  @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
+  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   
   selectedOfficeId: number | null = null;
   selectedReservationId: string | null = null;

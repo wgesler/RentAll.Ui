@@ -41,14 +41,15 @@ import { CostCodesService } from '../services/cost-codes.service';
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
   @Input() hideFilters: boolean = false;
-  @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Input() companyId: string | null = null; // Input to accept companyId from parent
-  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
+  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
+  @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() companyId: string | null = null; // Input to accept companyId from parent
+  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
+  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() printInvoiceEvent = new EventEmitter<{ officeId: number | null, reservationId: string | null, invoiceId: string }>(); // Emit print invoice event to parent
   
   panelOpenState: boolean = true;
@@ -321,6 +322,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+
+    if (changes['organizationId']) {
+      const newOrganizationId = changes['organizationId'].currentValue;
+      const previousOrganizationId = changes['organizationId'].previousValue;
+
+      if (previousOrganizationId === undefined || newOrganizationId !== previousOrganizationId) {
+        this.applyFilters();
+      }
+    }
   }
 
   getInvoices(): void {
@@ -544,6 +554,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.showInactive) {
       filtered = filtered.filter(invoice => invoice.isActive);
     }
+
+    // In Accounting SuperAdmin mode, organization filter maps to recipient organization
+    // which is stored in invoice.reservationId for billing invoices.
+    if (this.source === 'accounting' && this.isSuperUser && this.organizationId) {
+      filtered = filtered.filter(invoice => invoice.reservationId === this.organizationId);
+    }
+
     // Filter by office if selected
     if (this.selectedOffice) {
       filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
@@ -913,6 +930,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadAllInvoices(): void {
+    // This gets all invoices for the offices to which the user has access
     this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
@@ -963,10 +981,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     
-    // Filter companies by selected office
     this.filterCompanies();
-    
-    // Filter reservations by selected office
     this.filterReservations();
     
     // Load invoices - show all if no office selected, or filter by office if selected

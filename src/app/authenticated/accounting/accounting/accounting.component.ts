@@ -1,12 +1,12 @@
 
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { OfficeService } from '../../organizations/services/office.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -15,12 +15,10 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
-import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
+import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
-import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
-import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
     selector: 'app-accounting',
@@ -29,7 +27,6 @@ import { CostCodesService } from '../services/cost-codes.service';
     FormsModule,
     InvoiceListComponent,
     CostCodesListComponent,
-    CostCodesComponent,
     GeneralLedgerComponent,
     DocumentListComponent,
     EmailListComponent
@@ -38,37 +35,30 @@ import { CostCodesService } from '../services/cost-codes.service';
     styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
-  @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
-  @ViewChild('accountingEmailList') accountingEmailList?: EmailListComponent;
-  
   DocumentType = DocumentType; // Expose DocumentType enum to template
   EmailType = EmailType; // Expose EmailType enum to template
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   isSuperAdmin: boolean = false;
+
   organizations: OrganizationResponse[] = [];
-  selectedOrganizationId: string | null = null;
   availableOffices: OfficeResponse[] = [];
-  selectedOfficeId: number | null = null; // Shared office selection state
-  selectedReservationId: string | null = null; // Shared reservation selection state
-  selectedInvoiceId: string | null = null; // Shared invoice selection state
-  selectedCompanyId: string | null = null; // Shared company selection state
-  
-  
-  // Cost Codes edit state
-  isEditingCostCodes: boolean = false;
-  costCodesId: string | number | null = null;
-  costCodesOfficeId: number | null = null;
+  selectedOrganizationId: string | null = null;
+  selectedOfficeId: number | null = null; 
+  selectedCompanyId: string | null = null; 
+  selectedReservationId: string | null = null; 
+  selectedInvoiceId: string | null = null; 
+   
   destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private costCodesService: CostCodesService,
     private authService: AuthService,
-    private organizationService: OrganizationService,
-    private officeService: OfficeService
+    private utilityService: UtilityService,
+    private organizationService: OrganizationService
   ) { }
 
+  //#region Accounting
   ngOnInit(): void {
     this.initializeSuperAdminFilters();
     this.applyQueryParamState(this.route.snapshot.queryParams);
@@ -78,20 +68,14 @@ export class AccountingComponent implements OnInit, OnDestroy {
       .subscribe(params => this.applyQueryParamState(params));
   }
 
-  //#region Tab Selections
-  private initializeSuperAdminFilters(): void {
+  initializeSuperAdminFilters(): void {
     const user = this.authService.getUser();
-    this.isSuperAdmin = this.hasRole(user?.userGroups, UserGroups.SuperAdmin);
+    this.isSuperAdmin = this.utilityService.hasRole(user?.userGroups, UserGroups.SuperAdmin);
     if (!this.isSuperAdmin) {
       return;
     }
 
     this.selectedOrganizationId = null;
-    this.loadOrganizationsForSuperAdmin();
-    this.loadOfficesForOrganization(null);
-  }
-
-  private loadOrganizationsForSuperAdmin(): void {
     const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
     this.organizationService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
@@ -99,112 +83,47 @@ export class AccountingComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  private loadOfficesForOrganization(organizationId: string | null): void {
-    if (!organizationId) {
-      this.availableOffices = [];
-      this.selectedOfficeId = null;
-      return;
-    }
-
-    // Keep the shared office cache aligned so child tabs map office names correctly.
-    this.officeService.loadAllOffices(organizationId);
-
-    this.officeService.getOfficesByOrganization(organizationId).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (offices) => {
-        this.availableOffices = offices || [];
-        const officeStillValid = this.availableOffices.some(o => o.officeId === this.selectedOfficeId);
-        if (!officeStillValid) {
-          this.selectedOfficeId = null;
-          this.selectedReservationId = null;
-          this.selectedCompanyId = null;
-        }
-      },
-      error: () => {
-        this.availableOffices = [];
-        this.selectedOfficeId = null;
-      }
-    });
-  }
-
-  onOrganizationFilterChange(): void {
-    this.selectedOfficeId = null;
-    this.selectedReservationId = null;
-    this.selectedCompanyId = null;
-    this.loadOfficesForOrganization(this.selectedOrganizationId);
-  }
-
-  onOfficeFilterChange(): void {
-    this.selectedReservationId = null;
-    this.selectedCompanyId = null;
-  }
-
-  private hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
-    if (!groups || groups.length === 0) {
-      return false;
-    }
-
-    return groups.some(group => {
-      if (typeof group === 'string') {
-        if (group === UserGroups[role]) {
-          return true;
-        }
-        const parsed = Number(group);
-        return !isNaN(parsed) && parsed === role;
-      }
-      return typeof group === 'number' && group === role;
-    });
-  }
-
-  onTabChange(event: any): void {
-    this.selectedTabIndex = event.index;
-    // Keep URL tab-only to avoid preselecting dropdowns from query params.
-    const queryParams: any = { tab: event.index.toString() };
-    this.router.navigate([], { 
-      relativeTo: this.route,
-      queryParams,
-      queryParamsHandling: 'merge'
-    });
-    
-    // When Emails tab (index 3) is selected, reload the email list
-    if (event.index === 3 && this.accountingEmailList) {
-      this.accountingEmailList.reload();
-    }
-
-    // When Documents tab (index 4) is selected, reload the document list
-    if (event.index === 4 && this.accountingDocumentList) {
-      this.accountingDocumentList.reload();
+  //#region Invoice Drop Downs
+  onInvoiceOrganizationChange(organizationId: string | null): void {
+    if (this.selectedOrganizationId !== organizationId) {
+      this.selectedOrganizationId = organizationId;
     }
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
    if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
-      if (this.accountingDocumentList) {
-        this.accountingDocumentList.reload();
-      }
     }
   }
-
-  onInvoiceReservationChange(reservationId: string | null): void {
-    if (this.selectedReservationId !== reservationId) {
-      this.selectedReservationId = reservationId;
-      if (this.accountingDocumentList) {
-        this.accountingDocumentList.reload();
-      }
-    }
-  }
-
+  
   onInvoiceCompanyChange(companyId: string | null): void {
     if (this.selectedCompanyId !== companyId) {
       this.selectedCompanyId = companyId;
     }
   }
 
+  onInvoiceReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+    }
+  }
+  //#endregion
+
+  //region CostCode Drop Downs
   onCostCodesOfficeChange(officeId: number | null): void {
     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
      }
+  }
+  //#endregion
+
+  //#region General Ledger Drop Downs
+  onGeneralLedgerOrganizationChange(organizationId: string | null): void {
+    if (this.selectedOrganizationId !== organizationId) {
+        this.selectedOrganizationId = organizationId
+    }
   }
 
   onGeneralLedgerOfficeChange(officeId: number | null): void {
@@ -224,29 +143,39 @@ export class AccountingComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = companyId;
     }
   }
+  //#endregion
+
+  //#region Document Drop Downs
+  onDocumentsOrganizationChange(organizationId: string | null): void {
+    if (this.selectedOrganizationId !== organizationId) {
+      this.selectedOrganizationId = organizationId
+    }
+  }
 
   onDocumentsOfficeChange(officeId: number | null): void {
      if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
        this.selectedReservationId = null;
-       if (this.accountingDocumentList) {
-        this.accountingDocumentList.reload();
-      }
-    }
-  }
-  
-  onDocumentsReservationChange(reservationId: string | null): void {
-    if (this.selectedReservationId !== reservationId) {
-      this.selectedReservationId = reservationId;
-       if (this.accountingDocumentList) {
-        this.accountingDocumentList.reload();
-      }
     }
   }
 
   onDocumentsCompanyChange(companyId: string | null): void {
     if (this.selectedCompanyId !== companyId) {
       this.selectedCompanyId = companyId;
+      }
+  }
+
+  onDocumentsReservationChange(reservationId: string | null): void {
+    if (this.selectedReservationId !== reservationId) {
+      this.selectedReservationId = reservationId;
+    }
+  }
+  //#endregion
+
+  //#region Email Drop Downs
+  onEmailsOrganizationChange(organizationId: string | null): void {
+    if (this.selectedOrganizationId !== organizationId) {
+      this.selectedOrganizationId = organizationId;
     }
   }
 
@@ -256,16 +185,30 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
   }
 
+  onEmailsCompanyChange(companyId: string | null): void {
+    if (this.selectedCompanyId !== companyId) {
+      this.selectedCompanyId = companyId;
+    }
+  }
+  
   onEmailsReservationChange(reservationId: string | null): void {
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
   }
+  //#endregion
 
-  onEmailsCompanyChange(companyId: string | null): void {
-    if (this.selectedCompanyId !== companyId) {
-      this.selectedCompanyId = companyId;
-    }
+  //#region Tab Selections
+  onTabChange(event: any): void {
+    this.selectedTabIndex = event.index;
+    // Keep URL tab-only to avoid preselecting dropdowns from query params.
+    const queryParams: any = { tab: event.index.toString() };
+    this.router.navigate([], { 
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge'
+    });
+    
   }
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
@@ -297,33 +240,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(url);
   }
 
-  onCostCodesAdd(): void {
-    this.costCodesId = 'new';
-    this.costCodesOfficeId = this.selectedOfficeId;
-    this.isEditingCostCodes = true;
-  }
-
-  onCostCodesEdit(event: { costCodeId: string, officeId: number | null }): void {
-    this.costCodesId = event.costCodeId;
-    this.costCodesOfficeId = event.officeId || this.selectedOfficeId;
-    this.isEditingCostCodes = true;
-  }
-
-  onCostCodesBack(): void {
-    // Refresh cost codes list when navigating back
-    if (this.selectedOfficeId) {
-      this.costCodesService.refreshCostCodesForOffice(this.selectedOfficeId);
-    }
-    this.costCodesId = null;
-    this.costCodesOfficeId = null;
-    this.isEditingCostCodes = false;
-  }
-
-  onCostCodesSaved(): void {
-    if (this.selectedOfficeId) {
-      this.costCodesService.refreshCostCodesForOffice(this.selectedOfficeId);
-    }
-  }
   //#endregion
 
   //#region Utility Methods

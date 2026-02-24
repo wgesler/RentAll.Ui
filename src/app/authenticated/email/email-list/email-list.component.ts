@@ -25,19 +25,21 @@ import { CompanyService } from '../../companies/services/company.service';
   styleUrl: './email-list.component.scss'
 })
 export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() propertyId?: string;
-  @Input() propertyCode: string | null = null;
-  @Input() officeId: number | null = null;
-  @Input() reservationId: string | null = null;
-  @Input() companyId: string | null = null;
-  @Input() emailTypeId?: number;
-  @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | null = null;
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
+  @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | null = null;
+  @Input() propertyId?: string;
+  @Input() propertyCode: string | null = null;
+  @Input() organizationId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Input() companyId: string | null = null;
+  @Input() reservationId: string | null = null;
+  @Input() emailTypeId?: number;
+  @Output() organizationIdChange = new EventEmitter<string | null>();
+  @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
-  @Output() companyIdChange = new EventEmitter<string | null>();
-
+ 
   emails: EmailListDisplay[] = [];
   allEmails: EmailListDisplay[] = [];
   isLoading = false;

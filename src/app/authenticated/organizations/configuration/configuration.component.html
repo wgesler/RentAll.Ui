@@ -138,22 +138,11 @@
               <mat-panel-title>Cost Codes</mat-panel-title>
             </mat-expansion-panel-header>
             <div class="agents-container">
-              @if (isEditingCostCodes && costCodesId) {
-                <app-cost-codes 
-                  [id]="costCodesId" 
-                  [officeId]="costCodesOfficeId"
-                  [source]="'configuration'"
-                  (backEvent)="onCostCodesBack()">
-                </app-cost-codes>
-              } @else {
-                <app-cost-codes-list 
-                  [officeId]="selectedCostCodesOfficeId"
-                  [embeddedInSettings]="true"
-                  (addCostCodeEvent)="onCostCodesAdd()"
-                  (editCostCodeEvent)="onCostCodesEdit($event)"
-                  (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
-                </app-cost-codes-list>
-              }
+              <app-cost-codes-list 
+                [officeId]="selectedCostCodesOfficeId"
+                [embeddedInSettings]="true"
+                (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
+              </app-cost-codes-list>
             </div>
           </mat-expansion-panel>
 

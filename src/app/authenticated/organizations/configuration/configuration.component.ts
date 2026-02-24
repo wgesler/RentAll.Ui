@@ -9,7 +9,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
-import { CostCodesComponent } from '../../accounting/cost-codes/cost-codes.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { AccountingOfficeListComponent } from '../accounting-office-list/accounting-office-list.component';
 import { AccountingOfficeComponent } from '../accounting-office/accounting-office.component';
@@ -47,7 +46,6 @@ import { OrganizationService } from '../services/organization.service';
     BuildingListComponent,
     BuildingComponent,
     CostCodesListComponent,
-    CostCodesComponent,
     ColorListComponent,
     ColorComponent
 ],
@@ -77,9 +75,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   areaId: string | number | null = null;
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
-  isEditingCostCodes: boolean = false;
-  costCodesId: string | number | null = null;
-  costCodesOfficeId: number | null = null;
   selectedCostCodesOfficeId: number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
@@ -164,7 +159,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onCostCodesOfficeChangeFromList(officeId: number | null): void {
     // Handle office change from cost-codes-list component
     this.selectedCostCodesOfficeId = officeId;
-    this.costCodesOfficeId = officeId;
   }
 
   onOfficeSelected(officeId: string | number | null): void {
@@ -243,35 +237,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onBuildingBack(): void {
     this.buildingId = null;
     this.isEditingBuilding = false;
-  }
-
-  onCostCodesAdd(): void {
-    this.costCodesId = 'new';
-    this.costCodesOfficeId = this.selectedCostCodesOfficeId;
-    this.isEditingCostCodes = true;
-    if (this.isEditingCostCodes) {
-      this.expandedSections.costCodes = true;
-    }
-  }
-
-  onCostCodesEdit(event: string | { costCodeId: string, officeId: number | null }): void {
-    if (typeof event === 'string') {
-      this.costCodesId = event;
-      this.costCodesOfficeId = this.selectedCostCodesOfficeId;
-    } else {
-      this.costCodesId = event.costCodeId;
-      this.costCodesOfficeId = event.officeId || this.selectedCostCodesOfficeId;
-    }
-    this.isEditingCostCodes = true;
-    if (this.isEditingCostCodes) {
-      this.expandedSections.costCodes = true;
-    }
-  }
-
-  onCostCodesBack(): void {
-    this.costCodesId = null;
-    this.costCodesOfficeId = null;
-    this.isEditingCostCodes = false;
   }
 
   onColorSelected(colorId: string | number | null): void {

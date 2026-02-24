@@ -13,7 +13,7 @@
             <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onInvoiceOrganizationChange($event.value)">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
                   }
@@ -28,6 +28,7 @@
             [companyId]="selectedCompanyId"
             [organizationId]="selectedOrganizationId"
             [source]="'accounting'"
+            (organizationIdChange)="onInvoiceOrganizationChange($event)"
             (officeIdChange)="onInvoiceOfficeChange($event)"
             (reservationIdChange)="onInvoiceReservationChange($event)"
             (companyIdChange)="onInvoiceCompanyChange($event)"
@@ -35,29 +36,18 @@
           </app-invoice-list>
         </mat-tab>
         <mat-tab label="Cost Codes">
-          @if (isEditingCostCodes && costCodesId) {
-            <app-cost-codes 
-              [id]="costCodesId" 
-              [officeId]="costCodesOfficeId"
-              [source]="'accounting'"
-              (backEvent)="onCostCodesBack()"
-              (savedEvent)="onCostCodesSaved()">
-            </app-cost-codes>
-          } @else {
-            <app-cost-codes-list 
-              [officeId]="selectedOfficeId"
-              (officeIdChange)="onCostCodesOfficeChange($event)"
-              (addCostCodeEvent)="onCostCodesAdd()"
-              (editCostCodeEvent)="onCostCodesEdit($event)">
-            </app-cost-codes-list>
-          }
+          <app-cost-codes-list 
+            [officeId]="selectedOfficeId"
+            [embeddedInSettings]="true"
+            (officeIdChange)="onCostCodesOfficeChange($event)">
+          </app-cost-codes-list>
         </mat-tab>
         <mat-tab label="General Ledger">
           @if (isSuperAdmin) {
             <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onGeneralLedgerOrganizationChange($event.value)">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
                   }
@@ -70,6 +60,8 @@
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
+            [organizationId]="selectedOrganizationId"
+            (organizationIdChange)="onGeneralLedgerOrganizationChange($event)"
             (officeIdChange)="onGeneralLedgerOfficeChange($event)"
             (reservationIdChange)="onGeneralLedgerReservationChange($event)"
             (companyIdChange)="onGeneralLedgerCompanyChange($event)">
@@ -80,7 +72,7 @@
             <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onEmailsOrganizationChange($event.value)">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
                   }
@@ -95,8 +87,10 @@
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
+            [organizationId]="selectedOrganizationId"
             [emailTypeId]="EmailType.Invoice"
             [source]="'invoice'"
+            (organizationIdChange)="onEmailsOrganizationChange($event)"
             (officeIdChange)="onEmailsOfficeChange($event)"
             (reservationIdChange)="onEmailsReservationChange($event)"
             (companyIdChange)="onEmailsCompanyChange($event)">
@@ -107,7 +101,7 @@
             <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
               <mat-form-field appearance="outline" style="width: 300px;">
                 <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
+                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onDocumentsOrganizationChange($event.value)">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
                   }
@@ -123,7 +117,9 @@
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
+            [organizationId]="selectedOrganizationId"
             [source]="'invoice'"
+            (organizationIdChange)="onDocumentsOrganizationChange($event)"
             (officeIdChange)="onDocumentsOfficeChange($event)"
             (reservationIdChange)="onDocumentsReservationChange($event)"
             (companyIdChange)="onDocumentsCompanyChange($event)">

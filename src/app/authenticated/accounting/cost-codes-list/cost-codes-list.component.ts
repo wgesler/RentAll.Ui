@@ -15,6 +15,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../models/accounting-enum';
+import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
 
@@ -22,17 +23,17 @@ import { CostCodesService } from '../services/cost-codes.service';
     selector: 'app-cost-codes-list',
     templateUrl: './cost-codes-list.component.html',
     styleUrls: ['./cost-codes-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, CostCodesComponent]
 })
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
   @Input() embeddedInSettings: boolean = false; // Input to indicate component is embedded in configuration settings
+  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: string, officeId: number | null }>();
-  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  
+   
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allCostCodes: CostCodesResponse[] = [];
@@ -43,6 +44,9 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  isEditingCostCodes: boolean = false;
+  costCodesId: string | number | null = null;
+  costCodesOfficeId: number | null = null;
 
   costCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
@@ -100,6 +104,13 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addCostCode(): void {
+    if (this.embeddedInSettings) {
+      this.costCodesId = 'new';
+      this.costCodesOfficeId = this.selectedOffice?.officeId || this.officeId || null;
+      this.isEditingCostCodes = true;
+      return;
+    }
+
     // Always emit event - parent can handle navigation if needed
     this.addCostCodeEvent.emit();
     
@@ -143,6 +154,13 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToCostCode(event: CostCodesResponse): void {
+    if (this.embeddedInSettings) {
+      this.costCodesId = event.costCodeId;
+      this.costCodesOfficeId = event.officeId || this.selectedOffice?.officeId || this.officeId || null;
+      this.isEditingCostCodes = true;
+      return;
+    }
+
     // Always emit event - parent can handle navigation if needed
     this.editCostCodeEvent.emit({ 
       costCodeId: event.costCodeId, 
@@ -165,6 +183,23 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.router.navigateByUrl(url);
       }
     }
+  }
+
+  onCostCodesBack(): void {
+    if (this.selectedOffice?.officeId) {
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
+    }
+    this.costCodesId = null;
+    this.costCodesOfficeId = null;
+    this.isEditingCostCodes = false;
+    this.filterCostCodes();
+  }
+
+  onCostCodesSaved(): void {
+    if (this.selectedOffice?.officeId) {
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
+    }
+    this.filterCostCodes();
   }
   //#endregion
 

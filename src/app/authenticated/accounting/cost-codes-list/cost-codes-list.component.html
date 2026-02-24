@@ -1,4 +1,12 @@
-@if (!(isLoading$ | async)) {
+@if (embeddedInSettings && isEditingCostCodes && costCodesId) {
+  <app-cost-codes
+    [id]="costCodesId"
+    [officeId]="costCodesOfficeId"
+    [source]="'accounting'"
+    (backEvent)="onCostCodesBack()"
+    (savedEvent)="onCostCodesSaved()">
+  </app-cost-codes>
+} @else if (!(isLoading$ | async)) {
   <div class="mat list-layout-tabbed">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
