@@ -19,15 +19,6 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of availableOffices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
             </div>
           }
           <app-invoice-list 
@@ -35,6 +26,7 @@
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
+            [organizationId]="selectedOrganizationId"
             [source]="'accounting'"
             (officeIdChange)="onInvoiceOfficeChange($event)"
             (reservationIdChange)="onInvoiceReservationChange($event)"
@@ -71,15 +63,6 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of availableOffices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
             </div>
           }
           <app-general-ledger 
@@ -100,15 +83,6 @@
                 <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of availableOffices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
@@ -136,15 +110,6 @@
                 <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationFilterChange()">
                   @for (organization of organizations; track organization.organizationId) {
                     <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeFilterChange()">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of availableOffices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>

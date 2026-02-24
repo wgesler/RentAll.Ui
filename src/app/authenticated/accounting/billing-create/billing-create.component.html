@@ -1,0 +1,134 @@
+@if (isLoading$ | async) {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+      <mat-card>
+        <div class="loading-container">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Loading invoice...</p>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <form [formGroup]="form" class="invoice-create-form">
+            
+            <!-- Action Buttons Section - First Row -->
+            <div class="flex gap-2 mt-4 px-4 justify-end">
+              <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+                [disabled]="!selectedInvoice || !previewIframeHtml">
+                <mat-icon>print</mat-icon>
+                Print
+              </button>
+              <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+                [disabled]="!selectedInvoice || !previewIframeHtml">
+                <mat-icon>email</mat-icon>
+                Email
+              </button>
+              <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+                [disabled]="!selectedInvoice || !previewIframeHtml || isDownloading">
+                <mat-icon>download</mat-icon>
+                {{ isDownloading ? 'Downloading...' : 'Download' }}
+              </button>
+              <button mat-raised-button type="button" color="primary" id="save-button" 
+                (click)="saveInvoice()"
+                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            </div>
+
+            <!-- Dropdowns Section - Second Row -->
+            <div class="flex gap-3 items-center mt-3 px-4">
+              <!-- Organization Dropdown -->
+              <mat-form-field appearance="outline" class="reservation-dropdown">
+                <mat-label>Organization</mat-label>
+                <mat-select formControlName="selectedOrganizationId" (selectionChange)="onOrganizationSelected($event.value)">
+                  <mat-option [value]="null">Organization</mat-option>
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization.organizationId">
+                      {{ organization.name }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Invoice Dropdown -->
+              <mat-form-field appearance="outline" class="invoice-dropdown">
+                <mat-label>Invoice</mat-label>
+                <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)">
+                  <mat-option [value]="null">Invoice</mat-option>
+                  @for (invoice of availableInvoices; track invoice.value.invoiceId) {
+                    <mat-option [value]="invoice.value.invoiceId">
+                      {{ invoice.label }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Invoice Editor or Preview -->
+            <div class="editor-section">
+              @if (selectedInvoice && previewIframeHtml) {
+                <!-- Preview iframe when office and invoice are selected -->
+                <div class="preview-section">
+                  <iframe 
+                    [srcdoc]="safePreviewIframeHtml" 
+                    class="preview-iframe"
+                    [attr.key]="iframeKey"
+                    (load)="injectStylesIntoIframe()"
+                    frameborder="0">
+                  </iframe>
+                </div>
+              } @else {
+                <!-- Editor textarea when preview is not available -->
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Invoice (HTML)</mat-label>
+                  <textarea 
+                    matInput 
+                    formControlName="invoice" 
+                    rows="20"
+                    [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+                  </textarea>
+                  <mat-hint>
+                    Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}. These will be replaced with actual values when generating the invoice. Select an Office and Invoice to see a preview.
+                  </mat-hint>
+                </mat-form-field>
+              }
+            </div>
+
+          </form>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}

@@ -12,10 +12,19 @@ export interface OrganizationRequest {
   zip?: string;
   phone: string;
   fax?: string;
+  contactName?: string;
+  contactEmail?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Used for upload - contains base64 image data
   isInternational: boolean;
+  currentInvoiceNo: number;
+  officeFee: number;
+  userFee: number;
+  unit50Fee: number;
+  unit100Fee: number;
+  unit200Fee: number;
+  unit500Fee: number;
   isActive: boolean;
 }
 
@@ -31,10 +40,19 @@ export interface OrganizationResponse {
   zip?: string;
   phone: string;
   fax?: string;
+  contactName?: string;
+  contactEmail?: string;
   website?: string;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   isInternational: boolean;
+  currentInvoiceNo: number;
+  officeFee: number;
+  userFee: number;
+  unit50Fee: number;
+  unit100Fee: number;
+  unit200Fee: number;
+  unit500Fee: number;
   isActive: boolean;
 }
 

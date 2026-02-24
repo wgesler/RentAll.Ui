@@ -9,6 +9,7 @@ import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize,
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -23,6 +24,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
 import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
+import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
@@ -42,6 +44,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
+  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
@@ -63,6 +66,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  isSuperUser: boolean = false;
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -144,6 +148,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private companyService: CompanyService,
+    private authService: AuthService,
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
@@ -153,6 +158,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Invoice-List
   ngOnInit(): void {
+    this.isSuperUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();
     this.loadCompanies();
@@ -337,18 +343,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addInvoice(): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Accounting, ['new']);
+    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const url = RouterUrl.replaceTokens(targetUrl, ['new']);
     const params: string[] = [];
     
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompany?.companyId || null);
     
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
     }
     if (reservationIdToUse !== null) {
       params.push(`reservationId=${reservationIdToUse}`);
+    }
+    if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
+      params.push(`companyId=${companyIdToUse}`);
+    }
+    if (this.isSuperUser && this.organizationId) {
+      params.push(`organizationId=${this.organizationId}`);
     }
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {
@@ -406,13 +420,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
-    const url = RouterUrl.replaceTokens(RouterUrl.Accounting, [event.invoiceId]);
+    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const url = RouterUrl.replaceTokens(targetUrl, [event.invoiceId]);
     const params: string[] = [];
     
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
     const companyIdToUse = this.selectedCompany?.companyId || null;
+    const reservationId = event?.reservationId || null;
     
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
@@ -422,6 +438,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
       params.push(`companyId=${companyIdToUse}`);
+    }
+    if (this.isSuperUser && reservationId) {
+      params.push(`OrganizationId=${reservationId}`);
     }
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {
@@ -1598,6 +1617,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.officesSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
+  }
+
+  private hasRole(role: UserGroups): boolean {
+    const groups = this.authService.getUser()?.userGroups;
+    if (!groups) {
+      return false;
+    }
+
+    return groups.some(group => {
+      if (typeof group === 'string') {
+        if (group === UserGroups[role]) {
+          return true;
+        }
+        const groupAsNumber = parseInt(group, 10);
+        return !isNaN(groupAsNumber) && groupAsNumber === role;
+      }
+      return typeof group === 'number' && group === role;
+    });
   }
   //#endregion
 }

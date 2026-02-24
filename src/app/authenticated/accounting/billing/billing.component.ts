@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, take } from 'rxjs';
@@ -13,26 +13,22 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest } from '../../reservations/models/reservation-model';
-import { ReservationService } from '../../reservations/services/reservation.service';
-import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
-import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
+import { OrganizationRequest, OrganizationResponse } from '../../organizations/models/organization.model';
+import { OrganizationService } from '../../organizations/services/organization.service';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
+import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-    selector: 'app-invoice',
+    selector: 'app-billing',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
-    templateUrl: './invoice.component.html',
-    styleUrl: './invoice.component.scss'
+    templateUrl: './billing.component.html',
+    styleUrl: './billing.component.scss'
 })
 
-export class InvoiceComponent implements OnInit, OnDestroy {
+export class BillingComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
@@ -40,24 +36,16 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
-  offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  selectedOffice: OfficeResponse | null = null;
-
-  reservations: ReservationListResponse[] = [];
-  availableReservations: { value: string, label: string }[] = [];
-  reservationIdSubscription?: Subscription;
-  selectedReservation: ReservationListResponse | null = null;
+  organizations: OrganizationResponse[] = [];
+  availableOrganizations: { value: string; label: string }[] = [];
+  selectedOrganization: OrganizationResponse | null;
+  billingOrganization: OrganizationResponse | null;
   
-  companyId: string | null = null; // Store companyId from query params
-  
-  allCostCodes: CostCodesResponse[] = [];
-  officeCostCodes:CostCodesResponse[] = [];
+  billingCostCodes: CostCodesResponse[] = [];
+  hasInitializedBillingCostCodes: boolean = false;
   debitCostCodes: CostCodesResponse[] = [];
   creditCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: string, label: string }[] = [];
-  officeAvailableCostCodes: { value: string, label: string }[] = []; // Full office cost codes for existing lines in payment mode
   costCodesSubscription?: Subscription;
   isPaymentMode: boolean = false; // Track if we're adding a payment (from payable action)
   
@@ -66,7 +54,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   originalLedgerLines: LedgerLineListDisplay[] = []; // Store original state for comparison
   originalNotes: string | null = null; // Store original notes for comparison
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   
 
@@ -75,26 +63,24 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     public accountingService: InvoiceService,
     public router: Router,
     public fb: FormBuilder,
-    private route: ActivatedRoute,
-    private toastr: ToastrService,
-    private officeService: OfficeService,
-    private reservationService: ReservationService,
-    private authService: AuthService,
-    private mappingService: MappingService,
-    private costCodesService: CostCodesService,
+    public route: ActivatedRoute,
+    public toastr: ToastrService,
+    public authService: AuthService,
+    public mappingService: MappingService,
+    public costCodesService: CostCodesService,
     public formatter: FormatterService,
-    private utilityService: UtilityService,
-    private dialog: MatDialog
+    public utilityService: UtilityService,
+    public dialog: MatDialog,
+    public organizationService: OrganizationService
   ) {
   }
 
   //#region Invoice
   ngOnInit(): void {
     this.isPaymentMode = false;
-    this.loadOffices();
-    this.loadReservations();
     this.loadCostCodes();
-    
+    this.loadOrganizations();
+        
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.invoiceId = paramMap.get('id');
@@ -128,43 +114,17 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   processQueryParams(queryParams: any): void {
-    const officeIdParam = queryParams['officeId'];
-    const reservationIdParam = queryParams['reservationId'];
-    const companyIdParam = queryParams['companyId'];
-    
-    // Store companyId from query params
-    if (companyIdParam) {
-      this.companyId = companyIdParam;
+    const organizationIdParam = queryParams['OrganizationId'] ?? queryParams['organizationId'];
+
+    const organizationControl = this.form?.get('organizationId');
+    if (organizationControl && organizationControl.value !== organizationIdParam) {
+      organizationControl.setValue(organizationIdParam ?? null, { emitEvent: false });
     }
-    
-    if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
-      const parsedOfficeId = parseInt(officeIdParam, 10);
-      if (parsedOfficeId) {
-        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-        if (this.selectedOffice && this.form) {
-          this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
-          this.updateAvailableReservations();
-          this.filterCostCodes();
-          if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
-            this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
-            this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
-            if (this.selectedReservation) {
-              this.setInvoiceCode(this.selectedReservation);
-            }
-          }
-        }
-      }
-    }
+    this.applyOrganizationSelection();
+    this.setInvoiceCode(this.selectedOrganization);
   }
 
   getInvoice(): void {
-    // Form is already built and handlers are set up before this is called
-    // Read companyId from query params for edit mode
-    const companyIdParam = this.route.snapshot.queryParams['companyId'];
-    if (companyIdParam) {
-      this.companyId = companyIdParam;
-    }
-    
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
@@ -176,7 +136,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
         if (addLedgerLineParam === 'true') {         
           this.isPaymentMode = true;
-          this.filterCostCodes();
           this.addLedgerLine();
         }
       },
@@ -203,188 +162,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   onPrimaryAction(): void {
     if (!this.isAddMode && !this.isPaymentMode && !this.hasChanges()) {
-      this.navigateToInvoiceCreate(this.invoice, this.form?.getRawValue());
+      this.navigateToBillingCreate(this.invoice, this.form?.getRawValue());
       return;
     }
 
     this.saveInvoice();
-  }
-
-  async checkAndApplyCredit(): Promise<void> {
-    if (!this.selectedReservation || !this.selectedOffice) {
-      this.performSave();
-      return;
-    }
-
-    const creditAmount = this.selectedReservation.creditDue || 0;
-    if (creditAmount <= 0) {
-      this.performSave();
-      return;
-    }
-
-    // Blur any focused element to prevent aria-hidden warning
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    // Load cost codes for the office
-    try {
-      await firstValueFrom(this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1)));
-    } catch (err: any) {
-      this.toastr.error('Failed to load cost codes', CommonMessage.Error);
-      this.performSave();
-      return;
-    }
-
-    // Show ApplyCreditDialogComponent with the reservation pre-selected
-    const dialogConfig: MatDialogConfig = {
-      width: '500px',
-      autoFocus: true,
-      restoreFocus: true,
-      disableClose: false,
-      hasBackdrop: true
-    };
-
-    // Get debit cost codes (not payment/credit codes)
-    const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
-    const debitCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
-
-    if (!debitCostCodes || debitCostCodes.length === 0) {
-      this.toastr.warning('No debit cost codes found for this office. Cannot apply credit.', 'Missing Cost Code');
-      this.performSave();
-      return;
-    }
-
-    // Use the first available debit cost code
-    const debitCostCode = debitCostCodes[0];
-
-    // Create dialog data - use temporary invoice ID that will be replaced after creation
-    const creditDialogData: ApplyCreditDialogData = {
-      creditAmount: creditAmount,
-      reservations: [{
-        value: this.selectedReservation,
-        label: this.utilityService.getReservationLabel(this.selectedReservation)
-      }],
-      invoiceId: '', // Empty means invoice doesn't exist yet
-      costCodeId: parseInt(debitCostCode.costCodeId, 10),
-      description: 'Credit applied from reservation'
-    };
-
-    const dialogRef = this.dialog.open(ApplyCreditDialogComponent, {
-      ...dialogConfig,
-      data: creditDialogData
-    });
-
-    dialogRef.afterClosed().subscribe(async (result: { success: boolean } | undefined) => {
-      if (result?.success) {
-        // User clicked Apply - add a debit ledger line to the invoice
-        this.addCreditDebitLine(creditAmount, debitCostCode);
-        // Store credit amount to update reservation after save
-        (this as any).appliedCreditAmount = creditAmount;
-      }
-      // Continue with save after dialog closes
-      this.performSave();
-    });
-  }
-
-  addCreditDebitLine(creditAmount: number, debitCostCode: CostCodesResponse): void {
-    // Create a debit ledger line with the credit amount (positive because it's a debit)
-    const debitLine: LedgerLineListDisplay = {
-      ledgerLineId: null,
-      lineNumber: this.ledgerLines.length + 1,
-      costCodeId: debitCostCode.costCodeId,
-      costCode: debitCostCode.costCode,
-      transactionType: this.transactionTypes.find(t => t.value === debitCostCode.transactionTypeId)?.label || 'Debit',
-      description: 'Credit applied from reservation',
-      amount: Math.abs(creditAmount), // Positive because it's a debit
-      isNew: true
-    };
-    
-    // Set transactionTypeId from the cost code
-    (debitLine as any).transactionTypeId = debitCostCode.transactionTypeId;
-    
-    // Add the debit line
-    this.ledgerLines.push(debitLine);
-    
-    // Update totals
-    this.updateTotalAmount();
-    
-    // Store updated original state for change detection
-    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
-  }
-
-  async updateReservationCreditAfterSave(creditAmount: number): Promise<void> {
-    if (!this.selectedReservation?.reservationId) {
-      return;
-    }
-
-    try {
-      // Get the full reservation
-      const reservation = await firstValueFrom(
-        this.reservationService.getReservationByGuid(this.selectedReservation.reservationId).pipe(take(1))
-      );
-
-      // Calculate new creditDue (reduce by the amount applied)
-      const newCreditDue = Math.max(0, (reservation.creditDue || 0) - creditAmount);
-
-      // Convert ReservationResponse to ReservationRequest
-      const reservationRequest: ReservationRequest = {
-        reservationId: reservation.reservationId,
-        organizationId: reservation.organizationId,
-        officeId: reservation.officeId,
-        agentId: reservation.agentId || '',
-        propertyId: reservation.propertyId,
-        contactId: reservation.contactId,
-        reservationCode: reservation.reservationCode,
-        reservationTypeId: reservation.reservationTypeId,
-        reservationStatusId: reservation.reservationStatusId,
-        reservationNoticeId: reservation.reservationNoticeId ?? 0,
-        numberOfPeople: reservation.numberOfPeople,
-        tenantName: reservation.tenantName,
-        arrivalDate: reservation.arrivalDate,
-        departureDate: reservation.departureDate,
-        checkInTimeId: reservation.checkInTimeId,
-        checkOutTimeId: reservation.checkOutTimeId,
-        billingMethodId: reservation.billingMethodId,
-        prorateTypeId: reservation.prorateTypeId,
-        billingTypeId: reservation.billingTypeId,
-        billingRate: reservation.billingRate,
-        deposit: reservation.deposit,
-        depositTypeId: reservation.depositTypeId ?? 0,
-        departureFee: reservation.departureFee,
-        taxes: reservation.taxes,
-        hasPets: reservation.hasPets,
-        petFee: reservation.petFee,
-        numberOfPets: reservation.numberOfPets,
-        petDescription: reservation.petDescription,
-        maidService: reservation.maidService,
-        maidServiceFee: reservation.maidServiceFee,
-        frequencyId: reservation.frequencyId,
-        maidStartDate: reservation.maidStartDate,
-        extraFeeLines: (reservation.extraFeeLines || []).map((line: ExtraFeeLineResponse): ExtraFeeLineRequest => ({
-          extraFeeLineId: line.extraFeeLineId,
-          reservationId: line.reservationId,
-          feeDescription: line.feeDescription,
-          feeAmount: line.feeAmount,
-          feeFrequencyId: line.feeFrequencyId,
-          costCodeId: line.costCodeId
-        })),
-        notes: reservation.notes,
-        allowExtensions: reservation.allowExtensions,
-        currentInvoiceNumber: reservation.currentInvoiceNumber,
-        creditDue: newCreditDue, // Reduce credit by the amount applied
-        isActive: reservation.isActive
-      };
-
-      // Update the reservation
-      await firstValueFrom(
-        this.reservationService.updateReservation(reservationRequest).pipe(take(1))
-      );
-    } catch (err: any) {
-      if (err.status !== 400) {
-        this.toastr.error('Failed to update reservation credit', CommonMessage.Error);
-      }
-    }
   }
 
   performSave(): void {
@@ -425,7 +207,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: line.costCodeId || undefined,
           transactionTypeId: (line as any).transactionTypeId,
-          reservationId: formValue.reservationId || null,
           amount: line.amount || 0,
           description: line.description || ''
         };
@@ -434,27 +215,24 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
     // Capture the Invoice date
     const invoiceCode = formValue.invoiceCode || '';
-    const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
-    const officeName = selectedOffice?.name || '';  
-    const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
-    const reservationCode = selectedReservation?.reservationCode || null;
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.calculatePaidAmount();
+    const invoicePeriod = formValue.startDate && formValue.endDate
+      ? `${this.formatter.dateOnly(new Date(formValue.startDate))} - ${this.formatter.dateOnly(new Date(formValue.endDate))}`
+      : '';
     
     const invoiceRequest: InvoiceRequest = {
-      organizationId: user?.organizationId || '',
-      officeId: formValue.officeId,
-      officeName: officeName,
+      organizationId: this.billingOrganization.organizationId || '',
+      officeId: 1,
+      officeName: "Denver",
       invoiceCode: invoiceCode,
-      reservationId: formValue.reservationId || null,
-      reservationCode: reservationCode,
+      reservationId: this.selectedOrganization.organizationId,
+      reservationCode: this.selectedOrganization.organizationCode,
       startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
       endDate: formValue.endDate ? new Date(formValue.endDate).toISOString() : '',
       invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
       dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : '',
-      invoicePeriod: formValue.startDate && formValue.endDate
-        ? `${this.formatter.dateOnly(new Date(formValue.startDate))} - ${this.formatter.dateOnly(new Date(formValue.endDate))}`
-        : '',
+      invoicePeriod: invoicePeriod,
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
       notes: formValue.notes || null,
@@ -469,227 +247,110 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceRequest.invoiceId = this.invoiceId;
     }
 
+    console.log('Billing invoiceRequest payload:', invoiceRequest);
+
     const save$ = isCreating
       ? this.accountingService.createInvoice(invoiceRequest)
       : this.accountingService.updateInvoice(invoiceRequest);
 
-    save$.pipe(take(1), finalize(() => {
-      this.isSubmitting = false;
-    })).subscribe({
+    save$.pipe(take(1), finalize(() => {this.isSubmitting = false;})).subscribe({
       next: async (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        
-        // Update reservation's creditDue if credit was applied as a debit line (only for newly created invoices)
-        if (isCreating && savedInvoice?.invoiceId && (this as any).appliedCreditAmount) {
-          await this.updateReservationCreditAfterSave((this as any).appliedCreditAmount);
-          // Clear applied credit amount
-          (this as any).appliedCreditAmount = null;
+
+        if (isCreating) {
+          await this.incrementBillingOrganizationInvoiceNumber();
         }
-        
-        this.navigateToInvoiceCreate(savedInvoice || this.invoice, formValue);
+
+        const savedInvoiceAny = (savedInvoice || {}) as any;
+        const resolvedInvoiceId =
+          savedInvoice?.invoiceId ||
+          savedInvoiceAny?.id ||
+          savedInvoiceAny?.invoiceID ||
+          invoiceRequest.invoiceId ||
+          this.invoiceId;
+
+        if (resolvedInvoiceId && resolvedInvoiceId !== 'new') {
+          const invoiceForNavigation = {
+            ...(savedInvoiceAny || {}),
+            invoiceId: resolvedInvoiceId,
+            officeId: savedInvoice?.officeId ?? invoiceRequest.officeId,
+            officeName: savedInvoice?.officeName ?? invoiceRequest.officeName ?? ''
+          } as InvoiceResponse;
+
+          this.navigateToBillingCreate(invoiceForNavigation, formValue);
+          return;
+        }
+
+        this.toastr.warning('Saved successfully, but response did not include invoiceId. Returning to Billing list.', 'Missing invoice id');
+        this.navigateBack(formValue);
       },
       error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-        }
+        const validationErrors = err?.error?.errors
+          ? Object.values(err.error.errors).flat().join(' ')
+          : null;
+        const message = validationErrors || err?.error?.title || err?.message || CommonMessage.TryAgain;
+        this.toastr.error(message, CommonMessage.Error);
       }
     });
   }
-  //#endregion
 
-  //#region Dropdowns
-  filterCostCodes(): void {
-    if (!this.selectedOffice) {
-      this.officeCostCodes = [];
-      this.debitCostCodes = [];
-      this.creditCostCodes = [];
-      this.availableCostCodes = [];
+  async incrementBillingOrganizationInvoiceNumber(): Promise<void> {
+    if (!this.billingOrganization?.organizationId) {
       return;
     }
-    
-    // Filter cost codes for the selected office
-    this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice.officeId);
-    this.debitCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId !== TransactionType.Payment);
-    this.creditCostCodes = this.officeCostCodes.filter(c => c.transactionTypeId === TransactionType.Payment);
-    
-    // Set availableCostCodes based on payment mode (for new lines)
-    this.availableCostCodes = this.allCostCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-    
-    // Set officeAvailableCostCodes for existing lines in payment mode
-    this.officeAvailableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-  }
-  
-  getCostCodesForLine(line: LedgerLineListDisplay): { value: string, label: string }[] {
-    // Existing lines always use full office cost codes
-    if (line.isNew !== true) {
-      return this.officeAvailableCostCodes; // full officeCostCodes
-    }
-    
-    // For new lines, determine cost codes based on the line's transaction type
-    const transactionTypeId = (line as any).transactionTypeId;
-    
-    // If transaction type is Payment, show payment cost codes (creditCostCodes)
-    if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
-      return this.creditCostCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-    }
-    
-    // Otherwise, show charge/debit cost codes (debitCostCodes) - this includes charges, debits, etc.
-    // This is the default for new lines without a transaction type set
-    return this.debitCostCodes.filter(c => c.isActive).map(c => ({
-      value: c.costCodeId,
-      label: `${c.costCode}: ${c.description}`
-    }));
-  }
 
-  getTransactionTypeLabel(transactionType: number): string {
-    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
-    return types[transactionType] || 'Unknown';
-  }
-
-  isPaymentLine(line: LedgerLineListDisplay): boolean {
-    // Check if transactionType is "Payment" or transactionTypeId is Payment (11)
-    const transactionTypeId = (line as any).transactionTypeId;
-    if (transactionTypeId !== undefined && transactionTypeId !== null) {
-      return transactionTypeId === TransactionType.Payment || transactionTypeId === TransactionType.Payment;
-    }
-    // Fallback to checking transactionType string
-    return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
-  }
-  //#endregion
-
-  //#region Data Loading Methods
-  loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      });
-    });
-  }
-
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        // Update available reservations - will filter by officeId if form exists and office is selected
-        if (this.form) {
-          this.updateAvailableReservations();
-        } else {
-          // Form doesn't exist yet, show all reservations
-          this.availableReservations = this.reservations.map(r => ({
-            value: r.reservationId,
-            label: this.utilityService.getReservationLabel(r)
-          }));
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.reservations = [];
-        this.availableReservations = [];
-      }
-    });
-  }
-
-  loadCostCodes(): void {
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
-        this.allCostCodes = this.costCodesService.getAllCostCodesValue();
-        this.filterCostCodes();
-      });
-    });
-  }
-
-  loadLedgerLines(updateTotalAmount: boolean = true): void {
-    const rawLedgerLines = this.invoice?.ledgerLines || [];
-    if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
-      this.ledgerLines = [];
-      this.originalLedgerLines = []; // Reset original state
-      if (updateTotalAmount) {
-        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
-      }
-      return;
-    }
-    
-    // If costCodes isn't filtered yet, filter it now
-    if (!this.officeCostCodes || this.officeCostCodes.length === 0) {
-      this.filterCostCodes();
-    }
-    
-    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
-    this.ledgerLines.forEach(line => {
-      if (line.isNew === undefined) {
-        (line as any).isNew = false;
-      }
-    });
-    this.normalizePaymentLineSigns();
-    
-    // Store original state for change detection (deep clone)
-    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
-    
-    // Calculate total amount from ledger lines and update the form
-    if (updateTotalAmount) {
-      this.updateTotalAmount();
-    }
-  }
-
-  loadMonthlyLedgerLines(reservationId: string): void {
-    const startDate = this.form.get('startDate')?.value;
-    const endDate = this.form.get('endDate')?.value;
-    const invoiceCode = this.form.get('invoiceCode')?.value || '';
-    
-    if (!startDate || !endDate) {
-      this.toastr.warning('Start Date and End Date are required to load ledger lines', 'Missing Dates');
-      return;
-    }
-    
-    const request: InvoiceMonthlyDataRequest = {
-      invoiceCode: invoiceCode,
-      reservationId: reservationId,
-      startDate: startDate ? new Date(startDate).toISOString() : '',
-      endDate: endDate ? new Date(endDate).toISOString() : ''
+    const nextInvoiceNo = (this.billingOrganization.currentInvoiceNo || 0) + 1;
+    const request: OrganizationRequest = {
+      organizationId: this.billingOrganization.organizationId,
+      organizationCode: this.billingOrganization.organizationCode,
+      name: this.billingOrganization.name,
+      address1: this.billingOrganization.address1,
+      address2: this.billingOrganization.address2,
+      suite: this.billingOrganization.suite,
+      city: this.billingOrganization.city,
+      state: this.billingOrganization.state,
+      zip: this.billingOrganization.zip,
+      phone: this.billingOrganization.phone,
+      fax: this.billingOrganization.fax,
+      contactName: this.billingOrganization.contactName,
+      contactEmail: this.billingOrganization.contactEmail,
+      website: this.billingOrganization.website,
+      logoPath: this.billingOrganization.logoPath,
+      fileDetails: this.billingOrganization.fileDetails,
+      isInternational: this.billingOrganization.isInternational,
+      currentInvoiceNo: nextInvoiceNo,
+      officeFee: this.billingOrganization.officeFee ?? 0,
+      userFee: this.billingOrganization.userFee ?? 0,
+      unit50Fee: this.billingOrganization.unit50Fee ?? 0,
+      unit100Fee: this.billingOrganization.unit100Fee ?? 0,
+      unit200Fee: this.billingOrganization.unit200Fee ?? 0,
+      unit500Fee: this.billingOrganization.unit500Fee ?? 0,
+      isActive: this.billingOrganization.isActive
     };
-    
-    this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
-      next: (response: InvoiceMonthlyDataResponse) => {
-        const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
-        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
-        this.normalizePaymentLineSigns();
-        // Store original state for change detection (deep clone)
-        this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
-        this.updateTotalAmount();
-        
-        // Check if reservation has credit and ask if it should be applied
-        if (this.isAddMode && this.selectedReservation && this.selectedReservation.creditDue > 0) {
-          this.checkAndOfferCreditApplication();
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        // On error, reset to empty string for invoice (since it's a string)
-        this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
-        this.ledgerLines = [];
-        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
-        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
-        // Interceptor already shows error messages for 400, 401, 409, 500+ errors
-        // Only handle 404 here (which interceptor skips)
-        if (err.status === 404) {
-          // Component-specific handling for 404 if needed
-        }
-      }
-    });
+
+    try {
+      const updatedOrganization = await firstValueFrom(
+        this.organizationService.updateOrganization(request).pipe(take(1))
+      );
+
+      const resolvedCurrentInvoiceNo = updatedOrganization?.currentInvoiceNo ?? nextInvoiceNo;
+      this.billingOrganization = {
+        ...this.billingOrganization,
+        ...updatedOrganization,
+        currentInvoiceNo: resolvedCurrentInvoiceNo
+      };
+      this.organizations = this.organizations.map(o =>
+        o.organizationId === this.billingOrganization?.organizationId
+          ? { ...o, ...this.billingOrganization }
+          : o
+      );
+    } catch {
+      this.billingOrganization.currentInvoiceNo = nextInvoiceNo;
+      this.toastr.warning('Invoice saved, but failed to update Organization current invoice number.', 'Organization update warning');
+    }
   }
- //#endregion
+  //#endregion
 
   //#region Form methods
   buildForm(): void {
@@ -706,13 +367,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     lastDayOfCurrentMonth.setHours(0, 0, 0, 0);
     
     this.form = this.fb.group({
-      organizationId: new FormControl(user?.organizationId || '', [Validators.required]),
-      officeId: new FormControl(null, [Validators.required]),
-      officeName: new FormControl({ value: '', disabled: true }), 
-      reservationId: new FormControl(null),
-      reservationCode: new FormControl({ value: '', disabled: true }), 
-      startDate: new FormControl(firstDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
-      endDate: new FormControl(lastDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
+      organizationId: new FormControl(this.billingOrganization.organizationId || '', [Validators.required]),
+      startDate: new FormControl(firstDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
+      endDate: new FormControl(lastDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
@@ -723,6 +380,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       notes: new FormControl(''),
       isActive: new FormControl(true)
     });
+
+    if (!this.isAddMode) {
+      this.form.get('organizationId')?.disable({ emitEvent: false });
+    } else {
+      this.form.get('organizationId')?.enable({ emitEvent: false });
+    }
     
 
     // Set up startDate change handler to validate endDate and auto-update endDate if month changes
@@ -763,14 +426,41 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   populateForm(): void {
     if (this.invoice && this.form) {
+      const invoiceAny = this.invoice as any;
+      const resolvedInvoicePeriod =
+        this.invoice.invoicePeriod ||
+        invoiceAny.invoicePeriod ||
+        invoiceAny.InvoicePeriod ||
+        '';
+      const [periodStartRaw, periodEndRaw] = typeof resolvedInvoicePeriod === 'string' && resolvedInvoicePeriod.includes('-')
+        ? resolvedInvoicePeriod.split(/\s*-\s*/, 2).map(part => part.trim())
+        : ['', ''];
+      const resolvedRecipientOrganizationId =
+        this.invoice.reservationId ||
+        invoiceAny.reservationId ||
+        invoiceAny.ReservationId ||
+        null;
+      const resolvedStartDate =
+        this.invoice.startDate ||
+        invoiceAny.startDate ||
+        invoiceAny.StartDate ||
+        invoiceAny.invoiceStartDate ||
+        invoiceAny.InvoiceStartDate ||
+        periodStartRaw ||
+        null;
+      const resolvedEndDate =
+        this.invoice.endDate ||
+        invoiceAny.endDate ||
+        invoiceAny.EndDate ||
+        invoiceAny.invoiceEndDate ||
+        invoiceAny.InvoiceEndDate ||
+        periodEndRaw ||
+        null;
+
       this.form.patchValue({
-        organizationId: this.invoice.organizationId,
-        officeId: this.invoice.officeId,
-        officeName: this.invoice.officeName || '',
-        reservationId: this.invoice.reservationId || null,
-        reservationCode: this.invoice.reservationCode || '',
-        startDate: this.invoice.startDate ? new Date(this.invoice.startDate) : null,
-        endDate: this.invoice.endDate ? new Date(this.invoice.endDate) : null,
+        organizationId: resolvedRecipientOrganizationId,
+        startDate: resolvedStartDate ? new Date(resolvedStartDate) : null,
+        endDate: resolvedEndDate ? new Date(resolvedEndDate) : null,
         invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
         dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : (this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null),
         invoiceTotal: this.invoice.totalAmount || '',
@@ -784,18 +474,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       
       // Store original notes for change detection
       this.originalNotes = this.invoice.notes || null;
-      
-      // Set selectedOffice from the populated officeId
-      const officeId = this.form.get('officeId')?.value;
-      this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
-      
-      // Set selectedReservation from the populated reservationId
-      const reservationId = this.form.get('reservationId')?.value;
-      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
-      
-      this.updateAvailableReservations();
-      this.filterCostCodes();
-      this.setInvoiceCode(this.selectedReservation);
+      this.applyOrganizationSelection();
     } else {
       // In add mode, reset original notes
       this.originalNotes = null;
@@ -828,20 +507,139 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         }
       }, 100);
       
-      // In edit mode, ledger lines are already loaded from getInvoice() - don't call loadMonthlyLedgerLines
-      if (!this.invoice.reservationId) {
-        this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
+      this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
+    }
+  }
+  //#endregion
+
+  //#region Dropdown Methods
+  onOrganizationChange(organizationId?: string | null): void {
+    const nextOrganizationId = organizationId ?? this.form?.get('organizationId')?.value ?? null;
+    this.form.get('organizationId')?.setValue(nextOrganizationId, { emitEvent: false });
+    this.applyOrganizationSelection();
+  }
+
+  applyOrganizationSelection(): void {
+    if (!this.organizations.length) {
+      return;
+    }
+
+    const selectedOrganizationId = this.form?.get('organizationId')?.value ?? null;
+    this.selectedOrganization = selectedOrganizationId
+      ? this.organizations.find(o => o.organizationId === selectedOrganizationId) || null
+      : null;
+  }
+  
+  filterCostCodes(): void {
+    if (this.hasInitializedBillingCostCodes) {
+      return;
+    }
+
+    if (!this.billingCostCodes?.length) {
+      this.debitCostCodes = [];
+      this.creditCostCodes = [];
+      this.availableCostCodes = [];
+      return;
+    }
+
+    this.debitCostCodes = this.billingCostCodes.filter(c => c.transactionTypeId !== TransactionType.Payment);
+    this.creditCostCodes = this.billingCostCodes.filter(c => c.transactionTypeId === TransactionType.Payment);
+    this.availableCostCodes = this.billingCostCodes.map(c => ({
+      value: c.costCodeId,
+      label: `${c.costCode}: ${c.description}`
+    }));
+    this.hasInitializedBillingCostCodes = true;
+  }
+  
+  getCostCodesForLine(_line: LedgerLineListDisplay): { value: string, label: string }[] {
+    return this.availableCostCodes;
+  }
+
+  getTransactionTypeLabel(transactionType: number): string {
+    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
+    return types[transactionType] || 'Unknown';
+  }
+
+  isPaymentLine(line: LedgerLineListDisplay): boolean {
+    // Check if transactionType is "Payment" or transactionTypeId is Payment (11)
+    const transactionTypeId = (line as any).transactionTypeId;
+    if (transactionTypeId !== undefined && transactionTypeId !== null) {
+      return transactionTypeId === TransactionType.Payment || transactionTypeId === TransactionType.Payment;
+    }
+    // Fallback to checking transactionType string
+    return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
+  }
+  //#endregion
+
+  //#region Data Loading Methods
+  loadOrganizations(): void {
+    this.organizationService.getOrganizations().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'))).subscribe({
+      next: (organizations) => {
+        const currentUser = this.authService.getUser();
+        this.organizations = (organizations || []).filter(o => o.isActive);
+        this.billingOrganization = this.organizations.find(o => o.organizationId === currentUser?.organizationId) || null;
+        this.availableOrganizations = this.organizations
+          .filter(o => o.organizationId !== this.billingOrganization?.organizationId)
+          .map(o => ({
+          value: o.organizationId,
+          label: o.name
+        }));
+        this.applyOrganizationSelection();
+      },
+      error: () => {
+        this.organizations = [];
+        this.availableOrganizations = [];
+        this.billingOrganization = null;
       }
+    });
+  }
+
+  loadCostCodes(): void {
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+        this.billingCostCodes = this.costCodesService.getAllCostCodesValue();
+        this.filterCostCodes();
+      });
+    });
+  }
+
+  loadLedgerLines(updateTotalAmount: boolean = true): void {
+    const rawLedgerLines = this.invoice?.ledgerLines || [];
+    if (!this.invoice || !rawLedgerLines || rawLedgerLines.length === 0) {
+      this.ledgerLines = [];
+      this.originalLedgerLines = []; // Reset original state
+      if (updateTotalAmount) {
+        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
+      }
+      return;
+    }
+    
+    if (!this.hasInitializedBillingCostCodes) {
+      return;
+    }
+    
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+    this.ledgerLines.forEach(line => {
+      if (line.isNew === undefined) {
+        (line as any).isNew = false;
+      }
+    });
+    this.normalizePaymentLineSigns();
+    
+    // Store original state for change detection (deep clone)
+    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
+    
+    // Calculate total amount from ledger lines and update the form
+    if (updateTotalAmount) {
+      this.updateTotalAmount();
     }
   }
   //#endregion
 
   //#region Form Responders
   setupFormHandlers(): void {
-    this.setupOfficeIdHandler();
-    this.setupReservationIdHandler();
-    
-    
     // Format initial invoicedAmount, paidAmount, and totalDue display
     setTimeout(() => {
       const invoicedInput = document.querySelector(`[formControlName="invoicedAmount"]`) as HTMLInputElement;
@@ -871,57 +669,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }, 100);
   }
 
-  setupOfficeIdHandler(): void {
-    // Subscribe to officeId changes - just set selectedOffice and trigger updates
-    this.form.get('officeId')?.valueChanges.subscribe(officeId => {
-      this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
-      this.updateAvailableReservations();
-      this.filterCostCodes();
-      
-      // Clear selected reservation if it doesn't belong to the new office
-      const currentReservationId = this.form.get('reservationId')?.value;
-      if (currentReservationId && this.selectedOffice) {
-        const currentReservation = this.reservations.find(r => r.reservationId === currentReservationId);
-        if (currentReservation && currentReservation.officeId !== this.selectedOffice.officeId) {
-          this.form.get('reservationId')?.setValue(null, { emitEvent: false });
-        }
-      } else if (!this.selectedOffice) {
-        // If office is cleared, also clear reservation
-        this.form.get('reservationId')?.setValue(null, { emitEvent: false });
-      }
-    });
-  }
-
-  setupReservationIdHandler(): void {
-    // Subscribe to reservationId changes - set selectedReservation and trigger updates
-    this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
-      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
-      if (this.selectedReservation) {
-        this.setInvoiceCode(this.selectedReservation);
-      }
-    });
-  }
-
-  setInvoiceCode(reservation: ReservationListResponse): void {
-    if (reservation && this.form) {
-      const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNumber + 1).toString().padStart(3, '0');
+  setInvoiceCode(organization: OrganizationResponse): void {
+    if (organization && this.form) {
+      const invoiceCode = organization.organizationCode + '-' + (organization.currentInvoiceNo + 1).toString().padStart(3, '0');
       this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
-    }
-  }
-
-  updateAvailableReservations(): void {
-    if (this.selectedOffice) {
-      const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
-      this.availableReservations = filteredReservations.map(r => ({
-        value: r.reservationId,
-        label: this.utilityService.getReservationLabel(r)
-      }));
-    } else {
-      // If no office selected, show all reservations
-      this.availableReservations = this.reservations.map(r => ({
-        value: r.reservationId,
-        label: this.utilityService.getReservationLabel(r)
-      }));
     }
   }
 
@@ -972,7 +723,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       
       this.updateLedgerLineField(index, 'costCodeId', costCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === costCodeId);
+      const matchingCostCode = this.billingCostCodes.find(c => c.costCodeId === costCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
@@ -1265,13 +1016,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         numValue = 0;
       }
       
-      // Update the input display value
       input.value = formattedValue;
-      
-      // Update the model
       line.amount = numValue;
-      
-      // Recalculate total
       this.updateTotalAmount();
     }
   }
@@ -1294,88 +1040,36 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   generateLedgerLines(): void {
-    const reservationId = this.form.get('reservationId')?.value;
-    if (reservationId) {
-      this.loadMonthlyLedgerLines(reservationId);
-      // After loading new lines, update original state for change detection
-      // This will be done in loadMonthlyLedgerLines after lines are loaded
-    } else {
-      this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
-    }
-  }
-
-  checkAndOfferCreditApplication(): void {
-    if (!this.selectedReservation || !this.selectedOffice || this.selectedReservation.creditDue <= 0) {
+    const startDate = this.form.get('startDate')?.value;
+    const endDate = this.form.get('endDate')?.value;
+    const organizationId = this.form.get('organizationId')?.value ?? null;
+    if (!this.hasInitializedBillingCostCodes || !startDate || !endDate || !organizationId) {
       return;
     }
 
-    const creditAmount = this.selectedReservation.creditDue;
-    
-    // Find a payment cost code for this office
-    const paymentCostCode = this.creditCostCodes.find(c => c.isActive);
-    if (!paymentCostCode) {
-      // No payment cost code available, skip credit application
-      return;
-    }
-
-    // Blur any focused element to prevent aria-hidden warning
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    // Open dialog asking if credit should be applied
-    const dialogConfig: MatDialogConfig = {
-      width: '500px',
-      autoFocus: true,
-      restoreFocus: true,
-      disableClose: false,
-      hasBackdrop: true
+    const request: BillingMonthlyDataRequest = {
+      invoiceCode: this.form.get('invoiceCode')?.value || '',
+      organizationId: organizationId,
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString()
     };
 
-    const dialogData: ApplyCreditToInvoiceDialogData = {
-      creditAmount: creditAmount
-    };
-
-    const dialogRef = this.dialog.open(ApplyCreditToInvoiceDialogComponent, {
-      ...dialogConfig,
-      data: dialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: boolean | undefined) => {
-      if (result === true) {
-        // User clicked Yes - add payment line
-        this.addCreditPaymentLine(creditAmount, paymentCostCode);
+    this.accountingService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
+      next: (response: BillingMonthlyDataResponse) => {
+        const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || [];
+        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+        this.normalizePaymentLineSigns();
+        this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
+        this.updateTotalAmount();
+      },
+      error: () => {
+        this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
+        this.ledgerLines = [];
+        this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
+        this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
       }
     });
-  }
-
-  addCreditPaymentLine(creditAmount: number, paymentCostCode: CostCodesResponse): void {
-    // Create a payment line with the credit amount (negative because it's a payment)
-    const paymentLine: LedgerLineListDisplay = {
-      ledgerLineId: null,
-      lineNumber: this.ledgerLines.length + 1,
-      costCodeId: paymentCostCode.costCodeId,
-      costCode: paymentCostCode.costCode,
-      transactionType: 'Payment',
-      description: `Credit applied from reservation`,
-      amount: -Math.abs(creditAmount), // Negative because it's a payment/credit
-      isNew: true
-    };
-    
-    // Set transactionTypeId to Payment
-    (paymentLine as any).transactionTypeId = TransactionType.Payment;
-    
-    // Add the payment line
-    this.ledgerLines.push(paymentLine);
-    
-    // Store credit amount to update reservation after save
-    (this as any).appliedCreditAmount = creditAmount;
-    
-    // Update totals
-    this.updateTotalAmount();
-    
-    // Store updated original state for change detection
-    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
   }
 
   addLedgerLine(): void {
@@ -1471,90 +1165,45 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   navigateBack(formValue: any): void {
-    const queryParams = this.route.snapshot.queryParams;
-    const officeId = queryParams['officeId'] || formValue.officeId;
-    const params: string[] = [];
-    if (officeId) {
-      params.push(`officeId=${officeId}`);
-    }
-    if (this.companyId) {
-      params.push(`companyId=${this.companyId}`);
-    }
-    
-    const navigationUrl = params.length > 0 
-      ? `${RouterUrl.AccountingList}?${params.join('&')}`
-      : RouterUrl.AccountingList;
-    this.router.navigateByUrl(navigationUrl);
+    this.router.navigateByUrl(RouterUrl.AccountingList);
   }
 
-  private navigateToInvoiceCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
+  navigateToBillingCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
     if (!invoiceToUse?.invoiceId) {
       this.navigateBack(formValue || this.form?.getRawValue() || {});
       return;
     }
 
     const queryParams = this.route.snapshot.queryParams;
-    const returnTo = queryParams['returnTo'] || 'accounting';
+    const returnTo = queryParams['returnTo'] || 'billing';
     const params: string[] = [`returnTo=${returnTo}`];
 
-    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
-    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
+    const organizationIdToUse = this.form?.get('organizationId')?.value || formValue?.organizationId || invoiceToUse.organizationId;
 
-    if (officeIdToUse) {
-      params.push(`officeId=${officeIdToUse}`);
-    }
-    if (reservationIdToUse) {
-      params.push(`reservationId=${reservationIdToUse}`);
+    if (organizationIdToUse) {
+      params.push(`OrganizationId=${organizationIdToUse}`);
     }
 
-    params.push(`invoiceId=${invoiceToUse.invoiceId}`);
+    params.push(`InvoiceId=${invoiceToUse.invoiceId}`);
 
-    if (this.companyId) {
-      params.push(`companyId=${this.companyId}`);
-    }
-
-    const invoiceCreateUrl = `${RouterUrl.InvoiceCreate}?${params.join('&')}`;
-    this.router.navigateByUrl(invoiceCreateUrl);
+    const billingCreateUrl = `${RouterUrl.BillingCreate}?${params.join('&')}`;
+    this.router.navigateByUrl(billingCreateUrl);
   }
 
   //#endregion
 
    //#region Utility Methods
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.reservationIdSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
-    const returnTo = queryParams['returnTo'];
-    let officeId = queryParams['officeId'];
-    const reservationId = queryParams['reservationId'];
+    const returnTo = queryParams['returnTo'] || 'accounting';
     const params: string[] = [];
-    
-    if (!officeId && this.invoice && this.invoice.officeId) {
-      officeId = this.invoice.officeId.toString();
-    } 
-    if (officeId) {
-      params.push(`officeId=${officeId}`);
-    }
 
-    // Navigate back based on where we came from
-    if (returnTo === 'reservation' && reservationId) {
-      if (reservationId) {
-        params.push(`reservationId=${reservationId}`);
-      }      
-      params.push(`tab=invoices`);
-      const reservationUrl = params.length > 0 
-        ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
-        : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
-      this.router.navigateByUrl(reservationUrl);
-    } else if (returnTo === 'accounting' || !returnTo) {
-      if (this.companyId) {
-        params.push(`companyId=${this.companyId}`);
-      }
+    if (returnTo === 'accounting') {
       if (params.length > 0) {
         this.router.navigateByUrl(RouterUrl.AccountingList + `?${params.join('&')}`);
       } else {
@@ -1571,3 +1220,4 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
   //#endregion
 }
+

@@ -149,6 +149,20 @@
                 </mat-form-field>
               </div>
 
+              <div class="col-span-4 flex gap-x-1.5">
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Contact Name</mat-label>
+                  <input matInput formControlName="contactName">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-1">
+                  <mat-label>Contact Email</mat-label>
+                  <input matInput formControlName="contactEmail" type="email">
+                </mat-form-field>
+
+                <div class="flex-1"></div>
+              </div>
+
             </div>
 
             <mat-divider class="my-5"/>
@@ -193,6 +207,99 @@
               </div>
             }
             <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+
+            <h3 class="pt-2">Fees</h3>
+            <div class="grid grid-cols-3 gap-x-1.5 gap-y-1 mb-4">
+              <mat-form-field appearance="outline">
+                <mat-label>Office Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="officeFee"
+                  (focus)="onDecimalFocus($event, 'officeFee')"
+                  (input)="onDecimalInput($event, 'officeFee')"
+                  (blur)="onDecimalBlur('officeFee')"
+                  (keydown.enter)="onDecimalEnter($event, 'officeFee')"
+                  placeholder="0.00">
+                @if (form.get('officeFee')?.hasError('required') && form.get('officeFee')?.touched) {
+                  <mat-error>Office Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>User Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="userFee"
+                  (focus)="onDecimalFocus($event, 'userFee')"
+                  (input)="onDecimalInput($event, 'userFee')"
+                  (blur)="onDecimalBlur('userFee')"
+                  (keydown.enter)="onDecimalEnter($event, 'userFee')"
+                  placeholder="0.00">
+                @if (form.get('userFee')?.hasError('required') && form.get('userFee')?.touched) {
+                  <mat-error>User Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Unit 50 Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="unit50Fee"
+                  (focus)="onDecimalFocus($event, 'unit50Fee')"
+                  (input)="onDecimalInput($event, 'unit50Fee')"
+                  (blur)="onDecimalBlur('unit50Fee')"
+                  (keydown.enter)="onDecimalEnter($event, 'unit50Fee')"
+                  placeholder="0.00">
+                @if (form.get('unit50Fee')?.hasError('required') && form.get('unit50Fee')?.touched) {
+                  <mat-error>Unit 50 Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Unit 100 Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="unit100Fee"
+                  (focus)="onDecimalFocus($event, 'unit100Fee')"
+                  (input)="onDecimalInput($event, 'unit100Fee')"
+                  (blur)="onDecimalBlur('unit100Fee')"
+                  (keydown.enter)="onDecimalEnter($event, 'unit100Fee')"
+                  placeholder="0.00">
+                @if (form.get('unit100Fee')?.hasError('required') && form.get('unit100Fee')?.touched) {
+                  <mat-error>Unit 100 Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Unit 200 Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="unit200Fee"
+                  (focus)="onDecimalFocus($event, 'unit200Fee')"
+                  (input)="onDecimalInput($event, 'unit200Fee')"
+                  (blur)="onDecimalBlur('unit200Fee')"
+                  (keydown.enter)="onDecimalEnter($event, 'unit200Fee')"
+                  placeholder="0.00">
+                @if (form.get('unit200Fee')?.hasError('required') && form.get('unit200Fee')?.touched) {
+                  <mat-error>Unit 200 Fee is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Unit 500 Fee</mat-label>
+                <input
+                  matInput
+                  formControlName="unit500Fee"
+                  (focus)="onDecimalFocus($event, 'unit500Fee')"
+                  (input)="onDecimalInput($event, 'unit500Fee')"
+                  (blur)="onDecimalBlur('unit500Fee')"
+                  (keydown.enter)="onDecimalEnter($event, 'unit500Fee')"
+                  placeholder="0.00">
+                @if (form.get('unit500Fee')?.hasError('required') && form.get('unit500Fee')?.touched) {
+                  <mat-error>Unit 500 Fee is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
 
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center">

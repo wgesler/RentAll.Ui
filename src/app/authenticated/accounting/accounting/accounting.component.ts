@@ -86,18 +86,16 @@ export class AccountingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.selectedOrganizationId = user?.organizationId || null;
+    this.selectedOrganizationId = null;
     this.loadOrganizationsForSuperAdmin();
-    this.loadOfficesForOrganization(this.selectedOrganizationId);
+    this.loadOfficesForOrganization(null);
   }
 
   private loadOrganizationsForSuperAdmin(): void {
+    const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
     this.organizationService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
-        this.organizations = organizations || [];
-        if (!this.selectedOrganizationId && this.organizations.length > 0) {
-          this.selectedOrganizationId = this.organizations[0].organizationId;
-        }
+        this.organizations = (organizations || []).filter(o => o.organizationId !== currentUserOrganizationId);
       }
     });
   }

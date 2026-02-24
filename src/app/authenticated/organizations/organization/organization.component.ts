@@ -49,7 +49,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private commonService: CommonService,
-    private formatterService: FormatterService,
+    public formatterService: FormatterService,
     private utilityService: UtilityService
   ) {
   }
@@ -125,9 +125,17 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       website: formValue.website || undefined,
+      contactName: formValue.contactName || undefined,
+      contactEmail: formValue.contactEmail || undefined,
       phone: phoneDigits,
       fax: faxDigits || undefined,
       isInternational: isInternational,
+      officeFee: this.parseDecimal(formValue.officeFee),
+      userFee: this.parseDecimal(formValue.userFee),
+      unit50Fee: this.parseDecimal(formValue.unit50Fee),
+      unit100Fee: this.parseDecimal(formValue.unit100Fee),
+      unit200Fee: this.parseDecimal(formValue.unit200Fee),
+      unit500Fee: this.parseDecimal(formValue.unit500Fee),
       // Send fileDetails if a new file was uploaded OR if fileDetails exists from API (preserve existing logo)
       // Otherwise: send logoPath (existing path, or null if logo was removed)
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
@@ -179,7 +187,15 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       zip: new FormControl('', [Validators.required]),
       phone: new FormControl('', [Validators.required]),
       fax: new FormControl(''),
+      contactName: new FormControl(''),
+      contactEmail: new FormControl(''),
       website: new FormControl(''),
+      officeFee: new FormControl('0.00', [Validators.required]),
+      userFee: new FormControl('0.00', [Validators.required]),
+      unit50Fee: new FormControl('0.00', [Validators.required]),
+      unit100Fee: new FormControl('0.00', [Validators.required]),
+      unit200Fee: new FormControl('0.00', [Validators.required]),
+      unit500Fee: new FormControl('0.00', [Validators.required]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isInternational: new FormControl(false),
       isActive: new FormControl(true)
@@ -223,7 +239,15 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         zip: this.organization.zip,
         phone: this.formatterService.phoneNumber(this.organization.phone),
         fax: this.formatterService.phoneNumber(this.organization.fax) || '',
+        contactName: this.organization.contactName || '',
+        contactEmail: this.organization.contactEmail || '',
         website: this.organization.website || '',
+        officeFee: this.formatDecimalValue(this.organization.officeFee),
+        userFee: this.formatDecimalValue(this.organization.userFee),
+        unit50Fee: this.formatDecimalValue(this.organization.unit50Fee),
+        unit100Fee: this.formatDecimalValue(this.organization.unit100Fee),
+        unit200Fee: this.formatDecimalValue(this.organization.unit200Fee),
+        unit500Fee: this.formatDecimalValue(this.organization.unit500Fee),
         isInternational: this.organization.isInternational || false,
         isActive: this.organization.isActive
       });
@@ -284,6 +308,41 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
   onFaxInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('fax'));
+  }
+
+  //#endregion
+
+  //#region Decimal Helpers
+  onDecimalInput(event: Event, fieldName: string): void {
+    this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+
+  onDecimalFocus(event: FocusEvent, fieldName: string): void {
+    this.formatterService.clearDefaultDecimalOnFocus(event, this.form.get(fieldName), '0.00');
+  }
+
+  onDecimalBlur(fieldName: string): void {
+    this.formatterService.formatDecimalOnBlur(this.form.get(fieldName));
+  }
+
+  onDecimalEnter(event: Event, fieldName: string): void {
+    this.formatterService.formatDecimalOnEnter(event as KeyboardEvent, this.form.get(fieldName));
+  }
+
+  private parseDecimal(value: string | number | null | undefined): number {
+    if (value === null || value === undefined || value === '') {
+      return 0;
+    }
+
+    const parsed = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  private formatDecimalValue(value: number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '0.00';
+    }
+    return value.toFixed(2);
   }
   //#endregion
 

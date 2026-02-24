@@ -10,6 +10,7 @@ export interface InvoiceRequest {
   endDate: string;
   invoiceDate: string;
   dueDate?: string;
+  invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
@@ -29,6 +30,7 @@ export interface InvoiceResponse {
   endDate: string;
   invoiceDate: string;
   dueDate?: string;
+  invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;
   notes?: string | null;
@@ -70,7 +72,18 @@ export interface InvoiceMonthlyDataResponse {
   ledgerLines: LedgerLineResponse[];
 }
 
+export interface BillingMonthlyDataRequest {
+  invoiceCode: string;
+  organizationId: string;
+  startDate: string;
+  endDate: string;
+}
 
+export interface BillingMonthlyDataResponse {
+  invoiceCode: string;
+  organizationId: string;
+  ledgerLines: LedgerLineResponse[];
+}
 export interface InvoicePaymentRequest {
   costCodeId: number;
   description: string;

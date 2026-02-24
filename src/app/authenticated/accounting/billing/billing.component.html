@@ -1,0 +1,229 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading billing...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Bill' : 'Edit Bill') }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="info-form mb-8 pt-5">
+          <div class="mb-4 flex justify-end items-center gap-3">
+            <mat-checkbox formControlName="isActive" color="primary">
+              Is Active
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
+              {{ primaryActionLabel }}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            <!-- First Row: Invoice, Organization -->
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Invoice</mat-label>
+              <input matInput formControlName="invoiceCode" readonly>
+            </mat-form-field>
+
+            <!-- Organization -->
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Organization</mat-label>
+              @if (isAddMode) {
+                <mat-select formControlName="organizationId" (selectionChange)="onOrganizationChange($event.value)">
+                  <mat-option [value]="null">Select Organization</mat-option>
+                  @for (organization of availableOrganizations; track organization.value) {
+                    <mat-option [value]="organization.value">{{ organization.label }}</mat-option>
+                  }
+                </mat-select>
+              } @else {
+                <input matInput [value]="selectedOrganization?.name || ''" readonly>
+              }
+            </mat-form-field>
+
+            <div class="col-span-1"></div>
+            <div class="col-span-1"></div>
+
+            <!-- Second Row: Start Date, End Date, Invoice Date, Due Date -->
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Start Date</mat-label>
+              <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" required>
+              <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #startDatePicker></mat-datepicker>
+              @if (form.get('startDate')?.hasError('required') && form.get('startDate')?.touched) {
+                <mat-error>Start Date is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>End Date</mat-label>
+              <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value" required>
+              <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #endDatePicker></mat-datepicker>
+              @if (form.get('endDate')?.hasError('required') && form.get('endDate')?.touched) {
+                <mat-error>End Date is required</mat-error>
+              }
+              @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
+                <mat-error>End Date must be equal to or greater than Start Date</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Invoice Date</mat-label>
+              <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
+              <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #invoiceDatePicker></mat-datepicker>
+              @if (form.get('invoiceDate')?.hasError('required') && form.get('invoiceDate')?.touched) {
+                <mat-error>Invoice Date is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Due Date</mat-label>
+              <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" required>
+              <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #dueDatePicker></mat-datepicker>
+              @if (form.get('dueDate')?.hasError('required') && form.get('dueDate')?.touched) {
+                <mat-error>Due Date is required</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="col-span-4 mb-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-lg font-medium">Ledger Items</span>
+                <div class="flex gap-2">
+                  <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()"
+                    class="scale-90 text-nowrap flex-shrink-0"
+                    [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">
+                    {{ isAddMode ? 'Get Charges' : 'Get Lines' }}
+                  </button>
+                  <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()"
+                    class="scale-90 text-nowrap flex-shrink-0">
+                    {{ isAddMode ? 'Add Charge' : 'Add Line' }}
+                  </button>
+                </div>
+              </div>
+
+              @if (ledgerLines && ledgerLines.length > 0) {
+                <div class="overflow-x-auto">
+                  <table class="line-items-table">
+                    <thead>
+                      <tr class="border-b">
+                        <th class="text-left" style="width: 50px;">No</th>
+                        <th class="text-left" style="width: 350px;">Cost Center</th>
+                        <th class="text-left" style="width: 150px;">Type</th>
+                        <th class="text-left">Description</th>
+                        <th class="text-left" style="width: 120px;">Amount</th>
+                        <th class="text-right" style="width: 50px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (line of ledgerLines; track line.lineNumber; let i = $index) {
+                        <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
+                          <td style="width: 50px;">{{ i + 1 }}</td>
+                          <td class="cost-center-cell" style="width: 350px;">
+                            <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null"
+                              (selectionChange)="onCostCodeChange(i, $event.value)"
+                              [disabled]="isPaymentMode && !line.isNew"
+                              [class.editable-select]="!isPaymentMode || line.isNew"
+                              class="w-full cost-code-select">
+                              <mat-option [value]="null">Select Cost Code</mat-option>
+                              @for (costCode of getCostCodesForLine(line); track costCode.value) {
+                                <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </td>
+                          <td class="type-cell" [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 150px;">
+                            {{ line.transactionType || '' }}
+                          </td>
+                          <td [class.readonly-cell]="isPaymentMode && !line.isNew">
+                            @if (isPaymentMode && !line.isNew) {
+                              <input type="text" class="w-full border-0 readonly-input" [value]="line.description || ''" readonly>
+                            } @else {
+                              <input type="text" class="w-full editable-input"
+                                [value]="line.description || ''"
+                                (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
+                            }
+                          </td>
+                          <td [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 120px;">
+                            @if (isPaymentMode && !line.isNew) {
+                              <input type="text" class="w-full border-0 readonly-input"
+                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                                readonly>
+                            } @else {
+                              <input type="text" class="w-full editable-input"
+                                [attr.data-field]="'amount'"
+                                [attr.data-index]="i"
+                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                                (input)="onLedgerAmountInput($event, i)"
+                                (focus)="onLedgerAmountFocus($event, i)"
+                                (blur)="onLedgerAmountBlur($event, i)">
+                            }
+                          </td>
+                          <td class="text-right" style="width: 50px;">
+                            @if (!isPaymentMode || line.isNew) {
+                              <button mat-icon-button type="button" (click)="removeLedgerLine(i)"
+                                class="delete-ledger-line-btn"
+                                style="color: #ae1f66;"
+                                matTooltip="Remove this line item">
+                                <mat-icon style="color: #ae1f66;">close</mat-icon>
+                              </button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+
+            <div class="col-span-4 grid grid-cols-3 gap-x-1.5 mb-4">
+              <mat-form-field appearance="outline">
+                <mat-label>Invoiced Amount</mat-label>
+                <input matInput type="text" formControlName="invoicedAmount" readonly class="readonly-field">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Paid Amount</mat-label>
+                <input matInput type="text" formControlName="paidAmount" readonly class="readonly-field">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Total Due</mat-label>
+                <input matInput type="text" formControlName="totalDue" readonly class="readonly-field">
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Notes</mat-label>
+              <textarea matInput formControlName="notes" rows="3"></textarea>
+            </mat-form-field>
+          </div>
+
+          @if (isSubmitting) {
+            <div class="flex justify-center gap-3 items-center mt-4">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block"/>
+              <span>{{ isAddMode ? 'Creating...' : 'Saving...' }}</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

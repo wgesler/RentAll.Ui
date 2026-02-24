@@ -2,8 +2,10 @@ import { Routes } from '@angular/router';
 import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
 import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
+import { BillingCreateComponent } from './authenticated/accounting/billing-create/billing-create.component';
 import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
 import { InvoiceComponent } from './authenticated/accounting/invoice/invoice.component';
+import { BillingComponent } from './authenticated/accounting/billing/billing.component';
 import { CompaniesComponent } from './authenticated/companies/companies/companies.component';
 import { CompanyComponent } from './authenticated/companies/company/company.component';
 import { VendorComponent } from './authenticated/companies/vendor/vendor.component';
@@ -68,6 +70,8 @@ export enum RouterToken {
   Email = RouterToken.EmailList + '/:id',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
+  Billing = 'billing/:id',
+  BillingCreate = 'billing-create',
   InvoiceCreate = 'invoice-create',
   CostCodesList = 'cost-codes',
   CostCodes = RouterToken.CostCodesList + '/:id',
@@ -116,6 +120,8 @@ export enum RouterUrl {
   Email                  = `${RouterToken.Auth}/${RouterToken.Email}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
+  Billing                = `${RouterToken.Auth}/${RouterToken.Billing}`,
+  BillingCreate          = `${RouterToken.Auth}/${RouterToken.BillingCreate}`,
   InvoiceCreate          = `${RouterToken.Auth}/${RouterToken.InvoiceCreate}`,
   CostCodesList    = `${RouterToken.Auth}/${RouterToken.CostCodesList}`,
   CostCodes        = `${RouterToken.Auth}/${RouterToken.CostCodes}`,
@@ -171,6 +177,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.BillingCreate, component: BillingCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
