@@ -44,6 +44,7 @@ export class DocumentHtmlService {
       @page {
         size: letter;
         margin: 0.75in;
+        margin-top: 0.5in;
         margin-bottom: ${marginBottom};
       }
       

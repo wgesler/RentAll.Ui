@@ -1379,9 +1379,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organization: this.organization,
-      selectedOffice: this.selectedOffice,
-      selectedReservation: this.selectedReservation || undefined,
+      organizationId: this.organization?.organizationId || null,
+      selectedOfficeId: this.selectedOffice?.officeId || null,
+      selectedOfficeName: this.selectedOffice?.name || '',
+      selectedReservationId: this.selectedReservation?.reservationId || null,
       propertyId: this.propertyId || null,
       contacts: this.contacts.length > 0 ? this.contacts : (this.contact ? [this.contact] : []),
       isDownloading: this.isDownloading,

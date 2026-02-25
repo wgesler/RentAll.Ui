@@ -9,18 +9,16 @@ import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
-import { OfficeResponse } from '../organizations/models/office.model';
-import { OrganizationResponse } from '../organizations/models/organization.model';
-import { ReservationResponse } from '../reservations/models/reservation-model';
 import { FileDetails } from '../companies/models/file-details.model';
 import { sendDocumentEmail } from '../email/utils/send-document-email';
 
 export interface DocumentConfig {
   previewIframeHtml: string;
   previewIframeStyles: string;
-  organization: OrganizationResponse | null;
-  selectedOffice: OfficeResponse | null;
-  selectedReservation?: ReservationResponse | null;
+  organizationId: string | null;
+  selectedOfficeId: number | null;
+  selectedOfficeName?: string;
+  selectedReservationId?: string | null;
   propertyId?: string | null;
   contacts?: ContactResponse[];
   isDownloading: boolean;
@@ -71,7 +69,7 @@ export abstract class BaseDocumentComponent {
       return;
     }
 
-    if (!config.organization?.organizationId || !config.selectedOffice) {
+    if (!config.organizationId || !config.selectedOfficeId) {
       this.toastr.warning(downloadConfig.noSelectionMessage, 'No Selection');
       return;
     }
@@ -86,11 +84,11 @@ export abstract class BaseDocumentComponent {
 
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
-      organizationId: config.organization.organizationId,
-      officeId: config.selectedOffice.officeId,
-      officeName: config.selectedOffice.name,
+      organizationId: config.organizationId,
+      officeId: config.selectedOfficeId,
+      officeName: config.selectedOfficeName || '',
       propertyId: config.propertyId || null,
-      reservationId: config.selectedReservation?.reservationId || null,
+      reservationId: config.selectedReservationId || null,
       documentTypeId: Number(downloadConfig.documentType), 
       fileName: downloadConfig.fileName
     };
@@ -145,7 +143,7 @@ export abstract class BaseDocumentComponent {
       return;
     }
 
-    if (!config.organization?.organizationId || !config.selectedOffice?.officeId) {
+    if (!config.organizationId || !config.selectedOfficeId) {
       this.toastr.warning('Organization or Office not available', 'No Selection');
       return;
     }

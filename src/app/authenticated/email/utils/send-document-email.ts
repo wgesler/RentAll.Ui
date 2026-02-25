@@ -1,7 +1,7 @@
 import { firstValueFrom } from 'rxjs';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
-import { EmailConfig, DocumentConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 import { EmailAddress, EmailRequest } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
@@ -33,11 +33,11 @@ export async function sendDocumentEmail(
   const attachmentFileName = emailConfig.fileDetails?.fileName || 'document.pdf';
   const generateDto: GenerateDocumentFromHtmlDto = {
     htmlContent: htmlWithStyles,
-    organizationId: documentConfig.organization!.organizationId,
-    officeId: documentConfig.selectedOffice!.officeId,
-    officeName: documentConfig.selectedOffice!.name,
+    organizationId: documentConfig.organizationId!,
+    officeId: documentConfig.selectedOfficeId!,
+    officeName: documentConfig.selectedOfficeName || '',
     propertyId: documentConfig.propertyId || null,
-    reservationId: documentConfig.selectedReservation?.reservationId || null,
+    reservationId: documentConfig.selectedReservationId || null,
     documentTypeId: Number(emailConfig.documentType),
     fileName: attachmentFileName
   };
@@ -63,10 +63,10 @@ export async function sendDocumentEmail(
     .map(email => ({ email, name: '' }));
 
   const emailRequest: EmailRequest = {
-    organizationId: documentConfig.organization!.organizationId,
-    officeId: documentConfig.selectedOffice!.officeId,
+    organizationId: documentConfig.organizationId!,
+    officeId: documentConfig.selectedOfficeId!,
     propertyId: documentConfig.propertyId || null,
-    reservationId: documentConfig.selectedReservation?.reservationId || null,
+    reservationId: documentConfig.selectedReservationId || null,
     fromRecipient,
     toRecipients: [toRecipient],
     ccRecipients,

@@ -25,14 +25,24 @@
 
       <mat-card>
         <form [formGroup]="form" class="email-container">
-          <div class="email-address-line">
+          <div class="email-address-line email-address-grid">
             <span class="line-label">To:</span>
-            <span class="line-value">{{ toRecipientLine || 'None' }}</span>
+            <input
+              type="email"
+              class="email-line-input"
+              formControlName="toEmail"
+              placeholder="recipient@example.com"
+            />
           </div>
 
-          <div class="email-address-line">
+          <div class="email-address-line email-address-grid">
             <span class="line-label">From:</span>
-            <span class="line-value">{{ fromRecipientLine || 'None' }}</span>
+            <input
+              type="email"
+              class="email-line-input"
+              formControlName="fromEmail"
+              placeholder="sender@example.com"
+            />
           </div>
 
           <div class="email-address-line email-address-grid">

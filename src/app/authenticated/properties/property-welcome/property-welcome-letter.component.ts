@@ -855,9 +855,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organization: this.organization,
-      selectedOffice: this.selectedOffice,
-      selectedReservation: this.selectedReservation || undefined,
+      organizationId: this.organization?.organizationId || null,
+      selectedOfficeId: this.selectedOffice?.officeId || null,
+      selectedOfficeName: this.selectedOffice?.name || '',
+      selectedReservationId: this.selectedReservation?.reservationId || null,
       propertyId: this.propertyId || null,
       contacts: this.contacts,
       isDownloading: this.isDownloading

@@ -126,13 +126,13 @@ export class EmailCreateComponent implements OnInit {
     this.navigateBackAndClear();
   }
 
-  private navigateBackAndClear(): void {
+  navigateBackAndClear(): void {
     const returnUrl = this.draft?.returnUrl || RouterUrl.EmailList;
     this.draftService.clearDraft();
     this.router.navigateByUrl(returnUrl);
   }
 
-  private buildForm(): FormGroup {
+  buildForm(): FormGroup {
     return this.fb.group({
       subject: new FormControl('', [Validators.required]),
       toEmail: new FormControl('', [Validators.required, Validators.email]),
@@ -145,7 +145,7 @@ export class EmailCreateComponent implements OnInit {
     });
   }
 
-  private formatAddressLine(name: string | null | undefined, email: string | null | undefined): string {
+  formatAddressLine(name: string | null | undefined, email: string | null | undefined): string {
     const safeName = (name || '').trim();
     const safeEmail = (email || '').trim();
     if (safeName && safeEmail) {
@@ -155,7 +155,7 @@ export class EmailCreateComponent implements OnInit {
     return safeEmail || safeName || '';
   }
 
-  private htmlToPlainText(html: string): string {
+  htmlToPlainText(html: string): string {
     if (!html) {
       return '';
     }
@@ -184,17 +184,17 @@ export class EmailCreateComponent implements OnInit {
       .trim();
   }
 
-  private decodeHtmlEntities(value: string): string {
+  decodeHtmlEntities(value: string): string {
     const parser = new DOMParser();
     const doc = parser.parseFromString(value, 'text/html');
     return doc.documentElement.textContent || '';
   }
 
-  private isBodyChanged(currentText: string): boolean {
+  isBodyChanged(currentText: string): boolean {
     return this.normalizeForComparison(currentText) !== this.normalizeForComparison(this.initialPlainTextContent);
   }
 
-  private normalizeForComparison(value: string): string {
+  normalizeForComparison(value: string): string {
     return (value || '')
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
@@ -204,13 +204,13 @@ export class EmailCreateComponent implements OnInit {
       .trim();
   }
 
-  private isValidDraft(draft: EmailCreateDraft, emailConfig: EmailConfig): boolean {
+  isValidDraft(draft: EmailCreateDraft, emailConfig: EmailConfig): boolean {
     if (!draft.documentConfig.previewIframeHtml) {
       this.toastr.warning('No preview available to email.', 'No Preview');
       return false;
     }
 
-    if (!draft.documentConfig.organization?.organizationId || !draft.documentConfig.selectedOffice?.officeId) {
+    if (!draft.documentConfig.organizationId || !draft.documentConfig.selectedOfficeId) {
       this.toastr.warning('Organization or Office not available', 'No Selection');
       return false;
     }

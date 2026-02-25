@@ -244,7 +244,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     try {
       // Ensure we have all required data
       await this.ensureAllDataLoaded();
-
+      
       // Check if we have property HTML template
       if (!this.propertyHtml?.invoice) {
         throw new Error('Property does not have invoice template');
@@ -1188,9 +1188,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organization: this.organization,
-      selectedOffice: this.selectedOffice,
-      selectedReservation: this.selectedReservation || undefined,
+      organizationId: this.organization?.organizationId || null,
+      selectedOfficeId: this.selectedOffice?.officeId || null,
+      selectedOfficeName: this.selectedOffice?.name || '',
+      selectedReservationId: this.selectedReservation?.reservationId || null,
       propertyId: this.property?.propertyId || null,
       contacts: this.contacts,
       isDownloading: this.isDownloading

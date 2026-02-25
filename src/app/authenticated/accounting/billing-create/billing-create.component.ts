@@ -29,6 +29,8 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailHtmlService } from '../../email/services/email-html.service';
 
 @Component({
     selector: 'app-billing-create',
@@ -54,13 +56,14 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   availableInvoices: { value: InvoiceResponse, label: string }[] = [];
   selectedInvoice: InvoiceResponse | null = null;
 
+  emailHtml: EmailHtmlResponse | null = null;
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   safePreviewIframeHtml: SafeHtml = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -78,6 +81,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     documentExportService: DocumentExportService,
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService,
+    private emailHtmlService: EmailHtmlService,
     private accountingOfficeService: AccountingOfficeService,
     private organizationService: OrganizationService,
     private route: ActivatedRoute,
@@ -108,6 +112,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       }
       
       this.loadOrganizationsList();
+      this.loadEmailHtml();
+      
       this.http.get('assets/billing.html', { responseType: 'text' }).pipe(take(1)).subscribe({
         next: (html: string) => {
           if (html) {
@@ -161,7 +167,11 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       // Process HTML and replace placeholders
       const processedHtml = this.replacePlaceholders(invoiceHtml);
       const processed = this.documentHtmlService.processHtml(processedHtml, true);
-      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(processed.processedHtml, processed.extractedStyles);
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+        processed.processedHtml,
+        processed.extractedStyles,
+        { marginBottom: '0.25in' }
+      );
 
       // Generate file name
       const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
@@ -173,10 +183,19 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         officeId: this.selectedInvoice.officeId || 1,
         officeName: this.selectedInvoice.officeName || '',
         propertyId: null,
-        reservationId: null,
+        reservationId: this.selectedInvoice.reservationId || this.recipientOrganization?.organizationId || null,
         documentTypeId: Number(DocumentType.Invoice),
         fileName: fileName
       };
+      console.log('Expected document generate request payload:', generateDto);
+      console.log('Save invoice identity values:', {
+        selectedInvoiceId: this.selectedInvoice.invoiceId,
+        selectedInvoiceOrganizationId: this.selectedInvoice.organizationId,
+        billingOrganizationId: this.billingOrganization?.organizationId || null,
+        selectedInvoiceOfficeId: this.selectedInvoice.officeId || null,
+        selectedInvoiceReservationId: this.selectedInvoice.reservationId || null,
+        recipientOrganizationId: this.recipientOrganization?.organizationId || null
+      });
 
       const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');
@@ -188,6 +207,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     } catch (err: any) {
       this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       console.error('Document save error:', err);
+      console.error('Document save error payload:', err?.error);
+      console.error('Document save validation errors:', err?.error?.errors);
+      console.error('Document save validation errors (json):', JSON.stringify(err?.error?.errors || {}, null, 2));
       this.isSubmitting = false;
       this.iframeKey++; // Force iframe refresh
     }
@@ -337,6 +359,19 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: (response: EmailHtmlResponse) => {
+        this.emailHtml = this.mappingService.mapEmailHtml(response as any);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 400) {
+          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+      }
+    });
+  }
+
   loadAccountingOffice(): void {
     if (!this.billingOrganization?.organizationId) {
       this.selectedAccountingOffice = null;
@@ -344,12 +379,19 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.accountingOfficeService.getAccountingOfficeById(1).pipe(take(1)).subscribe({
-      next: (response: AccountingOfficeResponse) => {
-        this.selectedAccountingOffice = response;
+    this.accountingOfficeService.getAccountingOffices().pipe(take(1)).subscribe({
+      next: (offices: AccountingOfficeResponse[]) => {
+        const organizationOffices = (offices || []).filter(o => o.organizationId === this.billingOrganization?.organizationId);
+        const preferredOfficeId = this.selectedInvoice?.officeId || 1;
+        this.selectedAccountingOffice =
+          organizationOffices.find(o => o.officeId === preferredOfficeId) ||
+          organizationOffices.find(o => o.officeId === 1) ||
+          organizationOffices[0] ||
+          null;
         this.updateAccountingOfficeLogo();
       },
-      error: () => {
+      error: (err) => {
+        console.error('Could not load accounting office list:', err);
         this.selectedAccountingOffice = null;
         this.accountingOfficeLogo = '';
       }
@@ -417,6 +459,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     if (this.selectedInvoice) {
       this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
       this.form.get('selectedInvoiceId')?.enable();
+      this.loadAccountingOffice();
     }
     
     // Load full invoice details including ledger lines
@@ -684,12 +727,14 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organization: this.billingOrganization,
-      selectedOffice: undefined,
-      selectedReservation: undefined,
+      organizationId: this.billingOrganization.organizationId,
+      selectedOfficeId: 1,
+      selectedOfficeName: 'Denver',
+      selectedReservationId: this.recipientOrganization.organizationId,
       propertyId: null,
       contacts: [],
-      isDownloading: this.isDownloading
+      isDownloading: this.isDownloading,
+      printStyleOptions: { marginBottom: '0.25in' }
     };
   }
 
@@ -721,17 +766,24 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   override async onEmail(): Promise<void> {
-    const toEmail = '';
-    const toName = '';
+    const toEmail = this.recipientOrganization.contactEmail;
+    const toName = this.recipientOrganization.contactName;
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const accountingName = this.selectedAccountingOffice?.name;
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-    const emailSubject = `Invoice ${invoiceCode}`;
-    const emailBodyHtml = '';
+    const emailSubject = this.emailHtml?.invoiceSubject?.trim()
+      .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+    const emailBodyHtml = (this.emailHtml?.invoice || '')
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\{\{accountingName\}\}/g, accountingName || '')
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
+
 
     const emailConfig: EmailConfig = {
       subject: emailSubject,

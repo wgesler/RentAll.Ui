@@ -14,6 +14,7 @@
     @media print {
       @page {
         margin: 0.75in;
+        margin-top: 0.5in;
         size: letter;
       }
 
@@ -65,7 +66,7 @@
     .header-row {
       display: table;
       width: 100%;
-      margin-bottom: 20px;
+      margin-bottom: 0;
     }
 
     .logo-container {
@@ -340,7 +341,7 @@
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
-  <h3 style="text-align: center; margin-top: 20px; margin-bottom: 10px;"><span class="label">Company Invoice</span></h3>
+  <h3 style="text-align: center; margin-top: 4px !important; margin-bottom: 10px;"><span class="label">Company Invoice</span></h3>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
@@ -397,7 +398,7 @@
           <div class="border">
             <h3 style="text-align: left; padding-left: 15px;">Payment Information</h3>
             <p style="padding-left: 15px;">Please remit payments to:</p>
-            <p style="padding-left: 15px;"><strong>{{accountingOfficeName}}<br>{{accountingOfficeAddress}}<br>{{accountingOfficeCityStateZip}}</strong></p>
+            <p style="padding-left: 15px;"><strong>{{accountingOfficeName}}&nbsp;{{accountingOfficeAddress}}&nbsp;{{accountingOfficeCityStateZip}}</strong></p>
 
             <table width="100%" cellspacing="0" cellpadding="0">
               <tr valign="top">
@@ -430,15 +431,13 @@
     </tbody>
   </table>
 
-  <br>
-
   <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
         <td align="center">
           <span style="font-weight: bold">{{accountingOfficeName}}</span><br>
           {{accountingOfficeAddress}}&nbsp;{{accountingOfficeCityStateZip}}<br>
-          <b>F:</b>&nbsp;{{accountingOfficePhone}}&nbsp;&nbsp;&nbsp; <b>W:</b>&nbsp;{{accountingOfficeWebsite}}
+          <b>P:</b>&nbsp;{{accountingOfficePhone}}&nbsp;&nbsp;&nbsp; <b>W:</b>&nbsp;{{accountingOfficeWebsite}}
         </td>
       </tr>
     </tbody>

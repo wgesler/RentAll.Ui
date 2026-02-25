@@ -39,6 +39,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   EmailType = EmailType; // Expose EmailType enum to template
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
   isSuperAdmin: boolean = false;
+  currentUserOrganizationId: string | null;
 
   organizations: OrganizationResponse[] = [];
   availableOffices: OfficeResponse[] = [];
@@ -76,10 +77,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
 
     this.selectedOrganizationId = null;
-    const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
+    this.currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
     this.organizationService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
-        this.organizations = (organizations || []).filter(o => o.organizationId !== currentUserOrganizationId);
+        this.organizations = (organizations || []).filter(o => o.organizationId !== this.currentUserOrganizationId);
       }
     });
   }
@@ -212,25 +213,33 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
-    // Navigate to Create Invoice page (standalone route)
+    // Navigate to Create Invoice/Billing page (standalone route)
     // Always include officeId, invoiceId, reservationId, and companyId if available
     const params: string[] = [];
     
     // Add returnTo parameter to track where we came from
     params.push(`returnTo=accounting`);
     
-    if (event.officeId !== null && event.officeId !== undefined) {
-      params.push(`officeId=${event.officeId}`);
+    if(this.isSuperAdmin)
+    {
+      if (this.currentUserOrganizationId) {
+        params.push(`organizationId=${this.currentUserOrganizationId}`);
+        params.push(`reservationId=${this.selectedOrganizationId}`);
+      }
     }
-    if (event.reservationId !== null && event.reservationId !== undefined && event.reservationId !== '') {
-      params.push(`reservationId=${event.reservationId}`);
-    }
-    if (event.invoiceId) {
-      params.push(`invoiceId=${event.invoiceId}`);
-    }
-    // Include companyId if available
-    if (this.selectedCompanyId) {
-      params.push(`companyId=${this.selectedCompanyId}`);
+    else {
+      if (event.officeId !== null && event.officeId !== undefined) {
+        params.push(`officeId=${event.officeId}`);
+      }
+      if (this.selectedCompanyId) {
+        params.push(`companyId=${this.selectedCompanyId}`);
+      }
+      if (event.reservationId !== null && event.reservationId !== undefined && event.reservationId !== '') {
+        params.push(`reservationId=${event.reservationId}`);
+      }
+      if (event.invoiceId) {
+        params.push(`invoiceId=${event.invoiceId}`);
+      }
     }
     
     // Navigate to the Create Invoice route with all parameters
