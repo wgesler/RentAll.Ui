@@ -63,7 +63,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   iframeKey: number = 0;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -114,7 +114,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       this.loadOrganizationsList();
       this.loadEmailHtml();
       
-      this.http.get('assets/billing.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+      this.http.get('assets/billing.html', { responseType: 'text' }).pipe(
+        take(1),
+        finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'billingHtml'))
+      ).subscribe({
         next: (html: string) => {
           if (html) {
             this.form.patchValue({ invoice: html });
@@ -267,6 +270,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         this.organizations = [];
         this.billingOrganization = null;
         this.recipientOrganization = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
       }
     });
   }
@@ -376,10 +380,14 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     if (!this.billingOrganization?.organizationId) {
       this.selectedAccountingOffice = null;
       this.accountingOfficeLogo = '';
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
       return;
     }
 
-    this.accountingOfficeService.getAccountingOffices().pipe(take(1)).subscribe({
+    this.accountingOfficeService.getAccountingOffices().pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))
+    ).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         const organizationOffices = (offices || []).filter(o => o.organizationId === this.billingOrganization?.organizationId);
         const preferredOfficeId = this.selectedInvoice?.officeId || 1;

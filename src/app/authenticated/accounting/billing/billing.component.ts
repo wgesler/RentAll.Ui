@@ -258,10 +258,6 @@ export class BillingComponent implements OnInit, OnDestroy {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
 
-        if (isCreating) {
-          await this.incrementBillingOrganizationInvoiceNumber();
-        }
-
         const savedInvoiceAny = (savedInvoice || {}) as any;
         const resolvedInvoiceId =
           savedInvoice?.invoiceId ||
@@ -293,62 +289,6 @@ export class BillingComponent implements OnInit, OnDestroy {
         this.toastr.error(message, CommonMessage.Error);
       }
     });
-  }
-
-  async incrementBillingOrganizationInvoiceNumber(): Promise<void> {
-    if (!this.billingOrganization?.organizationId) {
-      return;
-    }
-
-    const nextInvoiceNo = (this.billingOrganization.currentInvoiceNo || 0) + 1;
-    const request: OrganizationRequest = {
-      organizationId: this.billingOrganization.organizationId,
-      organizationCode: this.billingOrganization.organizationCode,
-      name: this.billingOrganization.name,
-      address1: this.billingOrganization.address1,
-      address2: this.billingOrganization.address2,
-      suite: this.billingOrganization.suite,
-      city: this.billingOrganization.city,
-      state: this.billingOrganization.state,
-      zip: this.billingOrganization.zip,
-      phone: this.billingOrganization.phone,
-      fax: this.billingOrganization.fax,
-      contactName: this.billingOrganization.contactName,
-      contactEmail: this.billingOrganization.contactEmail,
-      website: this.billingOrganization.website,
-      logoPath: this.billingOrganization.logoPath,
-      fileDetails: this.billingOrganization.fileDetails,
-      isInternational: this.billingOrganization.isInternational,
-      currentInvoiceNo: nextInvoiceNo,
-      officeFee: this.billingOrganization.officeFee ?? 0,
-      userFee: this.billingOrganization.userFee ?? 0,
-      unit50Fee: this.billingOrganization.unit50Fee ?? 0,
-      unit100Fee: this.billingOrganization.unit100Fee ?? 0,
-      unit200Fee: this.billingOrganization.unit200Fee ?? 0,
-      unit500Fee: this.billingOrganization.unit500Fee ?? 0,
-      isActive: this.billingOrganization.isActive
-    };
-
-    try {
-      const updatedOrganization = await firstValueFrom(
-        this.organizationService.updateOrganization(request).pipe(take(1))
-      );
-
-      const resolvedCurrentInvoiceNo = updatedOrganization?.currentInvoiceNo ?? nextInvoiceNo;
-      this.billingOrganization = {
-        ...this.billingOrganization,
-        ...updatedOrganization,
-        currentInvoiceNo: resolvedCurrentInvoiceNo
-      };
-      this.organizations = this.organizations.map(o =>
-        o.organizationId === this.billingOrganization?.organizationId
-          ? { ...o, ...this.billingOrganization }
-          : o
-      );
-    } catch {
-      this.billingOrganization.currentInvoiceNo = nextInvoiceNo;
-      this.toastr.warning('Invoice saved, but failed to update Organization current invoice number.', 'Organization update warning');
-    }
   }
   //#endregion
 
