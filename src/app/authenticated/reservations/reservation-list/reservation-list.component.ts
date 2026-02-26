@@ -1,5 +1,4 @@
 import { CommonModule } from "@angular/common";
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -154,15 +153,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.allReservations = this.mappingService.mapReservationList(response);
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.allReservations = [];
         this.reservationsDisplay = [];
-        // Don't show toast for 401 - interceptor handles it
-        // Don't show toast for 400 - API handles it
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -176,13 +170,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
           this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
           this.applyFilters();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete reservation. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete reservation', CommonMessage.Error);
-          }
-        }
+        error: () => {}
       });
     }
   }
@@ -213,11 +201,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       next: (companies: CompanyResponse[]) => {
         this.companies = companies;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.companies = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });  
   }
@@ -229,13 +214,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         // Get reservations - ReservationListResponse already includes contactName, so we don't need contacts
         this.getReservations();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.properties = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-        // Get reservations even if properties failed - ReservationListResponse already includes contactName
         this.getReservations();
       }
     });

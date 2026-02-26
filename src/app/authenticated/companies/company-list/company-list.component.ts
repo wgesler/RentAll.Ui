@@ -99,11 +99,8 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
         this.applyFilters();
         this.hasInitialLoad = true;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
         this.hasInitialLoad = true;
       }
     });
@@ -139,11 +136,7 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Company deleted successfully', CommonMessage.Success);
           this.getCompanies(); // Refresh the list
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-        }
+        error: () => {}
       });
     }
   }

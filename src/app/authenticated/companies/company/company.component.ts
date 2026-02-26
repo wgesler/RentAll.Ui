@@ -149,11 +149,8 @@ export class CompanyComponent implements OnInit, OnDestroy {
           this.populateForm();
         }, 0);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -193,13 +190,9 @@ export class CompanyComponent implements OnInit, OnDestroy {
         // Clear the company ID reference after populating
         this.company = null;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load company to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'company');
-        // Fall back to setting office from query params if copy fails
         this.setOfficeFromQueryParams();
       }
     });
@@ -278,11 +271,7 @@ export class CompanyComponent implements OnInit, OnDestroy {
           queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
         });
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion

@@ -15,29 +15,59 @@ let isRefreshingToken: boolean = false;
 let justRefreshed: boolean = false;
 
 // Helper function declarations
-function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, title: string = CommonMessage.Error, appendTryAgain: boolean = false): void {
-  // Check if error.error matches ErrorResponseDto structure
+function extractApiErrorMessage(error: HttpErrorResponse): string | null {
   const errorData = error?.error;
-  
-  if (errorData && typeof errorData === 'object') {
-    // Check if it has the ErrorResponseDto structure
-    if ('message' in errorData || 'Message' in errorData || 
-        ('controller' in errorData && 'httpMethod' in errorData)) {
-      
-      const errorDto = errorData as ErrorResponseDto;
-      let message = errorDto.message || (errorData as any).Message || '';
-      
-      // Append TryAgain suffix for server errors if requested
-      if (appendTryAgain && message) {
-        message = message + CommonMessage.TryAgain;
-      }
-      
-      // Create a formatted toast message with error details
-      if (message) {
-        toastrService.error(message, title);
-      } 
-      return;
+  if (!errorData) {
+    return null;
+  }
+
+  if (typeof errorData === 'string') {
+    const trimmed = errorData.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof errorData === 'object') {
+    const dtoMessage = (errorData as ErrorResponseDto).message;
+    const message = typeof dtoMessage === 'string' && dtoMessage.trim() ? dtoMessage.trim() : null;
+    if (message) {
+      return message;
     }
+
+    const altMessage = (errorData as any).Message;
+    if (typeof altMessage === 'string' && altMessage.trim()) {
+      return altMessage.trim();
+    }
+
+    const title = (errorData as any).title;
+    if (typeof title === 'string' && title.trim()) {
+      return title.trim();
+    }
+
+    const errors = (errorData as any).errors;
+    if (errors && typeof errors === 'object') {
+      for (const key of Object.keys(errors)) {
+        const value = errors[key];
+        if (Array.isArray(value)) {
+          const first = value.find(item => typeof item === 'string' && item.trim());
+          if (first) {
+            return first.trim();
+          }
+        } else if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, title: string = CommonMessage.Error, appendTryAgain: boolean = false): void {
+  const apiMessage = extractApiErrorMessage(error);
+  if (apiMessage) {
+    const message = appendTryAgain ? apiMessage + CommonMessage.TryAgain : apiMessage;
+    toastrService.error(message, title);
+    return;
   }
   
   // Fallback: if no API message but we need to show something (e.g., 500 without message)
@@ -56,8 +86,24 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
   return authService.logout();
 }
 
-// 400 BadRequest: Let components handle error messages (they're more specific)
-function handle400Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
+// 400 BadRequest: show API message globally when available
+function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  // Temporary debugging aid: inspect exact API payload shape for bad requests.
+  // This helps us align global message extraction with backend responses.
+  console.groupCollapsed('[HTTP 400] API Error Payload');
+  console.log('URL:', req.urlWithParams || req.url);
+  console.log('Method:', req.method);
+  console.log('Status:', error.status);
+  console.log('StatusText:', error.statusText);
+  console.log('Error body:', error.error);
+  if (error?.error && typeof error.error === 'object') {
+    console.log('error.message:', (error.error as any).message);
+    console.log('error.title:', (error.error as any).title);
+    console.log('error.errors:', (error.error as any).errors);
+  }
+  console.groupEnd();
+
+  showErrorToast(error, toastrService, CommonMessage.Error, false);
   return throwError(() => error);
 }
 
@@ -144,18 +190,35 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
   }
 }
 
-// 409 Conflict: Let components handle error messages (they're more specific)
-function handle409Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-   return throwError(() => error);
+// 409 Conflict: show API message globally when available
+function handle409Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  // Temporary debugging aid: inspect exact API payload shape for conflicts.
+  console.groupCollapsed('[HTTP 409] API Error Payload');
+  console.log('URL:', req.urlWithParams || req.url);
+  console.log('Method:', req.method);
+  console.log('Status:', error.status);
+  console.log('StatusText:', error.statusText);
+  console.log('Error body:', error.error);
+  if (error?.error && typeof error.error === 'object') {
+    console.log('error.message:', (error.error as any).message);
+    console.log('error.title:', (error.error as any).title);
+    console.log('error.errors:', (error.error as any).errors);
+  }
+  console.groupEnd();
+
+  showErrorToast(error, toastrService, CommonMessage.Error, false);
+  return throwError(() => error);
 }
 
-// 404 NotFound: Let components handle error messages (they're more specific)
-function handle404Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
-   return throwError(() => error);
+// 404 NotFound: show API message globally when available
+function handle404Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  showErrorToast(error, toastrService, CommonMessage.Error, false);
+  return throwError(() => error);
 }
 
-// 500+ ServerError: Let components handle error messages (they're more specific)
-function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {  // Don't show generic error - let components show specific error messages
+// 500+ and other errors: show API message globally when available
+function handleDefaultError(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  showErrorToast(error, toastrService, CommonMessage.ServiceError, true);
   return throwError(() => error);
 }
 
@@ -181,13 +244,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (error instanceof HttpErrorResponse) {
         switch ((error as HttpErrorResponse).status) {
           case 400:
-            return handle400Error(error);
+            return handle400Error(req, error, toastrService);
           case 401:
             return handle401Error(req, error, next, loadingBarService, authService, toastrService);
           case 404:
-            return handle404Error(error);
+            return handle404Error(error, toastrService);
           case 409:
-            return handle409Error(error, toastrService);
+            return handle409Error(req, error, toastrService);
           default:
             return handleDefaultError(error, toastrService);
         }

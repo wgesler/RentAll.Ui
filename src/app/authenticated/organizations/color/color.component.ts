@@ -109,9 +109,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load color info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.removeLoadItem('color');
       }
     });
@@ -138,11 +135,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Color created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create color request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     } else {
       const idToUse = this.id || this.routeColorId;
@@ -159,11 +152,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update color request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

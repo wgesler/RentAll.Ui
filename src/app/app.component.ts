@@ -1,10 +1,7 @@
-
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterOutlet } from '@angular/router';
-import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
@@ -12,7 +9,6 @@ import { AccountingOfficeService } from './authenticated/organizations/services/
 import { OfficeService } from './authenticated/organizations/services/office.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
-import { CommonMessage } from './enums/common-message.enum';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
 import { UtilityService } from './services/utility.service';
@@ -40,7 +36,6 @@ export class AppComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
-    private toastr: ToastrService,
     private utilityService: UtilityService
   ) { }
 
@@ -70,10 +65,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.commonService.loadStates();
     this.commonService.getStates().pipe(filter(states => states && states.length > 0),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'states'); })).subscribe({
       next: () => {},
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Unable to load States. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'states');
       }
     });
@@ -83,10 +75,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.commonService.loadDailyQuote();
     this.commonService.getDailyQuote().pipe(filter(quote => quote !== null), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'dailyQuote'); })).subscribe({
       next: () => {},
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Unable to load Daily Quote. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'dailyQuote');
       }
     });
@@ -146,11 +135,7 @@ export class AppComponent implements OnInit, OnDestroy {
         next: (organizations) => {
           this.organizationListService.setOrganizations(organizations);
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not load organizations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: () => {}
       });
     } else {
       // Regular user: Load and add their single organization to the list

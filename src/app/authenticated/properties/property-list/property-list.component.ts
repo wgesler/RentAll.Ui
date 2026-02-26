@@ -135,9 +135,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
         console.error('Error loading properties:', err);
-        if (err.status !== 404) {
-          this.toastr.error('Could not load properties at this time.', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -173,9 +170,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
         this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
       },
-      error: () => {
-        this.toastr.error('Could not load the calendar URL at this time.', CommonMessage.ServiceError);
-      }
+      error: () => {}
     });
   }
 

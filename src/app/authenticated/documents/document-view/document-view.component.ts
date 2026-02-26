@@ -86,11 +86,8 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         this.loadDocumentContent();
         // Print will be triggered via iframe load event if shouldPrint is true
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -183,9 +180,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
             setTimeout(() => this.setupIframeLoadListener(), 200);
           }
         },
-        error: (err: HttpErrorResponse) => {
-          this.toastr.error('Could not load document content. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+        error: () => {}
       });
     }
   }
@@ -432,9 +427,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
           window.URL.revokeObjectURL(url);
           this.toastr.success('Document downloaded successfully', CommonMessage.Success);
         },
-        error: (err: HttpErrorResponse) => {
-          this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+        error: () => {}
       });
     }
   }

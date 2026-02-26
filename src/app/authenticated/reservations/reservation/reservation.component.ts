@@ -254,11 +254,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId) || null;
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -386,18 +383,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 400) {
-          // Show API validation error message if available
           const errorData = err?.error;
-          console.error('400 Validation Error Response:', errorData);
-          
           if (errorData && typeof errorData === 'object') {
-            // Check for ASP.NET Core ProblemDetails format
             const problemDetails = errorData as any;
-            
-            // Show title/message
             let message = problemDetails.title || problemDetails.message || problemDetails.Message || 'Validation failed.';
-            
-            // If there are specific field errors, append them
             if (problemDetails.errors && typeof problemDetails.errors === 'object') {
               const fieldErrors: string[] = [];
               Object.keys(problemDetails.errors).forEach(key => {
@@ -410,14 +399,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
                 message += '\n' + fieldErrors.join('\n');
               }
             }
-            
             this.toastr.error(message, CommonMessage.Error, { timeOut: 10000 });
           } else {
             this.toastr.error('Validation failed. Please check your input.', CommonMessage.Error);
           }
-        } else {
-          const failMessage = this.isAddMode ? 'Create reservation request has failed. ' : 'Update reservation request has failed. ';
-          this.toastr.error(failMessage + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
       }
     });
@@ -1083,9 +1068,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       next: (organization: OrganizationResponse) => {
         this.organization = organization;
       },
-      error: (err: HttpErrorResponse) => {
-        // Organization is handled globally, just handle gracefully
-      }
+      error: () => {}
     });
   }
   
@@ -1094,11 +1077,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       next: (agents: AgentResponse[]) => {
         this.agents = agents;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.agents = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load agents. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -1109,12 +1089,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.properties = properties;
         this.filterPropertiesByOffice();
        },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.properties = [];
         this.availableProperties = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -1124,11 +1101,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       next: (companies: CompanyResponse[]) => {
         this.companies = companies;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.companies = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load companies. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -1146,7 +1120,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.filterPropertiesByOffice();
         });
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.offices = [];
         this.availableOffices = [];
       }
@@ -1173,7 +1147,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
           }));
         });
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.chargeCostCodes = [];
         this.availableChargeCostCodes = [];
       }

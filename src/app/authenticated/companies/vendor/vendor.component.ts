@@ -149,11 +149,8 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.buildForm();
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -190,13 +187,9 @@ export class VendorComponent implements OnInit, OnDestroy {
         // Clear the vendor ID reference after populating
         this.vendor = null;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load vendor to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendor');
-        // Fall back to setting office from query params if copy fails
         this.setOfficeFromQueryParams();
       }
     });
@@ -264,11 +257,7 @@ export class VendorComponent implements OnInit, OnDestroy {
           queryParams: queryParams
         });
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion

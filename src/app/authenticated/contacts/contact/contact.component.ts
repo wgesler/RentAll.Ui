@@ -150,11 +150,8 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.buildForm();
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -202,13 +199,9 @@ export class ContactComponent implements OnInit, OnDestroy {
         // Clear the contact ID reference after populating
         this.contact = null;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load contact to copy from.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
-        // Fall back to setting values from query params if copy fails
         this.setFormValuesFromQueryParams();
       }
     });
@@ -288,11 +281,7 @@ export class ContactComponent implements OnInit, OnDestroy {
           queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
         });
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion
@@ -487,11 +476,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       next: (companies: CompanyResponse[]) => {
         this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.companies = [];
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -507,11 +493,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       next: (vendors: VendorResponse[]) => {
         this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.vendors = [];
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }

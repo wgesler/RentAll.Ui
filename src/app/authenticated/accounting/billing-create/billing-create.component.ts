@@ -305,13 +305,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           this.onInvoiceSelected(this.invoiceId);
         }
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.invoices = [];
         this.availableInvoices = [];
         this.form.get('selectedInvoiceId')?.disable();
-        if (err.status !== 404 && err.status !== 400) {
-          this.toastr.error('Could not load invoices.', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -332,10 +329,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           this.loadInvoiceHtml();
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load invoice.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -354,10 +348,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
           this.toastr.warning('No billing HTML template found in assets.', 'No Template');
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load billing HTML from assets.', CommonMessage.ServiceError);
-        }
+      error: () => {
         this.clearPreview();
       }
     });
@@ -368,10 +359,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }

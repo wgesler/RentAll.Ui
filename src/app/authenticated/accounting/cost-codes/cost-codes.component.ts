@@ -213,13 +213,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           
           this.savedEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          // Only show error for actual errors (5xx server errors or 4xx client errors except 400)
-          if (err.status && (err.status >= 500 || (err.status >= 400 && err.status < 500 && err.status !== 400))) {
-            this.toastr.error('Create cost code request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-          // For 400 errors, the API should return validation errors in the response body
-          // which can be handled separately if needed
+        error: () => {
         }
       });
     } else {

@@ -81,14 +81,9 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
         }
       },
       error: (err: HttpErrorResponse) => {
-        // If not found by propertyId, that's okay - form will remain empty
         if (err.status === 404) {
-          // Lease information doesn't exist yet, that's fine
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
           return;
-        }
-        if (err.status !== 400) {
-          this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
         }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
       }
@@ -151,11 +146,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
         // Trigger lease reload event
         this.leaseReloadService.triggerReload();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Failed to save lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion

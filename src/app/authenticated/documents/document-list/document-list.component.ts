@@ -304,11 +304,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
             this.applyFilters(); // Apply office filter if needed
           },
-          error: (err: HttpErrorResponse) => {
+          error: () => {
             this.isServiceError = true;
-            if (err.status !== 400 && err.status !== 404) {
-              this.toastr.error('Could not load documents at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-            }
           }
         });
     } else if (isTypeOnlyFiltered) {
@@ -320,11 +317,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
           this.applyFilters(); // Apply office filter if needed
         },
-        error: (err: HttpErrorResponse) => {
+        error: () => {
           this.isServiceError = true;
-          if (err.status !== 400 && err.status !== 404) {
-            this.toastr.error('Could not load documents at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
         }
       });
     } else if (isUnfiltered) {
@@ -334,10 +328,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.allDocuments = this.mappingService.mapDocuments(documents);
           this.applyFilters(); // Apply office filter if needed
         },
-        error: (err: HttpErrorResponse) => {
+        error: () => {
           this.isServiceError = true;
-          if (err.status === 404) {
-          }
         }
       });
     }
@@ -350,11 +342,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Document deleted successfully', CommonMessage.Success);
           this.getDocuments(); // Refresh the list
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-        }
+        error: () => {}
       });
     }
   }
@@ -426,14 +414,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
               window.URL.revokeObjectURL(url);
               this.toastr.success('Document downloaded successfully', CommonMessage.Success);
             },
-            error: (err: HttpErrorResponse) => {
-              this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-            }
+            error: () => {}
           });
         }
       },
-      error: (err: HttpErrorResponse) => {
-        // If getDocumentByGuid fails, fallback to download endpoint
+      error: () => {
         this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
           next: (blob: Blob) => {
             const url = window.URL.createObjectURL(blob);
@@ -444,9 +429,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             window.URL.revokeObjectURL(url);
             this.toastr.success('Document downloaded successfully', CommonMessage.Success);
           },
-          error: (err: HttpErrorResponse) => {
-            this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
+          error: () => {}
         });
       }
     });

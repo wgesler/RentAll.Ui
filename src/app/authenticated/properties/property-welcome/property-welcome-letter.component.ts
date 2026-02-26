@@ -1,5 +1,5 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -238,11 +238,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.generatePreviewIframe();
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load welcome letter at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -282,9 +278,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         // Trigger document list reload
         this.documentReloadService.triggerReload();
       },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        console.error('Document save error:', err);
+      error: () => {
         this.isSubmitting = false;
         this.generatePreviewIframe();
       }
@@ -331,11 +325,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           }
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -350,11 +340,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       next: (buildings: BuildingResponse[]) => {
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.buildings = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load buildings at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -390,12 +377,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         this.reservations = reservations || [];
         this.filterReservations();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.reservations = [];
         this.availableReservations = [];
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -405,11 +389,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -425,10 +405,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.propertyLetter = response;
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property letter information at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
       }
     });
@@ -439,11 +416,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -477,11 +450,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.reservationSelected.emit(reservationId);
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
   

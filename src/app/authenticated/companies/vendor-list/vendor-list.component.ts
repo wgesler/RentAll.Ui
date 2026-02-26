@@ -84,11 +84,8 @@ export class VendorListComponent implements OnInit, OnDestroy, OnChanges {
         this.allVendors = this.mappingService.mapVendors(vendors);
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -121,11 +118,7 @@ export class VendorListComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Vendor deleted successfully', CommonMessage.Success);
           this.getVendors(); // Refresh the list
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-        }
+        error: () => {}
       });
     }
   }

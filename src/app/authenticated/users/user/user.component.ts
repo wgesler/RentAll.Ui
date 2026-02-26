@@ -161,10 +161,8 @@ export class UserComponent implements OnInit, OnDestroy {
           this.populateForm();
         }, 0);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-        }
       }
     });
   }
@@ -295,11 +293,7 @@ export class UserComponent implements OnInit, OnDestroy {
             this.router.navigateByUrl(RouterUrl.UserList);
           }
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-        }
+        error: () => {}
       });
     } else {
       userRequest.userId = this.userId;
@@ -356,11 +350,7 @@ export class UserComponent implements OnInit, OnDestroy {
               this.router.navigateByUrl(RouterUrl.UserList);
             }
           },
-          error: (err: HttpErrorResponse) => {
-            if (err.status === 404) {
-              // Handle not found error if business logic requires
-            }
-          }
+          error: () => {}
         });
       } else {
         // Regular admin update - always save if form is valid (hasUserUpdates check is for selfEdit only)
@@ -374,12 +364,7 @@ export class UserComponent implements OnInit, OnDestroy {
               this.router.navigateByUrl(RouterUrl.UserList);
             }
           },
-          error: (err: HttpErrorResponse) => {
-            this.toastr.error('Failed to update user', CommonMessage.Error, { timeOut: CommonTimeouts.Error });
-            if (err.status === 404) {
-              // Handle not found error if business logic requires
-            }
-          }
+          error: () => {}
         });
       }
     }
@@ -392,9 +377,7 @@ export class UserComponent implements OnInit, OnDestroy {
       next: (organizations) => {
         this.organizations = organizations || [];
       },
-      error: (err: HttpErrorResponse) => {
-        // Organizations are handled globally, just handle gracefully
-      }
+      error: () => {}
     });
   }
 

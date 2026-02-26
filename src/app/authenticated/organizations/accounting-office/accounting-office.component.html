@@ -210,8 +210,11 @@
 
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Bank Phone</mat-label>
-                      <input matInput formControlName="bankPhone" maxlength="20" (blur)="formatBankPhone()" (input)="onBankPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
-                      @if (form.get('bankPhone')?.hasError('pattern') && form.get('bankPhone')?.touched) {
+                      <input matInput formControlName="bankPhone" required maxlength="20" (blur)="formatBankPhone()" (input)="onBankPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
+                      @if (form.get('bankPhone')?.hasError('required') && form.get('bankPhone')?.touched) {
+                        <mat-error>Bank Phone is required</mat-error>
+                      }
+                      @if (form.get('bankPhone')?.hasError('pattern') && form.get('bankPhone')?.touched && !form.get('bankPhone')?.hasError('required')) {
                         <mat-error>Invalid phone format</mat-error>
                       }
                     </mat-form-field>
@@ -220,17 +223,23 @@
                   <div class="col-span-4 flex gap-x-1.5">
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Bank Routing</mat-label>
-                      <input matInput formControlName="bankRouting" required>
+                      <input matInput formControlName="bankRouting" required inputmode="numeric" (input)="onIntegerInput($event, 'bankRouting')">
                       @if (form.get('bankRouting')?.hasError('required') && form.get('bankRouting')?.touched) {
                         <mat-error>Bank Routing is required</mat-error>
+                      }
+                      @if (form.get('bankRouting')?.hasError('pattern') && form.get('bankRouting')?.touched && !form.get('bankRouting')?.hasError('required')) {
+                        <mat-error>Bank Routing must be numbers only</mat-error>
                       }
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="flex-1">
                       <mat-label>Bank Account</mat-label>
-                      <input matInput formControlName="bankAccount" required>
+                      <input matInput formControlName="bankAccount" required inputmode="numeric" (input)="onIntegerInput($event, 'bankAccount')">
                       @if (form.get('bankAccount')?.hasError('required') && form.get('bankAccount')?.touched) {
                         <mat-error>Bank Account is required</mat-error>
+                      }
+                      @if (form.get('bankAccount')?.hasError('pattern') && form.get('bankAccount')?.touched && !form.get('bankAccount')?.hasError('required')) {
+                        <mat-error>Bank Account must be numbers only</mat-error>
                       }
                     </mat-form-field>
 

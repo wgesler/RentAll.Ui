@@ -1,5 +1,4 @@
 
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -152,26 +151,16 @@ export class ApplyCreditDialogComponent implements OnInit {
                 this.toastr.success(`Credit of $${this.formatter.currency(this.creditAmount)} applied`, CommonMessage.Success);
                 this.dialogRef.close({ success: true });
               },
-              error: (err: HttpErrorResponse) => {
-                if (err.status !== 400) {
-                  this.toastr.error('Failed to apply credit', CommonMessage.Error);
-                }
-              }
+              error: () => {}
             });
           },
-          error: (err: HttpErrorResponse) => {
+          error: () => {
             this.isSubmitting = false;
-            if (err.status !== 400) {
-              this.toastr.error('Failed to update reservation credit', CommonMessage.Error);
-            }
           }
         });
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isSubmitting = false;
-        if (err.status !== 400) {
-          this.toastr.error('Failed to load reservation', CommonMessage.Error);
-        }
       }
     });
   }

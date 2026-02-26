@@ -106,9 +106,6 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load agent info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
       }
     });
@@ -137,11 +134,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Agent created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create agent request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     } else {
       const idToUse = this.agentId || this.routeAgentId;
@@ -153,11 +146,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update agent request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

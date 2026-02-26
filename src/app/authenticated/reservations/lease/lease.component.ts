@@ -1,12 +1,11 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, catchError, filter, finalize, forkJoin, map, of, take } from 'rxjs';
-import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
@@ -198,11 +197,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
            this.generatePreviewIframe();
          }
        },
-       error: (err: HttpErrorResponse) => {
-         if (err.status !== 400) {
-           this.toastr.error('Could not load lease at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-         }
-       }
+       error: () => {}
      });
   }
 
@@ -225,12 +220,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
             this.loadContact();
             return { type: 'reservation', data: reservation };
           }),
-          catchError((err: HttpErrorResponse) => {
-            if (err.status !== 400) {
-              this.toastr.error('Could not load reservation at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-            }
-            return of({ type: 'reservation', data: null });
-          })
+          catchError(() => of({ type: 'reservation', data: null }))
         )
       );
     }
@@ -243,11 +233,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
             this.leaseInformation = response;
             return { type: 'leaseInformation', data: response };
           }),
-          catchError((err: HttpErrorResponse) => {
+          catchError(() => {
             this.leaseInformation = null;
-            if (err.status !== 400) {
-              this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-            }
             return of({ type: 'leaseInformation', data: null });
           })
         )
@@ -305,8 +292,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.isSubmitting = false;
         this.generatePreviewIframe();
       },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      error: () => {
         this.isSubmitting = false;
         this.generatePreviewIframe();
       }
@@ -376,11 +362,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.loadContact();
         this.generatePreviewIframe();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -435,11 +417,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load organization at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -477,11 +455,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       next: (response: PropertyResponse) => {
         this.property = response;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-       }
+      error: () => {}
     });
   }
 
@@ -496,11 +470,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.leaseInformation = response;
         this.generatePreviewIframe();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.leaseInformation = null;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load lease information. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -512,12 +483,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.reservations = reservations || [];
         this.filterReservations();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.reservations = [];
         this.availableReservations = [];
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -540,11 +508,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.loadContact();
         this.generatePreviewIframe();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -553,11 +517,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -584,11 +544,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       next: (response: CompanyResponse) => {
         this.company = response;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion

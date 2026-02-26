@@ -127,18 +127,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
               this.allContacts = this.mappingService.mapContacts(contacts || []);
               this.applyFilters();
             },
-            error: (err: HttpErrorResponse) => {
-              if (err.status !== 400) {
-                this.toastr.error('Could not refresh contacts list.', CommonMessage.ServiceError);
-              }
-            }
+            error: () => {}
           });
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
-        }
+        error: () => {}
       });
     }
   }

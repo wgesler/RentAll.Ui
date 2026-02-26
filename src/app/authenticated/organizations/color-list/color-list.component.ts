@@ -66,9 +66,6 @@ export class ColorListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Colors', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('colors');
       }
     });

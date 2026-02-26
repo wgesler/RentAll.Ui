@@ -72,9 +72,6 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Buildings', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('buildings');
       }
     });
@@ -87,13 +84,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
           this.toastr.success('Building deleted successfully', CommonMessage.Success);
           this.getBuildings();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete building. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete building', CommonMessage.Error);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

@@ -83,9 +83,6 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Offices', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('offices');
       }
     });
@@ -98,13 +95,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
           this.toastr.success('Office deleted successfully', CommonMessage.Success);
           this.getOffices();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete office. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete office', CommonMessage.Error);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

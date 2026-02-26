@@ -922,9 +922,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       error: (err: HttpErrorResponse) => {
         this.reservations = [];
         this.availableReservations = [];
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -961,12 +958,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.companies = companies || [];
         this.filterCompanies();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.companies = [];
         this.availableCompanies = [];
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Companies', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -1351,8 +1345,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.openCreditDialog(response, paymentRequest);
         }
       },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Failed to apply one or more payments', CommonMessage.Error);
+      error: () => {
       }
     });
   }

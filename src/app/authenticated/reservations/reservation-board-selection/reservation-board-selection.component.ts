@@ -92,14 +92,10 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
         this.patchFormFromResponse(response);
       },
       error: (err: HttpErrorResponse) => {
-        // If selection isn't found (404), treat as new user and set default furnished to true
         if (err.status === 404) {
           this.patchFormFromResponse(null);
         } else {
           this.isServiceError = true;
-          if (err.status !== 400) {
-            this.toastr.error('Could not load selection.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
         }
       }
     });
@@ -155,11 +151,8 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
         this.toastr.success('Selection saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.backToBoard();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not save selection.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -181,9 +174,7 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       next: (states) => {
         this.states = [...states];
       },
-      error: (err: HttpErrorResponse) => {
-        // States are handled globally, just handle gracefully
-      }
+      error: () => {}
     });
   }
 
@@ -222,14 +213,11 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
           });
         }
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.offices = [];
         this.regions = [];
         this.areas = [];
         this.buildings = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load lookups. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');
       }
     });

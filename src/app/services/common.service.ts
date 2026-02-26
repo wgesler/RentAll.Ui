@@ -1,11 +1,9 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { EmailRequest, EmailResponse } from '../authenticated/email/models/email.model';
 import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
-import { CommonMessage } from '../enums/common-message.enum';
 import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
 import { AuthService } from './auth.service';
@@ -24,7 +22,6 @@ export class CommonService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
-    private toastrService: ToastrService,
     private authService: AuthService,
     private organizationService: OrganizationService) {
   }
@@ -39,12 +36,7 @@ export class CommonService {
       next: (response) => {
         this.dailyQuote$.next(response);
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('Daily Quote Error:', err);
-        if (err.status !== 400) {
-          this.toastrService.error('Unable to load Daily Quote', CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -84,12 +76,7 @@ export class CommonService {
         const stateCodes = states.map(state => state.code).filter(code => code && code !== '');
         this.validStates$.next(stateCodes);
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('States Error:', err);
-        if (err.status !== 400) {
-          this.toastrService.error('Unable to load States', CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -116,12 +103,7 @@ export class CommonService {
       next: (response) => {
         this.organization$.next(response);
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('Organization Error:', err);
-        if (err.status !== 400) {
-          this.toastrService.error('Unable to load Organization', CommonMessage.ServiceError);
-        }
-      }
+      error: () => {}
     });
   }
 

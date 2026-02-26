@@ -86,9 +86,6 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('*****Could not load Accounting Offices', CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       }
     });
@@ -102,13 +99,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
           this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
           this.getAccountingOffices();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete accounting office. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete accounting office', CommonMessage.Error);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

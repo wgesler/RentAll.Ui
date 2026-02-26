@@ -71,9 +71,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Agents', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('agents');
       }
     });
@@ -86,13 +83,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
           this.toastr.success('Agent deleted successfully', CommonMessage.Success);
           this.getAgents();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete agent. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete agent', CommonMessage.Error);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

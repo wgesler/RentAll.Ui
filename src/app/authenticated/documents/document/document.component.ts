@@ -93,11 +93,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
         this.buildForm();
         this.patchForm(document);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
       }
     });
   }
@@ -142,11 +139,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
         );
         this.back();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+      error: () => {}
     });
   }
 
@@ -294,8 +287,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
         this.toastr.success('File uploaded successfully', CommonMessage.Success);
         this.back();
       },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Could not upload file. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
+      error: () => {
         this.back();
       }
     });
@@ -314,9 +306,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
         window.URL.revokeObjectURL(url);
         this.toastr.success('Document downloaded successfully', CommonMessage.Success);
       },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Could not download document. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-      }
+      error: () => {}
     });
   }
   //#endregion

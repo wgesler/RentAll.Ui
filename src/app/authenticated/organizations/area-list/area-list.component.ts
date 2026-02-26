@@ -72,9 +72,6 @@ export class AreaListComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Areas', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('areas');
       }
     });
@@ -87,13 +84,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
           this.toastr.success('Area deleted successfully', CommonMessage.Success);
           this.getAreas();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete area. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete area', CommonMessage.Error);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

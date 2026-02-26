@@ -278,7 +278,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       // Trigger document list reload
       this.documentReloadService.triggerReload();
     } catch (err: any) {
-      this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       console.error('Document save error:', err);
       this.isSubmitting = false;
       this.iframeKey++; // Force iframe refresh
@@ -385,9 +384,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       error: (err: HttpErrorResponse) => {
         this.reservations = [];
         this.availableReservations = [];
-        if (err.status !== 400 && err.status !== 401) {
-          this.toastr.error('Could not load Reservations', CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -430,15 +426,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       error: (err: HttpErrorResponse) => {
         this.invoices = [];
         this.availableInvoices = [];
-        if (err.status !== 404 && err.status !== 400) {
-          this.toastr.error('Could not load invoices.', CommonMessage.ServiceError);
-        }
       }
     });
   }
 
   loadInvoiceByIdFirst(invoiceId: string): void {
-    // Load invoice first to get office and reservation info
     this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1)).subscribe({
       next: (invoice: InvoiceResponse) => {
         // Set office and reservation from invoice
@@ -461,10 +453,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
           }, 500);
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load invoice.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -488,10 +477,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
           }
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load invoice.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -509,10 +495,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
           this.loadInvoiceHtml();
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property info.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -526,10 +509,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       next: (response: PropertyHtmlResponse) => {
         this.propertyHtml = response;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load property HTML.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -551,10 +531,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
             this.toastr.warning('No invoice HTML template found in assets.', 'No Template');
           }
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not load invoice HTML from assets.', CommonMessage.ServiceError);
-          }
+        error: () => {
           this.clearPreview();
         }
       });
@@ -580,10 +557,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
           this.toastr.warning('No invoice HTML template found for this property.', 'No Template');
         }
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load invoice HTML.', CommonMessage.ServiceError);
-        }
+      error: () => {
         this.previewIframeHtml = '';
       }
     });
@@ -611,10 +585,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       next: (response: EmailHtmlResponse) => {
         this.emailHtml = this.mappingService.mapEmailHtml(response as any);
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load email template at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -640,10 +611,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       next: (response: CompanyResponse) => {
         this.company = response;
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load company info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -751,10 +719,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.form.get('selectedInvoiceId')?.enable();
         this.reservationIdChange.emit(reservationId);
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
-        }
+      error: () => {
       }
     });
   }
@@ -885,10 +850,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
             this.loadProperty(fullReservation.propertyId);
           }
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not load reservation details.', CommonMessage.ServiceError);
-          }
+        error: () => {
         }
       });
     }

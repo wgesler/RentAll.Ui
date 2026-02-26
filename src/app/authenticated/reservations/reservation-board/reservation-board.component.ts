@@ -1,12 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -128,12 +126,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.colors = colors;
         this.colorMap = this.mappingService.createColorMap(colors);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.colors = [];
         this.colorMap = new Map();
-        if (err.status !== 400) {
-          this.toastr.error('Could not load colors. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -148,11 +143,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       next: (properties: PropertyListResponse[]) => {
         this.properties = this.mappingService.mapPropertiesToBoardProperties(properties || [], this.reservations);
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.properties = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load properties. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
       }
     });
   }
@@ -164,11 +156,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         // Load properties after reservations are loaded so we can use reservation monthly rates
         this.loadProperties();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.reservations = [];
-        if (err.status !== 400) {
-          this.toastr.error('Could not load reservations. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.loadProperties();
       }
     });

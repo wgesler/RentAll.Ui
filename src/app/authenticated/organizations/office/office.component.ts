@@ -137,9 +137,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load office info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.removeLoadItem('office');
       }
     });
@@ -208,11 +205,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.officeService.loadAllOffices();
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     } else {
       const idToUse = this.id || this.routeOfficeId;
@@ -231,11 +224,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.officeService.loadAllOffices();
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }

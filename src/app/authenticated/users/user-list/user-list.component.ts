@@ -124,11 +124,8 @@ export class UserListComponent implements OnInit, OnDestroy {
         });
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load Users', CommonMessage.ServiceError);
-        }
         this.removeLoadItem('users');
         this.removeLoadItem('organizations');
       }
@@ -142,13 +139,7 @@ export class UserListComponent implements OnInit, OnDestroy {
           this.toastr.success('User deleted successfully', CommonMessage.Success);
           this.getUsers(); // Refresh the list
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Could not delete user. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          } else {
-            this.toastr.error(err.error?.message || 'Could not delete user', CommonMessage.Error);
-          }
-        }
+        error: () => {}
       });
     }
   }

@@ -230,8 +230,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Load cost codes for the office
     try {
       await firstValueFrom(this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1)));
-    } catch (err: any) {
-      this.toastr.error('Failed to load cost codes', CommonMessage.Error);
+    } catch (_err: any) {
       this.performSave();
       return;
     }
@@ -381,9 +380,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.reservationService.updateReservation(reservationRequest).pipe(take(1))
       );
     } catch (err: any) {
-      if (err.status !== 400) {
-        this.toastr.error('Failed to update reservation credit', CommonMessage.Error);
-      }
+      
     }
   }
 

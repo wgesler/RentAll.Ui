@@ -155,9 +155,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        if (err.status !== 400) {
-          this.toastr.error('Could not load office info at this time.' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       }
     });
@@ -229,11 +226,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Create office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     } else {
       const idToUse = this.id || this.routeOfficeId;
@@ -251,11 +244,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.backEvent.emit();
         },
-        error: (err: HttpErrorResponse) => {
-          if (err.status !== 400) {
-            this.toastr.error('Update office request has failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
-          }
-        }
+        error: (_err: HttpErrorResponse) => {}
       });
     }
   }
@@ -307,11 +296,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       email: new FormControl('', [Validators.required, Validators.email]),
       website: new FormControl(''),
       bankName: new FormControl('', [Validators.required]),
-      bankRouting: new FormControl('', [Validators.required]),
-      bankAccount: new FormControl('', [Validators.required]),
+      bankRouting: new FormControl('', [Validators.required, Validators.pattern(/^[0-9]+$/)]),
+      bankAccount: new FormControl('', [Validators.required, Validators.pattern(/^[0-9]+$/)]),
       bankSwiftCode: new FormControl('', [Validators.required]),
       bankAddress: new FormControl('', [Validators.required]),
-      bankPhone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
+      bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
