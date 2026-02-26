@@ -45,15 +45,15 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
 
   propertiesDisplayedColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '25ch' },
-    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
-    'ownerName': { displayAs: 'Owner', maxWidth: '25ch' },
-    'bedrooms': { displayAs: 'Beds' },
-    'bathrooms': { displayAs: 'Baths' },
-    'accomodates': { displayAs: 'Accoms' },
-    'squareFeet': { displayAs: 'Sq Ft' },
-    'monthlyRate': { displayAs: 'Monthly' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'officeName': { displayAs: 'Office', maxWidth: '25ch', wrap: false },
+    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
+    'ownerName': { displayAs: 'Owner', maxWidth: '25ch', wrap: false },
+    'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch'},
+    'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch'},
+    'accomodates': { displayAs: 'Acms', wrap: false , maxWidth: '10ch'},
+    'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch'},
+    'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch'},
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));

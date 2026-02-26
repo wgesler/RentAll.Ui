@@ -347,36 +347,6 @@
   padding: 20px;
 }
 
-/* Make owner dashboard table rows more compact without affecting other pages */
-.reservation-tables {
-  ::ng-deep app-data-table {
-    tr.mat-header-row,
-    tr.mat-mdc-header-row {
-      height: 40px;
-    }
-
-    tr.mat-row,
-    tr.mat-mdc-row {
-      height: 40px;
-    }
-
-    td.mat-cell,
-    td.mat-mdc-cell,
-    th.mat-header-cell,
-    th.mat-mdc-header-cell {
-      padding-top: 0;
-      padding-bottom: 0;
-      font-size: 11px;
-    }
-
-    tr.mat-row.mat-no-data-row,
-    tr.mat-mdc-row.mat-no-data-row,
-    .mat-mdc-no-data-row {
-      height: 40px !important;
-    }
-  }
-}
-
 @media (max-width: 1200px) {
   .dashboard-content {
     padding: 16px;

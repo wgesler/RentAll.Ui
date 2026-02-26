@@ -19,6 +19,8 @@ img {
 .mat-table,
 .mat-mdc-table {
     justify-content: center;
+    --mat-table-header-container-height: 40px;
+    --mat-table-row-item-container-height: 40px;
 }
 
 [mat-table] [mat-header-cell] {
@@ -59,7 +61,7 @@ img {
 tr.mat-row.mat-no-data-row,
 tr.mat-mdc-row.mat-no-data-row,
 .mat-mdc-no-data-row {
-    height: 48px !important; // Equivalent to 1 row (48px)
+    height: 40px !important;
 }
 
 .edited-table-row {
@@ -109,10 +111,11 @@ tr.mat-mdc-row.mat-no-data-row,
             display: flex;
             align-items: center;
             justify-content: flex-start;
+            gap: 10px;
         }
         
         button {
-            margin-right: -8px;
+            margin-right: 0;
             
             &:last-child {
                 margin-right: 0;
@@ -147,6 +150,11 @@ tr.mat-mdc-row.mat-no-data-row,
     .mat-row,
     .mat-mdc-row {
         word-break: break-word;
+    }
+
+    .mat-row:nth-child(even):not(.datatable-row-colored):not(.datatable-row-active):not(.mat-no-data-row):not(.datatable-detail-row),
+    .mat-mdc-row:nth-child(even):not(.datatable-row-colored):not(.datatable-row-active):not(.mat-no-data-row):not(.datatable-detail-row) {
+        background-color: #f5f5f5;
     }
 
     .mat-row:hover,
@@ -184,7 +192,8 @@ tr.mat-mdc-row.mat-no-data-row,
 
 tr.mat-header-row,
 tr.mat-mdc-header-row {
-  height: 48px;
+  height: 40px !important;
+  min-height: 40px !important;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: .25;
@@ -221,9 +230,21 @@ th.mat-mdc-header-cell {
 
 tr.mat-row,
 tr.mat-mdc-row {
-  height: 48px;
+  height: 40px !important;
+  min-height: 40px !important;
 }
 
+.mdc-data-table__header-row {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.mdc-data-table__row {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+td.mat-cell,
 td.mat-mdc-cell {
   vertical-align: middle;
   font-size: 12px;
@@ -247,9 +268,30 @@ td.mat-mdc-cell p {
   margin-bottom: 0;
 }
 
+:host ::ng-deep td.mat-cell .mat-mdc-checkbox-touch-target,
+:host ::ng-deep td.mat-mdc-cell .mat-mdc-checkbox-touch-target {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+:host ::ng-deep td.mat-cell .mat-mdc-checkbox .mdc-checkbox,
+:host ::ng-deep td.mat-mdc-cell .mat-mdc-checkbox .mdc-checkbox {
+  padding: 4px !important;
+}
+
 td.mat-cell button,
 td.mat-mdc-cell button {
   width: auto;
+}
+
+td.mat-cell .mat-icon-button,
+td.mat-cell .mat-mdc-icon-button,
+td.mat-mdc-cell .mat-icon-button,
+td.mat-mdc-cell .mat-mdc-icon-button {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 4px !important;
 }
 
 td.mat-cell.no-wrap,
