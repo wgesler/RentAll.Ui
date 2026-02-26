@@ -1,8 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
 import { Subscription, take } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
@@ -10,6 +8,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationBoardComponent } from '../../reservations/reservation-board/reservation-board.component';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -18,7 +17,7 @@ import { UserService } from '../../users/services/user.service';
 
 @Component({
   selector: 'app-dashboard-owner',
-  imports: [MaterialModule, DataTableComponent],
+  imports: [MaterialModule, DataTableComponent, ReservationBoardComponent],
   templateUrl: './dashboard-owner.component.html',
   styleUrl: './dashboard-owner.component.scss'
 })
@@ -32,6 +31,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   ownerPropertyReservations: ReservationListDisplay[] = [];
   rentedCount: number = 0;
   vacantCount: number = 0;
+  currentReservationCount: number = 0;
+  upcomingReservationCount: number = 0;
   isLoadingProperties: boolean = false;
   isLoadingReservations: boolean = false;
   todayDate: string = '';
@@ -51,8 +52,6 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     office: { displayAs: 'Office', maxWidth: '20ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    contactName: { displayAs: 'Contact', maxWidth: '20ch' },
-    companyName: { displayAs: 'Company', maxWidth: '20ch' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '20ch' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch' }
   };
@@ -62,10 +61,10 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private reservationService: ReservationService,
     private mappingService: MappingService,
-    private router: Router,
     private propertyService: PropertyService
   ) {}
 
+  //#region Owner Dashboard
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.setTodayDate();
@@ -74,6 +73,22 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     this.loadProperties();
   }
 
+  getFullName(): string {
+    return `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim();
+  }
+
+  setTodayDate(): void {
+    const today = new Date();
+    this.todayDate = today.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+  //#endregion
+  
+  //#region Data Load Methods
   loadUserProfilePicture(): void {
     if (!this.user?.userId) {
       return;
@@ -100,6 +115,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       this.ownerPropertyReservations = [];
       this.rentedCount = 0;
       this.vacantCount = 0;
+      this.currentReservationCount = 0;
+      this.upcomingReservationCount = 0;
       return;
     }
 
@@ -115,6 +132,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.ownerPropertyReservations = [];
         this.rentedCount = 0;
         this.vacantCount = 0;
+        this.currentReservationCount = 0;
+        this.upcomingReservationCount = 0;
         this.isLoadingProperties = false;
       }
     });
@@ -133,6 +152,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.ownerPropertyReservations = [];
         this.rentedCount = 0;
         this.vacantCount = this.allProperties.length;
+        this.currentReservationCount = 0;
+        this.upcomingReservationCount = 0;
         this.isLoadingReservations = false;
       }
     });
@@ -148,6 +169,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const rentedPropertyIds = new Set<string>();
+    let currentReservations = 0;
+    let upcomingReservations = 0;
 
     this.ownerPropertyReservations.forEach(reservation => {
       if (!reservation.arrivalDate || !reservation.departureDate) {
@@ -161,45 +184,22 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
       if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
         rentedPropertyIds.add(reservation.propertyId);
+        currentReservations++;
+      } else if (arrivalDate.getTime() > today.getTime()) {
+        upcomingReservations++;
       }
     });
 
     this.rentedCount = rentedPropertyIds.size;
     this.vacantCount = Math.max(this.allProperties.length - this.rentedCount, 0);
+    this.currentReservationCount = currentReservations;
+    this.upcomingReservationCount = upcomingReservations;
   }
+  //#endregion
 
-  getFullName(): string {
-    return `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim();
-  }
-
-  setTodayDate(): void {
-    const today = new Date();
-    this.todayDate = today.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
-
-  goToProperty(event: PropertyListResponse): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]);
-    this.router.navigateByUrl(url);
-  }
-
-  goToReservation(event: ReservationListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
-    this.router.navigateByUrl(url);
-  }
-
-  goToContact(event: ReservationListDisplay): void {
-    if (event.contactId) {
-      const url = RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]);
-      this.router.navigateByUrl(url);
-    }
-  }
-
+  //#region Untility Methods
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
   }
+  //#endregion
 }

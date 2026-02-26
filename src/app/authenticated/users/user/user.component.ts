@@ -260,6 +260,17 @@ export class UserComponent implements OnInit, OnDestroy {
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
       isActive: formValue.isActive
     };
+
+    // Non-admin editors should not modify privileged fields in edit mode.
+    if (!this.isPrivilegedOfficeEditor && !this.isAddMode && this.user) {
+      userRequest.organizationId = this.user.organizationId;
+      userRequest.userGroups = this.user.userGroups || [];
+      userRequest.officeAccess = this.user.officeAccess || [];
+      userRequest.startupPageId = this.user.startupPageId ?? userRequest.startupPageId;
+      userRequest.agentId = this.user.agentId || null;
+      userRequest.commissionRate = this.user.commissionRate ?? null;
+      userRequest.isActive = this.user.isActive;
+    }
     
     // For add mode, password is required if changePassword is enabled
     if (this.isAddMode && changePassword && !passwordValue) {
@@ -475,6 +486,17 @@ export class UserComponent implements OnInit, OnDestroy {
 
     // Create form without form-level password validator initially - we'll add it conditionally
     this.form = this.fb.group(formControls);
+
+    if (!this.isPrivilegedOfficeEditor && !this.isAddMode) {
+      this.form.get('organizationId')?.disable({ emitEvent: false });
+      this.form.get('userGroups')?.disable({ emitEvent: false });
+      this.form.get('officeAccess')?.disable({ emitEvent: false });
+      this.form.get('startupPageId')?.disable({ emitEvent: false });
+      this.form.get('agentId')?.disable({ emitEvent: false });
+      this.form.get('commissionRate')?.disable({ emitEvent: false });
+      this.form.get('isActive')?.disable({ emitEvent: false });
+    }
+
     this.applyCommissionRateState();
     
     // Setup changePassword toggle behavior

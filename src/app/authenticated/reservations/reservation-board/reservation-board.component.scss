@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+.reservation-board-wrapper.read-only-board {
+  padding: 0;
+}
+
 .reservation-board-card {
   height: calc(100vh - 144px);
   display: flex;
@@ -49,6 +53,22 @@
     box-sizing: border-box;
     max-width: 100%;
   }
+}
+
+.reservation-board-card.read-only-board {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto;
+  min-height: 0;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.read-only-board-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 12px 0;
 }
 
 // Match Reservations page header date/selection controls.
@@ -604,6 +624,18 @@
 
   // Status-based colors are now handled via inline styles from API
   // No hard-coded CSS classes for status colors
+}
+
+:host-context(.read-only-board),
+.read-only-board {
+  .reservation-link {
+    text-decoration: none;
+    cursor: default;
+  }
+
+  .calendar-cell {
+    cursor: default !important;
+  }
 }
 
 .calendar-cell.blocked-availability {

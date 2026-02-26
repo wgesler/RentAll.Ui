@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -32,6 +32,9 @@ import { ReservationService } from '../services/reservation.service';
     styleUrl: './reservation-board.component.scss'
 })
 export class ReservationBoardComponent implements OnInit, OnDestroy {
+  @Input() ownerUserId: string | null = null;
+  @Input() readOnly: boolean = false;
+
   properties: BoardProperty[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
@@ -136,9 +139,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    const userId = this.authService.getUser()?.userId || '';
+    const scopedOwnerId = (this.ownerUserId || '').trim();
+    const properties$ = scopedOwnerId
+      ? this.propertyService.getPropertiesByOwner(scopedOwnerId)
+      : this.propertyService.getPropertiesBySelectionCritera(this.authService.getUser()?.userId || '');
 
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    properties$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         this.properties = this.mappingService.mapPropertiesToBoardProperties(properties || [], this.reservations);
       },
@@ -533,10 +539,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   navigateToReservation(reservationId: string): void {
+    if (this.readOnly) {
+      return;
+    }
     this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
   }
 
   navigateToNewReservation(propertyId: string, date: Date): void {
+    if (this.readOnly) {
+      return;
+    }
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
 
@@ -552,6 +564,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   goToBoardSelection(): void {
+    if (this.readOnly) {
+      return;
+    }
     const userId = this.authService.getUser()?.userId || '';
     if (!userId) {
       this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
@@ -567,6 +582,20 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
       }
     });
+  }
+
+  onReservationCellClick(reservationId: string): void {
+    if (this.readOnly) {
+      return;
+    }
+    this.navigateToReservation(reservationId);
+  }
+
+  onEmptyCellClick(propertyId: string, date: Date): void {
+    if (this.readOnly) {
+      return;
+    }
+    this.navigateToNewReservation(propertyId, date);
   }
   //#endregion
 

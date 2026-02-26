@@ -604,13 +604,13 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       let lastDepartureDate: string | null = null;
       
       if (isCurrentlyRented) {
-        // Property is currently rented, so it's not vacant
-        vacancyDays = null;
+        // Currently rented should never show negative vacancy.
+        vacancyDays = 0;
         lastDepartureDate = null;
       } else if (lastDeparture) {
         // Property has been rented before, calculate days since last departure
         const daysDiff = Math.floor((today.getTime() - lastDeparture.getTime()) / (1000 * 60 * 60 * 24));
-        vacancyDays = daysDiff;
+        vacancyDays = Math.max(daysDiff, 0);
         lastDepartureDate = lastDeparture.toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'short', 

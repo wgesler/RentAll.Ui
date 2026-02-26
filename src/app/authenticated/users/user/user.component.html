@@ -22,8 +22,8 @@
             </button>
           }
           @if (isDialog) {
-            <button mat-raised-button type="button" id="close-button" (click)="back()"
-              class="scale-90 text-nowrap flex-shrink-0" style="background-color: #e91e63; color: white;">
+            <button mat-raised-button type="button" color="accent" id="close-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
               <mat-icon>close</mat-icon>
               Close
             </button>
@@ -38,36 +38,40 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveUser()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
-              <mat-checkbox formControlName="isActive" color="primary">
-                Is Active
-              </mat-checkbox>
-            </div>
+            @if (isPrivilegedOfficeEditor || isAddMode) {
+              <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+                <mat-checkbox formControlName="isActive" color="primary">
+                  Is Active
+                </mat-checkbox>
+              </div>
+            }
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Organization</mat-label>
-                <mat-select formControlName="organizationId" required>
-                  <mat-option value="">Select Organization</mat-option>
-                  @for (org of organizations; track org.organizationId) {
-                    <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
+              @if (isPrivilegedOfficeEditor || isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-4">
+                  <mat-label>Organization</mat-label>
+                  <mat-select formControlName="organizationId" required>
+                    <mat-option value="">Select Organization</mat-option>
+                    @for (org of organizations; track org.organizationId) {
+                      <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('organizationId')?.hasError('required') && form.get('organizationId')?.touched) {
+                    <mat-error>Organization is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('organizationId')?.hasError('required') && form.get('organizationId')?.touched) {
-                  <mat-error>Organization is required</mat-error>
-                }
-              </mat-form-field>
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-4">
-                <mat-label>Office Access</mat-label>
-                <mat-select formControlName="officeAccess" multiple required>
-                  @for (office of availableOffices; track office.value) {
-                    <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                <mat-form-field appearance="outline" class="col-span-4">
+                  <mat-label>Office Access</mat-label>
+                  <mat-select formControlName="officeAccess" multiple required>
+                    @for (office of availableOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('officeAccess')?.hasError('required') && form.get('officeAccess')?.touched) {
+                    <mat-error>Office Access is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('officeAccess')?.hasError('required') && form.get('officeAccess')?.touched) {
-                  <mat-error>Office Access is required</mat-error>
-                }
-              </mat-form-field>
+                </mat-form-field>
+              }
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>First Name</mat-label>
@@ -101,48 +105,54 @@
                 <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
-                <mat-label>User Groups</mat-label>
-                <mat-select formControlName="userGroups" multiple required>
-                  @for (group of availableUserGroups; track group.value) {
-                    <mat-option [value]="group.value">{{ group.label }}</mat-option>
+              @if (isPrivilegedOfficeEditor || isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>User Groups</mat-label>
+                  <mat-select formControlName="userGroups" multiple required>
+                    @for (group of availableUserGroups; track group.value) {
+                      <mat-option [value]="group.value">{{ group.label }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('userGroups')?.hasError('required') || form.get('userGroups')?.hasError('userGroupsRequired')) {
+                    <mat-error>User Groups is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('userGroups')?.hasError('required') || form.get('userGroups')?.hasError('userGroupsRequired')) {
-                  <mat-error>User Groups is required</mat-error>
-                }
-              </mat-form-field>
+                </mat-form-field>
+              }
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Startup Page</mat-label>
-                <mat-select formControlName="startupPageId" required>
-                  @for (page of availableStartupPages; track page.value) {
-                    <mat-option [value]="page.value">{{ page.label }}</mat-option>
+              @if (isPrivilegedOfficeEditor || isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Startup Page</mat-label>
+                  <mat-select formControlName="startupPageId" required>
+                    @for (page of availableStartupPages; track page.value) {
+                      <mat-option [value]="page.value">{{ page.label }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
+                    <mat-error>Startup Page is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
-                  <mat-error>Startup Page is required</mat-error>
-                }
-              </mat-form-field>
+                </mat-form-field>
+              }
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Agent</mat-label>
-                <mat-select formControlName="agentId">
-                  <mat-option [value]="null">None</mat-option>
-                  @for (agent of availableAgents; track agent.value) {
-                    <mat-option [value]="agent.value">{{ agent.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              @if (isPrivilegedOfficeEditor || isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Agent</mat-label>
+                  <mat-select formControlName="agentId">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (agent of availableAgents; track agent.value) {
+                      <mat-option [value]="agent.value">{{ agent.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Commission Rate</mat-label>
-                <input matInput formControlName="commissionRate"
-                  (focus)="onCommissionRateFocus($event)"
-                  (input)="onCommissionRateInput($event)"
-                  (keydown)="onCommissionRateEnter($event)"
-                  (blur)="formatCommissionRate()">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Commission Rate</mat-label>
+                  <input matInput formControlName="commissionRate"
+                    (focus)="onCommissionRateFocus($event)"
+                    (input)="onCommissionRateInput($event)"
+                    (keydown)="onCommissionRateEnter($event)"
+                    (blur)="formatCommissionRate()">
+                </mat-form-field>
+              }
 
               <!-- Profile Picture Section -->
               <div class="col-span-4">

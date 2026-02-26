@@ -5,25 +5,13 @@
         <mat-icon class="flex-shrink-0">dashboard</mat-icon>
         <span class="flex-shrink-0 text-xl font-medium" style="font-size: 2rem;">Dashboard</span>
       </span>
+      <div class="welcome-text">
+        <p class="date-text">{{ todayDate }}</p>
+      </div>
     </div>
     <mat-card>
       <div class="dashboard-content">
-        <div class="welcome-tile">
-          <div class="welcome-content">
-            @if (profilePictureUrl) {
-              <img [src]="profilePictureUrl" alt="Profile Picture" class="profile-picture" />
-            } @else {
-              <mat-icon class="profile-icon">person</mat-icon>
-            }
-            <div class="welcome-text">
-              <span class="welcome-label">Welcome</span>
-              <span class="user-name">{{ getFullName() }}</span>
-            </div>
-          </div>
-          <div class="date-display-inline">
-            <p class="date-text">{{ todayDate }}</p>
-          </div>
-        </div>
+        <app-reservation-board [ownerUserId]="user?.userId || null" [readOnly]="true"></app-reservation-board>
 
         <div class="dashboard-main-content">
           <div class="reservation-tables">
@@ -47,11 +35,10 @@
                     [hasFilter]="false"
                     [hasToggleTop]="false"
                     [hasButtonTop]="false"
-                    [hasActionsRowClick]="true"
+                    [hasActionsRowClick]="false"
                     [hasActionsEdit]="false"
                     [hasActionsDelete]="false"
-                    [itemsPerPage]="50"
-                    (rowClickEvent)="goToProperty($event)" />
+                    [itemsPerPage]="50" />
                 </div>
               }
             </mat-expansion-panel>
@@ -59,7 +46,7 @@
             <mat-expansion-panel class="reservation-section" [expanded]="true">
               <mat-expansion-panel-header>
                 <mat-panel-title>
-                  <h2 class="section-title">Owner Reservations</h2>
+                  <h2 class="section-title">Reservations</h2>
                 </mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingReservations) {
@@ -76,12 +63,10 @@
                     [hasFilter]="false"
                     [hasToggleTop]="false"
                     [hasButtonTop]="false"
-                    [hasActionsRowClick]="true"
+                    [hasActionsRowClick]="false"
                     [hasActionsEdit]="false"
                     [hasActionsDelete]="false"
-                    [itemsPerPage]="50"
-                    (rowClickEvent)="goToReservation($event)"
-                    (contactClickEvent)="goToContact($event)" />
+                    [itemsPerPage]="50" />
                 </div>
               }
             </mat-expansion-panel>
@@ -89,7 +74,7 @@
 
           <aside class="dashboard-sidebar">
             <div class="sidebar-content">
-              <div class="day-box day-box-reservations">
+              <div class="day-box day-box-today">
                 <div class="day-box-text">
                   <h4 class="day-title">
                     <span>Owner Properties</span>
@@ -107,6 +92,30 @@
                       <div class="stat-row">
                         <span class="stat-label">Vacant:</span>
                         <span class="stat-value">{{ vacantCount }}</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="day-box day-box-tomorrow">
+                <div class="day-box-text">
+                  <h4 class="day-title">
+                    <span>Reservations</span>
+                  </h4>
+                  @if (isLoadingReservations) {
+                    <div class="loading-container-small">
+                      <mat-spinner [diameter]="24"></mat-spinner>
+                    </div>
+                  } @else {
+                    <div class="reservations-stats">
+                      <div class="stat-row">
+                        <span class="stat-label">Current:</span>
+                        <span class="stat-value">{{ currentReservationCount }}</span>
+                      </div>
+                      <div class="stat-row">
+                        <span class="stat-label">Upcoming:</span>
+                        <span class="stat-value">{{ upcomingReservationCount }}</span>
                       </div>
                     </div>
                   }
