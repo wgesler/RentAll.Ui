@@ -122,7 +122,17 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Contact deleted successfully', CommonMessage.Success);
-          this.loadContacts();
+          this.contactService.getContacts().pipe(take(1)).subscribe({
+            next: contacts => {
+              this.allContacts = this.mappingService.mapContacts(contacts || []);
+              this.applyFilters();
+            },
+            error: (err: HttpErrorResponse) => {
+              if (err.status !== 400) {
+                this.toastr.error('Could not refresh contacts list.', CommonMessage.ServiceError);
+              }
+            }
+          });
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {

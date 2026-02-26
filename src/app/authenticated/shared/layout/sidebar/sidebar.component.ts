@@ -151,15 +151,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
+
 
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
     if (!user || !user.userGroups || user.userGroups.length === 0) {
-      // If no user or no roles, show only items with no required roles
       this.navItems = this.allNavItems.filter(item => item.requiredRoles.length === 0);
       return;
     }
@@ -183,6 +179,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
     }).filter(num => num !== null) as number[];
 
     const isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
+    const isOwner = userGroupNumbers.includes(UserGroups.Owner);
+
+    if (isOwner) {
+      const dashboardItem = this.allNavItems.find(item => item.url === RouterToken.Dashboard);
+      this.navItems = dashboardItem ? [{ ...dashboardItem, url: RouterToken.DashboardOwner }] : [];
+      return;
+    }
 
     // Filter nav items based on user roles
     const filteredNavItems = this.allNavItems.filter(item => {
@@ -212,6 +215,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
     this.navItems = filteredNavItems;
   }
+    
+  get desktopSidebarWidth(): number {
+    return this.isExpanded ? this.expandedSidebarWidth : this.collapsedSidebarWidth;
+  }
 
   sideNavToggleHandler(): void {
     if (this.isHandset) {
@@ -221,7 +228,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
     }
   }
 
-  get desktopSidebarWidth(): number {
-    return this.isExpanded ? this.expandedSidebarWidth : this.collapsedSidebarWidth;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
+
 }

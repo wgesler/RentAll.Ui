@@ -11,7 +11,8 @@ import { CompanyComponent } from './authenticated/companies/company/company.comp
 import { VendorComponent } from './authenticated/companies/vendor/vendor.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
 import { ContactsComponent } from './authenticated/contacts/contacts/contacts.component';
-import { DashboardComponent } from './authenticated/dashboard/dashboard.component';
+import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
+import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
@@ -53,6 +54,7 @@ export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
   Dashboard = 'dashboard',
+  DashboardOwner = 'dashboard-owner',
   RentalList = 'rentals',
   Companies = 'companies',
   Company = RouterToken.Companies + '/company/:id',
@@ -103,6 +105,7 @@ export enum RouterToken {
 
 export enum RouterUrl {
   Dashboard             = `${RouterToken.Auth}/${RouterToken.Dashboard}`,
+  DashboardOwner        = `${RouterToken.Auth}/${RouterToken.DashboardOwner}`,
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
   Companies             = `${RouterToken.Auth}/${RouterToken.Companies}`,
   Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
@@ -159,7 +162,8 @@ export namespace RouterUrl {
 
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
-  { path: RouterToken.Dashboard, component: DashboardComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Dashboard, component: DashboardMainComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Companies, component: CompaniesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },

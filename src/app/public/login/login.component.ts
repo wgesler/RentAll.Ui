@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
 import { RouterUrl } from '../../app.routes';
-import { StartupPage } from '../../authenticated/users/models/user-enums';
+import { StartupPage, UserGroups } from '../../authenticated/users/models/user-enums';
 import { StorageKey } from '../../enums/storage-keys.enum';
 import { MaterialModule } from '../../material.module';
 import { emailRegex } from '../../regex/email-regex';
@@ -79,6 +79,12 @@ export class LoginComponent {
       next: () => {
         if (this.authService.getIsLoggedIn()) {
           const user = this.authService.getUser();
+
+          if (this.hasOwnerRole(user?.userGroups || [])) {
+            this.router.navigateByUrl(RouterUrl.DashboardOwner);
+            return;
+          }
+
           const startupPageId = user?.startupPageId ?? StartupPage.Dashboard;
           
           // Redirect based on user's startup page preference
@@ -140,6 +146,17 @@ export class LoginComponent {
 
   getLoginRequest(): LoginRequest {
     return {username: this.form.value.username, password: this.form.value.password} as LoginRequest;
+  }
+
+  private hasOwnerRole(userGroups: string[]): boolean {
+    return (userGroups || []).some(group => {
+      if (group === 'Owner') {
+        return true;
+      }
+
+      const parsed = parseInt(String(group), 10);
+      return !isNaN(parsed) && parsed === UserGroups.Owner;
+    });
   }
   //#endregion
 }

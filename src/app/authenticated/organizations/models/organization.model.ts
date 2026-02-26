@@ -25,6 +25,7 @@ export interface OrganizationRequest {
   unit100Fee: number;
   unit200Fee: number;
   unit500Fee: number;
+  sendGridName?: string;
   isActive: boolean;
 }
 
@@ -53,6 +54,7 @@ export interface OrganizationResponse {
   unit100Fee: number;
   unit200Fee: number;
   unit500Fee: number;
+  sendGridName?: string;
   isActive: boolean;
 }
 

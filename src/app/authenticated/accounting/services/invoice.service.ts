@@ -60,7 +60,7 @@ export class InvoiceService {
 
   // POST: Get monthly ledger lines for a reservation
   getMonthlyLedgerLines(request: InvoiceMonthlyDataRequest): Observable<InvoiceMonthlyDataResponse> {
-    return this.http.post<InvoiceMonthlyDataResponse>(this.controller + 'ledger-line/reservation', request);
+    return this.http.post<InvoiceMonthlyDataResponse>(this.controller + 'invoice/ledger-line/reservation', request);
   }
 
   // POST: Get monthly ledger lines for an organization (billing)

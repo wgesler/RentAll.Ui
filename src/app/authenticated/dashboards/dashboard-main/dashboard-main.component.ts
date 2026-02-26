@@ -1,24 +1,23 @@
-
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription, forkJoin, take } from 'rxjs';
-import { RouterUrl } from '../../app.routes';
-import { MaterialModule } from '../../material.module';
-import { JwtUser } from '../../public/login/models/jwt';
-import { AuthService } from '../../services/auth.service';
-import { MappingService } from '../../services/mapping.service';
-import { PropertyListResponse } from '../properties/models/property.model';
-import { PropertyService } from '../properties/services/property.service';
-import { AgentResponse } from '../organizations/models/agent.model';
-import { AgentService } from '../organizations/services/agent.service';
-import { ReservationListDisplay, ReservationListResponse } from '../reservations/models/reservation-model';
-import { ReservationService } from '../reservations/services/reservation.service';
-import { DataTableComponent } from '../shared/data-table/data-table.component';
-import { ColumnSet } from '../shared/data-table/models/column-data';
-import { UserResponse } from '../users/models/user.model';
-import { UserGroups } from '../users/models/user-enums';
-import { UserService } from '../users/services/user.service';
+import { RouterUrl } from '../../../app.routes';
+import { MaterialModule } from '../../../material.module';
+import { JwtUser } from '../../../public/login/models/jwt';
+import { AuthService } from '../../../services/auth.service';
+import { MappingService } from '../../../services/mapping.service';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { AgentResponse } from '../../organizations/models/agent.model';
+import { AgentService } from '../../organizations/services/agent.service';
+import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { UserResponse } from '../../users/models/user.model';
+import { UserGroups } from '../../users/models/user-enums';
+import { UserService } from '../../users/services/user.service';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
   vacancyDays: number | null;
@@ -37,12 +36,12 @@ export interface MonthlyCommissionTileRow {
 }
 
 @Component({
-    selector: 'app-dashboard',
+    selector: 'app-dashboard-main',
     imports: [MaterialModule, DataTableComponent],
-    templateUrl: './dashboard.component.html',
-    styleUrl: './dashboard.component.scss'
+    templateUrl: './dashboard-main.component.html',
+    styleUrl: './dashboard-main.component.scss'
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardMainComponent implements OnInit, OnDestroy {
   user: JwtUser | null = null;
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
