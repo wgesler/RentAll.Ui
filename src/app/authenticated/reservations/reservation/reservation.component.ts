@@ -351,7 +351,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       extraFeeLines: this.mapExtraFeeLinesToRequest(),
       notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
       allowExtensions: formValue.allowExtensions ?? false,
-      currentInvoiceNumber: formValue.currentInvoiceNumber ?? 0,
+      currentInvoiceNo: formValue.currentInvoiceNo ?? 0,
       creditDue: formValue.creditDue ?? 0,
       isActive: formValue.isActive ?? true
     };
@@ -464,7 +464,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       frequencyId: new FormControl(Frequency.NA),
       taxes: new FormControl(null),
       notes: new FormControl(''),
-      currentInvoiceNumber: new FormControl(0),
+      currentInvoiceNo: new FormControl(0),
       creditDue: new FormControl(0)
     });
 

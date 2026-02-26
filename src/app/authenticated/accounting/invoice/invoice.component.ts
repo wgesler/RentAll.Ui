@@ -371,7 +371,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         })),
         notes: reservation.notes,
         allowExtensions: reservation.allowExtensions,
-        currentInvoiceNumber: reservation.currentInvoiceNumber,
+        currentInvoiceNo: reservation.currentInvoiceNo,
         creditDue: newCreditDue, // Reduce credit by the amount applied
         isActive: reservation.isActive
       };
@@ -904,7 +904,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   setInvoiceCode(reservation: ReservationListResponse): void {
     if (reservation && this.form) {
-      const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNumber + 1).toString().padStart(3, '0');
+      const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNo + 1).toString().padStart(3, '0');
       this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
     }
   }

@@ -36,7 +36,7 @@ export interface ReservationRequest {
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string;
   allowExtensions: boolean;
-  currentInvoiceNumber: number;
+  currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean; 
 }
@@ -79,7 +79,7 @@ export interface ReservationResponse {
   extraFeeLines?: ExtraFeeLineResponse[];
   notes?: string;
   allowExtensions: boolean;
-  currentInvoiceNumber: number;
+  currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
   createdOn?: string;
@@ -106,7 +106,7 @@ export interface ReservationListResponse {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
-  currentInvoiceNumber: number;
+  currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
   createdOn: string;

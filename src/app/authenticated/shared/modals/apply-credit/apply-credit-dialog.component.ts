@@ -128,7 +128,7 @@ export class ApplyCreditDialogComponent implements OnInit {
           })),
           notes: reservation.notes,
           allowExtensions: reservation.allowExtensions,
-          currentInvoiceNumber: reservation.currentInvoiceNumber,
+          currentInvoiceNo: reservation.currentInvoiceNo,
           creditDue: (reservation.creditDue || 0) + this.creditAmount, // Add the credit amount to existing creditDue
           isActive: reservation.isActive
         };
