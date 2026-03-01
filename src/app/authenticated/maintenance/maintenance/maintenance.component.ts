@@ -13,7 +13,9 @@ import { InventoryComponent } from '../inventory/inventory.component';
 import { InventoryListComponent } from '../inventory-list/inventory-list.component';
 import { InspectionChecklistComponent } from '../inspection-checklist/inspection-checklist.component';
 import { InventoryResponse } from '../models/inventory.model';
+import { InspectionResponse } from '../models/inspection.model';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
+import { InspectionService } from '../services/inspection.service';
 import { InventoryService } from '../services/inventory.service';
 import { MaintenanceService } from '../services/maintenance.service';
 
@@ -28,12 +30,15 @@ export class MaintenanceComponent implements OnInit {
   property: PropertyResponse | null = null;
   inspectionChecklistJson: string | null = null;
   inventoryChecklistJson: string | null = null;
+  inspectionAnswers: string | null = null;
+  inventoryAnswers: string | null = null;
+  activeInspection: InspectionResponse | null = null;
   activeInventory: InventoryResponse | null = null;
   maintenanceRecord: MaintenanceResponse | null = null;
   selectedTabIndex: number = 0;
   isSaving: boolean = false;
   isServiceError: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance', 'inventory']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance', 'inspection', 'inventory']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -41,6 +46,7 @@ export class MaintenanceComponent implements OnInit {
     route: ActivatedRoute,
     propertyService: PropertyService,
     maintenanceService: MaintenanceService,
+    inspectionService: InspectionService,
     inventoryService: InventoryService,
     authService: AuthService,
     utilityService: UtilityService
@@ -49,6 +55,7 @@ export class MaintenanceComponent implements OnInit {
     this.route = route;
     this.propertyService = propertyService;
     this.maintenanceService = maintenanceService;
+    this.inspectionService = inspectionService;
     this.inventoryService = inventoryService;
     this.authService = authService;
     this.utilityService = utilityService;
@@ -59,6 +66,7 @@ export class MaintenanceComponent implements OnInit {
   route: ActivatedRoute;
   propertyService: PropertyService;
   maintenanceService: MaintenanceService;
+  inspectionService: InspectionService;
   inventoryService: InventoryService;
   authService: AuthService;
   utilityService: UtilityService;
@@ -68,72 +76,15 @@ export class MaintenanceComponent implements OnInit {
     if (!this.propertyId || this.propertyId === 'new') {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory');
       return;
     }
 
     this.loadProperty();
     this.loadMaintenance();
-    this.loadInventory();
-  }
-
-  extractInspectionChecklistJson(maintenance: MaintenanceResponse | null): string | null {
-    if (!maintenance) {
-      return null;
-    }
-
-    if (typeof maintenance.inspectionCheckList === 'string' && maintenance.inspectionCheckList.trim().length > 0) {
-      return maintenance.inspectionCheckList;
-    }
-
-    const maintenanceObject = maintenance as unknown as Record<string, unknown>;
-    const directCandidates = [
-      maintenanceObject['InspectionCheckList'],
-      maintenanceObject['inspectionCheckList'],
-      maintenanceObject['inspectionChecklist'],
-      maintenanceObject['inspectionChecklistJson'],
-      maintenanceObject['InspectionChecklistJson'],
-      maintenanceObject['Notes'],
-      maintenanceObject['notes']
-    ];
-
-    for (const candidate of directCandidates) {
-      if (typeof candidate === 'string' && candidate.trim().length > 0) {
-        return candidate;
-      }
-    }
-
-    if (typeof maintenance.notes === 'string' && maintenance.notes.trim().length > 0) {
-      return maintenance.notes;
-    }
-
-    return null;
-  }
-
-  extractInventoryChecklistJson(maintenance: MaintenanceResponse | null): string | null {
-    if (!maintenance) {
-      return null;
-    }
-
-    if (typeof maintenance.inventoryCheckList === 'string' && maintenance.inventoryCheckList.trim().length > 0) {
-      return maintenance.inventoryCheckList;
-    }
-
-    const maintenanceObject = maintenance as unknown as Record<string, unknown>;
-    const directCandidates = [
-      maintenanceObject['InventoryCheckList'],
-      maintenanceObject['inventoryCheckList'],
-      maintenanceObject['inventoryChecklist'],
-      maintenanceObject['inventoryChecklistJson'],
-      maintenanceObject['InventoryChecklistJson']
-    ];
-
-    for (const candidate of directCandidates) {
-      if (typeof candidate === 'string' && candidate.trim().length > 0) {
-        return candidate;
-      }
-    }
-
-    return null;
+    this.loadInspectionAnswers();
+    this.loadInventoryAnswers();
   }
 
   saveMaintenanceTemplate(inspectionChecklistJson: string): void {
@@ -200,9 +151,9 @@ export class MaintenanceComponent implements OnInit {
       this.inventoryService.updateInventory(updatePayload).pipe(take(1), finalize(() => (this.isSaving = false))).subscribe({
         next: (savedInventory: InventoryResponse) => {
           this.activeInventory = savedInventory;
-          this.inventoryChecklistJson = this.extractInventoryChecklistFromInventory(savedInventory) || inventoryChecklistJson;
+          this.inventoryChecklistJson = savedInventory.inventoryCheckList ?? inventoryChecklistJson;
           this.utilityService.addLoadItem(this.itemsToLoad$, 'inventory');
-          this.loadInventory();
+          this.loadInventoryAnswers();
         },
         error: (_err: HttpErrorResponse) => {
           this.isServiceError = true;
@@ -228,9 +179,62 @@ export class MaintenanceComponent implements OnInit {
     this.inventoryService.createInventory(createPayload).pipe(take(1), finalize(() => (this.isSaving = false))).subscribe({
       next: (savedInventory: InventoryResponse) => {
         this.activeInventory = savedInventory;
-        this.inventoryChecklistJson = this.extractInventoryChecklistFromInventory(savedInventory) || inventoryChecklistJson;
+        this.inventoryChecklistJson = savedInventory.inventoryCheckList ?? inventoryChecklistJson;
         this.utilityService.addLoadItem(this.itemsToLoad$, 'inventory');
-        this.loadInventory();
+        this.loadInventoryAnswers();
+      },
+      error: (_err: HttpErrorResponse) => {
+        this.isServiceError = true;
+      }
+    });
+  }
+
+  saveInspectionAnswers(inspectionChecklistJson: string): void {
+    if (!this.property) {
+      return;
+    }
+
+    const currentUser = this.authService.getUser();
+    this.isSaving = true;
+    if (this.activeInspection) {
+      const updatePayload: InspectionResponse = {
+        ...this.activeInspection,
+        inspectionCheckList: inspectionChecklistJson
+      };
+      this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSaving = false))).subscribe({
+        next: (savedInspection: InspectionResponse) => {
+          this.activeInspection = savedInspection;
+          this.inspectionAnswers = savedInspection.inspectionCheckList ?? inspectionChecklistJson;
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'inspection');
+          this.loadInspectionAnswers();
+        },
+        error: (_err: HttpErrorResponse) => {
+          this.isServiceError = true;
+        }
+      });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const createPayload: InspectionResponse = {
+      inspectionId: 0,
+      organizationId: currentUser?.organizationId || this.property?.organizationId || '',
+      officeId: this.property.officeId,
+      propertyId: this.property.propertyId,
+      maintenanceId: this.maintenanceRecord?.maintenanceId || '',
+      inspectionCheckList: inspectionChecklistJson,
+      isActive: true,
+      createdOn: nowIso,
+      createdBy: currentUser?.userId || '',
+      modifiedOn: nowIso,
+      modifiedBy: currentUser?.userId || ''
+    };
+    this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSaving = false))).subscribe({
+      next: (savedInspection: InspectionResponse) => {
+        this.activeInspection = savedInspection;
+        this.inspectionAnswers = savedInspection.inspectionCheckList ?? inspectionChecklistJson;
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'inspection');
+        this.loadInspectionAnswers();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -265,81 +269,58 @@ export class MaintenanceComponent implements OnInit {
     this.maintenanceService.getByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'); })).subscribe({
       next: (maintenance: MaintenanceResponse | null) => {
         this.maintenanceRecord = maintenance;
-        this.inspectionChecklistJson = this.extractInspectionChecklistJson(maintenance);
+        this.inspectionChecklistJson = maintenance.inspectionCheckList;
+        this.inventoryChecklistJson = maintenance.inventoryCheckList;
       },
       error: (_err: HttpErrorResponse) => {
         this.maintenanceRecord = null;
         this.inspectionChecklistJson = null;
+        this.inventoryChecklistJson = null;
       }
     });
   }
 
-  loadInventory(): void {
+  loadInspectionAnswers(): void {
+    if (!this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection');
+      return;
+    }
+
+    this.inspectionService.getInspectionByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection'); })).subscribe({
+      next: (inspections: InspectionResponse[]) => {
+        const records = inspections || [];
+        this.activeInspection = records.find(inspection => inspection.isActive === true) || records[0] || null;
+        this.inspectionAnswers = this.activeInspection?.inspectionCheckList ?? null;
+      },
+      error: (_err: HttpErrorResponse) => {
+        this.activeInspection = null;
+        this.inspectionAnswers = null;
+      }
+    });
+  }
+
+  loadInventoryAnswers(): void {
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory');
       return;
     }
 
-    this.inventoryService.getInventoriesByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory'); })).subscribe({
+    this.inventoryService.getInventoryByProperty(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory'); })).subscribe({
       next: (inventories: InventoryResponse[]) => {
         const records = inventories || [];
         this.activeInventory = records.find(inventory => this.isInventoryActive(inventory)) || records[0] || null;
-        this.inventoryChecklistJson = this.extractInventoryChecklistFromInventory(this.activeInventory);
+        this.inventoryAnswers = this.activeInventory?.inventoryCheckList ?? null;
       },
       error: (_err: HttpErrorResponse) => {
         this.activeInventory = null;
-        this.inventoryChecklistJson = null;
+        this.inventoryAnswers = null;
       }
     });
   }
   // #endregion
 
-  extractInventoryChecklistFromInventory(inventory: InventoryResponse | null): string | null {
-    if (!inventory) {
-      return null;
-    }
-
-    if (inventory.inventoryCheckList && typeof inventory.inventoryCheckList === 'object') {
-      return JSON.stringify(inventory.inventoryCheckList);
-    }
-
-    if (typeof inventory.inventoryCheckList === 'string' && inventory.inventoryCheckList.trim().length > 0) {
-      return inventory.inventoryCheckList;
-    }
-
-    const inventoryObject = inventory as unknown as Record<string, unknown>;
-    const directCandidates = [
-      inventoryObject['InventoryCheckList'],
-      inventoryObject['inventoryCheckList'],
-      inventoryObject['inventoryChecklist'],
-      inventoryObject['inventoryChecklistJson'],
-      inventoryObject['InventoryChecklistJson']
-    ];
-
-    for (const candidate of directCandidates) {
-      if (typeof candidate === 'string' && candidate.trim().length > 0) {
-        return candidate;
-      }
-      if (candidate && typeof candidate === 'object') {
-        return JSON.stringify(candidate);
-      }
-    }
-
-    return null;
-  }
-
   isInventoryActive(inventory: InventoryResponse): boolean {
-    if (typeof inventory.isActive === 'boolean') {
-      return inventory.isActive;
-    }
-
-    const inventoryObject = inventory as unknown as Record<string, unknown>;
-    const directCandidates = [
-      inventoryObject['IsActive'],
-      inventoryObject['isActive']
-    ];
-
-    return directCandidates.some(candidate => candidate === true);
+    return inventory.isActive === true;
   }
 
   //#region Utility Methods

@@ -215,10 +215,6 @@ export class InspectionChecklistComponent implements OnChanges {
       return false;
     }
 
-    if (typeof (parsedRoot as Record<string, unknown>)['inventoryCheckList'] === 'string') {
-      parsedRoot = this.tryParseJsonValue((parsedRoot as Record<string, unknown>)['inventoryCheckList']);
-    }
-
     if (!parsedRoot || typeof parsedRoot !== 'object') {
       return false;
     }
@@ -285,14 +281,6 @@ export class InspectionChecklistComponent implements OnChanges {
       let checklistRoot: unknown = rawChecklistJson;
       checklistRoot = this.tryParseJsonValue(checklistRoot);
 
-      if (
-        checklistRoot &&
-        typeof checklistRoot === 'object' &&
-        typeof (checklistRoot as Record<string, unknown>)['inventoryCheckList'] === 'string'
-      ) {
-        checklistRoot = this.tryParseJsonValue((checklistRoot as Record<string, unknown>)['inventoryCheckList']);
-      }
-
       let rawSections: unknown[] = [];
       if (Array.isArray(checklistRoot)) {
         rawSections = checklistRoot;
@@ -358,18 +346,10 @@ export class InspectionChecklistComponent implements OnChanges {
 
       if (checklistRoot && typeof checklistRoot === 'object') {
         const parsedObject = checklistRoot as Record<string, unknown>;
-        if (typeof parsedObject['InspectionCheckList'] === 'string') {
-          checklistRoot = this.tryParseJsonValue(parsedObject['InspectionCheckList']);
-        } else if (typeof parsedObject['inspectionCheckList'] === 'string') {
+        if (typeof parsedObject['inspectionCheckList'] === 'string') {
           checklistRoot = this.tryParseJsonValue(parsedObject['inspectionCheckList']);
-        } else if (typeof parsedObject['inspectionChecklist'] === 'string') {
-          checklistRoot = this.tryParseJsonValue(parsedObject['inspectionChecklist']);
-        } else if (parsedObject['InspectionCheckList']) {
-          checklistRoot = parsedObject['InspectionCheckList'];
         } else if (parsedObject['inspectionCheckList']) {
           checklistRoot = parsedObject['inspectionCheckList'];
-        } else if (parsedObject['inspectionChecklist']) {
-          checklistRoot = parsedObject['inspectionChecklist'];
         }
       }
 

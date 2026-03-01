@@ -1,10 +1,10 @@
-export interface InventoryResponse {
-  inventoryId: number;
+export interface InspectionResponse {
+  inspectionId: number;
   organizationId: string;
   officeId: number;
   propertyId: string;
   maintenanceId: string;
-  inventoryCheckList: string;
+  inspectionCheckList: string;
   isActive: boolean;
   createdOn: string;
   createdBy: string;
@@ -12,8 +12,8 @@ export interface InventoryResponse {
   modifiedBy: string;
 }
 
-export interface InventoryDisplayList {
-  inventoryId: number;
+export interface InspectionDisplayList {
+  inspectionId: number;
   officeId: number;
   propertyId: string;
   isActive: boolean;

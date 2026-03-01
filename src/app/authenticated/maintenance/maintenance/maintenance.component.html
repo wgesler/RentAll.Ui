@@ -30,12 +30,12 @@
             <app-inspection-checklist
               [property]="property"
               [templateJson]="inspectionChecklistJson"
-              [answersJson]="inventoryChecklistJson"
-              [mode]="'template'"
+              [answersJson]="inspectionAnswers"
+              [mode]="'answer'"
               [templateEnabled]="false"
               [isSaving]="isSaving"
               (saveChecklist)="saveMaintenanceTemplate($event)"
-              (saveAnswers)="saveInventoryAnswers($event)" />
+              (saveAnswers)="saveInspectionAnswers($event)" />
           </mat-tab>
           <mat-tab label="Inventory CheckList">
             <div class="p-6">
