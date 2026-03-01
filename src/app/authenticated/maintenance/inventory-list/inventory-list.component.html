@@ -1,0 +1,28 @@
+@if (isLoading) {
+  <div class="loading-wrap">
+    <mat-spinner [diameter]="30"></mat-spinner>
+    <span>Loading inventories...</span>
+  </div>
+} @else {
+  @if (isServiceError) {
+    <p class="empty-msg">Unable to load inventories.</p>
+  }
+  <div class="tableDiv">
+    <app-data-table
+      [data]="inventoriesDisplay"
+      [columns]="inventoryDisplayedColumns"
+      [hasColumnIndex]="false"
+      [hasFilter]="true"
+      [hasActionsRowClick]="true"
+      [hasToggleTop]="true"
+      [hasButtonTop]="true"
+      [itemsPerPage]="100"
+      buttonToggleTextTop="Inactive"
+      buttonTextTop="Add"
+      buttonIconTop="add"
+      buttonColorTop="primary"
+      (rowClickEvent)="goToInventory($event)"
+      (topToggleButtonEvent)="toggleInactive()"
+      (topButtonEvent)="addInventory()" />
+  </div>
+}

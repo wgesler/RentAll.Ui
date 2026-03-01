@@ -1,0 +1,25 @@
+@if (!hasParentPropertyInput) {
+  <div class="flex justify-end mb-3">
+    <button mat-raised-button type="button" color="accent" (click)="back()">
+      <mat-icon>arrow_back</mat-icon>
+      Back
+    </button>
+  </div>
+}
+
+@if (isLoading$ | async) {
+  <div class="loading-wrap">
+    <mat-spinner [diameter]="30"></mat-spinner>
+    <span>Loading inventory...</span>
+  </div>
+} @else if (isServiceError) {
+  <p class="empty-msg">Unable to load inventory.</p>
+} @else if (inventoryChecklistJson) {
+  <app-inspection-checklist
+    [property]="property"
+    [templateJson]="checklistJson"
+    [answersJson]="inventoryChecklistJson"
+    [mode]="'readonly'" />
+} @else {
+  <p class="empty-msg">No inventory checklist found for this property.</p>
+}

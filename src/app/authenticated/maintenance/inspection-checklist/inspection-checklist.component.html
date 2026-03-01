@@ -1,0 +1,163 @@
+<div class="inspection-checklist-wrap">
+  <div class="meta-form">
+    <div class="meta-grid">
+      <div class="meta-column">
+        <div class="meta-field">
+          <p class="meta-label">Property Code:</p>
+          <p class="meta-value">{{ property?.propertyCode || 'N/A' }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Address:</p>
+          <p class="meta-value">{{ propertyAddress }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Inspector:</p>
+          <p class="meta-value">{{ inspectorName }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Date:</p>
+          <p class="meta-value">{{ todayDate }}</p>
+        </div>
+      </div>
+
+      <div class="meta-column">
+        <div class="meta-field">
+          <p class="meta-label">Alarm Code:</p>
+          <p class="meta-value">{{ alarmCodeDisplay }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Keypad Access Codes:</p>
+          <p class="meta-value">{{ keypadAccessCodesDisplay }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Wireless Network ID:</p>
+          <p class="meta-value">{{ wirelessNetworkIdDisplay }}</p>
+        </div>
+        <div class="meta-field">
+          <p class="meta-label">Wireless Password:</p>
+          <p class="meta-value">{{ wirelessPasswordDisplay }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-row">
+  <div class="controls-left-group">
+    @if (!isReadonlyMode) {
+      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
+        Template
+      </mat-slide-toggle>
+    }
+  </div>
+
+  <div class="controls-right-group">
+    <span class="text-sm">{{ completedCount }} / {{ totalItems }} complete</span>
+    @if (!isReadonlyMode) {
+      @if (!isTemplateMode) {
+        <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="clearAll()">Clear</button>
+      }
+      @if (isTemplateMode) {
+        <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
+      }
+      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSaving" (click)="saveChecklistData()">
+        Save
+      </button>
+    }
+  </div>
+</div>
+
+  <form [formGroup]="form" class="section-list">
+    <mat-accordion class="section-accordion" multi="true">
+      @for (section of sections; track section.key; let i = $index) {
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <span>{{ section.title }}</span>
+              @if (isTemplateMode) {
+                <span class="inline-header-actions">
+                  <button class="section-action-text-btn" mat-button type="button" (click)="addSection(i, $event)">+</button>
+                  <span class="action-divider">/</span>
+                  <button class="section-action-text-btn" mat-button type="button" (click)="removeSection(i, $event)">-</button>
+                </span>
+              }
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+
+          @if (section.hint) {
+            <p class="hint">{{ section.hint }}</p>
+          }
+
+          <div class="checklist-grid">
+            @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
+              <div class="checklist-set">
+                @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
+                  <p class="set-instruction">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+                }
+                @for (item of getSetItems(section.key, repeatIndex); track item.id) {
+                  <div class="checklist-row">
+                    @if (item.isEditable && isTemplateMode) {
+                      <div class="editable-row-content">
+                        <mat-checkbox
+                          class="editable-row-checkbox"
+                          [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
+                        </mat-checkbox>
+                        <input
+                          class="editable-row-input"
+                          type="text"
+                          placeholder="Enter checklist item"
+                          [value]="item.text"
+                          (input)="updateEditableRowText(item, $any($event.target).value)" />
+                      </div>
+                    } @else if (item.isEditable) {
+                      <div class="editable-row-content">
+                        <mat-checkbox
+                          class="editable-row-checkbox"
+                          [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
+                        </mat-checkbox>
+                        <span class="editable-row-text">{{ item.text }}</span>
+                      </div>
+                    } @else {
+                      <mat-checkbox class="row-checkbox" [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
+                        {{ item.text }}
+                      </mat-checkbox>
+                    }
+                    @if (isTemplateMode) {
+                      <button
+                        mat-button
+                        type="button"
+                        class="row-action-btn"
+                        (click)="removeRow(section.key, repeatIndex, item.id, $event)">
+                        -
+                      </button>
+                    }
+                  </div>
+                }
+
+                @if (isTemplateMode) {
+                  <div class="row-actions-wrap">
+                    <button
+                      mat-button
+                      type="button"
+                      class="row-action-btn add-row-btn"
+                      (click)="addRow(section.key, repeatIndex, $event)">
+                      + Add row
+                    </button>
+                  </div>
+                }
+              </div>
+
+              @if (repeatIndex < getSetCount(section.key) - 1) {
+                <mat-divider class="checklist-divider"></mat-divider>
+              }
+            }
+          </div>
+
+          <mat-form-field appearance="outline" class="notes-field">
+            <mat-label>Comments</mat-label>
+            <textarea matInput rows="3" [formControlName]="notesControlName(section.key)"></textarea>
+          </mat-form-field>
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
+  </form>
+</div>

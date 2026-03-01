@@ -2,41 +2,42 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { getPropertyStatus } from '../../properties/models/property-enums';
+import { PropertyListDisplay } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
-import { PropertyListDisplay } from '../models/property.model';
-import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
-import { PropertyService } from '../services/property.service';
+
+type MaintenanceListDisplay = PropertyListDisplay & {
+  propertyStatusText: string;
+};
 
 @Component({
-    selector: 'app-property-list',
-    templateUrl: './property-list.component.html',
-    styleUrls: ['./property-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+  selector: 'app-maintenance-list',
+  templateUrl: './maintenance-list.component.html',
+  styleUrls: ['./maintenance-list.component.scss'],
+  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
-
-export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
+export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
-  allProperties: PropertyListDisplay[] = [];
-  propertiesDisplay: PropertyListDisplay[] = [];
+  allProperties: MaintenanceListDisplay[] = [];
+  propertiesDisplay: MaintenanceListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -48,12 +49,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'officeName': { displayAs: 'Office', maxWidth: '25ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '25ch', wrap: false },
-    'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch'},
-    'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch'},
-    'accomodates': { displayAs: 'Acms', wrap: false , maxWidth: '10ch'},
-    'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch'},
-    'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch'},
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left', maxWidth: '15ch' }
+    'propertyStatusText': { displayAs: 'Status', wrap: false, maxWidth: '20ch' },
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));
@@ -64,15 +60,26 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private authService: AuthService,
-    private officeService: OfficeService,
-    private route: ActivatedRoute,
-    private utilityService: UtilityService,
-    private dialog: MatDialog,
-    private ngZone: NgZone) {
+    authService: AuthService,
+    officeService: OfficeService,
+    route: ActivatedRoute,
+    utilityService: UtilityService,
+    ngZone: NgZone
+  ) {
+    this.authService = authService;
+    this.officeService = officeService;
+    this.route = route;
+    this.utilityService = utilityService;
+    this.ngZone = ngZone;
   }
 
-  //#region Property-List
+  authService: AuthService;
+  officeService: OfficeService;
+  route: ActivatedRoute;
+  utilityService: UtilityService;
+  ngZone: NgZone;
+
+  //#region Maintenance-List
   ngOnInit(): void {
     this.loadOffices();
     
@@ -114,11 +121,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
           this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          if (this.selectedOffice) {
-            this.applyFilters();
-          } else {
-            this.applyFilters();
-          }
+          this.applyFilters();
         }
       }
     }
@@ -128,7 +131,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.isServiceError = false;
     this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapProperties(properties);
+        const mappedProperties = this.mappingService.mapProperties(properties);
+        this.allProperties = mappedProperties.map(property => ({
+          ...property,
+          propertyStatusText: getPropertyStatus(property.propertyStatusId)
+        }));
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -140,50 +147,24 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addProperty(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, ['new']));
   }
     
-  copyProperty(event: PropertyListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
+  copyProperty(event: MaintenanceListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Maintenance, ['new']);
     this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
   }
 
-  openPropertyCalendar(property: PropertyListDisplay): void {
-    this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
-      next: (response: CalendarUrlResponse) => {
-        if (!response?.subscriptionUrl) {
-          this.toastr.error('No calendar URL was returned for this property.', CommonMessage.ServiceError);
-          return;
-        }
-
-        const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
-          width: '700px',
-          autoFocus: true,
-          restoreFocus: true,
-          disableClose: false,
-          hasBackdrop: true,
-          data: {
-            propertyCode: property.propertyCode,
-            subscriptionUrl: response.subscriptionUrl
-          }
-        };
-
-        this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
-      },
-      error: () => {}
-    });
-  }
-
-  deleteProperty(property: PropertyListDisplay): void {
-    if (confirm(`Are you sure you want to delete this property?`)) {
+  deleteProperty(property: MaintenanceListDisplay): void {
+    if (confirm('Are you sure you want to delete this property?')) {
       this.propertyService.deleteProperty(property.propertyId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Property deleted successfully', CommonMessage.Success);
-          this.getProperties(); // Refresh the list
+          this.getProperties();
         },
         error: (err: HttpErrorResponse) => {
           if (err.status === 404) {
-            // Handle not found error if business logic requires
+            // no-op
           }
         }
       });
@@ -192,13 +173,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
   
   //#region Routing Methods
-  goToProperty(event: PropertyListDisplay): void {
+  goToProperty(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId]));
     });
   }
 
-  goToContact(event: PropertyListDisplay): void {
+  goToContact(event: MaintenanceListDisplay): void {
     if (event.owner1Id) {
       this.ngZone.run(() => {
         this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
@@ -216,12 +197,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   applyFilters(): void {
     let filtered = this.allProperties;
 
-    // Filter by active/inactive
     if (!this.showInactive) {
       filtered = filtered.filter(property => property.isActive);
     }
 
-    // Filter by office
     if (this.selectedOffice) {
       filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
     }
@@ -249,11 +228,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
           const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
           if (matchingOffice !== this.selectedOffice) {
             this.selectedOffice = matchingOffice;
-            if (this.selectedOffice) {
-              this.applyFilters();
-            } else {
-              this.applyFilters();
-            }
+            this.applyFilters();
           }
         } else if (this.selectedOffice && this.offices.length === 1) {
           this.applyFilters();
@@ -281,4 +256,3 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 }
-

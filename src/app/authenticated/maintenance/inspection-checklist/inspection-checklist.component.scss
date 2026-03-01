@@ -1,0 +1,256 @@
+.inspection-checklist-wrap {
+  padding: 1rem;
+}
+
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0.25rem 0.5rem;
+}
+
+.controls-left-group,
+.controls-right-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+::ng-deep .standard-action-btn {
+  --mdc-protected-button-container-height: 36px;
+  --mdc-protected-button-label-text-size: 14px;
+  padding: 0 16px !important;
+  min-width: 64px;
+}
+
+.meta-form {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 15px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.meta-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.meta-field {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.15rem 0;
+}
+
+.meta-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.meta-value {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+@media (max-width: 960px) {
+  .meta-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+.section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hint {
+  margin: 0 0 0.75rem;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.checklist-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.checklist-set {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.set-instruction {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.checklist-divider {
+  margin: 8px 0;
+}
+
+.checklist-row {
+  border: none;
+  background-color: transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.row-checkbox {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editable-row-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.editable-row-checkbox {
+  flex: 0 0 auto;
+}
+
+.editable-row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0.25rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  line-height: 1.2;
+  padding: 0;
+}
+
+.editable-row-text {
+  margin-left: 0.25rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.checklist-row mat-checkbox {
+  display: block;
+}
+
+::ng-deep .checklist-row .mdc-form-field {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+::ng-deep .checklist-row .mdc-checkbox {
+  margin: 0 !important;
+}
+
+.row-actions-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 6px 0;
+}
+
+::ng-deep .row-action-btn {
+  min-width: 28px !important;
+  height: 24px !important;
+  line-height: 20px !important;
+  padding: 0 6px !important;
+}
+
+::ng-deep .row-action-btn .mdc-button__label {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+::ng-deep .add-row-btn .mdc-button__label {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.notes-field {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+::ng-deep .section-accordion mat-expansion-panel {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 4px !important;
+}
+
+::ng-deep .section-accordion .mat-expansion-panel-header {
+  min-height: 48px !important;
+  height: 48px !important;
+  background-color: #cbd5e1 !important;
+}
+
+::ng-deep .section-accordion .mat-expansion-panel-header:hover {
+  background-color: #94a3b8 !important;
+}
+
+::ng-deep .section-accordion .mat-expansion-panel-header-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+::ng-deep .section-accordion .mat-expansion-indicator::after {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  border-width: 0 3px 3px 0 !important;
+}
+
+::ng-deep .section-accordion .mat-expansion-panel-body {
+  padding: 16px !important;
+}
+
+::ng-deep .section-accordion .mat-expansion-panel.mat-expanded {
+  margin: 0 0 16px 0 !important;
+}
+
+.inline-header-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.action-divider {
+  font-size: 14px;
+  line-height: 1;
+}
+
+::ng-deep .section-action-text-btn {
+  min-width: unset !important;
+  padding: 0 2px !important;
+  line-height: 1 !important;
+}
+
+::ng-deep .section-action-text-btn .mdc-button__label {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+}

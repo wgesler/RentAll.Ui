@@ -10,6 +10,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
+import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
@@ -305,6 +306,19 @@ export class MappingService {
       mapped.transactionTypeId = transactionTypeId;
       
       return mapped;
+    });
+  }
+
+  mapInventories(inventories: InventoryResponse[]): InventoryDisplayList[] {
+    return inventories.map<InventoryDisplayList>((inventory: InventoryResponse) => {
+      return {
+        inventoryId: inventory.inventoryId,
+        officeId: inventory.officeId,
+        propertyId: inventory.propertyId,
+        isActive: inventory.isActive,
+        modifiedOn: inventory.modifiedOn,
+        modifiedBy: inventory.modifiedBy
+      };
     });
   }
 

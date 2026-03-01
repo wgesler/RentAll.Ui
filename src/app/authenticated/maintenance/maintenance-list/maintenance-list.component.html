@@ -1,0 +1,55 @@
+<div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <span class="flex flex-column items-center gap-3 py-4">
+        <mat-icon class="flex-shrink-0">directions_car</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Maintenance</span>
+      </span>
+    </div>
+    <mat-card>
+      @if (isLoading$ | async) {
+        <div class="loading-container">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Loading properties...</p>
+        </div>
+      } @else if (isServiceError) {
+        <div class="flex justify-center items-center p-8">
+          <div class="text-center">
+            <mat-icon class="text-6xl text-red-500 mb-4">error_outline</mat-icon>
+            <h3 class="text-xl font-semibold mb-2">Unable to Load Properties</h3>
+            <p class="text-gray-600">There was an error loading the properties. Please try again or contact support if the problem persists.</p>
+          </div>
+        </div>
+      } @else {
+        <div class="mat list-layout-standard">
+          <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+            <div class="flex items-center gap-3" style="height: 56px;">
+              @if (showOfficeDropdown) {
+                <mat-form-field appearance="outline" class="office-dropdown">
+                  <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+            </div>
+          </div>
+          <div class="tableDiv">
+            <app-data-table
+              [data]="propertiesDisplay"
+              [columns]="propertiesDisplayedColumns"
+              [hasColumnIndex]="false"
+              [hasFilter]="true"
+              [hasActionsRowClick]="true"
+              [itemsPerPage]="100"
+              (rowClickEvent)="goToProperty($event)"
+              (contactClickEvent)="goToContact($event)"/>
+          </div>
+        </div>
+      }
+    </mat-card>
+  </section>
+</div>

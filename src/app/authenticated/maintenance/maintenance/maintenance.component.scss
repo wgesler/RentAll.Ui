@@ -1,0 +1,28 @@
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 0.75rem;
+}
+
+.error-icon {
+  font-size: 40px;
+  width: 40px;
+  height: 40px;
+  color: #dc2626;
+}
+
+::ng-deep .standard-action-btn {
+  --mdc-protected-button-container-height: 36px;
+  --mdc-protected-button-label-text-size: 14px;
+  padding: 0 16px !important;
+  min-width: 64px;
+}
+
+::ng-deep .mat-mdc-tab-group .mat-mdc-tab-header .mat-mdc-tab {
+  flex: 1 1 0;
+  max-width: none;
+}

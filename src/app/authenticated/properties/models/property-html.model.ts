@@ -2,7 +2,6 @@ export interface PropertyHtmlRequest {
   propertyId: string;
   organizationId: string;
   welcomeLetter: string;
-  inspectionChecklist: string;
   lease: string;
   invoice: string;
   letterOfResponsibility: string;
@@ -16,7 +15,6 @@ export interface PropertyHtmlResponse {
   propertyId: string;
   organizationId: string;
   welcomeLetter: string;
-  inspectionChecklist: string;
   lease: string;
   invoice: string;
   letterOfResponsibility: string;

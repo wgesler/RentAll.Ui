@@ -1,0 +1,64 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <span class="flex flex-column items-center gap-3 py-4">
+        <mat-icon class="flex-shrink-0">directions_car</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Maintenance</span>
+      </span>
+      <div class="flex gap-2">
+        <button class="standard-action-btn" mat-raised-button type="button" color="accent" (click)="back()">
+          <mat-icon>arrow_back</mat-icon>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <mat-card>
+      @if (isLoading$ | async) {
+        <div class="loading-container">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Loading property...</p>
+        </div>
+      } @else if (isServiceError) {
+        <div class="error-container">
+          <mat-icon class="error-icon">error_outline</mat-icon>
+          <p>Unable to load property details.</p>
+        </div>
+      } @else {
+        <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedTabChange)="onTabChange($event)">
+          <mat-tab label="Inspection CheckList">
+            <app-inspection-checklist
+              [property]="property"
+              [templateJson]="inspectionChecklistJson"
+              [answersJson]="inventoryChecklistJson"
+              [mode]="'template'"
+              [templateEnabled]="false"
+              [isSaving]="isSaving"
+              (saveChecklist)="saveMaintenanceTemplate($event)"
+              (saveAnswers)="saveInventoryAnswers($event)" />
+          </mat-tab>
+          <mat-tab label="Inventory CheckList">
+            <div class="p-6">
+              <p>Inventory CheckList tab content moved to History.</p>
+            </div>
+          </mat-tab>
+          <mat-tab label="Vendors">
+            <div class="p-6">
+              <p>Vendors tab content coming soon.</p>
+            </div>
+          </mat-tab>
+          <mat-tab label="History">
+            <div class="p-6">
+              <app-inventory-list [property]="property"></app-inventory-list>
+              <div class="mt-6">
+                <app-inventory
+                  [property]="property"
+                  [checklistJson]="inventoryChecklistJson || inspectionChecklistJson" />
+              </div>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      }
+    </mat-card>
+  </section>
+</div>

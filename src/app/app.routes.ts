@@ -36,6 +36,9 @@ import { OrganizationListComponent } from './authenticated/organizations/organiz
 import { OrganizationComponent } from './authenticated/organizations/organization/organization.component';
 import { RegionListComponent } from './authenticated/organizations/region-list/region-list.component';
 import { RegionComponent } from './authenticated/organizations/region/region.component';
+import { MaintenanceListComponent } from './authenticated/maintenance/maintenance-list/maintenance-list.component';
+import { MaintenanceComponent } from './authenticated/maintenance/maintenance/maintenance.component';
+import { InventoryComponent } from './authenticated/maintenance/inventory/inventory.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { PropertyComponent } from './authenticated/properties/property/property.component';
 import { ReservationBoardSelectionComponent } from './authenticated/reservations/reservation-board-selection/reservation-board-selection.component';
@@ -62,6 +65,9 @@ export enum RouterToken {
   ContactList = 'contacts',
   Contacts = 'contacts',
   Contact = RouterToken.ContactList + '/:id',
+  MaintenanceList = 'maintenance',
+  Maintenance = RouterToken.MaintenanceList + '/:id',
+  Inventory = RouterToken.MaintenanceList + '/inventory/:id',
   PropertyList = 'properties',
   Property = RouterToken.PropertyList + '/:id',
   DocumentList = 'documents',
@@ -113,6 +119,9 @@ export enum RouterUrl {
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
   Contacts              = `${RouterToken.Auth}/${RouterToken.Contacts}`,
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
+  MaintenanceList       = `${RouterToken.Auth}/${RouterToken.MaintenanceList}`,
+  Maintenance           = `${RouterToken.Auth}/${RouterToken.Maintenance}`,
+  Inventory             = `${RouterToken.Auth}/${RouterToken.Inventory}`,
   PropertyList          = `${RouterToken.Auth}/${RouterToken.PropertyList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
   DocumentList           = `${RouterToken.Auth}/${RouterToken.DocumentList}`,
@@ -171,6 +180,9 @@ export const authRoutes: Routes = [
   { path: RouterToken.ContactList, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contacts, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Maintenance, component: MaintenanceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Inventory, component: InventoryComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },

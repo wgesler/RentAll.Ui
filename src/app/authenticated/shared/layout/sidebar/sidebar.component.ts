@@ -62,6 +62,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },
     {
+      icon: 'build',
+      displayName: 'Maintenance',
+      url: RouterToken.MaintenanceList,
+      requiredRoles: [], // Available to all
+      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
+    },
+    {
       icon: 'account_balance',
       displayName: 'Accounting',
       url: RouterToken.AccountingList,
