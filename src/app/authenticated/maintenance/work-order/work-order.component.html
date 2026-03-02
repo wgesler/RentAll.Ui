@@ -1,0 +1,44 @@
+@if (showBackButton) {
+  <div class="flex justify-end mt-4 mb-4">
+    <button mat-raised-button type="button" color="accent" (click)="back()">
+      <mat-icon>close</mat-icon>
+      Close
+    </button>
+  </div>
+}
+
+@if (isLoading) {
+  <div class="loading-wrap">
+    <mat-spinner [diameter]="30"></mat-spinner>
+    <span>Loading work order...</span>
+  </div>
+} @else {
+  @if (isServiceError) {
+    <p class="empty-msg">Unable to load or save work order.</p>
+  }
+
+  <form [formGroup]="form" class="work-order-form">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <mat-form-field appearance="outline" class="md:col-span-2">
+        <mat-label>Description</mat-label>
+        <textarea matInput rows="4" formControlName="descriptionId"></textarea>
+        @if (form.get('descriptionId')?.invalid && form.get('descriptionId')?.touched) {
+          <mat-error>Description is required.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="md:col-span-2">
+        <mat-label>Document Path</mat-label>
+        <input matInput formControlName="documentPath" />
+      </mat-form-field>
+    </div>
+
+    <div class="form-actions">
+      <mat-checkbox formControlName="isActive">Is Active</mat-checkbox>
+      <button mat-raised-button color="primary" type="button" [disabled]="isSaving" (click)="saveWorkOrder()">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </div>
+  </form>
+}

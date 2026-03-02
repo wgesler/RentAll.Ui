@@ -1,0 +1,29 @@
+@if (isLoading) {
+  <div class="loading-wrap">
+    <mat-spinner [diameter]="30"></mat-spinner>
+    <span>Loading work orders...</span>
+  </div>
+} @else {
+  @if (isServiceError) {
+    <p class="empty-msg">Unable to load work orders.</p>
+  }
+
+  <div class="tableDiv">
+    <app-data-table
+      [data]="workOrdersDisplay"
+      [columns]="workOrderDisplayedColumns"
+      [hasColumnIndex]="false"
+      [hasFilter]="true"
+      [hasActionsRowClick]="true"
+      [hasActionsView]="true"
+      [hasActionsDelete]="true"
+      [hasToggleTop]="false"
+      [hasButtonTop]="true"
+      [buttonTextTop]="'Add'"
+      [itemsPerPage]="100"
+      (topButtonEvent)="addWorkOrder()"
+      (rowClickEvent)="openWorkOrder($event)"
+      (viewEvent)="openWorkOrder($event)"
+      (deleteEvent)="deleteWorkOrder($event)" />
+  </div>
+}

@@ -19,42 +19,102 @@
           <mat-spinner [diameter]="40"></mat-spinner>
           <p>Loading property...</p>
         </div>
-      } @else if (isServiceError) {
+      } @else if (isServiceError && !property) {
         <div class="error-container">
           <mat-icon class="error-icon">error_outline</mat-icon>
           <p>Unable to load property details.</p>
         </div>
       } @else {
         <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Inspection CheckList">
+          <mat-tab label="Inspection">
             <app-inspection-checklist
               [property]="property"
               [templateJson]="inspectionChecklistJson"
               [answersJson]="inspectionAnswers"
-              [mode]="'answer'"
-              [templateEnabled]="false"
+              [checklistType]="'inspection'"
+              [templateEnabled]="isNewMaintenanceRecord"
               [isSaving]="isSaving"
-              (saveChecklist)="saveMaintenanceTemplate($event)"
+              (saveChecklist)="saveInspectionTemplate($event)"
               (saveAnswers)="saveInspectionAnswers($event)" />
           </mat-tab>
-          <mat-tab label="Inventory CheckList">
+          <mat-tab label="Inventory">
+            <app-inspection-checklist
+              [property]="property"
+              [templateJson]="inventoryChecklistJson"
+              [answersJson]="inventoryAnswers"
+              [checklistType]="'inventory'"
+              [templateEnabled]="isNewMaintenanceRecord"
+              [isSaving]="isSaving"
+              (saveChecklist)="saveInventoryTemplate($event)"
+              (saveAnswers)="saveInventoryAnswers($event)" />
+          </mat-tab>
+          <mat-tab label="Work Orders">
             <div class="p-6">
-              <p>Inventory CheckList tab content moved to History.</p>
+              @if (selectedWorkOrderId !== null || isCreatingWorkOrder) {
+                <app-work-order
+                  [property]="property"
+                  [workOrderIdInput]="selectedWorkOrderId"
+                  [maintenanceIdInput]="maintenanceRecord?.maintenanceId || null"
+                  [showBackButton]="true"
+                  (backEvent)="closeWorkOrderDetail()"
+                  (savedEvent)="onWorkOrderSaved()"></app-work-order>
+              } @else {
+                <app-work-order-list
+                  [property]="property"
+                  [workOrdersInput]="workOrderRecords"
+                  (addWorkOrderEvent)="addWorkOrder()"
+                  (openWorkOrderEvent)="openWorkOrderDetail($event)"
+                  (deleteWorkOrderEvent)="deleteWorkOrder($event)"></app-work-order-list>
+              }
             </div>
           </mat-tab>
-          <mat-tab label="Vendors">
+          <mat-tab label="Contractors">
             <div class="p-6">
-              <p>Vendors tab content coming soon.</p>
+              <p>Contractors tab content coming soon.</p>
             </div>
           </mat-tab>
           <mat-tab label="History">
             <div class="p-6">
-              <app-inventory-list [property]="property"></app-inventory-list>
-              <div class="mt-6">
-                <app-inventory
-                  [property]="property"
-                  [checklistJson]="inventoryChecklistJson || inspectionChecklistJson" />
-              </div>
+              <mat-accordion multi="true" class="w-full maintenance-history-accordion">
+                <mat-expansion-panel [expanded]="true">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>Inspection History</mat-panel-title>
+                  </mat-expansion-panel-header>
+                  @if (selectedInspectionHistoryId) {
+                    <app-inspection
+                      [property]="property"
+                      [inspectionIdInput]="selectedInspectionHistoryId"
+                      [historyMaintenanceIdInput]="selectedInspectionHistoryMaintenanceId"
+                      [showBackButton]="true"
+                      (backEvent)="closeInspectionHistoryDetail()"></app-inspection>
+                  } @else {
+                    <app-inspection-list
+                      [inspections]="inspectionRecords"
+                      (openChecklistEvent)="openInspectionHistoryDetail($event)"
+                      (deleteChecklistEvent)="deleteInspectionHistory($event)"></app-inspection-list>
+                  }
+                </mat-expansion-panel>
+
+                <mat-expansion-panel [expanded]="true" class="mt-4">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>Inventory History</mat-panel-title>
+                  </mat-expansion-panel-header>
+                  @if (selectedInventoryHistoryId) {
+                    <app-inventory
+                      [property]="property"
+                      [inventoryIdInput]="selectedInventoryHistoryId"
+                      [historyMaintenanceIdInput]="selectedInventoryHistoryMaintenanceId"
+                      [showBackButton]="true"
+                      (backEvent)="closeInventoryHistoryDetail()"></app-inventory>
+                  } @else {
+                    <app-inventory-list
+                      [property]="property"
+                      [inventoriesInput]="inventoryRecords"
+                      (openChecklistEvent)="openInventoryHistoryDetail($event)"
+                      (deleteChecklistEvent)="deleteInventoryHistory($event)"></app-inventory-list>
+                  }
+                </mat-expansion-panel>
+              </mat-accordion>
             </div>
           </mat-tab>
         </mat-tab-group>

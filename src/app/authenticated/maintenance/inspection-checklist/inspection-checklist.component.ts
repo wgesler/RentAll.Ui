@@ -1,33 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { CHECKLIST_SECTIONS, ChecklistItem, ChecklistSection } from '../models/checklist-sections';
-import { PropertyService } from '../../properties/services/property.service';
-import { UtilityService } from '../../../services/utility.service';
+import { DocumentType } from '../../documents/models/document.enum';
+import { DocumentRequest, DocumentResponse } from '../../documents/models/document.model';
+import { DocumentService } from '../../documents/services/document.service';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, INVENTORY_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
-
-type SavedChecklistItem = {
-  text: string;
-  checked: boolean;
-  isEditable: boolean;
-};
-
-type SavedChecklistSection = {
-  key: string;
-  title?: string;
-  notes?: string;
-  sets: SavedChecklistItem[][];
-};
-
-type SavedAnswerSection = {
-  key: string;
-  notes?: string;
-  sets: boolean[][];
-};
+export type ChecklistType = 'inspection' | 'inventory';
 
 @Component({
   selector: 'app-inspection-checklist',
@@ -41,18 +28,24 @@ export class InspectionChecklistComponent implements OnChanges {
   @Input() answersJson: string | null = null;
   @Input() checklistJson: string | null = null;
   @Input() mode: ChecklistMode = 'template';
+  @Input() checklistType: ChecklistType = 'inspection';
   @Input() templateEnabled: boolean = true;
   @Input() isSaving: boolean = false;
   @Output() saveChecklist = new EventEmitter<string>();
   @Output() saveAnswers = new EventEmitter<string>();
 
+  readonly templateRequiredMessage = 'You need to save an Inspection Checklist Template for this property before you can use it.';
+  readonly photoRequiredMessage = 'A photo is required for this item.';
+
   fb: FormBuilder;
   form: FormGroup;
   authService: AuthService;
+  documentService: DocumentService;
+  dialog: MatDialog;
 
   inspectorName: string = '';
   todayDate: string = '';
-  sectionTemplates: ChecklistSection[] = CHECKLIST_SECTIONS;
+  sectionTemplates: ChecklistSection[] = INSPECTION_SECTIONS;
   sections: ChecklistSection[] = [];
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
@@ -62,10 +55,14 @@ export class InspectionChecklistComponent implements OnChanges {
 
   constructor(
     fb: FormBuilder,
-    authService: AuthService
+    authService: AuthService,
+    documentService: DocumentService,
+    dialog: MatDialog
   ) {
     this.fb = fb;
     this.authService = authService;
+    this.documentService = documentService;
+    this.dialog = dialog;
     const user = this.authService.getUser();
     this.inspectorName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown User';
     this.todayDate = new Date().toLocaleDateString();
@@ -74,7 +71,11 @@ export class InspectionChecklistComponent implements OnChanges {
 
   //#region Checklist
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['checklistJson'] || changes['templateJson'] || changes['answersJson']) {
+    if (changes['checklistType']) {
+      this.sectionTemplates = this.checklistType === 'inventory' ? INVENTORY_SECTIONS : INSPECTION_SECTIONS;
+    }
+
+    if (changes['checklistJson'] || changes['templateJson'] || changes['answersJson'] || changes['checklistType']) {
       const incomingTemplateJson = (this.templateJson ?? this.checklistJson) || null;
       const incomingAnswersJson = this.answersJson || null;
 
@@ -99,12 +100,7 @@ export class InspectionChecklistComponent implements OnChanges {
       this.syncPropertyDrivenSections();
     }
 
-    if (changes['mode']) {
-      this.activeMode = this.resolveInitialMode();
-      this.applyModeState();
-    }
-
-    if (changes['templateEnabled'] && !this.isReadonlyMode) {
+    if (changes['mode'] || changes['templateEnabled']) {
       this.activeMode = this.resolveInitialMode();
       this.applyModeState();
     }
@@ -117,7 +113,12 @@ export class InspectionChecklistComponent implements OnChanges {
         title: section.title,
         notes: this.form.get(this.notesControlName(section.key))?.value || '',
         sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
-          this.getSetItems(section.key, repeatIndex).map(item => item.text)
+          this.getSetItems(section.key, repeatIndex).map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            isEditable: item.isEditable,
+            url: item.url || null
+          }))
         )
       }))
     };
@@ -163,11 +164,17 @@ export class InspectionChecklistComponent implements OnChanges {
       const title = savedSection.title || templateSection?.title || savedSection.key;
       const hint = templateSection?.hint;
       const baseItems = templateSection?.items || [];
-      const templateItemSet = new Set(baseItems);
+      const templateItemSet = new Set(baseItems.map(item => item.text));
 
       const sets = (savedSection.sets && savedSection.sets.length > 0)
         ? savedSection.sets
-        : [baseItems.map(itemText => ({ text: itemText, checked: false, isEditable: false }))];
+        : [baseItems.map(item => ({
+          text: item.text,
+          requiresPhoto: item.requiresPhoto,
+          url: null,
+          checked: false,
+          isEditable: this.getDefaultItemEditable()
+        }))];
 
       this.sections.push({
         key: savedSection.key,
@@ -181,17 +188,19 @@ export class InspectionChecklistComponent implements OnChanges {
         const isAnswerOnlySet = setItems.every(item => !item.text);
         if (isAnswerOnlySet) {
           const templateItemsForSet = baseItems.length > 0 ? baseItems : [];
-          return templateItemsForSet.map((itemText, index) => this.createChecklistItem(
-            itemText,
-            false,
-            setItems[index]?.checked || false
+          return templateItemsForSet.map((item, index) => this.createChecklistItem(
+            item,
+            this.getDefaultItemEditable(),
+            setItems[index]?.checked || false,
+            setItems[index]?.url || null
           ));
         }
 
         return setItems.map(item => this.createChecklistItem(
-          item.text,
-          item.isEditable || !templateItemSet.has(item.text),
-          item.checked
+          { text: item.text, requiresPhoto: item.requiresPhoto },
+          item.isEditable === true,
+          item.checked,
+          item.url || null
         ));
       });
 
@@ -210,272 +219,90 @@ export class InspectionChecklistComponent implements OnChanges {
   }
 
   applySavedAnswersJson(rawChecklistJson: string): boolean {
-    let parsedRoot: unknown = this.tryParseJsonValue(rawChecklistJson);
-    if (!parsedRoot || typeof parsedRoot !== 'object') {
-      return false;
-    }
-
-    if (!parsedRoot || typeof parsedRoot !== 'object') {
-      return false;
-    }
-
-    const rawSections = Array.isArray((parsedRoot as Record<string, unknown>)['sections'])
-      ? ((parsedRoot as Record<string, unknown>)['sections'] as unknown[])
-      : [];
-    if (rawSections.length === 0) {
-      return false;
-    }
-
-    let hasAppliedAnswers = false;
-    rawSections.forEach(rawSection => {
-      if (!rawSection || typeof rawSection !== 'object') {
-        return;
-      }
-
-      const sectionObject = rawSection as Record<string, unknown>;
-      const sectionKey = typeof sectionObject['key'] === 'string' ? sectionObject['key'].trim() : '';
-      if (!sectionKey) {
-        return;
-      }
-
-      const section = this.sections.find(currentSection => currentSection.key === sectionKey);
-      if (!section) {
-        return;
-      }
-
-      const sectionSets = Array.isArray(sectionObject['sets']) ? sectionObject['sets'] as unknown[] : [];
-      if (sectionSets.length === 0) {
-        return;
-      }
-
-      const targetSetCount = Math.max(1, sectionSets.length);
-      this.syncSectionSetCount(section.key, targetSetCount);
-
-      for (let repeatIndex = 0; repeatIndex < targetSetCount; repeatIndex += 1) {
-        const rawSet = sectionSets[repeatIndex];
-        const answerSet = Array.isArray(rawSet) ? rawSet : [];
-        const setItems = this.getSetItems(section.key, repeatIndex);
-        setItems.forEach((item, itemIndex) => {
-          const control = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
-          if (control) {
-            const answerValue = answerSet[itemIndex];
-            const isChecked = answerValue === true || answerValue === 'true' || answerValue === 1 || answerValue === '1';
-            control.setValue(isChecked, { emitEvent: false });
-          }
-        });
-      }
-
-      const notesControl = this.form.get(this.notesControlName(section.key));
-      if (notesControl && typeof sectionObject['notes'] === 'string') {
-        notesControl.setValue(sectionObject['notes'], { emitEvent: false });
-      }
-
-      hasAppliedAnswers = true;
-    });
-
-    return hasAppliedAnswers;
-  }
-
-  parseSavedAnswerSections(rawChecklistJson: string): SavedAnswerSection[] | null {
     try {
-      let checklistRoot: unknown = rawChecklistJson;
-      checklistRoot = this.tryParseJsonValue(checklistRoot);
-
-      let rawSections: unknown[] = [];
-      if (Array.isArray(checklistRoot)) {
-        rawSections = checklistRoot;
-      } else if (
-        checklistRoot &&
-        typeof checklistRoot === 'object' &&
-        Array.isArray((checklistRoot as Record<string, unknown>)['sections'])
-      ) {
-        rawSections = (checklistRoot as Record<string, unknown>)['sections'] as unknown[];
+      const parsedRoot = JSON.parse(rawChecklistJson) as {
+        sections?: Array<{
+          key: string;
+          notes?: string;
+          sets?: Array<Array<{ checked?: boolean; url?: string | null }>>;
+        }>;
+      };
+      const rawSections = Array.isArray(parsedRoot.sections) ? parsedRoot.sections : [];
+      if (rawSections.length === 0) {
+        return false;
       }
 
-      const normalizedSections = rawSections
-        .map(section => this.normalizeSavedAnswerSection(section))
-        .filter((section): section is SavedAnswerSection => !!section);
+      let hasAppliedAnswers = false;
+      rawSections.forEach(sectionObject => {
+        const sectionKey = typeof sectionObject.key === 'string' ? sectionObject.key.trim() : '';
+        if (!sectionKey) {
+          return;
+        }
 
-      return normalizedSections.length > 0 ? normalizedSections : null;
+        const section = this.sections.find(currentSection => currentSection.key === sectionKey);
+        if (!section) {
+          return;
+        }
+
+        const sectionSets = Array.isArray(sectionObject.sets) ? sectionObject.sets : [];
+        if (sectionSets.length === 0) {
+          return;
+        }
+
+        const targetSetCount = Math.max(1, sectionSets.length);
+        this.syncSectionSetCount(section.key, targetSetCount);
+
+        for (let repeatIndex = 0; repeatIndex < targetSetCount; repeatIndex += 1) {
+          const answerSet = Array.isArray(sectionSets[repeatIndex]) ? sectionSets[repeatIndex] : [];
+          const setItems = this.getSetItems(section.key, repeatIndex);
+          setItems.forEach((item, itemIndex) => {
+            const control = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
+            if (!control) {
+              return;
+            }
+
+            const answerValue = answerSet[itemIndex];
+            const isChecked = answerValue?.checked === true;
+            item.url = typeof answerValue?.url === 'string' ? answerValue.url : null;
+            control.setValue(isChecked, { emitEvent: false });
+          });
+        }
+
+        const notesControl = this.form.get(this.notesControlName(section.key));
+        if (notesControl && typeof sectionObject.notes === 'string') {
+          notesControl.setValue(sectionObject.notes, { emitEvent: false });
+        }
+
+        hasAppliedAnswers = true;
+      });
+
+      return hasAppliedAnswers;
     } catch {
-      return null;
+      return false;
     }
-  }
-
-  normalizeSavedAnswerSection(section: unknown): SavedAnswerSection | null {
-    if (!section || typeof section !== 'object') {
-      return null;
-    }
-
-    const sectionObject = section as Record<string, unknown>;
-    const key = typeof sectionObject['key'] === 'string' ? sectionObject['key'] : '';
-    if (!key) {
-      return null;
-    }
-
-    const notes = typeof sectionObject['notes'] === 'string' ? sectionObject['notes'] : undefined;
-    const rawSets = Array.isArray(sectionObject['sets']) ? sectionObject['sets'] as unknown[] : [];
-    if (rawSets.length === 0) {
-      return null;
-    }
-
-    const sets = rawSets.map(set =>
-      Array.isArray(set) ? set.map(item => this.normalizeAnswerValue(item)) : []
-    );
-
-    return { key, notes, sets };
-  }
-
-  normalizeAnswerValue(value: unknown): boolean {
-    if (value === true || value === 1 || value === '1' || value === 'true') {
-      return true;
-    }
-
-    if (value && typeof value === 'object') {
-      const valueObject = value as Record<string, unknown>;
-      return valueObject['checked'] === true || valueObject['isChecked'] === true;
-    }
-
-    return false;
   }
 
   parseSavedSections(rawChecklistJson: string): SavedChecklistSection[] | null {
     try {
-      let checklistRoot: unknown = rawChecklistJson;
-      checklistRoot = this.tryParseJsonValue(checklistRoot);
+      let checklistRoot = JSON.parse(rawChecklistJson) as {
+        sections?: SavedChecklistSection[];
+        inspectionCheckList?: string;
+      };
 
-      if (checklistRoot && typeof checklistRoot === 'object') {
-        const parsedObject = checklistRoot as Record<string, unknown>;
-        if (typeof parsedObject['inspectionCheckList'] === 'string') {
-          checklistRoot = this.tryParseJsonValue(parsedObject['inspectionCheckList']);
-        } else if (parsedObject['inspectionCheckList']) {
-          checklistRoot = parsedObject['inspectionCheckList'];
-        }
+      if (typeof checklistRoot.inspectionCheckList === 'string') {
+        checklistRoot = JSON.parse(checklistRoot.inspectionCheckList) as { sections?: SavedChecklistSection[] };
       }
 
-      let rawSections: unknown[] = [];
-      if (Array.isArray(checklistRoot)) {
-        rawSections = checklistRoot;
-      } else if (
-        checklistRoot &&
-        typeof checklistRoot === 'object' &&
-        Array.isArray((checklistRoot as Record<string, unknown>)['sections'])
-      ) {
-        rawSections = (checklistRoot as Record<string, unknown>)['sections'] as unknown[];
-      }
+      const rawSections = Array.isArray(checklistRoot.sections) ? checklistRoot.sections : [];
+      const validSections = rawSections.filter(section =>
+        typeof section?.key === 'string'
+        && Array.isArray(section.sets)
+      );
 
-      const normalizedSections = rawSections
-        .map(section => this.normalizeSavedSection(section))
-        .filter((section): section is SavedChecklistSection => !!section);
-
-      return normalizedSections.length > 0 ? normalizedSections : null;
+      return validSections.length > 0 ? validSections : null;
     } catch {
       return null;
     }
-  }
-
-  tryParseJsonValue(value: unknown): unknown {
-    let parsedValue = value;
-    let parseAttempts = 0;
-
-    while (typeof parsedValue === 'string' && parseAttempts < 3) {
-      const trimmed = parsedValue.trim();
-      if (!trimmed) {
-        return trimmed;
-      }
-
-      try {
-        parsedValue = JSON.parse(trimmed);
-        parseAttempts += 1;
-      } catch {
-        return parsedValue;
-      }
-    }
-
-    return parsedValue;
-  }
-
-  normalizeSavedSection(section: unknown): SavedChecklistSection | null {
-    if (!section || typeof section !== 'object') {
-      return null;
-    }
-
-    const sectionObject = section as Record<string, unknown>;
-    const key = typeof sectionObject['key'] === 'string' ? sectionObject['key'] : '';
-    if (!key) {
-      return null;
-    }
-
-    const title = typeof sectionObject['title'] === 'string' ? sectionObject['title'] : undefined;
-    const notes = typeof sectionObject['notes'] === 'string' ? sectionObject['notes'] : undefined;
-
-    let sets: SavedChecklistItem[][] = [];
-    if (Array.isArray(sectionObject['sets'])) {
-      sets = (sectionObject['sets'] as unknown[])
-        .map(set => Array.isArray(set)
-          ? set
-            .map(item => this.normalizeSavedItem(item))
-            .filter((item): item is SavedChecklistItem => !!item)
-          : []
-        )
-        .filter(set => set.length > 0);
-    } else if (Array.isArray(sectionObject['items'])) {
-      const flatItems = (sectionObject['items'] as unknown[])
-        .map(item => this.normalizeSavedItem(item))
-        .filter((item): item is SavedChecklistItem => !!item);
-      if (flatItems.length > 0) {
-        sets = [flatItems];
-      }
-    }
-
-    if (sets.length === 0) {
-      sets = [[]];
-    }
-
-    return { key, title, notes, sets };
-  }
-
-  normalizeSavedItem(item: unknown): SavedChecklistItem | null {
-    if (typeof item === 'boolean') {
-      return { text: '', checked: item, isEditable: false };
-    }
-
-    if (typeof item === 'number') {
-      return { text: '', checked: item === 1, isEditable: false };
-    }
-
-    if (typeof item === 'string') {
-      const normalizedValue = item.trim().toLowerCase();
-      if (normalizedValue === 'true' || normalizedValue === 'false' || normalizedValue === '1' || normalizedValue === '0') {
-        return { text: '', checked: normalizedValue === 'true' || normalizedValue === '1', isEditable: false };
-      }
-      return { text: item, checked: false, isEditable: false };
-    }
-
-    if (!item || typeof item !== 'object') {
-      return null;
-    }
-
-    const itemObject = item as Record<string, unknown>;
-    const text = typeof itemObject['text'] === 'string'
-      ? itemObject['text']
-      : typeof itemObject['label'] === 'string'
-        ? itemObject['label']
-        : '';
-    if (!text) {
-      return null;
-    }
-
-    const checkedValue = itemObject['checked'] ?? itemObject['isChecked'];
-    const editableValue = itemObject['isEditable'];
-    const checked = checkedValue === true || checkedValue === 'true' || checkedValue === 1 || checkedValue === '1';
-    const isEditable = editableValue === true || editableValue === 'true' || editableValue === 1 || editableValue === '1';
-
-    return {
-      text,
-      checked,
-      isEditable
-    };
   }
   //#endregion
 
@@ -532,6 +359,14 @@ export class InspectionChecklistComponent implements OnChanges {
     this.saveAnswers.emit(this.buildChecklistAnswersJson());
   }
 
+  get saveButtonText(): string {
+    if (!this.isTemplateMode && this.totalItems > 0 && this.completedCount === this.totalItems) {
+      return 'Submit';
+    }
+
+    return 'Save';
+  }
+
   buildChecklistAnswersJson(): string {
     const payload = {
       sections: this.sections.map(section => ({
@@ -540,7 +375,12 @@ export class InspectionChecklistComponent implements OnChanges {
         notes: this.form.get(this.notesControlName(section.key))?.value || '',
         sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
           this.getSetItems(section.key, repeatIndex).map(item =>
-            !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value
+            ({
+              text: item.text,
+              requiresPhoto: item.requiresPhoto,
+              checked: !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value,
+              url: item.url || null
+            })
           )
         )
       }))
@@ -574,9 +414,19 @@ export class InspectionChecklistComponent implements OnChanges {
     return `${sectionKey}_notes`;
   }
   
-  createChecklistItem(text: string, isEditable: boolean = false, checked: boolean = false): ChecklistItem {
+  createChecklistItem(item: string | ChecklistTemplateItem, isEditable?: boolean, checked: boolean = false, url: string | null = null): ChecklistItem {
     const id = `item_${this.nextItemId++}`;
-    return { id, text, isEditable, checked };
+    const templateItem = typeof item === 'string'
+      ? { text: item, requiresPhoto: false }
+      : item;
+    return {
+      id,
+      text: templateItem.text,
+      requiresPhoto: templateItem.requiresPhoto,
+      url,
+      isEditable: isEditable ?? this.getDefaultItemEditable(),
+      checked
+    };
   }
   //#endregion
 
@@ -656,6 +506,172 @@ export class InspectionChecklistComponent implements OnChanges {
 
   updateEditableRowText(item: ChecklistItem, value: string): void {
     item.text = value;
+  }
+
+  onItemCheckChange(sectionKey: string, repeatIndex: number, item: ChecklistItem, event: { checked: boolean; source?: { checked: boolean } }): void {
+    if (this.isTemplateMode || this.isReadonlyMode) {
+      return;
+    }
+
+    if (event.checked && item.requiresPhoto && !item.url) {
+      const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+      control?.setValue(false, { emitEvent: false });
+      if (event.source) {
+        event.source.checked = false;
+      }
+
+      const dialogData: GenericModalData = {
+        title: 'Photo Required',
+        message: this.photoRequiredMessage,
+        icon: 'warning' as any,
+        iconColor: 'warn',
+        no: '',
+        yes: 'OK',
+        callback: (dialogRef) => dialogRef.close(true),
+        useHTML: false,
+        hideClose: true
+      };
+
+      this.dialog.open(GenericModalComponent, {
+        data: dialogData,
+        width: '35rem'
+      });
+    }
+  }
+
+  toggleRequiresPhoto(item: ChecklistItem, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    item.requiresPhoto = !item.requiresPhoto;
+    if (!item.requiresPhoto) {
+      item.url = null;
+    }
+  }
+
+  photoInputId(sectionKey: string, repeatIndex: number, itemId: string): string {
+    return `photo_input_${sectionKey}_${repeatIndex}_${itemId}`;
+  }
+
+  openPhotoUpload(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const inputElement = document.getElementById(this.photoInputId(sectionKey, repeatIndex, itemId)) as HTMLInputElement | null;
+    inputElement?.click();
+  }
+
+  onPhotoSelected(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files && target.files.length > 0 ? target.files[0] : null;
+    if (!file) {
+      return;
+    }
+
+    const item = this.getSetItems(sectionKey, repeatIndex).find(currentItem => currentItem.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64String = btoa(reader.result as string);
+      const fileName = file.name || `${sectionKey}-${repeatIndex + 1}-${item.id}.jpg`;
+      const fileExtension = fileName.includes('.') ? (fileName.split('.').pop() || 'jpg') : 'jpg';
+      const contentType = file.type || 'image/jpeg';
+      const currentUser = this.authService.getUser();
+      const documentRequest: DocumentRequest = {
+        organizationId: this.property?.organizationId || currentUser?.organizationId || '',
+        officeId: this.property?.officeId || 0,
+        propertyId: this.property?.propertyId || null,
+        reservationId: null,
+        documentTypeId: DocumentType.InspectionPhoto,
+        fileName: fileName.replace('.' + fileExtension, ''),
+        fileExtension,
+        contentType,
+        documentPath: '',
+        fileDetails: {
+          fileName,
+          contentType,
+          file: base64String,
+          dataUrl: `data:${contentType};base64,${base64String}`
+        },
+        isDeleted: false
+      };
+
+      this.documentService.createDocument(documentRequest).pipe(take(1)).subscribe({
+        next: (documentResponse: DocumentResponse) => {
+          const returnedDataUrl = documentResponse.fileDetails?.dataUrl
+            || (
+              documentResponse.fileDetails?.file && documentResponse.fileDetails?.contentType
+                ? `data:${documentResponse.fileDetails.contentType};base64,${documentResponse.fileDetails.file}`
+                : null
+            );
+
+          item.url = returnedDataUrl || null;
+          if (item.requiresPhoto) {
+            const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+            control?.setValue(!!item.url);
+          }
+        },
+        error: () => {
+          const dialogData: GenericModalData = {
+            title: 'Upload Failed',
+            message: 'Unable to upload photo for this line item.',
+            icon: 'error' as any,
+            iconColor: 'warn',
+            no: '',
+            yes: 'OK',
+            callback: (dialogRef) => dialogRef.close(true),
+            useHTML: false
+          };
+          this.dialog.open(GenericModalComponent, {
+            data: dialogData,
+            width: '35rem'
+          });
+        }
+      });
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  deletePhoto(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const item = this.getSetItems(sectionKey, repeatIndex).find(currentItem => currentItem.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    item.url = null;
+    if (item.requiresPhoto) {
+      const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+      control?.setValue(false);
+    }
+  }
+
+  openPhotoPreview(item: ChecklistItem, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!item.url) {
+      return;
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Photo Preview',
+      message: `<div style="text-align:center;"><img src="${item.url}" alt="Line item photo" style="max-width:100%; max-height:70vh; object-fit:contain;" /></div>`,
+      icon: '' as any,
+      iconColor: 'primary',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef) => dialogRef.close(true),
+      useHTML: true
+    };
+
+    this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '48rem'
+    });
   }
 
   getSetInstruction(sectionKey: string, repeatIndex: number): string {
@@ -803,8 +819,37 @@ export class InspectionChecklistComponent implements OnChanges {
     return this.isTemplateMode ? 'Template: On' : 'Template: Off';
   }
 
-  toggleTemplateMode(): void {
+  toggleTemplateMode(event?: { source?: { checked: boolean } }): void {
     if (this.isReadonlyMode) {
+      return;
+    }
+
+    if (this.isTemplateMode && this.isTemplateRequired()) {
+      if (event?.source) {
+        event.source.checked = true;
+      }
+      this.activeMode = 'template';
+      this.applyModeState();
+      const dialogData: GenericModalData = {
+        title: 'Inspection Template Required',
+        message: this.templateRequiredMessage,
+        icon: 'warning' as any,
+        iconColor: 'warn',
+        no: '',
+        yes: 'OK',
+        callback: (dialogRef) => {
+          this.activeMode = 'template';
+          this.applyModeState();
+          dialogRef.close(true);
+        },
+        useHTML: false,
+        hideClose: true
+      };
+
+      this.dialog.open(GenericModalComponent, {
+        data: dialogData,
+        width: '35rem'
+      });
       return;
     }
 
@@ -817,7 +862,19 @@ export class InspectionChecklistComponent implements OnChanges {
       return 'readonly';
     }
 
+    if (this.isTemplateRequired()) {
+      return 'template';
+    }
+
     return this.templateEnabled ? 'template' : 'answer';
+  }
+
+  isTemplateRequired(): boolean {
+    return !this.templateJson || this.templateJson.trim().length === 0;
+  }
+
+  getDefaultItemEditable(): boolean {
+    return this.checklistType === 'inventory';
   }
   //#endregion
 }

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { InventoryResponse } from '../models/inventory.model';
+import { InventoryRequest, InventoryResponse } from '../models/inventory.model';
 
 @Injectable({
   providedIn: 'root'
@@ -41,11 +41,11 @@ export class InventoryService {
     return this.http.get<InventoryResponse>(this.controller + inventoryId + '?organizationId=' + organizationId);
   }
 
-  createInventory(request: InventoryResponse): Observable<InventoryResponse> {
+  createInventory(request: InventoryRequest): Observable<InventoryResponse> {
     return this.http.post<InventoryResponse>(this.controller, request);
   }
 
-  updateInventory(request: InventoryResponse): Observable<InventoryResponse> {
+  updateInventory(request: InventoryRequest): Observable<InventoryResponse> {
     return this.http.put<InventoryResponse>(this.controller, request);
   }
 

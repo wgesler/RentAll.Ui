@@ -18,7 +18,7 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DocumentType, getDocumentType } from '../models/document.enum';
+import { getDocumentTypes } from '../models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 import { CompanyResponse } from '../../companies/models/company.model';
@@ -643,12 +643,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   initializeDocumentTypes(): void {
-    this.documentTypes = [
-      { value: DocumentType.Other, label: getDocumentType(DocumentType.Other) },
-      { value: DocumentType.PropertyLetter, label: getDocumentType(DocumentType.PropertyLetter) },
-      { value: DocumentType.ReservationLease, label: getDocumentType(DocumentType.ReservationLease) },
-      { value: DocumentType.Invoice, label: getDocumentType(DocumentType.Invoice) }
-    ];
+    this.documentTypes = getDocumentTypes();
   }
 
   loadProperties(): void {

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { InspectionResponse } from '../models/inspection.model';
+import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,7 +26,7 @@ export class InspectionService {
   }
 
   getInspectionByPropertyId(propertyId: string): Observable<InspectionResponse[]> {
-    return this.http.get<InspectionResponse[]>(this.controller + 'property/' + propertyId);
+    return this.getInspectionsByPropertyId(propertyId);
   }
 
   getInspectionById(inspectionId: number): Observable<InspectionResponse> {
@@ -37,11 +37,11 @@ export class InspectionService {
     return this.http.get<InspectionResponse>(this.controller + inspectionId + '?organizationId=' + organizationId);
   }
 
-  createInspection(request: InspectionResponse): Observable<InspectionResponse> {
+  createInspection(request: InspectionRequest): Observable<InspectionResponse> {
     return this.http.post<InspectionResponse>(this.controller, request);
   }
 
-  updateInspection(request: InspectionResponse): Observable<InspectionResponse> {
+  updateInspection(request: InspectionRequest): Observable<InspectionResponse> {
     return this.http.put<InspectionResponse>(this.controller, request);
   }
 

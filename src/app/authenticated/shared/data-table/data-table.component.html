@@ -112,15 +112,15 @@
                   <div class="flex items-center justify-start">
                     @for (button of buttons; track button.name) {
                       @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
-                        <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (item?.customTooltip || button.tooltip || button.name)"
+                        <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (button.name === 'camera' && !item?.documentPath ? 'No document available' : (item?.customTooltip || button.tooltip || button.name))"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"
                           [matTooltipDisabled]="false"
                           style="display: inline-flex;">
                           <button mat-icon-button type="button"
                             id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
                             (click)="button.callback($event, item)"
-                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false)"
-                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) ? button.color : ''"
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath)"
+                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) ? button.color : ''"
                             [color]="button.color">
                             @if (button.suspendOnUpdate && item?.updating) {
                               <div class="datatable-{{button.name}}-loader-wrap">

@@ -14,15 +14,13 @@
       [hasColumnIndex]="false"
       [hasFilter]="true"
       [hasActionsRowClick]="true"
-      [hasToggleTop]="true"
-      [hasButtonTop]="true"
+      [hasActionsView]="true"
+      [hasActionsDelete]="true"
+      [hasToggleTop]="false"
+      [hasButtonTop]="false"
       [itemsPerPage]="100"
-      buttonToggleTextTop="Inactive"
-      buttonTextTop="Add"
-      buttonIconTop="add"
-      buttonColorTop="primary"
       (rowClickEvent)="goToInventory($event)"
-      (topToggleButtonEvent)="toggleInactive()"
-      (topButtonEvent)="addInventory()" />
+      (viewEvent)="viewDocument($event)"
+      (deleteEvent)="deleteInventory($event)" />
   </div>
 }

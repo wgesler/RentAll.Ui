@@ -10,40 +10,40 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { InspectionChecklistComponent } from '../inspection-checklist/inspection-checklist.component';
-import { InventoryResponse } from '../models/inventory.model';
 import { MaintenanceResponse } from '../models/maintenance.model';
-import { InventoryService } from '../services/inventory.service';
+import { InspectionResponse } from '../models/inspection.model';
+import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
 
 @Component({
-  selector: 'app-inventory',
+  selector: 'app-inspection',
   imports: [CommonModule, MaterialModule, InspectionChecklistComponent],
-  templateUrl: './inventory.component.html',
-  styleUrl: './inventory.component.scss'
+  templateUrl: './inspection.component.html',
+  styleUrl: './inspection.component.scss'
 })
-export class InventoryComponent implements OnInit, OnChanges {
+export class InspectionComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
   @Input() checklistJson: string | null = null;
-  @Input() inventoryIdInput: number | null = null;
+  @Input() inspectionIdInput: number | null = null;
   @Input() historyMaintenanceIdInput: string | null = null;
   @Input() showBackButton: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
 
   organizationId: string = '';
-  inventoryId: number | null = null;
-  inventory: InventoryResponse | null = null;
-  inventoryChecklistJson: string | null = null;
+  inspectionId: number | null = null;
+  inspection: InspectionResponse | null = null;
+  inspectionChecklistJson: string | null = null;
   propertyId: string | null = null;
-  hasRequestedInventoryLoad: boolean = false;
+  hasRequestedInspectionLoad: boolean = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['inventory', 'property']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['inspection', 'property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   isServiceError: boolean = false;
 
   constructor(
     route: ActivatedRoute,
     router: Router,
-    inventoryService: InventoryService,
+    inspectionService: InspectionService,
     authService: AuthService,
     propertyService: PropertyService,
     maintenanceService: MaintenanceService,
@@ -51,7 +51,7 @@ export class InventoryComponent implements OnInit, OnChanges {
   ) {
     this.route = route;
     this.router = router;
-    this.inventoryService = inventoryService;
+    this.inspectionService = inspectionService;
     this.authService = authService;
     this.propertyService = propertyService;
     this.maintenanceService = maintenanceService;
@@ -60,37 +60,37 @@ export class InventoryComponent implements OnInit, OnChanges {
 
   route: ActivatedRoute;
   router: Router;
-  inventoryService: InventoryService;
+  inspectionService: InspectionService;
   authService: AuthService;
   propertyService: PropertyService;
   maintenanceService: MaintenanceService;
   utilityService: UtilityService;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['inventoryIdInput']) {
-      const nextInventoryId = this.inventoryIdInput ?? null;
-      if (nextInventoryId && this.inventoryId !== nextInventoryId) {
-        this.inventoryId = nextInventoryId;
-        this.itemsToLoad$.next(new Set(['inventory', 'property']));
-        this.hasRequestedInventoryLoad = false;
+    if (changes['inspectionIdInput']) {
+      const nextInspectionId = this.inspectionIdInput ?? null;
+      if (nextInspectionId && this.inspectionId !== nextInspectionId) {
+        this.inspectionId = nextInspectionId;
+        this.itemsToLoad$.next(new Set(['inspection', 'property']));
+        this.hasRequestedInspectionLoad = false;
         if (this.organizationId) {
-          this.loadInventoryById();
+          this.loadInspectionById();
         }
       }
     }
 
     if (changes['property']) {
       const nextPropertyId = this.property?.propertyId || null;
-      if (nextPropertyId && !this.inventoryIdInput) {
+      if (nextPropertyId && !this.inspectionIdInput) {
         this.propertyId = nextPropertyId;
-        this.itemsToLoad$.next(new Set(['inventory']));
-        this.hasRequestedInventoryLoad = false;
-        this.loadInventoryByPropertyId(nextPropertyId);
+        this.itemsToLoad$.next(new Set(['inspection']));
+        this.hasRequestedInspectionLoad = false;
+        this.loadInspectionByPropertyId(nextPropertyId);
       }
     }
 
-    if (changes['checklistJson'] && !this.inventory?.inventoryCheckList) {
-      this.inventoryChecklistJson = this.checklistJson;
+    if (changes['checklistJson'] && !this.inspection?.inspectionCheckList) {
+      this.inspectionChecklistJson = this.checklistJson;
     }
   }
 
@@ -102,18 +102,18 @@ export class InventoryComponent implements OnInit, OnChanges {
       return;
     }
 
-    if (this.inventoryIdInput) {
-      this.inventoryId = this.inventoryIdInput;
-      this.itemsToLoad$.next(new Set(['inventory', 'property']));
-      this.loadInventoryById();
+    if (this.inspectionIdInput) {
+      this.inspectionId = this.inspectionIdInput;
+      this.itemsToLoad$.next(new Set(['inspection', 'property']));
+      this.loadInspectionById();
       return;
     }
 
     if (this.property?.propertyId) {
       this.propertyId = this.property.propertyId;
-      if (!this.hasRequestedInventoryLoad) {
-        this.itemsToLoad$.next(new Set(['inventory']));
-        this.loadInventoryByPropertyId(this.property.propertyId);
+      if (!this.hasRequestedInspectionLoad) {
+        this.itemsToLoad$.next(new Set(['inspection']));
+        this.loadInspectionByPropertyId(this.property.propertyId);
       }
       return;
     }
@@ -126,49 +126,48 @@ export class InventoryComponent implements OnInit, OnChanges {
       return;
     }
 
-    this.inventoryId = parsedId;
-    this.loadInventoryById();
+    this.inspectionId = parsedId;
+    this.loadInspectionById();
   }
 
-  // #region Data Load Functions
-  loadInventoryById(): void {
-    this.hasRequestedInventoryLoad = true;
-    if (!this.inventoryId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory');
+  loadInspectionById(): void {
+    this.hasRequestedInspectionLoad = true;
+    if (!this.inspectionId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
-    this.inventoryService.getInventory(this.organizationId, this.inventoryId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory'); })).subscribe({
-      next: (inventory: InventoryResponse) => {
-        this.inventory = inventory;
-        this.inventoryChecklistJson = inventory.inventoryCheckList || this.checklistJson;
-        this.propertyId = inventory.propertyId;
-        this.loadMaintenanceTemplate(this.resolveTemplateMaintenanceId(inventory.maintenanceId), this.propertyId);
+    this.inspectionService.getInspection(this.organizationId, this.inspectionId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection'); })).subscribe({
+      next: (inspection: InspectionResponse) => {
+        this.inspection = inspection;
+        this.inspectionChecklistJson = inspection.inspectionCheckList || this.checklistJson;
+        this.propertyId = inspection.propertyId;
+        this.loadMaintenanceTemplate(this.resolveTemplateMaintenanceId(inspection.maintenanceId), this.propertyId);
         this.loadPropertyById();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.inventory = null;
+        this.inspection = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
   }
 
-  loadInventoryByPropertyId(propertyId: string): void {
-    this.hasRequestedInventoryLoad = true;
-    this.inventoryService.getInventoriesByPropertyId(propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inventory'); })).subscribe({
-      next: (inventories: InventoryResponse[]) => {
-        const records = inventories || [];
-        this.inventory = records.find(record => record.isActive) || records[0] || null;
-        this.inventoryId = this.inventory?.inventoryId || null;
-        this.inventoryChecklistJson = this.inventory?.inventoryCheckList || this.checklistJson;
-        this.propertyId = this.inventory?.propertyId || propertyId;
-        this.loadMaintenanceTemplate(this.resolveTemplateMaintenanceId(this.inventory?.maintenanceId || null), this.propertyId);
+  loadInspectionByPropertyId(propertyId: string): void {
+    this.hasRequestedInspectionLoad = true;
+    this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspection'); })).subscribe({
+      next: (inspections: InspectionResponse[]) => {
+        const records = inspections || [];
+        this.inspection = records.find(record => record.isActive) || records[0] || null;
+        this.inspectionId = this.inspection?.inspectionId || null;
+        this.inspectionChecklistJson = this.inspection?.inspectionCheckList || this.checklistJson;
+        this.propertyId = this.inspection?.propertyId || propertyId;
+        this.loadMaintenanceTemplate(this.resolveTemplateMaintenanceId(this.inspection?.maintenanceId || null), this.propertyId);
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.inventory = null;
+        this.inspection = null;
       }
     });
 
@@ -204,7 +203,7 @@ export class InventoryComponent implements OnInit, OnChanges {
 
     this.maintenanceService.getMaintenanceByGuid(maintenanceId).pipe(take(1)).subscribe({
       next: (maintenance: MaintenanceResponse) => {
-        this.checklistJson = maintenance?.inventoryCheckList || null;
+        this.checklistJson = maintenance?.inspectionCheckList || null;
       },
       error: (_err: HttpErrorResponse) => {
         if (strictByMaintenanceId) {
@@ -224,7 +223,7 @@ export class InventoryComponent implements OnInit, OnChanges {
 
     this.maintenanceService.getByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (maintenance: MaintenanceResponse | null) => {
-        this.checklistJson = maintenance?.inventoryCheckList || null;
+        this.checklistJson = maintenance?.inspectionCheckList || null;
       },
       error: (_err: HttpErrorResponse) => {
         this.checklistJson = null;
@@ -239,7 +238,6 @@ export class InventoryComponent implements OnInit, OnChanges {
 
     return recordMaintenanceId;
   }
-  //#endregion
 
   get hasParentPropertyInput(): boolean {
     return !!this.property?.propertyId;

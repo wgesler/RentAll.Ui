@@ -10,17 +10,17 @@
 @if (isLoading$ | async) {
   <div class="loading-wrap">
     <mat-spinner [diameter]="30"></mat-spinner>
-    <span>Loading inventory...</span>
+    <span>Loading inspection...</span>
   </div>
 } @else if (isServiceError) {
-  <p class="empty-msg">Unable to load inventory.</p>
-} @else if (inventoryChecklistJson) {
+  <p class="empty-msg">Unable to load inspection.</p>
+} @else if (inspectionChecklistJson) {
   <app-inspection-checklist
     [property]="property"
     [templateJson]="checklistJson"
-    [answersJson]="inventoryChecklistJson"
-    [checklistType]="'inventory'"
+    [answersJson]="inspectionChecklistJson"
+    [checklistType]="'inspection'"
     [mode]="'readonly'" />
 } @else {
-  <p class="empty-msg">No inventory checklist found for this property.</p>
+  <p class="empty-msg">No inspection checklist found for this property.</p>
 }

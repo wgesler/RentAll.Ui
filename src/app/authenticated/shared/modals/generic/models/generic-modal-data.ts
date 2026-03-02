@@ -15,6 +15,7 @@ export type GenericModalData = {
     // You receive events for when the modal is dismissed instead of answered.
     callback: (dialogRef: MatDialogRef<GenericModalComponent>, result: boolean) => void;
     useHTML: boolean;
+    hideClose?: boolean;
 };
 
 export const defaultGenericModalData = {
@@ -28,4 +29,5 @@ export const defaultGenericModalData = {
         dialogRef.close(result);
     },
     useHTML: false,
+    hideClose: false,
 }

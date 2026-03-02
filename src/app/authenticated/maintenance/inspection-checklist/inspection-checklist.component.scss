@@ -81,6 +81,71 @@
   gap: 1rem;
 }
 
+.readonly-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.readonly-section-block {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
+}
+
+.readonly-section-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.readonly-set-title {
+  margin: 0.5rem 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.readonly-item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0.15rem 0;
+}
+
+.readonly-item-check {
+  width: 1.1rem;
+  color: #0f172a;
+}
+
+.readonly-item-text {
+  color: #0f172a;
+}
+
+.readonly-item-photo-tag {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.readonly-item-photo-wrap {
+  margin: 0.2rem 0 0.5rem 1.55rem;
+}
+
+.readonly-item-photo {
+  max-width: 180px;
+  max-height: 135px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.readonly-notes {
+  margin: 0.55rem 0 0;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
 .hint {
   margin: 0 0 0.75rem;
   color: #666;
@@ -203,8 +268,8 @@
 }
 
 ::ng-deep .section-accordion .mat-expansion-panel-header {
-  min-height: 48px !important;
-  height: 48px !important;
+  padding: 12px 16px !important;
+  height: auto !important;
   background-color: #cbd5e1 !important;
 }
 
@@ -245,12 +310,20 @@
 }
 
 ::ng-deep .section-action-text-btn {
+  --mdc-text-button-container-height: 20px;
   min-width: unset !important;
   padding: 0 2px !important;
+  height: 20px !important;
+  min-height: 20px !important;
   line-height: 1 !important;
+}
+
+::ng-deep .section-action-text-btn .mat-mdc-button-touch-target {
+  height: 20px !important;
 }
 
 ::ng-deep .section-action-text-btn .mdc-button__label {
   font-size: 18px !important;
   font-weight: 500 !important;
+  line-height: 1 !important;
 }

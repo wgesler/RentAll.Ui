@@ -1,8 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { Router } from '@angular/router';
 import { finalize, take } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -19,7 +17,10 @@ import { InventoryService } from '../services/inventory.service';
 })
 export class InventoryListComponent implements OnChanges {
   @Input() property: PropertyResponse | null = null;
+  @Input() inventoriesInput: InventoryResponse[] | null = null;
   @Output() addInventoryEvent = new EventEmitter<void>();
+  @Output() openChecklistEvent = new EventEmitter<InventoryDisplayList>();
+  @Output() deleteChecklistEvent = new EventEmitter<InventoryDisplayList>();
 
   inventories: InventoryResponse[] = [];
   isLoading: boolean = false;
@@ -29,26 +30,29 @@ export class InventoryListComponent implements OnChanges {
   inventoriesDisplay: InventoryDisplayList[] = [];
   lastPropertyId: string | null = null;
   inventoryDisplayedColumns: ColumnSet = {
-    inventoryId: { displayAs: 'Inventory', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    officeCode: { displayAs: 'Office', wrap: false, maxWidth: '10ch', alignment: 'right', headerAlignment: 'right' },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '36ch' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '24ch' },
-    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '36ch' },
-    isActive: { displayAs: 'Active', wrap: false, maxWidth: '8ch' }
+    officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '20ch' },
+    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '20ch' },
+    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
   };
 
-  constructor(inventoryService: InventoryService, mappingService: MappingService, router: Router) {
+  constructor(inventoryService: InventoryService, mappingService: MappingService) {
     this.inventoryService = inventoryService;
     this.mappingService = mappingService;
-    this.router = router;
   }
 
   inventoryService: InventoryService;
   mappingService: MappingService;
-  router: Router;
 
   //#region Inventory-List
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['inventoriesInput']) {
+      this.inventories = this.inventoriesInput || [];
+      this.allInventoriesDisplay = this.mappingService.mapInventories(this.inventories);
+      this.applyFilters();
+      return;
+    }
+
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
       if (!propertyId) {
@@ -67,6 +71,13 @@ export class InventoryListComponent implements OnChanges {
   }
   
   getInventories(propertyId: string): void {
+    if (this.inventoriesInput !== null) {
+      this.inventories = this.inventoriesInput || [];
+      this.allInventoriesDisplay = this.mappingService.mapInventories(this.inventories);
+      this.applyFilters();
+      return;
+    }
+
     this.isServiceError = false;
     this.isLoading = true;
 
@@ -89,12 +100,16 @@ export class InventoryListComponent implements OnChanges {
     this.addInventoryEvent.emit();
   }
 
-  deleteInventory(): void {
-    this.addInventoryEvent.emit();
+  goToInventory(event: InventoryDisplayList): void {
+    this.openChecklistEvent.emit(event);
   }
 
-  goToInventory(event: InventoryDisplayList): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Inventory, [String(event.inventoryId)]));
+  viewDocument(event: InventoryDisplayList): void {
+    this.goToInventory(event);
+  }
+
+  deleteInventory(event: InventoryDisplayList): void {
+    this.deleteChecklistEvent.emit(event);
   }
   //#endregion
 
@@ -105,12 +120,7 @@ export class InventoryListComponent implements OnChanges {
   }
 
   applyFilters(): void {
-    if (this.showInactive) {
-      this.inventoriesDisplay = [...this.allInventoriesDisplay];
-      return;
-    }
-
-    this.inventoriesDisplay = this.allInventoriesDisplay.filter(inventory => inventory.isActive);
+    this.inventoriesDisplay = [...this.allInventoriesDisplay];
   }
   //#endregion
 }

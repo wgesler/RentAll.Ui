@@ -11,6 +11,7 @@ import { DocumentListDisplay, DocumentResponse } from '../authenticated/document
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
+import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
@@ -314,12 +315,44 @@ export class MappingService {
       return {
         inventoryId: inventory.inventoryId,
         officeId: inventory.officeId,
+        officeName: inventory.officeName,
         propertyId: inventory.propertyId,
+        propertyCode: inventory.propertyCode,
+        maintenanceId: inventory.maintenanceId,
+        documentPath: inventory.documentPath,
         isActive: inventory.isActive,
-        modifiedOn: inventory.modifiedOn,
+        modifiedOn: this.formatter.formatDateTimeString(inventory.modifiedOn),
         modifiedBy: inventory.modifiedBy
       };
     });
+  }
+
+  mapInspectionDisplays(inspections: InspectionResponse[]): InspectionDisplayList[] {
+    return inspections.map<InspectionDisplayList>((inspection: InspectionResponse) => {
+      return {
+        inspectionId: inspection.inspectionId,
+        officeId: inspection.officeId,
+        officeName: inspection.officeName,
+        propertyId: inspection.propertyId,
+        propertyCode: inspection.propertyCode,
+        maintenanceId: inspection.maintenanceId,
+        documentPath: inspection.documentPath,
+        isActive: inspection.isActive,
+        modifiedOn: this.formatter.formatDateTimeString(inspection.modifiedOn),
+        modifiedBy: inspection.modifiedBy
+      };
+    });
+  }
+
+  mapInspections(inspections: InspectionResponse[]): InspectionResponse[] {
+    return inspections.map<InspectionResponse>((inspection: InspectionResponse) => this.mapInspection(inspection));
+  }
+
+  mapInspection(inspection: InspectionResponse): InspectionResponse {
+    return {
+      ...inspection,
+      isActive: this.toBooleanFlag((inspection as unknown as Record<string, unknown>)['isActive'])
+    };
   }
 
   mapOffices(offices: OfficeResponse[]): OfficeListDisplay[] {
@@ -350,6 +383,10 @@ export class MappingService {
         defaultSdw: o.defaultSdw || 0
       };
     });
+  }
+
+  toBooleanFlag(value: unknown): boolean {
+    return value === true || value === 1 || value === '1' || value === 'true';
   }
 
   mapOfficesToDropdown(offices: OfficeResponse[]): { value: number, name: string }[] {

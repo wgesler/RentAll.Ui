@@ -44,7 +44,7 @@
   <div class="controls-row">
   <div class="controls-left-group">
     @if (!isReadonlyMode) {
-      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
+      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode($event)">
         Template
       </mat-slide-toggle>
     }
@@ -60,104 +60,184 @@
         <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
       }
       <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSaving" (click)="saveChecklistData()">
-        Save
+        {{ saveButtonText }}
       </button>
     }
   </div>
 </div>
 
   <form [formGroup]="form" class="section-list">
-    <mat-accordion class="section-accordion" multi="true">
-      @for (section of sections; track section.key; let i = $index) {
-        <mat-expansion-panel>
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              <span>{{ section.title }}</span>
-              @if (isTemplateMode) {
-                <span class="inline-header-actions">
-                  <button class="section-action-text-btn" mat-button type="button" (click)="addSection(i, $event)">+</button>
-                  <span class="action-divider">/</span>
-                  <button class="section-action-text-btn" mat-button type="button" (click)="removeSection(i, $event)">-</button>
-                </span>
-              }
-            </mat-panel-title>
-          </mat-expansion-panel-header>
-
-          @if (section.hint) {
-            <p class="hint">{{ section.hint }}</p>
-          }
-
-          <div class="checklist-grid">
+    @if (isReadonlyMode) {
+      <div class="readonly-sections-list">
+        @for (section of sections; track section.key) {
+          <div class="readonly-section-block">
+            <p class="readonly-section-title">{{ section.title }}</p>
             @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
-              <div class="checklist-set">
-                @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
-                  <p class="set-instruction">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+              @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
+                <p class="readonly-set-title">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+              }
+              @for (item of getSetItems(section.key, repeatIndex); track item.id) {
+                <div class="readonly-item-row">
+                  <span class="readonly-item-check">{{ form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value ? '☑' : '☐' }}</span>
+                  <span class="readonly-item-text">{{ item.text }}</span>
+                  @if (item.requiresPhoto) {
+                    <span class="readonly-item-photo-tag">(photo required)</span>
+                  }
+                </div>
+                @if (item.url) {
+                  <div class="readonly-item-photo-wrap">
+                    <img
+                      [src]="item.url"
+                      alt="Line item photo"
+                      class="readonly-item-photo"
+                      (click)="openPhotoPreview(item, $event)" />
+                  </div>
                 }
-                @for (item of getSetItems(section.key, repeatIndex); track item.id) {
-                  <div class="checklist-row">
-                    @if (item.isEditable && isTemplateMode) {
-                      <div class="editable-row-content">
-                        <mat-checkbox
-                          class="editable-row-checkbox"
-                          [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
+              }
+            }
+            @if (form.get(notesControlName(section.key))?.value) {
+              <p class="readonly-notes"><strong>Comments:</strong> {{ form.get(notesControlName(section.key))?.value }}</p>
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <mat-accordion class="section-accordion" multi="true">
+        @for (section of sections; track section.key; let i = $index) {
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span>{{ section.title }}</span>
+                @if (isTemplateMode) {
+                  <span class="inline-header-actions">
+                    <button class="section-action-text-btn" mat-button type="button" (click)="addSection(i, $event)">+</button>
+                    <span class="action-divider">/</span>
+                    <button class="section-action-text-btn" mat-button type="button" (click)="removeSection(i, $event)">-</button>
+                  </span>
+                }
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+            @if (section.hint) {
+              <p class="hint">{{ section.hint }}</p>
+            }
+
+            <div class="checklist-grid">
+              @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
+                <div class="checklist-set">
+                  @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
+                    <p class="set-instruction">{{ getSetInstruction(section.key, repeatIndex) }}</p>
+                  }
+                  @for (item of getSetItems(section.key, repeatIndex); track item.id) {
+                    <div class="checklist-row">
+                      @if (item.isEditable && isTemplateMode) {
+                        <div class="editable-row-content">
+                          <mat-checkbox
+                            class="editable-row-checkbox"
+                            [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
+                            (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                          </mat-checkbox>
+                          <input
+                            class="editable-row-input"
+                            type="text"
+                            placeholder="Enter checklist item"
+                            [value]="item.text"
+                            (input)="updateEditableRowText(item, $any($event.target).value)" />
+                        </div>
+                      } @else if (item.isEditable) {
+                        <div class="editable-row-content">
+                          <mat-checkbox
+                            class="editable-row-checkbox"
+                            [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
+                            (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                          </mat-checkbox>
+                          <span class="editable-row-text">{{ item.text }}</span>
+                        </div>
+                      } @else {
+                        <mat-checkbox class="row-checkbox" [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)" (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                          {{ item.text }}
                         </mat-checkbox>
+                      }
+                      @if (isTemplateMode) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="row-action-btn"
+                          [color]="item.requiresPhoto ? 'primary' : undefined"
+                          [style.opacity]="item.requiresPhoto ? '1' : '0.35'"
+                          [attr.aria-label]="item.requiresPhoto ? 'Photo required' : 'Photo not required'"
+                          (click)="toggleRequiresPhoto(item, $event)">
+                          <mat-icon>photo_camera</mat-icon>
+                        </button>
+                      }
+                      @if (item.requiresPhoto && !isTemplateMode && !isReadonlyMode) {
                         <input
-                          class="editable-row-input"
-                          type="text"
-                          placeholder="Enter checklist item"
-                          [value]="item.text"
-                          (input)="updateEditableRowText(item, $any($event.target).value)" />
-                      </div>
-                    } @else if (item.isEditable) {
-                      <div class="editable-row-content">
-                        <mat-checkbox
-                          class="editable-row-checkbox"
-                          [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
-                        </mat-checkbox>
-                        <span class="editable-row-text">{{ item.text }}</span>
-                      </div>
-                    } @else {
-                      <mat-checkbox class="row-checkbox" [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)">
-                        {{ item.text }}
-                      </mat-checkbox>
-                    }
-                    @if (isTemplateMode) {
+                          class="hidden"
+                          type="file"
+                          accept="image/*"
+                          [id]="photoInputId(section.key, repeatIndex, item.id)"
+                          (change)="onPhotoSelected(section.key, repeatIndex, item.id, $event)" />
+                        @if (!item.url) {
+                          <button
+                            mat-button
+                            type="button"
+                            class="row-action-btn"
+                            (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                            Upload Photo
+                          </button>
+                        } @else {
+                          <img
+                            [src]="item.url"
+                            alt="Uploaded line item photo"
+                            class="h-10 w-10 object-cover rounded cursor-pointer border border-slate-300"
+                            (click)="openPhotoPreview(item, $event)" />
+                          <button
+                            mat-button
+                            type="button"
+                            class="row-action-btn"
+                            (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
+                            Delete Photo
+                          </button>
+                        }
+                      }
+                      @if (isTemplateMode) {
+                        <button
+                          mat-button
+                          type="button"
+                          class="row-action-btn"
+                          (click)="removeRow(section.key, repeatIndex, item.id, $event)">
+                          -
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  @if (isTemplateMode) {
+                    <div class="row-actions-wrap">
                       <button
                         mat-button
                         type="button"
-                        class="row-action-btn"
-                        (click)="removeRow(section.key, repeatIndex, item.id, $event)">
-                        -
+                        class="row-action-btn add-row-btn"
+                        (click)="addRow(section.key, repeatIndex, $event)">
+                        + Add row
                       </button>
-                    }
-                  </div>
-                }
+                    </div>
+                  }
+                </div>
 
-                @if (isTemplateMode) {
-                  <div class="row-actions-wrap">
-                    <button
-                      mat-button
-                      type="button"
-                      class="row-action-btn add-row-btn"
-                      (click)="addRow(section.key, repeatIndex, $event)">
-                      + Add row
-                    </button>
-                  </div>
+                @if (repeatIndex < getSetCount(section.key) - 1) {
+                  <mat-divider class="checklist-divider"></mat-divider>
                 }
-              </div>
-
-              @if (repeatIndex < getSetCount(section.key) - 1) {
-                <mat-divider class="checklist-divider"></mat-divider>
               }
-            }
-          </div>
+            </div>
 
-          <mat-form-field appearance="outline" class="notes-field">
-            <mat-label>Comments</mat-label>
-            <textarea matInput rows="3" [formControlName]="notesControlName(section.key)"></textarea>
-          </mat-form-field>
-        </mat-expansion-panel>
-      }
-    </mat-accordion>
+            <mat-form-field appearance="outline" class="notes-field">
+              <mat-label>Comments</mat-label>
+              <textarea matInput rows="3" [formControlName]="notesControlName(section.key)"></textarea>
+            </mat-form-field>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    }
   </form>
 </div>

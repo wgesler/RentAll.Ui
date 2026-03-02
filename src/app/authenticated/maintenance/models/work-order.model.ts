@@ -1,36 +1,37 @@
-export interface InventoryRequest {
-  inventoryId?: number;
+export interface WorkOrderRequest {
+  workOrderId?: number;
   organizationId: string;
   officeId: number;
   propertyId: string;
   maintenanceId: string;
-  inventoryCheckList: string;
+  descriptionId: string;
   documentPath?: string | null;
   isActive: boolean;
 }
 
-export interface InventoryResponse {
-  inventoryId: number;
+export interface WorkOrderResponse {
+  workOrderId: number;
   organizationId: string;
   officeId: number;
   officeName: string;
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
-  inventoryCheckList: string;
+  descriptionId: string;
   documentPath?: string | null;
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;
 }
 
-export interface InventoryDisplayList {
-  inventoryId: number;
+export interface WorkOrderDisplayList {
+  workOrderId: number;
   officeId: number;
   officeName: string;
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
+  descriptionId: string;
   documentPath?: string | null;
   isActive: boolean;
   modifiedOn: string;

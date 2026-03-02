@@ -749,7 +749,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
-      documentType: DocumentType.Other,
+      documentType: DocumentType.Invoice,
       noPreviewMessage: 'Please select an Invoice to generate the invoice',
       noSelectionMessage: 'Organization or Invoice not available'
     };

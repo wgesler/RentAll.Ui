@@ -4,9 +4,11 @@
             @if (data.icon) {<mat-icon [color]="data.iconColor" [style.color]="data.iconColor">{{data.icon}}</mat-icon>}
             {{data.title}}
         </span>
-        <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit" color="none">
-            <mat-icon>close</mat-icon>
-        </button>
+        @if (!data.hideClose && data.no && data.yes) {
+            <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit" color="none">
+                <mat-icon>close</mat-icon>
+            </button>
+        }
     </div>
     <mat-dialog-content class="flex-shrink-0 w-full">
         <p>
