@@ -32,12 +32,16 @@
                 <div class="flex gap-4 items-center mt-3 px-4 mb-4">
                   <mat-form-field appearance="outline" style="width: 300px;">
                     <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-                    <mat-select formControlName="officeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
-                      <mat-option [value]="null">All Offices</mat-option>
-                      @for (office of offices; track office.officeId) {
-                        <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                      }
-                    </mat-select>
+                    @if (isAddMode) {
+                      <mat-select formControlName="officeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
+                        <mat-option [value]="null">All Offices</mat-option>
+                        @for (office of offices; track office.officeId) {
+                          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                        }
+                      </mat-select>
+                    } @else {
+                      <input matInput [value]="property?.officeName || ''" readonly [disabled]="true">
+                    }
                   </mat-form-field>
                 </div>
               }
@@ -400,8 +404,6 @@
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Office</mat-label>
                     @if (isAddMode) {
-                      <input matInput [value]="selectedOffice ? selectedOffice.name : ''" readonly [disabled]="true">
-                    } @else {
                       <mat-select formControlName="officeId" required>
                         <mat-option [value]="null">Select Office</mat-option>
                         @for (f of offices; track f.officeId) {
@@ -411,6 +413,8 @@
                       @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
                         <mat-error>Office is required</mat-error>
                       }
+                    } @else {
+                      <input matInput [value]="property?.officeName || ''" readonly [disabled]="true">
                     }
                   </mat-form-field>
 
