@@ -186,6 +186,16 @@
                       <mat-icon>description</mat-icon>
                     </button>
                   }
+                  } @case ('receipt') {
+                  @if (item.receiptPath) {
+                    <button mat-icon-button
+                      type="button"
+                      (click)="onReceiptClick($event, item)"
+                      [matTooltip]="'View receipt'"
+                      id="table-receipt-link-{{templateTableId}}-{{i}}">
+                      <mat-icon>receipt</mat-icon>
+                    </button>
+                  }
                   } @case ('website') {
                   @if (item[column.name]) {
                     <a [href]="item[column.name]"

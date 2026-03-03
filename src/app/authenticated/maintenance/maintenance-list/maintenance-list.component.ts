@@ -145,31 +145,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
-
-  addProperty(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, ['new']));
-  }
-    
-  copyProperty(event: MaintenanceListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Maintenance, ['new']);
-    this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
-  }
-
-  deleteProperty(property: MaintenanceListDisplay): void {
-    if (confirm('Are you sure you want to delete this property?')) {
-      this.propertyService.deleteProperty(property.propertyId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Property deleted successfully', CommonMessage.Success);
-          this.getProperties();
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // no-op
-          }
-        }
-      });
-    }
-  }
   //#endregion
   
   //#region Routing Methods
@@ -209,7 +184,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Office Methods
+  //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {

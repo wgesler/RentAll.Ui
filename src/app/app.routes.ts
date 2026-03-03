@@ -38,8 +38,8 @@ import { RegionListComponent } from './authenticated/organizations/region-list/r
 import { RegionComponent } from './authenticated/organizations/region/region.component';
 import { MaintenanceListComponent } from './authenticated/maintenance/maintenance-list/maintenance-list.component';
 import { MaintenanceComponent } from './authenticated/maintenance/maintenance/maintenance.component';
-import { InspectionComponent } from './authenticated/maintenance/inspection/inspection.component';
-import { InventoryComponent } from './authenticated/maintenance/inventory/inventory.component';
+import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
+import { ContractorComponent } from './authenticated/maintenance/contractor/contractor.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { PropertyComponent } from './authenticated/properties/property/property.component';
 import { ReservationBoardSelectionComponent } from './authenticated/reservations/reservation-board-selection/reservation-board-selection.component';
@@ -68,8 +68,8 @@ export enum RouterToken {
   Contact = RouterToken.ContactList + '/:id',
   MaintenanceList = 'maintenance',
   Maintenance = RouterToken.MaintenanceList + '/:id',
-  Inspection = RouterToken.MaintenanceList + '/inspection/:id',
-  Inventory = RouterToken.MaintenanceList + '/inventory/:id',
+  MaintenanceWorkOrder = 'work-order/:id',
+  MaintenanceContractor = 'contractor/:id',
   PropertyList = 'properties',
   Property = RouterToken.PropertyList + '/:id',
   DocumentList = 'documents',
@@ -123,8 +123,8 @@ export enum RouterUrl {
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   MaintenanceList       = `${RouterToken.Auth}/${RouterToken.MaintenanceList}`,
   Maintenance           = `${RouterToken.Auth}/${RouterToken.Maintenance}`,
-  Inspection          = `${RouterToken.Auth}/${RouterToken.Inspection}`,
-  Inventory             = `${RouterToken.Auth}/${RouterToken.Inventory}`,
+  MaintenanceWorkOrder  = `${RouterToken.Auth}/${RouterToken.MaintenanceWorkOrder}`,
+  MaintenanceContractor = `${RouterToken.Auth}/${RouterToken.MaintenanceContractor}`,
   PropertyList          = `${RouterToken.Auth}/${RouterToken.PropertyList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
   DocumentList           = `${RouterToken.Auth}/${RouterToken.DocumentList}`,
@@ -184,9 +184,9 @@ export const authRoutes: Routes = [
   { path: RouterToken.Contacts, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.MaintenanceContractor, component: ContractorComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Maintenance, component: MaintenanceComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Inspection, component: InspectionComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Inventory, component: InventoryComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },

@@ -59,7 +59,7 @@
       @if (isTemplateMode) {
         <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
       }
-      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSaving" (click)="saveChecklistData()">
+      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData()">
         {{ saveButtonText }}
       </button>
     }

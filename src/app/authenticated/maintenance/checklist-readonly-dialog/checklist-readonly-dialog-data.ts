@@ -1,0 +1,9 @@
+import { PropertyResponse } from '../../properties/models/property.model';
+
+export interface ChecklistReadonlyDialogData {
+  title: string;
+  property: PropertyResponse | null;
+  templateJson: string | null;
+  answersJson: string | null;
+  checklistType: 'inspection' | 'inventory';
+}

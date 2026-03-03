@@ -1,0 +1,24 @@
+<div class="image-view-dialog">
+  <div class="image-view-dialog-header flex justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    @if (data.title) {
+      <span class="text-xl">{{ data.title }}</span>
+    }
+  </div>
+  <mat-dialog-content class="image-view-dialog-content">
+    <div class="image-view-zoom-wrapper">
+      <img [src]="data.imageSrc" alt="Image" class="image-view-img" [style.transform]="'scale(' + zoomScale + ')'" />
+    </div>
+    <div class="image-view-zoom-controls">
+      <button mat-icon-button type="button" (click)="zoomOut()" [disabled]="zoomScale <= minZoom" aria-label="Zoom out">
+        <mat-icon>zoom_out</mat-icon>
+      </button>
+      <span class="image-view-zoom-label">{{ (zoomScale * 100) | number:'1.0-0' }}%</span>
+      <button mat-icon-button type="button" (click)="zoomIn()" [disabled]="zoomScale >= maxZoom" aria-label="Zoom in">
+        <mat-icon>zoom_in</mat-icon>
+      </button>
+    </div>
+  </mat-dialog-content>
+  <mat-dialog-actions class="image-view-dialog-actions">
+    <button mat-raised-button color="primary" (click)="close()">Close</button>
+  </mat-dialog-actions>
+</div>

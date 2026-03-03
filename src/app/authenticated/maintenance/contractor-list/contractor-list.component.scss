@@ -17,14 +17,8 @@
   }
 }
 
-.loading-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 0;
-}
-
-.empty-msg {
-  color: #64748b;
-  margin-bottom: 0.75rem;
+:host ::ng-deep td.mat-column-ratingStars {
+  font-size: 1.2rem;
+  line-height: 1;
+  letter-spacing: 0.05rem;
 }

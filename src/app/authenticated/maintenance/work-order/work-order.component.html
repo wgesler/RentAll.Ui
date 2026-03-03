@@ -1,44 +1,114 @@
-@if (showBackButton) {
-  <div class="flex justify-end mt-4 mb-4">
-    <button mat-raised-button type="button" color="accent" (click)="back()">
-      <mat-icon>close</mat-icon>
-      Close
-    </button>
-  </div>
-}
-
-@if (isLoading) {
-  <div class="loading-wrap">
-    <mat-spinner [diameter]="30"></mat-spinner>
-    <span>Loading work order...</span>
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading work order...</p>
   </div>
 } @else {
-  @if (isServiceError) {
-    <p class="empty-msg">Unable to load or save work order.</p>
-  }
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">build</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ isAddMode ? 'Add Work Order' : 'Edit Work Order' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          @if (showBackButton) {
+            <button mat-raised-button type="button" color="accent" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+          <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
 
-  <form [formGroup]="form" class="work-order-form">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <mat-form-field appearance="outline" class="md:col-span-2">
-        <mat-label>Description</mat-label>
-        <textarea matInput rows="4" formControlName="descriptionId"></textarea>
-        @if (form.get('descriptionId')?.invalid && form.get('descriptionId')?.touched) {
-          <mat-error>Description is required.</mat-error>
-        }
-      </mat-form-field>
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form mb-8 pt-5">
+          <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <mat-checkbox formControlName="isActive" color="primary">
+              Is Active
+            </mat-checkbox>
+          </div>
 
-      <mat-form-field appearance="outline" class="md:col-span-2">
-        <mat-label>Document Path</mat-label>
-        <input matInput formControlName="documentPath" />
-      </mat-form-field>
-    </div>
+          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
+              @if (!isAddMode) {
+                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                  <mat-label>Code</mat-label>
+                  <input matInput [value]="workOrder?.workOrderId || ''" readonly disabled>
+                </mat-form-field>
+              }
 
-    <div class="form-actions">
-      <mat-checkbox formControlName="isActive">Is Active</mat-checkbox>
-      <button mat-raised-button color="primary" type="button" [disabled]="isSaving" (click)="saveWorkOrder()">
-        <mat-icon>save</mat-icon>
-        Save
-      </button>
-    </div>
-  </form>
+              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                <mat-label>Office</mat-label>
+                <input matInput [value]="property?.officeName || workOrder?.officeName || ''" readonly disabled>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                <mat-label>Property Code</mat-label>
+                <input matInput [value]="property?.propertyCode || workOrder?.propertyCode || ''" readonly disabled>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Description</mat-label>
+              <textarea matInput rows="4" formControlName="description" required></textarea>
+              @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
+                <mat-error>Description is required</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="col-span-4">
+              <mat-label class="text-sm font-medium block mb-2">Receipt *</mat-label>
+              <div class="flex items-center gap-3">
+                @if (receiptPreviewDataUrl) {
+                  <img [src]="receiptPreviewDataUrl" alt="Receipt preview" class="object-contain max-w-xs max-h-28 border rounded p-1" />
+                } @else if (form.get('receiptPath')?.value) {
+                  <mat-icon>image</mat-icon>
+                  <span class="text-sm">{{ receiptFileName || form.get('receiptPath')?.value }}</span>
+                }
+                <div class="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    color="primary"
+                    mat-raised-button
+                    [disabled]="!property"
+                    (click)="openReceiptPicker(receiptUploadInput)">
+                    <span class="flex items-center gap-2">
+                      <mat-icon>photo_camera</mat-icon>
+                      Choose Image
+                    </span>
+                  </button>
+                  @if (form.get('receiptPath')?.value || receiptPreviewDataUrl) {
+                    <button type="button" color="accent" mat-raised-button (click)="removeReceipt()">Delete Image</button>
+                  }
+                </div>
+              </div>
+              <input
+                #receiptUploadInput
+                type="file"
+                accept="image/*"
+                style="display: none;"
+                (change)="onReceiptSelected($event)" />
+            </div>
+
+          </div>
+
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
 }

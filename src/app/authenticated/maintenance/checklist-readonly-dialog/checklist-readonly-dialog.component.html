@@ -1,0 +1,25 @@
+<div class="flex flex-row flex-wrap">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">{{ data.checklistType === 'inspection' ? 'checklist' : 'list_alt' }}</mat-icon>
+      {{ data.title }}
+    </span>
+    <button mat-mini-fab mat-dialog-close class="bg-transparent" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="checklist-dialog-content">
+    <app-inspection-checklist
+      [property]="data.property"
+      [templateJson]="data.templateJson"
+      [answersJson]="data.answersJson"
+      [checklistType]="data.checklistType"
+      [mode]="'readonly'" />
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button color="primary" (click)="close()">Close</button>
+  </div>
+</div>

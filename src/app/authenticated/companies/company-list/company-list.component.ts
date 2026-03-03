@@ -239,7 +239,7 @@ export class CompanyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Office Methods
+  //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {

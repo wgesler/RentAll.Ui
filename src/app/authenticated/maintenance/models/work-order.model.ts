@@ -1,11 +1,14 @@
+import { FileDetails } from "../../documents/models/document.model";
+
 export interface WorkOrderRequest {
   workOrderId?: number;
   organizationId: string;
   officeId: number;
   propertyId: string;
   maintenanceId: string;
-  descriptionId: string;
-  documentPath?: string | null;
+  description: string;
+  receiptPath?: string | null;
+  fileDetails?: FileDetails | null; 
   isActive: boolean;
 }
 
@@ -17,8 +20,9 @@ export interface WorkOrderResponse {
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
-  descriptionId: string;
-  documentPath?: string | null;
+  description: string;
+  receiptPath?: string | null;
+  fileDetails?: FileDetails | null; 
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;
@@ -31,8 +35,8 @@ export interface WorkOrderDisplayList {
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
-  descriptionId: string;
-  documentPath?: string | null;
+  description: string;
+  receiptPath?: string | null;
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;

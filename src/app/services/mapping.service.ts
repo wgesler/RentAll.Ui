@@ -4,6 +4,7 @@ import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accoun
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { CompanyListDisplay, CompanyResponse } from '../authenticated/companies/models/company.model';
 import { VendorListDisplay, VendorResponse } from '../authenticated/companies/models/vendor.model';
+import { ContractorDisplayList, ContractorResponse } from '../authenticated/maintenance/models/contractor.model';
 import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -12,6 +13,7 @@ import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/e
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
+import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
@@ -109,6 +111,23 @@ export class MappingService {
         isActive: o.isActive,
       };
     });
+  }
+
+  mapContractors(contractors: ContractorResponse[]): ContractorDisplayList[] {
+    return (contractors || []).map<ContractorDisplayList>((contractor: ContractorResponse) => ({
+      contractorId: contractor.contractorId,
+      organizationId: contractor.organizationId,
+      officeId: contractor.officeId,
+      officeName: contractor.officeName,
+      contractorCode: contractor.contractorCode,
+      name: contractor.name,
+      phone: this.formatter.phoneNumber(contractor.phone || ''),
+      website: contractor.website || null,
+      rating: contractor.rating,
+      ratingStars: '★'.repeat(Math.max(0, Math.min(5, contractor.rating || 0))),
+      notes: contractor.notes || null,
+      isActive: contractor.isActive
+    }));
   }
 
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
@@ -342,6 +361,22 @@ export class MappingService {
         modifiedBy: inspection.modifiedBy
       };
     });
+  }
+
+  mapWorkOrderDisplays(workOrders: WorkOrderResponse[]): WorkOrderDisplayList[] {
+    return (workOrders || []).map<WorkOrderDisplayList>((workOrder: WorkOrderResponse) => ({
+      workOrderId: workOrder.workOrderId,
+      officeId: workOrder.officeId,
+      officeName: workOrder.officeName,
+      propertyId: workOrder.propertyId,
+      propertyCode: workOrder.propertyCode,
+      maintenanceId: workOrder.maintenanceId,
+      description: workOrder.description,
+      receiptPath: workOrder.receiptPath ?? null,
+      isActive: workOrder.isActive,
+      modifiedOn: this.formatter.formatDateTimeString(workOrder.modifiedOn),
+      modifiedBy: workOrder.modifiedBy
+    }));
   }
 
   mapInspections(inspections: InspectionResponse[]): InspectionResponse[] {

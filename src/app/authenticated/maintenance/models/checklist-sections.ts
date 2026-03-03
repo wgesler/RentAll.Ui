@@ -144,6 +144,16 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     ]
   },
   {
+    key: 'office',
+    title: 'Office',
+    items: [
+      { text: 'Furniture setup, clean and dusted.', requiresPhoto: true },
+      { text: 'Chair is sturdy. If it has wheels, they roll properly.', requiresPhoto: false },
+      { text: 'Lamps and overhead lights/fan working and clean.', requiresPhoto: false },
+      { text: 'Shelves clean and free of dust.', requiresPhoto: false }
+    ]
+  },
+  {
     key: 'kitchen',
     title: 'Kitchen',
     hint: 'Please take photos of the outside/inside of all appliances.',
