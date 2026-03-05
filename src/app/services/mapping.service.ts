@@ -114,7 +114,8 @@ export class MappingService {
         officeName: o.officeName,
         fullName: o.fullName,
         contactType: getEntityType(o.entityTypeId),
-        entityTypeId: o.entityTypeId, // Include entityTypeId for filtering
+        entityTypeId: o.entityTypeId,
+        companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
         isInternational: o.isInternational || false,

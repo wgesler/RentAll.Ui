@@ -28,8 +28,9 @@ import { ContactService } from '../services/contact.service';
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
+  @Input() showCompanyColumn: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
-  
+
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -43,9 +44,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
 
   routerSubscription?: Subscription;
-
   hasInitialLoad: boolean = false;
-  contactsDisplayedColumns: ColumnSet = {
+
+  private readonly baseColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
@@ -54,6 +55,21 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'email': { displayAs: 'Email', maxWidth: '25ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
+
+  private readonly columnsWithCompany: ColumnSet = {
+    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
+    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
+    'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '22ch' },
+    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
+    'phone': { displayAs: 'Phone' },
+    'email': { displayAs: 'Email', maxWidth: '25ch' },
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+  };
+
+  get contactsDisplayedColumns(): ColumnSet {
+    return this.showCompanyColumn ? this.columnsWithCompany : this.baseColumns;
+  }
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -88,7 +104,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       )
       .subscribe(() => {
         if (this.hasInitialLoad) {
-          this.contactService.loadAllContacts();
+          this.contactService.loadAllContacts().subscribe(contacts => {
+            this.allContacts = this.mappingService.mapContacts(contacts || []);
+            this.applyFilters();
+          });
         }
       });
   }

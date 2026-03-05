@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map } from 'rxjs';
+import { BehaviorSubject, Observable, map, tap, catchError, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { EntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
@@ -20,21 +20,21 @@ export class ContactService {
       private configService: ConfigService) {
   }
 
-  // Load all contacts on startup
-  loadAllContacts(): void {
+  // Load all contacts; returns observable so callers can refresh the list after save
+  loadAllContacts(): Observable<ContactResponse[]> {
     const url = this.controller;
-    
-    this.http.get<ContactResponse[]>(url).subscribe({
-      next: (contacts) => {
+    return this.http.get<ContactResponse[]>(url).pipe(
+      tap(contacts => {
         this.allContacts$.next(contacts || []);
         this.contactsLoaded$.next(true);
-      },
-      error: (err: HttpErrorResponse) => {
+      }),
+      catchError((err: HttpErrorResponse) => {
         console.error('Contact Service - Error loading all contacts:', err);
         this.allContacts$.next([]);
-        this.contactsLoaded$.next(true); // Mark as loaded even on error
-      }
-    });
+        this.contactsLoaded$.next(true);
+        return of([]);
+      })
+    );
   }
 
   // Check if contacts have been loaded

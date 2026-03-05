@@ -37,14 +37,12 @@ export class ContactComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   states: string[] = [];
   availableContactTypes: { value: number, label: string }[] = [];
-  companyContacts: ContactResponse[] = [];
-  vendorContacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact', 'companies', 'vendors']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -68,8 +66,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.initializeContactTypes();
     this.loadStates();
     this.loadOffices();
-    this.loadCompanyContacts();
-    this.loadVendorContacts();
+
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.contactId = paramMap.get('id');
@@ -82,7 +79,6 @@ export class ContactComponent implements OnInit, OnDestroy {
             if (queryParams['copyFrom']) {
               this.copyFromContact(queryParams['copyFrom']);
             } else {
-              // Set officeId and contactTypeId from query params after form is built
               this.setFormValuesFromQueryParams();
             }
           });
@@ -97,12 +93,10 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   
   setFormValuesFromQueryParams(): void {
-    // Wait for offices to be loaded, then set values from query params
     if (!this.form) {
       return;
     }
     
-    // If offices are already loaded, set immediately
     if (this.offices && this.offices.length > 0) {
       this.applyFormValuesFromQueryParams();
     } else {
@@ -153,42 +147,21 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   copyFromContact(sourceContactId: string): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'contact');
-    
-    // Wait for offices, companies, and vendors to be loaded before copying
+
     const officesLoaded$ = this.officeService.areOfficesLoaded().pipe(
       filter(loaded => loaded === true),
       take(1)
     );
-    
-    const companiesLoaded$ = this.itemsToLoad$.pipe(
-      map(items => !items.has('companies')),
-      filter(loaded => loaded === true),
-      take(1)
-    );
-    
-    const vendorsLoaded$ = this.itemsToLoad$.pipe(
-      map(items => !items.has('vendors')),
-      filter(loaded => loaded === true),
-      take(1)
-    );
-    
-    // Wait for all dependencies to complete, then load the contact to copy
+
     forkJoin({
-      offices: officesLoaded$,
-      companies: companiesLoaded$,
-      vendors: vendorsLoaded$
-    }).pipe(
-      take(1),
-      switchMap(() => this.contactService.getContactByGuid(sourceContactId).pipe(take(1))),
+      offices: officesLoaded$
+    }).pipe(take(1),switchMap(() => this.contactService.getContactByGuid(sourceContactId).pipe(take(1))),
       finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact'); })
     ).subscribe({
       next: (response: ContactResponse) => {
-        // Temporarily store the source contact
         this.contact = response;
-        // Populate form with all copied values
         if (this.contact && this.form) {
           this.populateForm();
-          // Clear the contact code since this is a new contact
           this.form.get('contactCode')?.setValue('');
         }
         // Clear the contact ID reference after populating
@@ -214,21 +187,12 @@ export class ContactComponent implements OnInit, OnDestroy {
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
     const entityTypeId = formValue.contactTypeId;
-    let entityId: string | null = null;
-    
-    // Set entityId based on entityTypeId
-    if (entityTypeId === EntityType.Company && formValue.companyId) {
-      entityId = formValue.companyId;
-    } else if (entityTypeId === EntityType.Vendor && formValue.vendorId) {
-      entityId = formValue.vendorId;
-    }
-
     const isInternational = formValue.isInternational || false;
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
-      entityTypeId: entityTypeId, // Map contactTypeId from form to entityTypeId in request
-      entityId: entityId,
+      entityTypeId: entityTypeId,
+      entityId: undefined,
       officeId: formValue.officeId || undefined,
       address1: formValue.address1 || '',
       address2: formValue.address2 || undefined,
@@ -237,12 +201,13 @@ export class ContactComponent implements OnInit, OnDestroy {
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: this.formatterService.stripPhoneFormatting(formValue.phone),
       notes: formValue.notes || undefined,
-      companyId: formValue.companyId || undefined,
+      companyId: undefined,
       isInternational: isInternational
     };
-    // Remove contactTypeId and vendorId from request since we're using entityTypeId and entityId
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
+    const isTenantOrOwner = entityTypeId === EntityType.Tenant || entityTypeId === EntityType.Owner;
+    (contactRequest as any).companyName = isTenantOrOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
 
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
@@ -254,26 +219,29 @@ export class ContactComponent implements OnInit, OnDestroy {
       ? this.contactService.createContact(contactRequest)
       : this.contactService.updateContact(contactRequest);
 
-    save$.pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
+    save$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        // Reload contacts globally to ensure all components have the latest data
-        this.contactService.loadAllContacts();
-        
-        // Preserve query params (including officeId and tab) when navigating back
-        const currentQueryParams = this.route.snapshot.queryParams;
-        const queryParams: any = {};
-        if (currentQueryParams['officeId']) {
-          queryParams.officeId = currentQueryParams['officeId'];
-        }
-        if (currentQueryParams['tab']) {
-          queryParams.tab = currentQueryParams['tab'];
-        }
-        
-        // Navigate back to contact list, preserving query params
-        this.router.navigate([RouterUrl.ContactList], {
-          queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+
+        // Refresh contact list cache then navigate so the list shows the new/updated contact
+        this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+          next: () => {
+            const currentQueryParams = this.route.snapshot.queryParams;
+            const queryParams: Record<string, unknown> = {};
+            if (currentQueryParams['officeId']) {
+              queryParams['officeId'] = currentQueryParams['officeId'];
+            }
+            if (currentQueryParams['tab']) {
+              queryParams['tab'] = currentQueryParams['tab'];
+            }
+            this.router.navigate([RouterUrl.ContactList], {
+              queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+            });
+          },
+          error: () => {
+            this.router.navigate([RouterUrl.ContactList]);
+          }
         });
       },
       error: () => {}
@@ -288,9 +256,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
-      officeId: new FormControl(null),
-      companyId: new FormControl(null),
-      vendorId: new FormControl(null),
+      officeId: new FormControl(null, [Validators.required]),
+      companyName: new FormControl(''),
       phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
@@ -303,35 +270,60 @@ export class ContactComponent implements OnInit, OnDestroy {
       isActive: new FormControl(true)
     });
 
-    // Setup conditional validation for international addresses
     this.setupConditionalFields();
 
-    // Show/hide company/vendor dropdown based on contact type
+    // When contact type is Company or Vendor, Company Name is required; for Tenant/Owner clear it and remove required
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
-      const companyIdControl = this.form.get('companyId');
-      const vendorIdControl = this.form.get('vendorId');
-      
-      if (contactTypeId === EntityType.Company) {
-        companyIdControl?.setValidators([Validators.required]);
-        companyIdControl?.updateValueAndValidity();
-        vendorIdControl?.clearValidators();
-        vendorIdControl?.setValue(null);
-        vendorIdControl?.updateValueAndValidity();
-      } else if (contactTypeId === EntityType.Vendor) {
-        vendorIdControl?.setValidators([Validators.required]);
-        vendorIdControl?.updateValueAndValidity();
-        companyIdControl?.clearValidators();
-        companyIdControl?.setValue(null);
-        companyIdControl?.updateValueAndValidity();
+      const companyNameControl = this.form.get('companyName');
+      if (contactTypeId === EntityType.Company || contactTypeId === EntityType.Vendor) {
+        companyNameControl?.setValidators([Validators.required]);
       } else {
-        companyIdControl?.clearValidators();
-        companyIdControl?.setValue(null);
-        companyIdControl?.updateValueAndValidity();
-        vendorIdControl?.clearValidators();
-        vendorIdControl?.setValue(null);
-        vendorIdControl?.updateValueAndValidity();
+        companyNameControl?.clearValidators();
+        if (contactTypeId === EntityType.Tenant || contactTypeId === EntityType.Owner) {
+          companyNameControl?.setValue('');
+        }
       }
+      companyNameControl?.updateValueAndValidity({ emitEvent: false });
     });
+  }
+
+  populateForm(): void {
+    if (this.contact && this.form) {
+      const isActiveValue = typeof this.contact.isActive === 'number' 
+        ? this.contact.isActive === 1 
+        : Boolean(this.contact.isActive);
+      
+      const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
+      const isTenantOrOwner = contactTypeId === EntityType.Tenant || contactTypeId === EntityType.Owner;
+      const companyName = isTenantOrOwner ? '' : ((this.contact as any).companyName ?? '');
+
+      this.form.patchValue({
+        contactCode: this.contact.contactCode,
+        contactTypeId: contactTypeId,
+        firstName: this.contact.firstName,
+        lastName: this.contact.lastName,
+        officeId: this.contact.officeId || null,
+        companyName: companyName,
+        address1: this.contact.address1 || '',
+        address2: this.contact.address2 || '',
+        city: this.contact.city || '',
+        state: this.contact.state || '',
+        zip: this.contact.zip || '',
+        phone: this.formatterService.phoneNumber(this.contact.phone),
+        email: this.contact.email,
+        notes: this.contact.notes || '',
+        isInternational: this.contact.isInternational || false,
+        isActive: isActiveValue
+      });
+
+      if (!this.isAddMode) {
+        this.form.get('contactTypeId')?.disable();
+      }
+    }
+  }
+
+  initializeContactTypes(): void {
+    this.availableContactTypes = getContactTypes();
   }
 
   setupConditionalFields(): void {
@@ -354,80 +346,23 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
   }
 
-  populateForm(): void {
-    if (this.contact && this.form) {
-      const isActiveValue = typeof this.contact.isActive === 'number' 
-        ? this.contact.isActive === 1 
-        : Boolean(this.contact.isActive);
-      
-      const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
-      let companyId = null;
-      let vendorId = null;
-      
-      // Set companyId or vendorId based on entityTypeId and entityId
-      if (contactTypeId === EntityType.Company && this.contact.entityId) {
-        companyId = this.contact.entityId;
-      } else if (contactTypeId === EntityType.Vendor && this.contact.entityId) {
-        vendorId = this.contact.entityId;
-      } else {
-        // Fallback to companyId if entityId is not set (for backward compatibility)
-        companyId = this.contact.companyId || null;
-      }
-
-      this.form.patchValue({
-        contactCode: this.contact.contactCode,
-        contactTypeId: contactTypeId, // Map entityTypeId from response to contactTypeId in form
-        firstName: this.contact.firstName,
-        lastName: this.contact.lastName,
-        officeId: this.contact.officeId || null,
-        companyId: companyId,
-        vendorId: vendorId,
-        address1: this.contact.address1 || '',
-        address2: this.contact.address2 || '',
-        city: this.contact.city || '',
-        state: this.contact.state || '',
-        zip: this.contact.zip || '',
-        phone: this.formatterService.phoneNumber(this.contact.phone),
-        email: this.contact.email,
-        notes: this.contact.notes || '',
-        isInternational: this.contact.isInternational || false,
-        isActive: isActiveValue
-      });
-
-      // Disable contact type when editing (not in add mode)
-      if (!this.isAddMode) {
-        this.form.get('contactTypeId')?.disable();
-      }
-
-      // Update companyId/vendorId validators based on contact type
-      const companyIdControl = this.form.get('companyId');
-      const vendorIdControl = this.form.get('vendorId');
-      
-      if (contactTypeId === EntityType.Company) {
-        companyIdControl?.setValidators([Validators.required]);
-        companyIdControl?.updateValueAndValidity();
-        vendorIdControl?.clearValidators();
-        vendorIdControl?.updateValueAndValidity();
-      } else if (contactTypeId === EntityType.Vendor) {
-        vendorIdControl?.setValidators([Validators.required]);
-        vendorIdControl?.updateValueAndValidity();
-        companyIdControl?.clearValidators();
-        companyIdControl?.updateValueAndValidity();
-      } else {
-        companyIdControl?.clearValidators();
-        companyIdControl?.updateValueAndValidity();
-        vendorIdControl?.clearValidators();
-        vendorIdControl?.updateValueAndValidity();
-      }
+  getOfficeName(): string {
+    if (!this.contact) {
+      return '';
     }
-  }
-
-  initializeContactTypes(): void {
-    this.availableContactTypes = getContactTypes();
+    // Use officeName from contact response if available, otherwise look it up
+    if (this.contact.officeName) {
+      return this.contact.officeName;
+    }
+    if (this.contact.officeId && this.offices && this.offices.length > 0) {
+      const office = this.offices.find(o => o.officeId === this.contact.officeId);
+      return office ? office.name : '';
+    }
+    return '';
   }
   //#endregion
 
-  //#region Data loading methods
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -446,8 +381,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
@@ -455,48 +389,6 @@ export class ContactComponent implements OnInit, OnDestroy {
         // If in add mode and form is built, set values from query params
         if (this.isAddMode && this.form) {
           this.applyFormValuesFromQueryParams();
-        }
-      });
-    });
-  }
-  
-  loadCompanyContacts(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
-      return;
-    }
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(
-        take(1),
-        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })
-      ).subscribe({
-        next: (contacts) => {
-          this.companyContacts = (contacts || []).filter(c => c.organizationId === orgId && c.isActive);
-        },
-        error: () => {
-          this.companyContacts = [];
-        }
-      });
-    });
-  }
-
-  loadVendorContacts(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
-    if (!orgId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors');
-      return;
-    }
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllVendorContacts().pipe(
-        take(1),
-        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })
-      ).subscribe({
-        next: (contacts) => {
-          this.vendorContacts = (contacts || []).filter(c => c.organizationId === orgId && c.isActive);
-        },
-        error: () => {
-          this.vendorContacts = [];
         }
       });
     });
@@ -521,20 +413,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
-  getOfficeName(): string {
-    if (!this.contact) {
-      return '';
-    }
-    // Use officeName from contact response if available, otherwise look it up
-    if (this.contact.officeName) {
-      return this.contact.officeName;
-    }
-    if (this.contact.officeId && this.offices && this.offices.length > 0) {
-      const office = this.offices.find(o => o.officeId === this.contact.officeId);
-      return office ? office.name : '';
-    }
-    return '';
-  }
+
 
   back(): void {
     // Preserve query params (including officeId and tab) when navigating back

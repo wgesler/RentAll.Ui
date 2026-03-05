@@ -83,7 +83,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadContacts(): void {
-    this.contactService.loadAllContacts();
+    this.contactService.loadAllContacts().subscribe({
+      next: () => {},
+      error: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+      }
+    });
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: () => {},
       error: () => {

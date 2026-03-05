@@ -191,15 +191,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         documentTypeId: Number(DocumentType.Invoice),
         fileName: fileName
       };
-      console.log('Expected document generate request payload:', generateDto);
-      console.log('Save invoice identity values:', {
-        selectedInvoiceId: this.selectedInvoice.invoiceId,
-        selectedInvoiceOrganizationId: this.selectedInvoice.organizationId,
-        billingOrganizationId: this.billingOrganization?.organizationId || null,
-        selectedInvoiceOfficeId: this.selectedInvoice.officeId || null,
-        selectedInvoiceReservationId: this.selectedInvoice.reservationId || null,
-        recipientOrganizationId: this.recipientOrganization?.organizationId || null
-      });
 
       const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');

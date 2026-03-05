@@ -248,8 +248,6 @@ export class BillingComponent implements OnInit, OnDestroy {
       invoiceRequest.invoiceId = this.invoiceId;
     }
 
-    console.log('Billing invoiceRequest payload:', invoiceRequest);
-
     const save$ = isCreating
       ? this.accountingService.createInvoice(invoiceRequest)
       : this.accountingService.updateInvoice(invoiceRequest);

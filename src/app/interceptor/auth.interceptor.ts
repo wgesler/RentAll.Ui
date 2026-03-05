@@ -88,21 +88,6 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
 
 // 400 BadRequest: show API message globally when available
 function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  // Temporary debugging aid: inspect exact API payload shape for bad requests.
-  // This helps us align global message extraction with backend responses.
-  console.groupCollapsed('[HTTP 400] API Error Payload');
-  console.log('URL:', req.urlWithParams || req.url);
-  console.log('Method:', req.method);
-  console.log('Status:', error.status);
-  console.log('StatusText:', error.statusText);
-  console.log('Error body:', error.error);
-  if (error?.error && typeof error.error === 'object') {
-    console.log('error.message:', (error.error as any).message);
-    console.log('error.title:', (error.error as any).title);
-    console.log('error.errors:', (error.error as any).errors);
-  }
-  console.groupEnd();
-
   showErrorToast(error, toastrService, CommonMessage.Error, false);
   return throwError(() => error);
 }
@@ -192,20 +177,6 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
 
 // 409 Conflict: show API message globally when available
 function handle409Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  // Temporary debugging aid: inspect exact API payload shape for conflicts.
-  console.groupCollapsed('[HTTP 409] API Error Payload');
-  console.log('URL:', req.urlWithParams || req.url);
-  console.log('Method:', req.method);
-  console.log('Status:', error.status);
-  console.log('StatusText:', error.statusText);
-  console.log('Error body:', error.error);
-  if (error?.error && typeof error.error === 'object') {
-    console.log('error.message:', (error.error as any).message);
-    console.log('error.title:', (error.error as any).title);
-    console.log('error.errors:', (error.error as any).errors);
-  }
-  console.groupEnd();
-
   showErrorToast(error, toastrService, CommonMessage.Error, false);
   return throwError(() => error);
 }

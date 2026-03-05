@@ -28,7 +28,7 @@
               <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
               <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                 <mat-option [value]="null">All Companies</mat-option>
-                @for (company of availableCompanies; track company.value.companyId) {
+                @for (company of availableCompanies; track company.value.contactId) {
                   <mat-option [value]="company.value">{{ company.label }}</mat-option>
                 }
               </mat-select>
@@ -144,7 +144,7 @@
                       <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
                       <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                         <mat-option [value]="null">All Companies</mat-option>
-                        @for (company of availableCompanies; track company.value.companyId) {
+                        @for (company of availableCompanies; track company.value.contactId) {
                           <mat-option [value]="company.value">{{ company.label }}</mat-option>
                         }
                       </mat-select>

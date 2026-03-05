@@ -195,7 +195,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     };
 
     if (this.isAddMode) {
-      console.log('Create cost code request payload:', costCodeRequest);
       this.costCodesService.createCostCode(costCodeRequest).pipe(
         take(1), 
         finalize(() => this.isSubmitting = false)
@@ -218,7 +217,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         }
       });
     } else {
-      console.log('Update cost code request payload:', costCodeRequest);
       this.costCodesService.updateCostCode(costCodeRequest).pipe(
         take(1), 
         finalize(() => this.isSubmitting = false)
