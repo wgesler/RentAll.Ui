@@ -14,6 +14,7 @@ import { UserComponent } from '../../../users/user/user.component';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
+    standalone: true,
     selector: 'app-header',
     imports: [CommonModule, MaterialModule],
     templateUrl: './header.component.html',

@@ -72,8 +72,8 @@
                   <mat-label>Company Name</mat-label>
                   <mat-select formControlName="companyId" required>
                     <mat-option [value]="null">Select Company</mat-option>
-                    @for (company of companies; track company.companyId) {
-                      <mat-option [value]="company.companyId">{{ company.name }}</mat-option>
+                    @for (company of companyContacts; track company.contactId) {
+                      <mat-option [value]="company.contactId">{{ company.fullName }}</mat-option>
                     }
                   </mat-select>
                   @if (form.get('companyId')?.hasError('required') && form.get('companyId')?.touched) {
@@ -87,8 +87,8 @@
                   <mat-label>Vendor Name</mat-label>
                   <mat-select formControlName="vendorId" required>
                     <mat-option [value]="null">Select Vendor</mat-option>
-                    @for (vendor of vendors; track vendor.vendorId) {
-                      <mat-option [value]="vendor.vendorId">{{ vendor.name }}</mat-option>
+                    @for (vendor of vendorContacts; track vendor.contactId) {
+                      <mat-option [value]="vendor.contactId">{{ vendor.fullName }}</mat-option>
                     }
                   </mat-select>
                   @if (form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched) {

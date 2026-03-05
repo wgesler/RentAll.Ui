@@ -16,6 +16,7 @@ import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.mo
 import { WorkOrderService } from '../services/work-order.service';
 
 @Component({
+  standalone: true,
   selector: 'app-work-order-list',
   imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './work-order-list.component.html',

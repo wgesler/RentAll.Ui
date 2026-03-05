@@ -15,8 +15,6 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -45,6 +43,7 @@ import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
+    standalone: true,
     selector: 'app-lease',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
     templateUrl: './lease.component.html',
@@ -69,7 +68,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   leaseInformation: LeaseInformationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
-  company: CompanyResponse | null = null;
+  companyContact: ContactResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -99,9 +98,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private propertyHtmlService: PropertyHtmlService,
     private propertyService: PropertyService,
     private contactService: ContactService,
-    private companyService: CompanyService,
     private commonService: CommonService,
-    emailService: EmailService,
+    private router: Router,
+    private emailCreateDraftService: EmailCreateDraftService,
     private emailHtmlService: EmailHtmlService,
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
@@ -117,8 +116,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     documentExportService: DocumentExportService,
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService,
-    private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService
+    emailService: EmailService,
+
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
@@ -529,22 +528,24 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
     if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
-      this.loadCompany(this.contact.entityId);
+      this.loadCompanyContact(this.contact.entityId);
       this.isCompanyRental = true;
       this.form.patchValue({ includeRentalCreditApplication: false });
     } else {
-      this.company = null;
+      this.companyContact = null;
       this.isCompanyRental = false;
       this.form.patchValue({ includeBusinessCreditApplication: false });
     }
   }
  
-  loadCompany(companyId: string): void {
-    this.companyService.getCompanyByGuid(companyId).pipe(take(1)).subscribe({
-      next: (response: CompanyResponse) => {
-        this.company = response;
+  loadCompanyContact(contactId: string): void {
+    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+      next: (response: ContactResponse) => {
+        this.companyContact = response;
       },
-      error: () => {}
+      error: () => {
+        this.companyContact = null;
+      }
     });
   }
   //#endregion
@@ -768,14 +769,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsibleParty(): string {
     if(!this.contact ) return '';
-    return (this.contact.entityTypeId === EntityType.Company && this.company) 
-      ?  this.company.name 
+    return (this.contact.entityTypeId === EntityType.Company && this.companyContact) 
+      ?  this.companyContact.fullName 
       : `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
   getResponsibleNoun(): string {
     if(!this.contact ) return '';
-    return (this.contact.entityTypeId === EntityType.Company && this.company) 
+    return (this.contact.entityTypeId === EntityType.Company && this.companyContact) 
       ?  'Company'
       : 'Tenant';
   }
@@ -1041,13 +1042,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
       
       // Contact address fields
-      if (this.contact.entityTypeId === EntityType.Company && this.company) {
-        // Use company address if contact is a company
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.company.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.company.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.company.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.company.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.company.zip || '');
+      if (this.contact.entityTypeId === EntityType.Company && this.companyContact) {
+        // Use company contact address when contact is a company
+        result = result.replace(/\{\{contactAddress1\}\}/g, this.companyContact.address1 || '');
+        result = result.replace(/\{\{contactAddress2\}\}/g, this.companyContact.address2 || '');
+        result = result.replace(/\{\{contactCity\}\}/g, this.companyContact.city || '');
+        result = result.replace(/\{\{contactState\}\}/g, this.companyContact.state || '');
+        result = result.replace(/\{\{contactZip\}\}/g, this.companyContact.zip || '');
       } else {
         // Use contact address
         result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');

@@ -18,6 +18,7 @@ import { AgentService } from '../services/agent.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-agent',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './agent.component.html',

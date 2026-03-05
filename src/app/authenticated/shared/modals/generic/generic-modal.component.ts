@@ -6,6 +6,7 @@ import { SafeHTMLPipe } from '../../pipes/safe-html';
 import { GenericModalData, defaultGenericModalData } from './models/generic-modal-data';
 
 @Component({
+    standalone: true,
     selector: 'app-generic-modal',
     imports: [MaterialModule, SafeHTMLPipe],
     templateUrl: './generic-modal.component.html',

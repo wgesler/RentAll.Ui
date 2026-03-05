@@ -15,6 +15,7 @@ import { StorageService } from '../../services/storage.service';
 import { LoginRequest } from './models/login-request';
 
 @Component({
+    standalone: true,
     selector: 'app-login',
     imports: [MaterialModule, ReactiveFormsModule, FormsModule],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],

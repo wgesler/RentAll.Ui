@@ -22,6 +22,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 
 
 @Component({
+    standalone: true,
     selector: 'app-property-information',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './property-information.component.html',

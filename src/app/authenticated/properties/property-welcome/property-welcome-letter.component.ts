@@ -46,6 +46,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 import { EntityType } from '../../contacts/models/contact-enum';
 
 @Component({
+    standalone: true,
     selector: 'app-property-welcome-letter',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
     templateUrl: './property-welcome-letter.component.html',

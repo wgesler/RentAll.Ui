@@ -11,6 +11,7 @@ import { ContractorDisplayList, ContractorResponse } from '../models/contractor.
 import { ContractorService } from '../services/contractor.service';
 
 @Component({
+  standalone: true,
   selector: 'app-contractor-list',
   imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './contractor-list.component.html',

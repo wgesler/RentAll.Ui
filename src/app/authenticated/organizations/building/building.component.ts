@@ -17,6 +17,7 @@ import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-building',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './building.component.html',

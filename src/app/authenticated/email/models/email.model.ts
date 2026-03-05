@@ -1,4 +1,4 @@
-import { FileDetails } from "../../companies/models/file-details.model";
+import { FileDetails } from '../../documents/models/document.model';
 
 export interface EmailAddress {
   email: string;

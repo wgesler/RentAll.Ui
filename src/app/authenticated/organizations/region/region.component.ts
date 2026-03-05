@@ -17,6 +17,7 @@ import { OfficeService } from '../services/office.service';
 import { RegionService } from '../services/region.service';
 
 @Component({
+    standalone: true,
     selector: 'app-region',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './region.component.html',

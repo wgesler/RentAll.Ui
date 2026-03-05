@@ -60,10 +60,10 @@
         }
         @if (source === 'accounting') {
           <mat-form-field appearance="outline" class="company-dropdown">
-            <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
-            <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+            <mat-label>{{ selectedCompanyContact ? 'Company' : 'All Companies' }}</mat-label>
+            <mat-select [(ngModel)]="selectedCompanyContact" (selectionChange)="onCompanyChange()">
               <mat-option [value]="null">All Companies</mat-option>
-              @for (company of availableCompanies; track company.value.companyId) {
+              @for (company of availableCompanyContacts; track company.value.contactId) {
                 <mat-option [value]="company.value">{{ company.label }}</mat-option>
               }
             </mat-select>
@@ -142,7 +142,7 @@
             <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
               Inactive
             </mat-slide-toggle>
-            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompany && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
+            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompanyContact && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
               Apply Payment
             </button>
             <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">

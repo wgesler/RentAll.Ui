@@ -16,8 +16,6 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -47,6 +45,7 @@ import { InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 
 @Component({
+    standalone: true,
     selector: 'app-invoice-create',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
     templateUrl: './invoice-create.component.html',
@@ -63,7 +62,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   organization: OrganizationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
-  company: CompanyResponse | null = null;
+  companyContact: ContactResponse | null = null; // When contact is company, use contact; when loading by id, use this
   isCompanyRental: boolean = false;
 
   offices: OfficeResponse[] = [];
@@ -117,7 +116,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     emailService: EmailService,
     private emailHtmlService: EmailHtmlService,
     private contactService: ContactService,
-    private companyService: CompanyService,
     private http: HttpClient,
     private authService: AuthService,
     private documentReloadService: DocumentReloadService,
@@ -188,6 +186,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
         if (this.officeId !== null) {
           this.applyOfficeSelection(this.officeId);
+        }
+        if (this.companyId) {
+          this.loadCompanyContact(this.companyId);
         }
         // Then wait for reservations to load
         if (this.reservationId !== null) {
@@ -313,9 +314,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.contact = contacts.find(c => c.contactId === reservation.contactId) || null;
     }
 
-    // Load company if contact is a company
-    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId && !this.company) {
-      this.company = await firstValueFrom(this.companyService.getCompanyByGuid(this.contact.entityId).pipe(take(1)));
+    // When contact is a company, use it as company contact (no separate load)
+    if (this.contact && this.contact.entityTypeId === EntityType.Company && !this.companyContact) {
+      this.companyContact = this.contact;
     }
 
     // Load accounting office if not provided
@@ -598,18 +599,18 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
     if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
-      this.loadCompany(this.contact.entityId);
-      this.isCompanyRental = true; 
+      this.companyContact = this.contact;
+      this.isCompanyRental = true;
     } else {
-      this.company = null;
+      this.companyContact = null;
       this.isCompanyRental = false;
     }
   }
- 
-  loadCompany(companyId: string): void {
-    this.companyService.getCompanyByGuid(companyId).pipe(take(1)).subscribe({
-      next: (response: CompanyResponse) => {
-        this.company = response;
+
+  loadCompanyContact(contactId: string): void {
+    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+      next: (response: ContactResponse) => {
+        this.companyContact = response;
       },
       error: () => {
       }
@@ -888,13 +889,13 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
       
       // Contact address fields
-       if (this.contact.entityTypeId === EntityType.Company && this.company) {
-        // Use company address if contact is a company
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.company.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.company.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.company.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.company.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.company.zip || '');
+       if (this.contact.entityTypeId === EntityType.Company && this.companyContact) {
+        // Use company contact address when contact is a company
+        result = result.replace(/\{\{contactAddress1\}\}/g, this.companyContact.address1 || '');
+        result = result.replace(/\{\{contactAddress2\}\}/g, this.companyContact.address2 || '');
+        result = result.replace(/\{\{contactCity\}\}/g, this.companyContact.city || '');
+        result = result.replace(/\{\{contactState\}\}/g, this.companyContact.state || '');
+        result = result.replace(/\{\{contactZip\}\}/g, this.companyContact.zip || '');
         result = result.replace(/\{\{contactAddress\}\}/g, this.getCompanyAddress() || '');
 
       } else {
@@ -908,9 +909,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       }
     }
 
-    // Replace contact placeholders
-    if (this.company) {
-       result = result.replace(/\{\{companyName\}\}/g, this.company.name || '');
+    // Replace company name placeholder (company is now a contact)
+    if (this.companyContact) {
+       result = result.replace(/\{\{companyName\}\}/g, this.companyContact.fullName || '');
     }
 
     // Replace property placeholders
@@ -989,10 +990,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   getCompanyAddress(): string {
-    if (!this.company) return '';
-      let address = this.company.address1 + ' ' + this.company.city + ', ' +  this.company.state + ' ' +   this.company.zip
-      return address
-     }
+    if (!this.companyContact) return '';
+    const address = (this.companyContact.address1 || '') + ' ' + (this.companyContact.city || '') + ', ' + (this.companyContact.state || '') + ' ' + (this.companyContact.zip || '');
+    return address.trim();
+  }
 
   getContactAddress(): string {
     if (!this.contact) return '';

@@ -2,8 +2,6 @@ import { Injectable } from '@angular/core';
 import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
-import { CompanyListDisplay, CompanyResponse } from '../authenticated/companies/models/company.model';
-import { VendorListDisplay, VendorResponse } from '../authenticated/companies/models/vendor.model';
 import { ContractorDisplayList, ContractorResponse } from '../authenticated/maintenance/models/contractor.model';
 import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -88,29 +86,6 @@ export class MappingService {
       reservationStatus: getReservationStatus(o.reservationStatusId),
       color: o.color
     }));
-  }
-
-  mapCompanies(companies: CompanyResponse[], contacts?: ContactResponse[]): CompanyListDisplay[] {
-    return companies.map<CompanyListDisplay>((o: CompanyResponse) => {
-      // Treat as international if isInternational flag is true OR if address2 has value and city is null/empty
-      const isInternational = Boolean(o.isInternational) || (Boolean(o.address2) && (!o.city || o.city.trim() === ''));
-      // For international addresses, use address2 for city field; otherwise use city
-      const cityValue = isInternational ? (o.address2 || '') : (o.city || '');
-      
-      return {
-        companyId: o.companyId,
-        companyCode: o.companyCode,
-        officeId: o.officeId,
-        officeName: o.officeName,
-        name: o.name,
-        city: cityValue,
-        state: o.state,
-        phone: this.formatter.phoneNumber(o.phone),
-        website: o.website,
-        isInternational: isInternational,
-        isActive: o.isActive,
-      };
-    });
   }
 
   mapContractors(contractors: ContractorResponse[]): ContractorDisplayList[] {
@@ -549,25 +524,6 @@ export class MappingService {
         reservationStatusId: o.reservationStatusId,
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
-      };
-    });
-  }
-
-  mapVendors(vendors: VendorResponse[]): VendorListDisplay[] {
-    return vendors.map<VendorListDisplay>((o: VendorResponse) => {
-      const isInternational = o.isInternational || false;
-      return {
-        vendorId: o.vendorId,
-        vendorCode: o.vendorCode,
-        officeId: o.officeId,
-        officeName: o.officeName,
-        name: o.name,
-        city: isInternational ? o.address2 : o.city,
-        state: o.state,
-        phone: this.formatter.phoneNumber(o.phone),
-        website: o.website,
-        isInternational: isInternational,
-        isActive: o.isActive,
       };
     });
   }

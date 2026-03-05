@@ -12,8 +12,8 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { TransactionType } from '../models/accounting-enum';
 import { InvoiceResponse } from '../models/invoice.model';
@@ -47,6 +47,7 @@ interface LedgerLineWithDateFields {
 
 @Component({
     selector: 'app-general-ledger',
+    standalone: true,
     imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent],
     templateUrl: './general-ledger.component.html',
     styleUrls: ['./general-ledger.component.scss']
@@ -64,16 +65,16 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   
   selectedOfficeId: number | null = null;
   selectedReservationId: string | null = null;
-  selectedCompany: CompanyResponse | null = null;
+  selectedCompanyContact: ContactResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
-  companies: CompanyResponse[] = [];
-  availableCompanies: { value: CompanyResponse, label: string }[] = [];
+  companyContacts: ContactResponse[] = [];
+  availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   officesSubscription?: Subscription;
   reservationsSubscription?: Subscription;
-  companiesSubscription?: Subscription;
+  companyContactsSubscription?: Subscription;
   invoicesSubscription?: Subscription;
   costCodesSubscription?: Subscription;
   allInvoices: InvoiceResponse[] = [];
@@ -97,7 +98,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     private officeService: OfficeService,
     private mappingService: MappingService,
     private reservationService: ReservationService,
-    private companyService: CompanyService,
+    private contactService: ContactService,
     private accountingService: InvoiceService,
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
@@ -108,7 +109,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     this.loadReservations();
-    this.loadCompanies();
+    this.loadCompanyContacts();
     this.loadCostCodes();
     this.loadInvoices();
     
@@ -137,7 +138,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
           this.selectedOfficeId = newOfficeId;
-          this.filterCompanies();
+          this.filterCompanyContacts();
           this.filterReservations();
         }
       }
@@ -152,9 +153,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
 
     if (changes['companyId']) {
       const newCompanyId = changes['companyId'].currentValue;
-      if (this.companies.length > 0) {
-        this.selectedCompany = newCompanyId
-          ? this.companies.find(c => c.companyId === newCompanyId && (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)) || null
+      if (this.companyContacts.length > 0) {
+        this.selectedCompanyContact = newCompanyId
+          ? this.companyContacts.find(c => c.contactId === newCompanyId && (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)) || null
           : null;
         this.filterReservations();
       }
@@ -163,7 +164,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
    
   onOfficeChange(): void {
     this.officeIdChange.emit(this.selectedOfficeId);
-    this.filterCompanies();
+    this.filterCompanyContacts();
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);
@@ -171,7 +172,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   }
 
   onCompanyChange(): void {
-    this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+    this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);
@@ -220,17 +221,19 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     });
   }
 
-  loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1)).subscribe({
-      next: (companies) => {
-        this.companies = companies || [];
-        this.filterCompanies();
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.companies = [];
-        this.availableCompanies = [];
-      }
+  loadCompanyContacts(): void {
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.companyContacts = contacts || [];
+          this.filterCompanyContacts();
+          this.buildGeneralLedgerRows();
+        },
+        error: () => {
+          this.companyContacts = [];
+          this.availableCompanyContacts = [];
+        }
+      });
     });
   }
 
@@ -265,25 +268,25 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     });
   }
 
-  filterCompanies(): void {
-    const filteredCompanies = this.selectedOfficeId
-      ? this.companies.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
-      : this.companies.filter(c => c.isActive);
+  filterCompanyContacts(): void {
+    const filtered = this.selectedOfficeId
+      ? this.companyContacts.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
+      : this.companyContacts.filter(c => c.isActive);
 
-    this.availableCompanies = filteredCompanies.map(c => ({
+    this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.companyCode || ''} - ${c.name}`.trim()
+      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
     }));
 
-    if (this.selectedCompany && !filteredCompanies.some(c => c.companyId === this.selectedCompany?.companyId)) {
-      this.selectedCompany = null;
+    if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {
+      this.selectedCompanyContact = null;
       this.companyIdChange.emit(null);
     }
 
-    if (this.companyId && !this.selectedCompany) {
-      const matchingCompany = filteredCompanies.find(c => c.companyId === this.companyId) || null;
-      if (matchingCompany) {
-        this.selectedCompany = matchingCompany;
+    if (this.companyId && !this.selectedCompanyContact) {
+      const matching = filtered.find(c => c.contactId === this.companyId) || null;
+      if (matching) {
+        this.selectedCompanyContact = matching;
       }
     }
   }
@@ -293,12 +296,12 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
       ? this.reservations.filter(r => r.officeId === this.selectedOfficeId)
       : this.reservations;
 
-    if (this.selectedCompany?.companyId) {
-      const selectedCompanyId = this.selectedCompany.companyId;
+    if (this.selectedCompanyContact?.contactId) {
+      const selectedContactId = this.selectedCompanyContact.contactId;
       filteredReservations = filteredReservations.filter(r => {
-        const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null };
-        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-        return reservationEntityId === selectedCompanyId;
+        const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+        return reservationEntityId === selectedContactId;
       });
     }
 
@@ -332,8 +335,8 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
       filteredInvoices = filteredInvoices.filter(invoice => invoice.isActive);
     }
 
-    if (this.selectedCompany?.companyId) {
-      const selectedCompanyName = this.selectedCompany.name;
+    if (this.selectedCompanyContact?.contactId) {
+      const selectedCompanyName = this.selectedCompanyContact.fullName;
       filteredInvoices = filteredInvoices.filter(invoice => {
         if (!invoice.reservationId) {
           return false;
@@ -469,7 +472,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
-    this.companiesSubscription?.unsubscribe();
+    this.companyContactsSubscription?.unsubscribe();
     this.invoicesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
   }

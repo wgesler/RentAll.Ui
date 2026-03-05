@@ -22,6 +22,7 @@ import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 
 @Component({
     selector: 'app-accounting',
+    standalone: true,
     imports: [
     MaterialModule,
     FormsModule,

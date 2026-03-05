@@ -14,6 +14,7 @@ import { ColorRequest, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
 @Component({
+    standalone: true,
     selector: 'app-color',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './color.component.html',

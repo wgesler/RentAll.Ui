@@ -18,6 +18,7 @@ import { ContactListDisplay } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
 @Component({
+    standalone: true,
     selector: 'app-contact-list',
     templateUrl: './contact-list.component.html',
     styleUrls: ['./contact-list.component.scss'],

@@ -17,6 +17,7 @@ import { AreaService } from '../services/area.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-area',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './area.component.html',

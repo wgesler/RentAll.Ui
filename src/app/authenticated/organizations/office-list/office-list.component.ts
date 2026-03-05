@@ -15,6 +15,7 @@ import { OfficeListDisplay, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-office-list',
     templateUrl: './office-list.component.html',
     styleUrls: ['./office-list.component.scss'],

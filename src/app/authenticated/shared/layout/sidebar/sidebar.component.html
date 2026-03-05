@@ -3,19 +3,20 @@
     [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
     [mode]="(isHandset$ | async) ? 'over' : 'side'"
     [opened]="(isHandset$ | async) === false"
-    [style.width.px]="(isHandset$ | async) ? expandedSidebarWidth : desktopSidebarWidth"
-    [class.sidenav-collapsed]="!isExpanded && (isHandset$ | async) === false">
+    [style.width.px]="(isHandset$ | async) ? collapsedSidebarWidth : desktopSidebarWidth"
+    [class.sidenav-collapsed]="!isExpanded || (isHandset$ | async)">
 
     @for (navItem of navItems; track navItem; let i = $index) {
-      <a mat-list-item [routerLink]="navItem.url" [ngClass]="{'mat-list-item-closed': !isExpanded}"
+      <a mat-list-item [routerLink]="navItem.url"
+        [ngClass]="{'mat-list-item-closed': !isExpanded || (isHandset$ | async)}"
         [disableRipple]="true"
-        [matTooltip]="!isExpanded ? navItem.displayName : ''" matTooltipPosition="after"
+        [matTooltip]="(!isExpanded || (isHandset$ | async)) ? navItem.displayName : ''" matTooltipPosition="after"
         [matTooltipClass]="'sidenav-tooltip'"
-        [id]="'sidenav-list-item-' + i" 
+        [id]="'sidenav-list-item-' + i"
         (click)="sideNav.mode === 'over' ? sideNav.toggle() : ''">
-        <div class="mat-list-item-content-open" [ngClass]="{'mat-list-item-content-closed': !isExpanded && (isHandset$ | async) === false}" routerLinkActive="active-list-item">
+        <div class="mat-list-item-content-open" [ngClass]="{'mat-list-item-content-closed': !isExpanded || (isHandset$ | async)}" routerLinkActive="active-list-item">
           <mat-icon>{{navItem.icon}}</mat-icon>
-          @if (isExpanded || (isHandset$ | async)) {
+          @if (isExpanded && (isHandset$ | async) === false) {
             <span>{{navItem.displayName}}</span>
           }
         </div>

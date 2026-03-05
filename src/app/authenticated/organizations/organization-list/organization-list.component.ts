@@ -15,6 +15,7 @@ import { OrganizationListDisplay } from '../models/organization.model';
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
+    standalone: true,
     selector: 'app-organization-list',
     templateUrl: './organization-list.component.html',
     styleUrls: ['./organization-list.component.scss'],

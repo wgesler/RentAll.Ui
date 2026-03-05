@@ -21,6 +21,7 @@ export interface ApplyCreditDialogData {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-apply-credit-dialog',
     imports: [MaterialModule, FormsModule],
     templateUrl: './apply-credit-dialog.component.html',

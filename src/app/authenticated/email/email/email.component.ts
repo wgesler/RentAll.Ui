@@ -8,6 +8,7 @@ import { EmailAddress, EmailResponse } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 
 @Component({
+  standalone: true,
   selector: 'app-email',
   imports: [CommonModule, MaterialModule],
   templateUrl: './email.component.html',

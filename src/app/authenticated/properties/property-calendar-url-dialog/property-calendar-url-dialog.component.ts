@@ -12,6 +12,7 @@ export interface PropertyCalendarUrlDialogData {
 }
 
 @Component({
+  standalone: true,
   selector: 'app-property-calendar-url-dialog',
   imports: [CommonModule, MaterialModule],
   templateUrl: './property-calendar-url-dialog.component.html',

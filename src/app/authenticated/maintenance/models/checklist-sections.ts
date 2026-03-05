@@ -15,6 +15,7 @@ export type ChecklistItem = {
   text: string;
   requiresPhoto: boolean;
   url?: string | null;
+  documentId?: string | null;
   isEditable: boolean;
   checked?: boolean;
 };
@@ -23,6 +24,7 @@ export type SavedChecklistItem = {
   text: string;
   requiresPhoto: boolean;
   url?: string | null;
+  documentId?: string | null;
   checked: boolean;
   isEditable: boolean;
 };

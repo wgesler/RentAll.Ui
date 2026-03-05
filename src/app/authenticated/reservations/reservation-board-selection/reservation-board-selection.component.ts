@@ -24,6 +24,7 @@ import { PropertySelectionRequest, PropertySelectionResponse } from '../../prope
 import { PropertyService } from '../../properties/services/property.service';
 
 @Component({
+    standalone: true,
     selector: 'app-reservation-board-selection',
     imports: [CommonModule, MaterialModule, ReactiveFormsModule],
     templateUrl: './reservation-board-selection.component.html',

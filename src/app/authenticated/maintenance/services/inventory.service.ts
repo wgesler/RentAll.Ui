@@ -24,13 +24,9 @@ export class InventoryService {
   getInventoriesByPropertyId(propertyId: string): Observable<InventoryResponse[]> {
     return this.http.get<InventoryResponse[]>(this.controller + 'property/' + propertyId);
   }
-
-  getInventoryByPropertyId(propertyId: string): Observable<InventoryResponse[]> {
-    return this.http.get<InventoryResponse[]>(this.controller + 'property/' + propertyId);
-  }
-
-  getInventoryByProperty(propertyId: string): Observable<InventoryResponse[]> {
-    return this.http.get<InventoryResponse[]>(this.controller + 'property/' + propertyId);
+    
+  getInventoriesByMaintenanceId(maintenanceId: string): Observable<InventoryResponse[]> {
+    return this.http.get<InventoryResponse[]>(this.controller + 'maintenance/' + maintenanceId);
   }
 
   getInventoryById(inventoryId: number): Observable<InventoryResponse> {

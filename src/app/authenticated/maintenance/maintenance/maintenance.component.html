@@ -1,7 +1,7 @@
-@if (!property && !isServiceError) {
+@if (isLoading$ | async) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading property...</p>
+    <p>Loading property and maintenance...</p>
   </div>
 } @else if (isServiceError) {
   <div class="loading-container">
@@ -29,14 +29,28 @@
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Inspection">
-            <app-inspection-checklist
-              [property]="property"
-              [checklistType]="'inspection'" />
+            @if (property && maintenanceRecord) {
+              <app-checklist
+                [property]="property"
+                [templateJson]="inspectionTemplateJson"
+                [maintenanceRecord]="maintenanceRecord"
+                [checklistType]="'inspection'"
+                [mode]="templateMode ? 'template' : 'answer'"
+                [isSaving]="isSavingTemplate"
+                (templateSaved)="onSaveTemplate($event, 'inspection')" />
+            }
           </mat-tab>
           <mat-tab label="Inventory">
-            <app-inspection-checklist
-              [property]="property"
-              [checklistType]="'inventory'" />
+            @if (property && maintenanceRecord) {
+              <app-checklist
+                [property]="property"
+                [templateJson]="inventoryTemplateJson"
+                [maintenanceRecord]="maintenanceRecord"
+                [checklistType]="'inventory'"
+                [mode]="templateMode ? 'template' : 'answer'"
+                [isSaving]="isSavingTemplate"
+                (templateSaved)="onSaveTemplate($event, 'inventory')" />
+            }
           </mat-tab>
           <mat-tab label="Work Orders">
             <app-work-order-list [property]="property" />

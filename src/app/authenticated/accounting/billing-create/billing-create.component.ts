@@ -33,6 +33,7 @@ import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 
 @Component({
+    standalone: true,
     selector: 'app-billing-create',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
     templateUrl: './billing-create.component.html',

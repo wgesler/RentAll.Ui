@@ -15,11 +15,12 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 
 @Component({
   selector: 'app-email-list',
+  standalone: true,
   imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent],
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss'
@@ -52,9 +53,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservationId: string | null = null;
 
-  companies: CompanyResponse[] = [];
-  availableCompanies: { value: CompanyResponse, label: string }[] = [];
-  selectedCompany: CompanyResponse | null = null;
+  companyContacts: ContactResponse[] = [];
+  availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
+  selectedCompanyContact: ContactResponse | null = null;
   
   showOfficeDropdown = true;
   officesSubscription?: Subscription;
@@ -76,7 +77,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
-    private companyService: CompanyService
+    private contactService: ContactService
   ) {}
 
   //#region Email-List
@@ -115,13 +116,13 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (changes['companyId']) {
       const newCompanyId = changes['companyId'].currentValue;
-      if (newCompanyId && this.companies.length > 0) {
-        this.selectedCompany = this.companies.find(c =>
-          c.companyId === newCompanyId &&
+      if (newCompanyId && this.companyContacts.length > 0) {
+        this.selectedCompanyContact = this.companyContacts.find(c =>
+          c.contactId === newCompanyId &&
           (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)
         ) || null;
       } else {
-        this.selectedCompany = null;
+        this.selectedCompanyContact = null;
       }
       this.filterReservations();
       this.applyFilters();
@@ -192,15 +193,17 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1)).subscribe({
-      next: (companies) => {
-        this.companies = companies || [];
-        this.filterCompanies();
-      },
-      error: () => {
-        this.companies = [];
-        this.availableCompanies = [];
-      }
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.companyContacts = contacts || [];
+          this.filterCompanies();
+        },
+        error: () => {
+          this.companyContacts = [];
+          this.availableCompanyContacts = [];
+        }
+      });
     });
   }
 
@@ -217,7 +220,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onCompanyChange(): void {
-    this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+    this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);
@@ -240,12 +243,12 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
         allReservations = allReservations.filter(r => r.propertyId === this.propertyId);
       }
-      if (this.source === 'invoice' && this.selectedCompany?.companyId) {
-        const selectedCompanyId = this.selectedCompany.companyId;
+      if (this.source === 'invoice' && this.selectedCompanyContact?.contactId) {
+        const selectedContactId = this.selectedCompanyContact.contactId;
         allReservations = allReservations.filter(r => {
-          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null };
-          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-          return reservationEntityId === selectedCompanyId;
+          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+          return reservationEntityId === selectedContactId;
         });
       }
       this.availableReservations = allReservations.map(r => ({
@@ -259,11 +262,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     const propertyFilteredReservations = ((this.source === 'property' || this.source === 'reservation') && this.propertyId)
       ? filteredReservations.filter(r => r.propertyId === this.propertyId)
       : filteredReservations;
-    const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompany?.companyId)
+    const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompanyContact?.contactId)
       ? propertyFilteredReservations.filter(r => {
-          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null };
-          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-          return reservationEntityId === this.selectedCompany!.companyId;
+          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+          return reservationEntityId === this.selectedCompanyContact!.contactId;
         })
       : propertyFilteredReservations;
     this.availableReservations = companyFilteredReservations.map(r => ({
@@ -278,24 +281,24 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   filterCompanies(): void {
-    const filteredCompanies = this.selectedOfficeId
-      ? this.companies.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
-      : this.companies.filter(c => c.isActive);
+    const filtered = this.selectedOfficeId
+      ? this.companyContacts.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
+      : this.companyContacts.filter(c => c.isActive);
 
-    this.availableCompanies = filteredCompanies.map(c => ({
+    this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.companyCode || ''} - ${c.name}`.trim()
+      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
     }));
 
-    if (this.selectedCompany && !filteredCompanies.some(c => c.companyId === this.selectedCompany?.companyId)) {
-      this.selectedCompany = null;
+    if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {
+      this.selectedCompanyContact = null;
       this.companyIdChange.emit(null);
     }
 
-    if (this.companyId && !this.selectedCompany) {
-      const matchingCompany = filteredCompanies.find(c => c.companyId === this.companyId) || null;
-      if (matchingCompany) {
-        this.selectedCompany = matchingCompany;
+    if (this.companyId && !this.selectedCompanyContact) {
+      const matching = filtered.find(c => c.contactId === this.companyId) || null;
+      if (matching) {
+        this.selectedCompanyContact = matching;
       }
     }
   }

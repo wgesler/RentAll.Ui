@@ -15,6 +15,7 @@ import { ColorListDisplay, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
 @Component({
+    standalone: true,
     selector: 'app-color-list',
     templateUrl: './color-list.component.html',
     styleUrls: ['./color-list.component.scss'],

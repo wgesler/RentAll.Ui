@@ -22,6 +22,7 @@ import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
+    standalone: true,
     selector: 'app-billing',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './billing.component.html',

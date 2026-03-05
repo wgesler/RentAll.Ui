@@ -14,6 +14,7 @@ import { CommonService } from './services/common.service';
 import { UtilityService } from './services/utility.service';
 
 @Component({
+    standalone: true,
     selector: 'app-root',
     imports: [RouterOutlet, MatButtonModule, MatIconModule],
     templateUrl: './app.component.html',

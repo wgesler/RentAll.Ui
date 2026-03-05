@@ -21,11 +21,12 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { getDocumentTypes } from '../models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
+import { ContactResponse } from "../../contacts/models/contact.model";
+import { ContactService } from "../../contacts/services/contact.service";
 
 @Component({
     selector: 'app-document-list',
+    standalone: true,
     templateUrl: './document-list.component.html',
     styleUrls: ['./document-list.component.scss'],
     imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
@@ -64,9 +65,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
 
-  selectedCompany: CompanyResponse | null = null;
-  companies: CompanyResponse[] = [];
-  availableCompanies: { value: CompanyResponse, label: string }[] = [];
+  selectedCompany: ContactResponse | null = null;
+  companies: ContactResponse[] = [];
+  availableCompanies: { value: ContactResponse, label: string }[] = [];
   
   // Property selection for filtering (when coming from property)
   selectedPropertyId: string | null = null;
@@ -107,7 +108,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private utilityService: UtilityService,
     private route: ActivatedRoute,
     private propertyService: PropertyService,
-    private companyService: CompanyService) {
+    private contactService: ContactService) {
   }
 
   //#region Document-List
@@ -214,10 +215,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       const previousCompanyId = changes['companyId'].previousValue;
       if (previousCompanyId === undefined || newCompanyId !== previousCompanyId) {
         if (newCompanyId && this.companies.length > 0) {
-          this.selectedCompany = this.companies.find(c =>
-            c.companyId === newCompanyId &&
-            (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)
-          ) || null;
+          this.selectedCompany = this.companies.find(c => c.contactId === newCompanyId &&
+            (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)) || null;
         } else {
           this.selectedCompany = null;
         }
@@ -534,15 +533,17 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1)).subscribe({
-      next: (companies) => {
-        this.companies = companies || [];
-        this.filterCompanies();
-      },
-      error: () => {
-        this.companies = [];
-        this.availableCompanies = [];
-      }
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.companies = contacts || [];
+          this.filterCompanies();
+        },
+        error: () => {
+          this.companies = [];
+          this.availableCompanies = [];
+        }
+      });
     });
   }
   //#endregion
@@ -580,11 +581,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       if (this.source === 'invoice') {
-        const companyFilteredReservations = this.selectedCompany?.companyId
+        const companyFilteredReservations = this.selectedCompany?.contactId
           ? this.reservations.filter(r => {
-              const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null };
-              const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-              return reservationEntityId === this.selectedCompany!.companyId;
+              const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+              const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+              return reservationEntityId === this.selectedCompany!.contactId;
             })
           : this.reservations;
         this.availableReservations = companyFilteredReservations.map(r => ({
@@ -601,11 +602,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     const sourceFilteredReservations = (this.source === 'property' && this.propertyId)
       ? filteredReservations.filter(r => r.propertyId === this.propertyId)
       : filteredReservations;
-    const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompany?.companyId)
+    const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompany?.contactId)
       ? sourceFilteredReservations.filter(r => {
-          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null };
-          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-          return reservationEntityId === this.selectedCompany!.companyId;
+          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+          const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+          return reservationEntityId === this.selectedCompany!.contactId;
         })
       : sourceFilteredReservations;
     this.availableReservations = companyFilteredReservations.map(r => ({
@@ -626,16 +627,16 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableCompanies = filteredCompanies.map(c => ({
       value: c,
-      label: `${c.companyCode || ''} - ${c.name}`.trim()
+      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
     }));
 
-    if (this.selectedCompany && !filteredCompanies.some(c => c.companyId === this.selectedCompany?.companyId)) {
+    if (this.selectedCompany && !filteredCompanies.some(c => c.contactId === this.selectedCompany?.contactId)) {
       this.selectedCompany = null;
       this.companyIdChange.emit(null);
     }
 
     if (this.companyId && !this.selectedCompany) {
-      const matchingCompany = filteredCompanies.find(c => c.companyId === this.companyId) || null;
+      const matchingCompany = filteredCompanies.find(c => c.contactId === this.companyId) || null;
       if (matchingCompany) {
         this.selectedCompany = matchingCompany;
       }
@@ -693,7 +694,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onCompanyChange(): void {
-    this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+    this.companyIdChange.emit(this.selectedCompany?.contactId || null);
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);

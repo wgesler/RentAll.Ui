@@ -21,6 +21,7 @@ import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-accounting-office',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './accounting-office.component.html',

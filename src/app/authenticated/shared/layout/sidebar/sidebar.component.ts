@@ -1,6 +1,6 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Observable, Subject, map, shareReplay, takeUntil } from 'rxjs';
@@ -11,6 +11,7 @@ import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
+    standalone: true,
     selector: 'app-sidebar',
     imports: [CommonModule, MaterialModule, RouterOutlet, RouterLink, RouterLinkActive],
     templateUrl: './sidebar.component.html',
@@ -20,10 +21,10 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   readonly expandedSidebarWidth = 175;
   readonly collapsedSidebarWidth = 64;
+  @ViewChild('sideNav') sideNav: MatSidenav;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   isExpanded: boolean = true;
   isHandset = false;
-  sideNav: MatSidenav;
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall)
     .pipe(
       map(result => result.matches),
@@ -86,13 +87,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
       icon: 'description',
       displayName: 'Documents',
       url: RouterToken.DocumentList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'business',
-      displayName: 'Companies',
-      url: RouterToken.Companies,
       requiredRoles: [], // Available to all
       excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
     },
@@ -228,7 +222,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   sideNavToggleHandler(): void {
-    if (this.isHandset) {
+    if (this.isHandset && this.sideNav) {
       this.sideNav.toggle();
     } else {
       this.sidebarStateService.toggleExpanded();

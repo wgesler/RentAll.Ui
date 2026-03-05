@@ -9,6 +9,7 @@ export interface ApplyCreditToInvoiceDialogData {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-apply-credit-to-invoice-dialog',
     imports: [MaterialModule],
     templateUrl: './apply-credit-to-invoice-dialog.component.html',

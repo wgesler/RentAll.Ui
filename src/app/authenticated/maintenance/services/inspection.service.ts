@@ -25,8 +25,8 @@ export class InspectionService {
     return this.http.get<InspectionResponse[]>(this.controller + 'property/' + propertyId);
   }
 
-  getInspectionByPropertyId(propertyId: string): Observable<InspectionResponse[]> {
-    return this.getInspectionsByPropertyId(propertyId);
+  getInspectionsByMaintenanceId(maintenanceId: string): Observable<InspectionResponse[]> {
+    return this.http.get<InspectionResponse[]>(this.controller + 'maintenance/' + maintenanceId);
   }
 
   getInspectionById(inspectionId: number): Observable<InspectionResponse> {

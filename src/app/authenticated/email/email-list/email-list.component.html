@@ -21,10 +21,10 @@
         }
         @if (source === 'invoice') {
           <mat-form-field appearance="outline" style="width: 300px;">
-            <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
-            <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+            <mat-label>{{ selectedCompanyContact ? 'Company' : 'All Companies' }}</mat-label>
+            <mat-select [(ngModel)]="selectedCompanyContact" (selectionChange)="onCompanyChange()">
               <mat-option [value]="null">All Companies</mat-option>
-              @for (company of availableCompanies; track company.value.companyId) {
+              @for (company of availableCompanyContacts; track company.value.contactId) {
                 <mat-option [value]="company.value">{{ company.label }}</mat-option>
               }
             </mat-select>
@@ -104,10 +104,10 @@
             }
             @if (source === 'invoice') {
               <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
-                <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+                <mat-label>{{ selectedCompanyContact ? 'Company' : 'All Companies' }}</mat-label>
+                <mat-select [(ngModel)]="selectedCompanyContact" (selectionChange)="onCompanyChange()">
                   <mat-option [value]="null">All Companies</mat-option>
-                  @for (company of availableCompanies; track company.value.companyId) {
+                  @for (company of availableCompanyContacts; track company.value.contactId) {
                     <mat-option [value]="company.value">{{ company.label }}</mat-option>
                   }
                 </mat-select>

@@ -16,6 +16,7 @@ import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 
 @Component({
+  standalone: true,
   selector: 'app-dashboard-owner',
   imports: [MaterialModule, DataTableComponent, ReservationBoardComponent],
   templateUrl: './dashboard-owner.component.html',

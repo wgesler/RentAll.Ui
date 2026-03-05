@@ -3,12 +3,13 @@ import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { InspectionChecklistComponent } from '../inspection-checklist/inspection-checklist.component';
+import { ChecklistComponent } from '../checklist/checklist.component';
 import { ChecklistReadonlyDialogData } from './checklist-readonly-dialog-data';
 
 @Component({
+  standalone: true,
   selector: 'app-checklist-readonly-dialog',
-  imports: [CommonModule, MaterialModule, InspectionChecklistComponent],
+  imports: [CommonModule, MaterialModule, ChecklistComponent],
   templateUrl: './checklist-readonly-dialog.component.html',
   styleUrl: './checklist-readonly-dialog.component.scss'
 })

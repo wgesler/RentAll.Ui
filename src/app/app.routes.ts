@@ -6,9 +6,6 @@ import { BillingCreateComponent } from './authenticated/accounting/billing-creat
 import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
 import { InvoiceComponent } from './authenticated/accounting/invoice/invoice.component';
 import { BillingComponent } from './authenticated/accounting/billing/billing.component';
-import { CompaniesComponent } from './authenticated/companies/companies/companies.component';
-import { CompanyComponent } from './authenticated/companies/company/company.component';
-import { VendorComponent } from './authenticated/companies/vendor/vendor.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
 import { ContactsComponent } from './authenticated/contacts/contacts/contacts.component';
 import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
@@ -60,9 +57,6 @@ export enum RouterToken {
   Dashboard = 'dashboard',
   DashboardOwner = 'dashboard-owner',
   RentalList = 'rentals',
-  Companies = 'companies',
-  Company = RouterToken.Companies + '/company/:id',
-  Vendor = RouterToken.Companies + '/vendor/:id',
   ContactList = 'contacts',
   Contacts = 'contacts',
   Contact = RouterToken.ContactList + '/:id',
@@ -115,9 +109,6 @@ export enum RouterUrl {
   Dashboard             = `${RouterToken.Auth}/${RouterToken.Dashboard}`,
   DashboardOwner        = `${RouterToken.Auth}/${RouterToken.DashboardOwner}`,
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
-  Companies             = `${RouterToken.Auth}/${RouterToken.Companies}`,
-  Company               = `${RouterToken.Auth}/${RouterToken.Company}`,
-  Vendor                = `${RouterToken.Auth}/${RouterToken.Vendor}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
   Contacts              = `${RouterToken.Auth}/${RouterToken.Contacts}`,
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
@@ -177,9 +168,6 @@ export const authRoutes: Routes = [
   { path: RouterToken.Dashboard, component: DashboardMainComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Companies, component: CompaniesComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Company, component: CompanyComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Vendor, component: VendorComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ContactList, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contacts, component: ContactsComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },

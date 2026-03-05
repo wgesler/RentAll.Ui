@@ -18,6 +18,7 @@ import { DocumentRequest, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
 @Component({
+    standalone: true,
     selector: 'app-document',
     imports: [
         CommonModule,

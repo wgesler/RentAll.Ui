@@ -11,6 +11,7 @@ import { ContactListComponent } from '../contact-list/contact-list.component';
 import { EntityType } from '../models/contact-enum';
 
 @Component({
+    standalone: true,
     selector: 'app-contacts',
     imports: [
     MaterialModule,

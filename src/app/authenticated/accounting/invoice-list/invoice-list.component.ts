@@ -13,8 +13,8 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
@@ -33,6 +33,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
     selector: 'app-invoice-list',
+    standalone: true,
     templateUrl: './invoice-list.component.html',
     styleUrls: ['./invoice-list.component.scss'],
     imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
@@ -74,9 +75,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   reservationsSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
 
-  companies: CompanyResponse[] = [];
-  availableCompanies: { value: CompanyResponse, label: string }[] = [];
-  selectedCompany: CompanyResponse | null = null;
+  companyContacts: ContactResponse[] = [];
+  availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
+  selectedCompanyContact: ContactResponse | null = null;
  
   costCodes: CostCodesResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
@@ -148,7 +149,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
-    private companyService: CompanyService,
+    private contactService: ContactService,
     private authService: AuthService,
     private formatter: FormatterService,
     private utilityService: UtilityService,
@@ -162,7 +163,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isSuperUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();
-    this.loadCompanies();
+    this.loadCompanyContacts();
     this.loadCostCodes();
     this.loadAllInvoices();
     
@@ -204,16 +205,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               // Emit office change to parent
               this.officeIdChange.emit(this.selectedOffice.officeId);
               this.filterCostCodes();
-              this.filterCompanies();
+              this.filterCompanyContacts();
               this.filterReservations();
               
-              // Apply companyId from query params if available
-              if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
-                const matchingCompany = this.companies.find(c => 
-                  c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+              // Apply companyId (contactId) from query params if available
+              if (companyIdParam && this.companyContacts.length > 0 && this.selectedOffice) {
+                const matching = this.companyContacts.find(c =>
+                  c.contactId === companyIdParam && c.officeId === this.selectedOffice?.officeId
                 );
-                if (matchingCompany) {
-                  this.selectedCompany = matchingCompany;
+                if (matching) {
+                  this.selectedCompanyContact = matching;
                 }
               }
               
@@ -231,13 +232,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
         
-        // Handle companyId even if officeId is not in params (might be from @Input in embedded mode)
-        if (companyIdParam && this.companies.length > 0 && this.selectedOffice) {
-          const matchingCompany = this.companies.find(c => 
-            c.companyId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+        // Handle companyId (contactId) even if officeId is not in params
+        if (companyIdParam && this.companyContacts.length > 0 && this.selectedOffice) {
+          const matching = this.companyContacts.find(c =>
+            c.contactId === companyIdParam && c.officeId === this.selectedOffice?.officeId
           );
-          if (matchingCompany && matchingCompany !== this.selectedCompany) {
-            this.selectedCompany = matchingCompany;
+          if (matching && matching !== this.selectedCompanyContact) {
+            this.selectedCompanyContact = matching;
             this.applyFilters();
           }
         }
@@ -256,14 +257,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
           if (this.selectedOffice) {
             this.filterCostCodes();
-            this.filterCompanies();
+            this.filterCompanyContacts();
             this.filterReservations();
             // Load invoices for selected office
             this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
             this.getInvoices();
           } else {
             this.selectedReservation = null;
-            this.selectedCompany = null;
+            this.selectedCompanyContact = null;
             // Load all invoices when "All Offices" is selected
             this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
             this.loadAllInvoices();
@@ -300,21 +301,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       // Update if the value changed (including initial load when previousCompanyId is undefined)
       if (previousCompanyId === undefined || newCompanyId !== previousCompanyId) {
-        // If companies are already loaded, apply immediately; otherwise filterCompanies() will handle it.
-        if (this.companies.length > 0) {
+        if (this.companyContacts.length > 0) {
           if (!newCompanyId) {
-            if (this.selectedCompany !== null) {
-              this.selectedCompany = null;
+            if (this.selectedCompanyContact !== null) {
+              this.selectedCompanyContact = null;
               this.filterReservations();
               this.applyFilters();
             }
           } else {
-            const matchingCompany = this.companies.find(c =>
-              c.companyId === newCompanyId &&
+            const matching = this.companyContacts.find(c =>
+              c.contactId === newCompanyId &&
               (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
             ) || null;
-            if (matchingCompany !== this.selectedCompany) {
-              this.selectedCompany = matchingCompany;
+            if (matching !== this.selectedCompanyContact) {
+              this.selectedCompanyContact = matching;
               this.filterReservations();
               this.applyFilters();
             }
@@ -360,7 +360,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
-    const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompany?.companyId || null);
+    const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
     
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
@@ -437,7 +437,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
-    const companyIdToUse = this.selectedCompany?.companyId || null;
+    const companyIdToUse = this.selectedCompanyContact?.contactId || null;
     const reservationId = event?.reservationId || null;
     
     if (officeIdToUse !== null) {
@@ -500,7 +500,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.selectedOffice = matchingOffice;
           // Filter dependent data
           this.filterCostCodes();
-          this.filterCompanies();
+          this.filterCompanyContacts();
           this.filterReservations();
           // Emit office change to parent
           this.officeIdChange.emit(this.selectedOffice.officeId);
@@ -566,25 +566,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
     }
 
-    // Filter by company if selected (only when source is 'accounting')
-    // Match company name with reservation's contactName
-    if (this.selectedCompany && this.source === 'accounting') {
+    // Filter by company contact if selected (only when source is 'accounting')
+    if (this.selectedCompanyContact && this.source === 'accounting') {
       filtered = filtered.filter(invoice => {
-        // If invoice has no reservationId, exclude it
-        if (!invoice.reservationId) {
-          return false;
-        }
-        
-        // Find the reservation for this invoice
+        if (!invoice.reservationId) return false;
         const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
-        
-        // If reservation not found, exclude the invoice
-        if (!reservation) {
-          return false;
-        }
-        
-        // Compare reservation's contactName with selected company's name
-        return reservation.contactName === this.selectedCompany.name;
+        if (!reservation) return false;
+        return reservation.contactName === this.selectedCompanyContact!.fullName;
       });
     }
 
@@ -688,16 +676,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ? this.reservations.filter(r => r.officeId === this.selectedOffice!.officeId)
       : this.reservations;
 
-    // In Accounting mode, when a company is selected, only show reservations linked to that company.
-    if (this.source === 'accounting' && this.selectedCompany?.companyId) {
-      const selectedCompanyId = this.selectedCompany.companyId;
+    // In Accounting mode, when a company contact is selected, only show reservations linked to that contact.
+    if (this.source === 'accounting' && this.selectedCompanyContact?.contactId) {
+      const selectedContactId = this.selectedCompanyContact.contactId;
       filteredReservations = filteredReservations.filter(r => {
         const reservationAny = r as ReservationListResponse & {
           entityId?: string | null;
           EntityId?: string | null;
+          contactId?: string;
         };
-        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? null;
-        return reservationEntityId === selectedCompanyId;
+        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
+        return reservationEntityId === selectedContactId;
       });
     }
 
@@ -726,35 +715,30 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  filterCompanies(): void {
-    // When All Offices is selected, show all active companies loaded for this login.
-    const filteredCompanies = this.selectedOffice
-      ? this.companies.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive)
-      : this.companies.filter(c => c.isActive);
-    this.availableCompanies = filteredCompanies.map(c => ({
+  filterCompanyContacts(): void {
+    const filtered = this.selectedOffice
+      ? this.companyContacts.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive)
+      : this.companyContacts.filter(c => c.isActive);
+    this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.companyCode || ''} - ${c.name}`.trim()
+      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
     }));
-    
-    // Clear selected company if it no longer exists in the available list.
-    if (this.selectedCompany && !filteredCompanies.some(c => c.companyId === this.selectedCompany?.companyId)) {
-      this.selectedCompany = null;
+
+    if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {
+      this.selectedCompanyContact = null;
       this.companyIdChange.emit(null);
       this.applyFilters();
     }
-    
-    // After filtering, check if there's a companyId to select in the dropdown
-    // This only sets selectedCompany - it doesn't change the filtered list
-    if (this.companies.length > 0) {
+
+    if (this.companyContacts.length > 0) {
       const companyIdToApply = this.getCompanyIdToApply();
-      
       if (companyIdToApply) {
-        const matchingCompany = this.companies.find(c => 
-          c.companyId === companyIdToApply &&
-          (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
+        const matching = this.companyContacts.find(c =>
+          c.contactId === companyIdToApply &&
+          (!this.selectedOffice || c.officeId === this.selectedOffice!.officeId)
         );
-        if (matchingCompany && matchingCompany !== this.selectedCompany) {
-          this.selectedCompany = matchingCompany;
+        if (matching && matching !== this.selectedCompanyContact) {
+          this.selectedCompanyContact = matching;
           this.applyFilters();
         }
       }
@@ -829,9 +813,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (!this.offices.length) {
           this.selectedOffice = null;
           this.selectedReservation = null;
-          this.selectedCompany = null;
+          this.selectedCompanyContact = null;
           this.availableReservations = [];
-          this.availableCompanies = [];
+          this.availableCompanyContacts = [];
           this.allInvoices = [];
           this.invoicesDisplay = [];
           return;
@@ -855,7 +839,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.selectedOffice = matchingOffice;
             if (this.selectedOffice) {
               this.filterCostCodes();
-              this.filterCompanies();
+              this.filterCompanyContacts();
               this.filterReservations();
               // Load invoices for selected office
               this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
@@ -863,7 +847,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               requestedInvoices = true;
             } else {
               this.selectedReservation = null;
-              this.selectedCompany = null;
+              this.selectedCompanyContact = null;
               // Load all invoices when "All Offices" is selected
               this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
               this.loadAllInvoices();
@@ -873,7 +857,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         } else if (this.selectedOffice && this.offices.length === 1 && this.source !== 'accounting') {
           // If auto-selected, apply filters
           this.filterCostCodes();
-          this.filterCompanies();
+          this.filterCompanyContacts();
           this.filterReservations();
           this.applyFilters();
         }
@@ -882,7 +866,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (!requestedInvoices) {
           if (this.selectedOffice) {
             this.filterCostCodes();
-            this.filterCompanies();
+            this.filterCompanyContacts();
             this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
             this.getInvoices();
           } else {
@@ -915,7 +899,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         
         // If a company is selected, re-apply filters now that reservations are loaded
         // This ensures company filtering works correctly (it depends on reservations to match contactName)
-        if (this.selectedCompany && this.source === 'accounting') {
+        if (this.selectedCompanyContact && this.source === 'accounting') {
           this.applyFilters();
         }
       },
@@ -951,17 +935,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadCompanies(): void {
+  loadCompanyContacts(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'companies');
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
-      next: (companies) => {
-        this.companies = companies || [];
-        this.filterCompanies();
-      },
-      error: () => {
-        this.companies = [];
-        this.availableCompanies = [];
-      }
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(
+        take(1),
+        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })
+      ).subscribe({
+        next: (contacts) => {
+          this.companyContacts = contacts || [];
+          this.filterCompanyContacts();
+        },
+        error: () => {
+          this.companyContacts = [];
+          this.availableCompanyContacts = [];
+        }
+      });
     });
   }
   //#endregion
@@ -975,7 +964,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     
-    this.filterCompanies();
+    this.filterCompanyContacts();
     this.filterReservations();
     
     // Load invoices - show all if no office selected, or filter by office if selected
@@ -988,14 +977,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
       this.loadAllInvoices();
       this.selectedReservation = null;
-      this.selectedCompany = null;
+      this.selectedCompanyContact = null;
       this.applyFilters();
     }
   }
 
   onCompanyChange(): void {
-    // Emit company change to parent
-    this.companyIdChange.emit(this.selectedCompany?.companyId || null);
+    this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
 
     // Re-filter reservations based on selected company.
     this.filterReservations();

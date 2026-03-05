@@ -17,6 +17,7 @@ import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model'
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
+    standalone: true,
     selector: 'app-cost-codes',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './cost-codes.component.html',

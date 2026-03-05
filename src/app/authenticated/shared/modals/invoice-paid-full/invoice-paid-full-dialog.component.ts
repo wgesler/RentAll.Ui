@@ -8,6 +8,7 @@ export interface InvoicePaidFullDialogData {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-invoice-paid-full-dialog',
     imports: [MaterialModule],
     templateUrl: './invoice-paid-full-dialog.component.html',

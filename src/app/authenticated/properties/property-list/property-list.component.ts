@@ -22,6 +22,7 @@ import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } fro
 import { PropertyService } from '../services/property.service';
 
 @Component({
+    standalone: true,
     selector: 'app-property-list',
     templateUrl: './property-list.component.html',
     styleUrls: ['./property-list.component.scss'],

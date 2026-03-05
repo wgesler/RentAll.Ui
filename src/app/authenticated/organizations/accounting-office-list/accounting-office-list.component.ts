@@ -19,6 +19,7 @@ import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-accounting-office-list',
     templateUrl: './accounting-office-list.component.html',
     styleUrls: ['./accounting-office-list.component.scss'],

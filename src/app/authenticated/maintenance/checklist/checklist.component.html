@@ -1,4 +1,4 @@
-<div class="inspection-checklist-wrap">
+<div class="checklist-wrap">
   <div class="meta-form">
     <div class="meta-grid">
       <div class="meta-column">
@@ -44,7 +44,7 @@
   <div class="controls-row">
   <div class="controls-left-group">
     @if (!isReadonlyMode) {
-      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode($event)">
+      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
         Template
       </mat-slide-toggle>
     }
@@ -73,7 +73,7 @@
           <div class="readonly-section-block">
             <p class="readonly-section-title">{{ section.title }}</p>
             @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
-              @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
+              @if (getSetInstruction(section.key, repeatIndex)) {
                 <p class="readonly-set-title">{{ getSetInstruction(section.key, repeatIndex) }}</p>
               }
               @for (item of getSetItems(section.key, repeatIndex); track item.id) {
@@ -125,7 +125,7 @@
             <div class="checklist-grid">
               @for (repeatIndex of getRepeatIndexes(section.key); track repeatIndex) {
                 <div class="checklist-set">
-                  @if (section.key === 'bedrooms' || section.key === 'bathrooms') {
+                  @if (getSetInstruction(section.key, repeatIndex)) {
                     <p class="set-instruction">{{ getSetInstruction(section.key, repeatIndex) }}</p>
                   }
                   @for (item of getSetItems(section.key, repeatIndex); track item.id) {

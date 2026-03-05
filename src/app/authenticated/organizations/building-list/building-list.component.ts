@@ -16,6 +16,7 @@ import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-building-list',
     templateUrl: './building-list.component.html',
     styleUrls: ['./building-list.component.scss'],

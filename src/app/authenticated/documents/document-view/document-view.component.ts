@@ -15,6 +15,7 @@ import { DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
 @Component({
+    standalone: true,
     selector: 'app-document-view',
     imports: [CommonModule, MaterialModule],
     templateUrl: './document-view.component.html',

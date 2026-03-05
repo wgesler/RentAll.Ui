@@ -42,6 +42,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 
 @Component({
     selector: 'app-property',
+    standalone: true,
     imports: [
         CommonModule,
         MaterialModule,
@@ -646,6 +647,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.regionId = this.property.regionId || null;
       formData.areaId = this.property.areaId || null;
       formData.buildingId = this.property.buildingId || null;
+
+      // Default required fields when API omits them so validation does not run as if user had left them empty
+      if (this.property.trashPickupId == null || this.property.trashPickupId === undefined) {
+        formData.trashPickupId = TrashDays.None;
+      }
       
       // Set selectedOffice if offices are already loaded
       if (formData.officeId && this.offices.length > 0) {
@@ -656,8 +662,39 @@ export class PropertyComponent implements OnInit, OnDestroy {
         }
       }
       
-      // Set all values at once
-      this.form.patchValue(formData);
+      // Set all values at once without emitting (avoid validation/toast on load)
+      this.form.patchValue(formData, { emitEvent: false });
+      this.form.markAsUntouched();
+      this.form.markAsPristine();
+
+      // Log any invalid fields after load so you can fix defaults or API mapping (check browser console)
+      this.logInvalidFormControlsAfterLoad();
+    }
+  }
+
+  /** Call after loading a saved property. Logs field names (and errors) for any control that is invalid. */
+  private logInvalidFormControlsAfterLoad(): void {
+    const invalid: { path: string; errors: Record<string, unknown> }[] = [];
+    const collectInvalid = (group: FormGroup, path = ''): void => {
+      Object.keys(group.controls).forEach(key => {
+        const control = group.get(key);
+        const controlPath = path ? `${path}.${key}` : key;
+        if (control instanceof FormControl) {
+          if (control.invalid && control.errors) {
+            invalid.push({ path: controlPath, errors: { ...control.errors } });
+          }
+        } else if (control instanceof FormGroup) {
+          collectInvalid(control, controlPath);
+        }
+      });
+    };
+    collectInvalid(this.form);
+    if (invalid.length > 0) {
+      console.warn(
+        '[Property] Validation errors on load – invalid field(s):',
+        invalid.map(i => `${i.path} (${Object.keys(i.errors).join(', ')})`).join('; ')
+      );
+      console.warn('[Property] Invalid controls detail:', invalid);
     }
   }
   //#endregion

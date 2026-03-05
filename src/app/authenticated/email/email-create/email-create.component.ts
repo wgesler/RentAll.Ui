@@ -14,6 +14,7 @@ import { EmailCreateDraftService } from '../services/email-create-draft.service'
 import { sendDocumentEmail, splitEmailList } from '../utils/send-document-email';
 
 @Component({
+  standalone: true,
   selector: 'app-email-create',
   imports: [CommonModule, MaterialModule, ReactiveFormsModule],
   templateUrl: './email-create.component.html',

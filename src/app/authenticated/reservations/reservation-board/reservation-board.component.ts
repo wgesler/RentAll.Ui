@@ -24,6 +24,7 @@ import { ReservationService } from '../services/reservation.service';
 
 
 @Component({
+    standalone: true,
     selector: 'app-reservation-board',
     imports: [CommonModule, MaterialModule, RouterLink, FormsModule],
     templateUrl: './reservation-board.component.html',

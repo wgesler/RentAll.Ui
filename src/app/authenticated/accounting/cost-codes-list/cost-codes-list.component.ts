@@ -20,6 +20,7 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
+    standalone: true,
     selector: 'app-cost-codes-list',
     templateUrl: './cost-codes-list.component.html',
     styleUrls: ['./cost-codes-list.component.scss'],

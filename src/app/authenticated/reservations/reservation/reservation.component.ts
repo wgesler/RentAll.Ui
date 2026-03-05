@@ -18,8 +18,6 @@ import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -54,6 +52,7 @@ interface ExtraFeeLineDisplay {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-reservation',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
@@ -92,9 +91,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   reservation: ReservationResponse;
   organization: OrganizationResponse | null = null;
   agents: AgentResponse[] = [];
-  companies: CompanyResponse[] = [];
-  selectedCompanyName: string = '';
   contacts: ContactResponse[] = [];
+  companyContacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
   selectedContact: ContactResponse | null = null;
   properties: PropertyListResponse[] = [];
@@ -113,7 +111,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   availableChargeCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'companies', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'companyContacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   readonly tabParamToIndex: Record<string, number> = {
@@ -132,7 +130,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private contactService: ContactService,
     private propertyService: PropertyService,
     private agentService: AgentService,
-    private companyService: CompanyService,
     private officeService: OfficeService,
     private commonService: CommonService,
     private authService: AuthService,
@@ -151,7 +148,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadOrganization();
     this.loadProperties();
     this.loadAgents();
-    this.loadCompanies();
+    this.loadCompanyContacts();
     this.loadOffices();
     
     // Initialize form immediately to prevent template errors
@@ -488,7 +485,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       agentId: this.reservation.agentId || null,
       contactId: this.reservation.contactId || null,
       tenantName: this.reservation.tenantName || '',
-      entityCompanyName: this.selectedCompanyName,
+      entityCompanyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       reservationStatusId: this.reservation.reservationStatusId,
       reservationNoticeId: this.reservation.reservationNoticeId,
       arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
@@ -603,9 +600,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
         contactId: ''
       }, { emitEvent: false });
       
-      // Clear selected contact reference and entity names
+      // Clear selected contact reference
       this.selectedContact = null;
-      this.selectedCompanyName = '';
     });
   }
     
@@ -806,22 +802,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
       email: this.selectedContact.email || '',
     }, { emitEvent: false });
   
-    // Update company name based on entityTypeId and entityId
+    // Set company name when contact is a company (entityTypeId === Company and entityId references company contact)
     if (this.selectedContact.entityTypeId === EntityType.Company && this.selectedContact.entityId) {
-      const company = this.companies.find(c => c.companyId === this.selectedContact.entityId);
-      if (company) {
-        this.selectedCompanyName = company.name;
-        this.form.patchValue({ entityCompanyName: company.name}, { emitEvent: false });
-      } else {
-        this.selectedCompanyName = '';
-        this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
-      }
+      const companyContact = this.companyContacts.find(c => c.contactId === this.selectedContact!.entityId);
+      const companyName = companyContact?.fullName ?? '';
+      this.form.patchValue({ entityCompanyName: companyName }, { emitEvent: false });
     } else {
-      this.selectedCompanyName = '';
-      this.form.patchValue({ entityCompanyName: ''
-      }, { emitEvent: false });
+      this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
     }
-    
+
     // If the reservation already has a tenantName, use this
     const tenantName = this.form.get('tenantName')?.value;
     if(tenantName === null || tenantName === undefined) {
@@ -1063,6 +1052,19 @@ export class ReservationComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadCompanyContacts(): void {
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companyContacts'); })).subscribe({
+        next: (contacts) => {
+          this.companyContacts = contacts || [];
+        },
+        error: () => {
+          this.companyContacts = [];
+        }
+      });
+    });
+  }
+
   loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
       next: (organization: OrganizationResponse) => {
@@ -1092,17 +1094,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       error: () => {
         this.properties = [];
         this.availableProperties = [];
-      }
-    });
-  }
-
-  loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
-      next: (companies: CompanyResponse[]) => {
-        this.companies = companies;
-      },
-      error: () => {
-        this.companies = [];
       }
     });
   }

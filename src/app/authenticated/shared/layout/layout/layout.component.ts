@@ -13,6 +13,7 @@ import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
 @Component({
+    standalone: true,
     selector: 'app-layout',
     imports: [RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule],
     templateUrl: './layout.component.html',

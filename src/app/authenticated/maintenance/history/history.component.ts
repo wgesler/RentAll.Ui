@@ -17,6 +17,7 @@ import { InspectionService } from '../services/inspection.service';
 import { InventoryService } from '../services/inventory.service';
 
 @Component({
+  standalone: true,
   selector: 'app-history',
   imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './history.component.html',

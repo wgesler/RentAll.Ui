@@ -17,6 +17,7 @@ import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-office',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './office.component.html',

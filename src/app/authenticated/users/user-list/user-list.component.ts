@@ -22,6 +22,7 @@ import { UserListDisplay, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
 @Component({
+    standalone: true,
     selector: 'app-user-list',
     templateUrl: './user-list.component.html',
     styleUrls: ['./user-list.component.scss'],

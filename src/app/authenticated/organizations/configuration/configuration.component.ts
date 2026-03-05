@@ -28,6 +28,7 @@ import { RegionComponent } from '../region/region.component';
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
+    standalone: true,
     selector: 'app-configuration',
     imports: [
     MaterialModule,

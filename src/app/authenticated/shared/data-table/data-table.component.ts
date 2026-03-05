@@ -16,6 +16,7 @@ import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
 
 @Component({
+    standalone: true,
     selector: 'app-data-table',
     imports: [CommonModule, MaterialModule, FormsModule],
     templateUrl: './data-table.component.html',

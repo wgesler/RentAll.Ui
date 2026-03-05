@@ -16,6 +16,7 @@ import { AreaService } from '../services/area.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-area-list',
     templateUrl: './area-list.component.html',
     styleUrls: ['./area-list.component.scss'],

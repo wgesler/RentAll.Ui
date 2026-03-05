@@ -15,6 +15,7 @@ import { ContractorRequest, ContractorDisplayList, ContractorResponse } from '..
 import { ContractorService } from '../services/contractor.service';
 
 @Component({
+  standalone: true,
   selector: 'app-contractor',
   imports: [CommonModule, MaterialModule, ReactiveFormsModule],
   templateUrl: './contractor.component.html',

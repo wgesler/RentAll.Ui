@@ -5,6 +5,7 @@ import { MaterialModule } from '../../../../material.module';
 import { ImageViewDialogData } from './image-view-dialog-data';
 
 @Component({
+  standalone: true,
   selector: 'app-image-view-dialog',
   imports: [CommonModule, MaterialModule],
   templateUrl: './image-view-dialog.component.html',

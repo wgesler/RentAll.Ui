@@ -17,6 +17,7 @@ import { OrganizationRequest, OrganizationResponse } from '../models/organizatio
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
+    standalone: true,
     selector: 'app-organization',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './organization.component.html',

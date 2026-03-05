@@ -24,6 +24,7 @@ type MaintenanceListDisplay = PropertyListDisplay & {
 };
 
 @Component({
+  standalone: true,
   selector: 'app-maintenance-list',
   templateUrl: './maintenance-list.component.html',
   styleUrls: ['./maintenance-list.component.scss'],

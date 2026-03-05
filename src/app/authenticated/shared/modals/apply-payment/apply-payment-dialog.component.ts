@@ -15,6 +15,7 @@ export interface ApplyPaymentDialogData {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-apply-payment-dialog',
     imports: [MaterialModule, FormsModule],
     templateUrl: './apply-payment-dialog.component.html',

@@ -14,10 +14,6 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { VendorResponse } from '../../companies/models/vendor.model';
-import { CompanyService } from '../../companies/services/company.service';
-import { VendorService } from '../../companies/services/vendor.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { EntityType, getContactTypes } from '../models/contact-enum';
@@ -25,6 +21,7 @@ import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
 @Component({
+    standalone: true,
     selector: 'app-contact',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './contact.component.html',
@@ -40,8 +37,8 @@ export class ContactComponent implements OnInit, OnDestroy {
   isAddMode: boolean = false;
   states: string[] = [];
   availableContactTypes: { value: number, label: string }[] = [];
-  companies: CompanyResponse[] = [];
-  vendors: VendorResponse[] = [];
+  companyContacts: ContactResponse[] = [];
+  vendorContacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -60,8 +57,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private formatterService: FormatterService,
     private authService: AuthService,
-    private companyService: CompanyService,
-    private vendorService: VendorService,
     private officeService: OfficeService,
     private mappingService: MappingService,
     private utilityService: UtilityService
@@ -73,8 +68,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.initializeContactTypes();
     this.loadStates();
     this.loadOffices();
-    this.loadCompanies();
-    this.loadVendors();
+    this.loadCompanyContacts();
+    this.loadVendorContacts();
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.contactId = paramMap.get('id');
@@ -465,37 +460,45 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
   }
   
-  loadCompanies(): void {
+  loadCompanyContacts(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
       return;
     }
-
-    this.companyService.getCompanies().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
-      next: (companies: CompanyResponse[]) => {
-        this.companies = (companies || []).filter(c => c.organizationId === orgId && c.isActive);
-      },
-      error: () => {
-        this.companies = [];
-      }
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllCompanyContacts().pipe(
+        take(1),
+        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })
+      ).subscribe({
+        next: (contacts) => {
+          this.companyContacts = (contacts || []).filter(c => c.organizationId === orgId && c.isActive);
+        },
+        error: () => {
+          this.companyContacts = [];
+        }
+      });
     });
   }
 
-  loadVendors(): void {
+  loadVendorContacts(): void {
     const orgId = this.authService.getUser()?.organizationId || '';
     if (!orgId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors');
       return;
     }
-
-    this.vendorService.getVendors().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })).subscribe({
-      next: (vendors: VendorResponse[]) => {
-        this.vendors = (vendors || []).filter(v => v.organizationId === orgId && v.isActive);
-      },
-      error: () => {
-        this.vendors = [];
-      }
+    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.contactService.getAllVendorContacts().pipe(
+        take(1),
+        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })
+      ).subscribe({
+        next: (contacts) => {
+          this.vendorContacts = (contacts || []).filter(c => c.organizationId === orgId && c.isActive);
+        },
+        error: () => {
+          this.vendorContacts = [];
+        }
+      });
     });
   }
   //#endregion

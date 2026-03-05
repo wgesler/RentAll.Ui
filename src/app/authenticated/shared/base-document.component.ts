@@ -9,7 +9,7 @@ import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
-import { FileDetails } from '../companies/models/file-details.model';
+import { FileDetails } from '../documents/models/document.model';
 import { sendDocumentEmail } from '../email/utils/send-document-email';
 
 export interface DocumentConfig {

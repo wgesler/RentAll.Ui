@@ -36,6 +36,7 @@ export interface MonthlyCommissionTileRow {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-dashboard-main',
     imports: [MaterialModule, DataTableComponent],
     templateUrl: './dashboard-main.component.html',

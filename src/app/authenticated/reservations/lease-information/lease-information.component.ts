@@ -13,6 +13,7 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 
 @Component({
+    standalone: true,
     selector: 'app-lease-information',
     imports: [MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './lease-information.component.html',

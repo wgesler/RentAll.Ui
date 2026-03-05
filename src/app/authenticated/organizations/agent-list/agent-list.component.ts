@@ -16,6 +16,7 @@ import { AgentService } from '../services/agent.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
+    standalone: true,
     selector: 'app-agent-list',
     templateUrl: './agent-list.component.html',
     styleUrls: ['./agent-list.component.scss'],

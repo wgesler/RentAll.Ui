@@ -16,6 +16,7 @@ import { WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model'
 import { WorkOrderService } from '../services/work-order.service';
 
 @Component({
+  standalone: true,
   selector: 'app-work-order',
   imports: [CommonModule, MaterialModule, ReactiveFormsModule],
   templateUrl: './work-order.component.html',

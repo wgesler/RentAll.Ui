@@ -9,8 +9,6 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { CompanyResponse } from '../../companies/models/company.model';
-import { CompanyService } from '../../companies/services/company.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
@@ -21,6 +19,7 @@ import { ReservationListDisplay, ReservationListResponse } from '../models/reser
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
+    standalone: true,
     selector: 'app-reservation-list',
     templateUrl: './reservation-list.component.html',
     styleUrls: ['./reservation-list.component.scss'],
@@ -36,7 +35,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
-  companies: CompanyResponse[] = [];
   properties: PropertyListResponse[] = [];
   startDate: Date | null = null;
   endDate: Date | null = null;
@@ -69,7 +67,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public route: ActivatedRoute,
     public mappingService: MappingService,
-    private companyService: CompanyService,
     private propertyService: PropertyService,
     private utilityService: UtilityService,
     private officeService: OfficeService) {
@@ -196,17 +193,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Load Methods
-  loadCompanies(): void {
-    this.companyService.getCompanies().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })).subscribe({
-      next: (companies: CompanyResponse[]) => {
-        this.companies = companies;
-      },
-      error: () => {
-        this.companies = [];
-      }
-    });  
-  }
-
   loadProperties(): void {
     this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {

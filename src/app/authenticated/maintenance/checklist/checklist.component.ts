@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { finalize, map, switchMap, take } from 'rxjs';
+import { finalize, forkJoin, map, of, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -18,7 +18,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, INVENTORY_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
 import { InventoryRequest, InventoryResponse } from '../models/inventory.model';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
-import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
+import { MaintenanceResponse } from '../models/maintenance.model';
 import { InventoryService } from '../services/inventory.service';
 import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
@@ -27,41 +27,26 @@ export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection' | 'inventory';
 
 @Component({
-  selector: 'app-inspection-checklist',
+  standalone: true,
+  selector: 'app-checklist',
   imports: [CommonModule, MaterialModule, ReactiveFormsModule],
-  templateUrl: './inspection-checklist.component.html',
-  styleUrl: './inspection-checklist.component.scss'
+  templateUrl: './checklist.component.html',
+  styleUrl: './checklist.component.scss'
 })
-export class InspectionChecklistComponent implements OnChanges {
+export class ChecklistComponent implements OnChanges, OnInit {
   @Input() property: PropertyResponse | null = null;
+  @Input() maintenanceRecord: MaintenanceResponse | null = null;
   @Input() templateJson: string | null = null;
   @Input() answersJson: string | null = null;
-  @Input() checklistJson: string | null = null;
-  @Input() mode: ChecklistMode = 'template';
+  @Input() mode: ChecklistMode = 'answer';
   @Input() checklistType: ChecklistType = 'inspection';
-  @Input() templateEnabled: boolean = true;
   @Input() isSaving: boolean = false;
-  @Input() maintenanceRecord: MaintenanceResponse | null = null;
-  @Input() pairedTemplateJson: string | null = null;
-  @Output() saveChecklist = new EventEmitter<string>();
-  @Output() saveAnswers = new EventEmitter<string>();
   @Output() templateSaved = new EventEmitter<string>();
-  @Output() answersSaved = new EventEmitter<string>();
 
-  readonly templateRequiredMessage = 'You need to save an Inspection Checklist Template for this property before you can use it.';
   readonly photoRequiredMessage = 'A photo is required for this item.';
 
-  fb: FormBuilder;
-  form: FormGroup;
-  authService: AuthService;
-  documentService: DocumentService;
-  dialog: MatDialog;
-  router: Router;
-  maintenanceService: MaintenanceService;
-  inspectionService: InspectionService;
-  inventoryService: InventoryService;
-  mappingService: MappingService;
 
+  form: FormGroup;
   inspectorName: string = '';
   todayDate: string = '';
   sectionTemplates: ChecklistSection[] = INSPECTION_SECTIONS;
@@ -69,7 +54,6 @@ export class InspectionChecklistComponent implements OnChanges {
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
   nextItemId = 0;
-  hasLoadedSavedChecklist = false;
   activeMode: ChecklistMode = 'template';
   activeInspection: InspectionResponse | null = null;
   activeInventory: InventoryResponse | null = null;
@@ -77,100 +61,63 @@ export class InspectionChecklistComponent implements OnChanges {
   isSavingTemplateInternal: boolean = false;
   isSavingAnswersInternal: boolean = false;
   isServiceError: boolean = false;
+  hasInitialized = false;
 
   constructor(
-    fb: FormBuilder,
-    authService: AuthService,
-    documentService: DocumentService,
-    dialog: MatDialog,
-    router: Router,
-    maintenanceService: MaintenanceService,
-    inspectionService: InspectionService,
-    inventoryService: InventoryService,
-    mappingService: MappingService
+    public fb: FormBuilder,
+    public authService: AuthService,
+    public documentService: DocumentService,
+    public dialog: MatDialog,
+    public router: Router,
+    public maintenanceService: MaintenanceService,
+    public inspectionService: InspectionService,
+    public inventoryService: InventoryService,
+    public mappingService: MappingService
   ) {
-    this.fb = fb;
-    this.authService = authService;
-    this.documentService = documentService;
-    this.dialog = dialog;
-    this.router = router;
-    this.maintenanceService = maintenanceService;
-    this.inspectionService = inspectionService;
-    this.inventoryService = inventoryService;
-    this.mappingService = mappingService;
+
     const user = this.authService.getUser();
     this.inspectorName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown User';
     this.todayDate = new Date().toLocaleDateString();
-    this.initializeChecklistState();
   }
 
   //#region Checklist
-  ngOnChanges(changes: SimpleChanges): void {
-    // Always sync sectionTemplates to current checklistType first (Inspection vs Inventory use different sections).
-    // This ensures the correct template is used even when both tabs share one component instance or binding order varies.
+  ngOnInit(): void {
     this.sectionTemplates = this.checklistType === 'inventory' ? INVENTORY_SECTIONS : INSPECTION_SECTIONS;
+    this.activeMode = this.mode;
 
-    if (changes['checklistJson'] || changes['templateJson'] || changes['answersJson'] || changes['checklistType']) {
-      const incomingTemplateJson = (this.templateJson ?? this.checklistJson) || null;
-      const incomingAnswersJson = this.answersJson || null;
+    this.initializeChecklistState();
+    this.syncPropertyDrivenSections();
 
-      this.hasLoadedSavedChecklist = false;
-      this.initializeChecklistState();
-      this.syncPropertyDrivenSections();
-
-      if (incomingTemplateJson && incomingTemplateJson.trim().length > 0) {
-        this.hasLoadedSavedChecklist = this.applySavedChecklistJson(incomingTemplateJson);
-        if (!this.hasLoadedSavedChecklist) {
-          this.initializeChecklistState();
-          this.syncPropertyDrivenSections();
-        }
-      }
-
-      if (incomingAnswersJson && incomingAnswersJson.trim().length > 0) {
-        this.applySavedAnswersJson(incomingAnswersJson);
-      }
+    const templateJson = this.templateJson?.trim() ?? '';
+    if (templateJson.length > 0) {
+      this.applySavedChecklistJson(templateJson);
     }
 
-    if (changes['property'] && this.property && !this.hasLoadedSavedChecklist) {
-      this.syncPropertyDrivenSections();
+    const propertyId = this.property?.propertyId ?? null;
+    if (propertyId) {
+      this.lastPropertyIdLoaded = propertyId;
+      this.loadChecklistAnswers(propertyId);
     }
 
-    if (changes['property'] || changes['checklistType']) {
-      const propertyId = this.property?.propertyId || null;
-      if (!propertyId) {
-        this.lastPropertyIdLoaded = null;
-        this.activeInspection = null;
-        this.activeInventory = null;
-      } else if (this.lastPropertyIdLoaded !== propertyId || changes['checklistType']) {
-        this.lastPropertyIdLoaded = propertyId;
-        this.loadActiveRecord(propertyId);
-      }
-    }
-
-    if (changes['mode'] || changes['templateEnabled']) {
-      this.activeMode = this.resolveInitialMode();
-      this.applyModeState();
-    }
+    this.hasInitialized = true;
   }
 
-  buildInspectionChecklistJson(): string {
-    const payload = {
-      sections: this.sections.map(section => ({
-        key: section.key,
-        title: section.title,
-        notes: this.form.get(this.notesControlName(section.key))?.value || '',
-        sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
-          this.getSetItems(section.key, repeatIndex).map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            isEditable: item.isEditable,
-            url: item.url || null
-          }))
-        )
-      }))
-    };
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.hasInitialized) {
+      return;
+    }
 
-    return JSON.stringify(payload);
+    if (changes['answersJson']) {
+      const answersJson = this.answersJson?.trim() ?? '';
+      if (answersJson.length > 0) {
+        this.applySavedAnswersJson(answersJson);
+      }
+    }
+
+    if (changes['mode']) {
+      this.activeMode = this.mode;
+      this.applyModeState();
+    }
   }
 
   initializeChecklistState(): void {
@@ -239,7 +186,8 @@ export class InspectionChecklistComponent implements OnChanges {
             item,
             this.getDefaultItemEditable(),
             setItems[index]?.checked || false,
-            setItems[index]?.url || null
+            setItems[index]?.url || null,
+            setItems[index]?.documentId || null
           ));
         }
 
@@ -247,7 +195,8 @@ export class InspectionChecklistComponent implements OnChanges {
           { text: item.text, requiresPhoto: item.requiresPhoto },
           item.isEditable === true,
           item.checked,
-          item.url || null
+          item.url || null,
+          item.documentId || null
         ));
       });
 
@@ -267,13 +216,29 @@ export class InspectionChecklistComponent implements OnChanges {
 
   applySavedAnswersJson(rawChecklistJson: string): boolean {
     try {
-      const parsedRoot = JSON.parse(rawChecklistJson) as {
+      let parsedRoot = JSON.parse(rawChecklistJson) as {
         sections?: Array<{
           key: string;
           notes?: string;
-          sets?: Array<Array<{ checked?: boolean; url?: string | null }>>;
+          sets?: Array<Array<{ checked?: boolean; url?: string | null; documentId?: string | null } | boolean>>;
         }>;
+        inspectionCheckList?: string;
+        inventoryCheckList?: string;
       };
+
+      const nestedChecklistJson = typeof parsedRoot.inspectionCheckList === 'string'
+        ? parsedRoot.inspectionCheckList
+        : (typeof parsedRoot.inventoryCheckList === 'string' ? parsedRoot.inventoryCheckList : null);
+      if (nestedChecklistJson) {
+        parsedRoot = JSON.parse(nestedChecklistJson) as {
+          sections?: Array<{
+            key: string;
+            notes?: string;
+            sets?: Array<Array<{ checked?: boolean; url?: string | null; documentId?: string | null } | boolean>>;
+          }>;
+        };
+      }
+
       const rawSections = Array.isArray(parsedRoot.sections) ? parsedRoot.sections : [];
       if (rawSections.length === 0) {
         return false;
@@ -309,8 +274,15 @@ export class InspectionChecklistComponent implements OnChanges {
             }
 
             const answerValue = answerSet[itemIndex];
-            const isChecked = answerValue?.checked === true;
-            item.url = typeof answerValue?.url === 'string' ? answerValue.url : null;
+            const isChecked = typeof answerValue === 'boolean'
+              ? answerValue === true
+              : answerValue?.checked === true;
+            item.url = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.url === 'string'
+              ? answerValue.url
+              : null;
+            item.documentId = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.documentId === 'string'
+              ? answerValue.documentId
+              : null;
             control.setValue(isChecked, { emitEvent: false });
           });
         }
@@ -341,10 +313,7 @@ export class InspectionChecklistComponent implements OnChanges {
       }
 
       const rawSections = Array.isArray(checklistRoot.sections) ? checklistRoot.sections : [];
-      const validSections = rawSections.filter(section =>
-        typeof section?.key === 'string'
-        && Array.isArray(section.sets)
-      );
+      const validSections = rawSections.filter(section => typeof section?.key === 'string' && Array.isArray(section.sets));
 
       return validSections.length > 0 ? validSections : null;
     } catch {
@@ -393,6 +362,19 @@ export class InspectionChecklistComponent implements OnChanges {
     this.applyModeState();
   }
 
+  get saveButtonText(): string {
+    if (!this.isTemplateMode && this.totalItems > 0 && this.completedCount === this.totalItems) {
+      return 'Submit';
+    }
+
+    return 'Save';
+  } 
+  //#endregion
+
+  //#region Saving Methods
+  get isSavingInProgress(): boolean {
+    return this.isSaving || this.isSavingTemplateInternal || this.isSavingAnswersInternal;
+  }
   saveChecklistData(): void {
     if (this.isReadonlyMode) {
       return;
@@ -406,12 +388,24 @@ export class InspectionChecklistComponent implements OnChanges {
     this.saveAnswersData();
   }
 
-  get saveButtonText(): string {
-    if (!this.isTemplateMode && this.totalItems > 0 && this.completedCount === this.totalItems) {
-      return 'Submit';
-    }
+  buildChecklistTemplateJson(): string {
+    const payload = {
+      sections: this.sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        notes: this.form.get(this.notesControlName(section.key))?.value || '',
+        sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
+          this.getSetItems(section.key, repeatIndex).map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            isEditable: item.isEditable,
+            url: item.url || null
+          }))
+        )
+      }))
+    };
 
-    return 'Save';
+    return JSON.stringify(payload);
   }
 
   buildChecklistAnswersJson(): string {
@@ -426,7 +420,8 @@ export class InspectionChecklistComponent implements OnChanges {
               text: item.text,
               requiresPhoto: item.requiresPhoto,
               checked: !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value,
-              url: item.url || null
+              url: item.url || null,
+              documentId: item.documentId || null
             })
           )
         )
@@ -436,86 +431,77 @@ export class InspectionChecklistComponent implements OnChanges {
     return JSON.stringify(payload);
   }
 
-  resetFormMode(): void {
-    if (this.isTemplateMode) {
-      this.resetChecklist();
-      return;
-    }
-
-    if (this.isAnswerMode) {
-      this.clearAll();
-    }
-  }
-
-  get isSavingInProgress(): boolean {
-    return this.isSaving || this.isSavingTemplateInternal || this.isSavingAnswersInternal;
-  }
-
-  /** Saves the template to maintenance: inspection tab → inspectionCheckList only; inventory tab → inventoryCheckList only. Other tab's template is never changed. */
   saveTemplate(): void {
-    const checklistJson = this.buildInspectionChecklistJson();
-    this.saveChecklist.emit(checklistJson);
-
-    if (!this.property) {
-      return;
-    }
-
-    const user = this.authService.getUser();
+    const checklistJson = this.buildChecklistTemplateJson();
     this.isSavingTemplateInternal = true;
     this.isServiceError = false;
 
-    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
-      take(1),
-      switchMap((latest) => {
-        const existing = latest ?? null;
-        const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId ?? this.maintenanceRecord?.maintenanceId,
-          organizationId: existing?.organizationId || this.maintenanceRecord?.organizationId || user?.organizationId || this.property.organizationId,
-          officeId: existing?.officeId ?? this.maintenanceRecord?.officeId ?? this.property.officeId,
-          officeName: existing?.officeName || this.maintenanceRecord?.officeName || this.property.officeName || '',
-          propertyId: this.property.propertyId,
-          inspectionCheckList: this.checklistType === 'inspection'
-            ? checklistJson
-            : (existing?.inspectionCheckList ?? this.maintenanceRecord?.inspectionCheckList ?? this.pairedTemplateJson ?? ''),
-          inventoryCheckList: this.checklistType === 'inventory'
-            ? checklistJson
-            : (existing?.inventoryCheckList ?? this.maintenanceRecord?.inventoryCheckList ?? this.pairedTemplateJson ?? ''),
-          notes: existing?.notes ?? this.maintenanceRecord?.notes ?? null,
-          isActive: existing?.isActive ?? this.maintenanceRecord?.isActive ?? true
-        };
-        const save$ = payload.maintenanceId
-          ? this.maintenanceService.updateMaintenance(payload)
-          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
-        return save$;
-      }),
+    this.deleteActiveChecklistRecords().pipe(
       take(1),
       finalize(() => (this.isSavingTemplateInternal = false))
     ).subscribe({
-      next: (saved: MaintenanceResponse) => {
-        this.maintenanceRecord = saved;
+      next: () => {
         this.templateSaved.emit(checklistJson);
       },
-      error: (_err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
       }
     });
   }
 
-  /** Full save: inspection tab → inspection record (InspectionService), inventory tab → inventory record (InventoryService). */
+  deleteActiveChecklistRecords() {
+    const maintenanceId = this.maintenanceRecord?.maintenanceId ?? '';
+    if (!maintenanceId) {
+      return of(void 0);
+    }
+
+    return forkJoin({
+      inspections: this.inspectionService.getInspectionsByMaintenanceId(maintenanceId).pipe(take(1)),
+      inventories: this.inventoryService.getInventoriesByMaintenanceId(maintenanceId).pipe(take(1))
+    }).pipe(
+      switchMap(({ inspections, inventories }) => {
+        const inspectionDeletes = (inspections || [])
+          .filter(inspection => inspection.isActive == true)
+          .map(inspection => this.inspectionService.deleteInspection(inspection.inspectionId).pipe(take(1)));
+
+        const inventoryDeletes = (inventories || [])
+          .filter(inventory => inventory.isActive == true)
+          .map(inventory => this.inventoryService.deleteInventory(inventory.inventoryId).pipe(take(1)));
+
+        const deleteRequests = [...inspectionDeletes, ...inventoryDeletes];
+        if (deleteRequests.length === 0) {
+          return of(void 0);
+        }
+
+        return forkJoin(deleteRequests).pipe(map(() => void 0));
+      })
+    );
+  }
+
+  deleteChecklistPhotoDocuments() {
+    const photoDocumentIds = Array.from(new Set(
+      this.sections
+        .flatMap(section => this.getRepeatIndexes(section.key)
+          .flatMap(repeatIndex => this.getSetItems(section.key, repeatIndex)))
+        .map(item => item.documentId ?? null)
+        .filter((documentId): documentId is string => typeof documentId === 'string' && documentId.trim().length > 0)
+    ));
+
+    if (photoDocumentIds.length === 0) {
+      return of(void 0);
+    }
+
+    return forkJoin(
+      photoDocumentIds.map(documentId => this.documentService.deleteDocument(documentId).pipe(take(1)))
+    ).pipe(map(() => void 0));
+  }
+
   saveAnswersData(): void {
     const answersJson = this.buildChecklistAnswersJson();
-    this.saveAnswers.emit(answersJson);
-
-    if (!this.property) {
-      return;
-    }
-
-    if (this.checklistType === 'inventory') {
+    if (this.checklistType === 'inventory')
       this.saveInventoryAnswers(answersJson);
-      return;
-    }
-
-    this.saveInspectionAnswers(answersJson);
+    else
+      this.saveInspectionAnswers(answersJson);
   }
 
   saveInspectionAnswers(inspectionChecklistJson: string): void {
@@ -544,9 +530,11 @@ export class InspectionChecklistComponent implements OnChanges {
           next: (savedInspectionResponse: InspectionResponse) => {
             const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
             this.activeInspection = savedInspection;
-            this.answersSaved.emit(savedInspection.inspectionCheckList ?? inspectionChecklistJson);
             if (shouldSubmitInspection) {
-              this.router.navigateByUrl(RouterUrl.MaintenanceList);
+              this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+                next: () => this.router.navigateByUrl(RouterUrl.MaintenanceList),
+                error: () => this.router.navigateByUrl(RouterUrl.MaintenanceList)
+              });
             }
           },
           error: (_err: HttpErrorResponse) => {
@@ -569,9 +557,11 @@ export class InspectionChecklistComponent implements OnChanges {
         next: (savedInspectionResponse: InspectionResponse) => {
           const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
           this.activeInspection = savedInspection;
-          this.answersSaved.emit(savedInspection.inspectionCheckList ?? inspectionChecklistJson);
           if (shouldSubmitInspection) {
-            this.router.navigateByUrl(RouterUrl.MaintenanceList);
+            this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+              next: () => this.router.navigateByUrl(RouterUrl.MaintenanceList),
+              error: () => this.router.navigateByUrl(RouterUrl.MaintenanceList)
+            });
           }
         },
         error: (_err: HttpErrorResponse) => {
@@ -631,12 +621,15 @@ export class InspectionChecklistComponent implements OnChanges {
           maintenanceId: this.activeInventory.maintenanceId,
           inventoryCheckList: inventoryChecklistJson,
           documentPath: documentPath ?? this.activeInventory.documentPath ?? null,
-          isActive: shouldSubmitInventory ? false : this.activeInventory.isActive
+          isActive: shouldSubmitInventory ? false : true
         };
+
         this.inventoryService.updateInventory(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
           next: (savedInventory: InventoryResponse) => {
             this.activeInventory = savedInventory;
-            this.answersSaved.emit(savedInventory.inventoryCheckList ?? inventoryChecklistJson);
+            if (shouldSubmitInventory) {
+              this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({ error: () => {} });
+            }
           },
           error: (_err: HttpErrorResponse) => {
             this.isServiceError = true;
@@ -654,10 +647,13 @@ export class InspectionChecklistComponent implements OnChanges {
         documentPath,
         isActive: shouldSubmitInventory ? false : true
       };
+
       this.inventoryService.createInventory(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
         next: (savedInventory: InventoryResponse) => {
           this.activeInventory = savedInventory;
-          this.answersSaved.emit(savedInventory.inventoryCheckList ?? inventoryChecklistJson);
+          if (shouldSubmitInventory) {
+            this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({ error: () => {} });
+          }
         },
         error: (_err: HttpErrorResponse) => {
           this.isServiceError = true;
@@ -695,60 +691,52 @@ export class InspectionChecklistComponent implements OnChanges {
       }
     });
   }
+  //#endregion
 
-  loadActiveRecord(propertyId: string): void {
-    this.maintenanceService.getByPropertyId(propertyId).pipe(
-      take(1),
-      switchMap((maintenance) => {
-        this.maintenanceRecord = maintenance ?? null;
-        this.applyMaintenanceTemplate();
-        if (this.checklistType === 'inventory') {
-          return this.inventoryService.getInventoryByProperty(propertyId);
-        }
-        return this.inspectionService.getInspectionByPropertyId(propertyId).pipe(
-          take(1),
-          map((inspections) => this.mappingService.mapInspections(inspections || []))
-        );
-      }),
-      take(1)
-    ).subscribe({
-      next: (result: InspectionResponse[] | InventoryResponse[]) => {
-        if (this.checklistType === 'inventory') {
-          this.activeInventory = this.getLatestInventoryRecord((result as InventoryResponse[]) || []);
+  //#region Data Load Methods
+  loadChecklistAnswers(propertyId: string): void {
+    const answersProvided = (this.answersJson?.trim() ?? '').length > 0;
+    if (answersProvided) {
+      const providedAnswersJson = this.answersJson!.trim();
+      this.applySavedAnswersJson(providedAnswersJson);
+      return;
+    }
+
+    if (this.checklistType === 'inventory') {
+      this.inventoryService.getInventoriesByMaintenanceId(this.maintenanceRecord?.maintenanceId).pipe(take(1)).subscribe({
+        next: (result) => {
+          this.activeInventory = this.getLatestInventoryRecord(result || []);
           this.activeInspection = null;
-        } else {
-          this.activeInspection = this.getLatestInspectionRecord((result as InspectionResponse[]) || []);
+          const answersJson = this.activeInventory?.inventoryCheckList?.trim() ?? '';
+          if (answersJson.length > 0) {
+            this.applySavedAnswersJson(answersJson);
+          }
+        },
+        error: () => {
+          this.activeInventory = null;
+          this.activeInspection = null;
+        }
+      });
+    } else {
+      this.inspectionService.getInspectionsByMaintenanceId(this.maintenanceRecord?.maintenanceId).pipe(take(1)).subscribe({
+        next: (result) => {
+          this.activeInspection = this.getLatestInspectionRecord(result || []);
+          this.activeInventory = null;
+          const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
+          if (answersJson.length > 0) {
+            this.applySavedAnswersJson(answersJson);
+          }
+        },
+        error: () => {
+          this.activeInspection = null;
           this.activeInventory = null;
         }
-      },
-      error: () => {
-        this.maintenanceRecord = null;
-        this.activeInspection = null;
-        this.activeInventory = null;
-      }
-    });
-  }
-
-  /** Apply template from maintenance record: inspectionCheckList for inspection tab, inventoryCheckList for inventory tab. */
-  private applyMaintenanceTemplate(): void {
-    const templateJson = this.maintenanceRecord
-      ? (this.checklistType === 'inspection'
-          ? (this.maintenanceRecord.inspectionCheckList ?? '')
-          : (this.maintenanceRecord.inventoryCheckList ?? ''))
-      : '';
-    this.initializeChecklistState();
-    this.syncPropertyDrivenSections();
-    if (templateJson && templateJson.trim().length > 0) {
-      this.hasLoadedSavedChecklist = this.applySavedChecklistJson(templateJson);
-      if (!this.hasLoadedSavedChecklist) {
-        this.initializeChecklistState();
-        this.syncPropertyDrivenSections();
-      }
+      });
     }
   }
 
   getLatestInspectionRecord(inspections: InspectionResponse[]): InspectionResponse | null {
-    const activeInspections = inspections.filter(inspection => inspection.isActive === true);
+    const activeInspections = inspections.filter(inspection => inspection.isActive == true);
     if (activeInspections.length === 0) {
       return null;
     }
@@ -769,7 +757,7 @@ export class InspectionChecklistComponent implements OnChanges {
   }
 
   getLatestInventoryRecord(inventories: InventoryResponse[]): InventoryResponse | null {
-    const activeInventories = inventories.filter(inventory => inventory.isActive === true);
+    const activeInventories = inventories.filter(inventory => inventory.isActive == true);
     if (activeInventories.length === 0) {
       return null;
     }
@@ -788,33 +776,9 @@ export class InspectionChecklistComponent implements OnChanges {
       return currentTimestamp > latestTimestamp ? current : latest;
     });
   }
+  //#endregion
 
-  isChecklistFullyComplete(checklistJson: string): boolean {
-    try {
-      const root = JSON.parse(checklistJson) as { sections?: Array<{ sets?: Array<Array<{ checked?: boolean } | boolean>> }> };
-      const sections = Array.isArray(root.sections) ? root.sections : [];
-      if (sections.length === 0) {
-        return false;
-      }
-
-      return sections.every(section =>
-        Array.isArray(section.sets)
-        && section.sets.every(set =>
-          Array.isArray(set)
-          && set.every(item => {
-            if (typeof item === 'boolean') {
-              return item === true;
-            }
-
-            return item?.checked === true;
-          })
-        )
-      );
-    } catch {
-      return false;
-    }
-  }
-
+  //#region Document Building
   buildChecklistGenerateDto(
     checklistJson: string,
     organizationId: string,
@@ -914,8 +878,30 @@ export class InspectionChecklistComponent implements OnChanges {
   //#endregion
 
   //#region Item Controls
-  itemControlName(sectionKey: string, index: number, repeatIndex: number): string {
-    return `${sectionKey}_${repeatIndex}_${index}`;
+  isChecklistFullyComplete(checklistJson: string): boolean {
+    try {
+      const root = JSON.parse(checklistJson) as { sections?: Array<{ sets?: Array<Array<{ checked?: boolean } | boolean>> }> };
+      const sections = Array.isArray(root.sections) ? root.sections : [];
+      if (sections.length === 0) {
+        return false;
+      }
+
+      return sections.every(section =>
+        Array.isArray(section.sets)
+        && section.sets.every(set =>
+          Array.isArray(set)
+          && set.every(item => {
+            if (typeof item === 'boolean') {
+              return item === true;
+            }
+
+            return item?.checked === true;
+          })
+        )
+      );
+    } catch {
+      return false;
+    }
   }
 
   itemControlNameById(sectionKey: string, repeatIndex: number, itemId: string): string {
@@ -926,20 +912,7 @@ export class InspectionChecklistComponent implements OnChanges {
     return `${sectionKey}_notes`;
   }
   
-  createChecklistItem(item: string | ChecklistTemplateItem, isEditable?: boolean, checked: boolean = false, url: string | null = null): ChecklistItem {
-    const id = `item_${this.nextItemId++}`;
-    const templateItem = typeof item === 'string'
-      ? { text: item, requiresPhoto: false }
-      : item;
-    return {
-      id,
-      text: templateItem.text,
-      requiresPhoto: templateItem.requiresPhoto,
-      url,
-      isEditable: isEditable ?? this.getDefaultItemEditable(),
-      checked
-    };
-  }
+
   //#endregion
 
   //#region Section Controls
@@ -955,6 +928,7 @@ export class InspectionChecklistComponent implements OnChanges {
     this.sectionSetItems[section.key].push(newSetItems);
     this.addControlsForSet(section.key, newRepeatIndex);
     this.sectionSetCounts[section.key] = newRepeatIndex + 1;
+    this.applyModeState();
   }
 
   removeSection(sectionIndex: number, event: Event): void {
@@ -992,6 +966,93 @@ export class InspectionChecklistComponent implements OnChanges {
     return this.sectionSetItems[sectionKey]?.[repeatIndex] || [];
   }
 
+  createChecklistItem(item: string | ChecklistTemplateItem, isEditable?: boolean, checked: boolean = false, url: string | null = null, documentId: string | null = null): ChecklistItem {
+    const id = `item_${this.nextItemId++}`;
+    const templateItem = typeof item === 'string'
+      ? { text: item, requiresPhoto: false }
+      : item;
+    return {
+      id,
+      text: templateItem.text,
+      requiresPhoto: templateItem.requiresPhoto,
+      url,
+      documentId,
+      isEditable: isEditable ?? this.getDefaultItemEditable(),
+      checked
+    };
+  }
+    
+  getSetInstruction(sectionKey: string, repeatIndex: number): string {
+    if (sectionKey === 'bedrooms') {
+      return `Bedroom ${repeatIndex + 1}`;
+    }
+    if (sectionKey === 'bathrooms') {
+      return `Bathroom ${repeatIndex + 1}`;
+    }
+    // Other sections (Living Room, Office, etc.): only show a set label when there is more than one set
+    if (this.getSetCount(sectionKey) <= 1) {
+      return '';
+    }
+    const section = this.sections.find(s => s.key === sectionKey);
+    const title = section?.title ?? sectionKey;
+    return `${title} ${repeatIndex + 1}`;
+  }
+
+  addControlsForSet(sectionKey: string, repeatIndex: number): void {
+    this.getSetItems(sectionKey, repeatIndex).forEach(item => {
+      this.form.addControl(this.itemControlNameById(sectionKey, repeatIndex, item.id), new FormControl(item.checked || false));
+    });
+    if (!this.form.contains(this.notesControlName(sectionKey))) {
+      this.form.addControl(this.notesControlName(sectionKey), new FormControl(''));
+    }
+  }
+
+  removeControlsForSet(sectionKey: string, repeatIndex: number): void {
+    this.getSetItems(sectionKey, repeatIndex).forEach(item => {
+      this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+    });
+  }
+
+  removeAllControlsForSection(section: ChecklistSection): void {
+    const currentCount = this.getSetCount(section.key);
+    for (let repeatIndex = 0; repeatIndex < currentCount; repeatIndex += 1) {
+      this.removeControlsForSet(section.key, repeatIndex);
+    }
+    this.form.removeControl(this.notesControlName(section.key));
+  }
+    
+  toSectionCount(value: number | null | undefined): number {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return 1;
+    }
+    return Math.max(1, Math.floor(value));
+  }
+
+  syncSectionSetCount(sectionKey: string, targetCount: number): void {
+    const section = this.sections.find(s => s.key === sectionKey);
+    if (!section) return;
+
+    const currentCount = this.getSetCount(sectionKey);
+    if (targetCount === currentCount) return;
+
+    if (targetCount > currentCount) {
+      for (let repeatIndex = currentCount; repeatIndex < targetCount; repeatIndex += 1) {
+        const newSetItems = section.items.map(itemText => this.createChecklistItem(itemText));
+        this.sectionSetItems[section.key].push(newSetItems);
+        this.addControlsForSet(section.key, repeatIndex);
+      }
+    } else {
+      for (let repeatIndex = currentCount - 1; repeatIndex >= targetCount; repeatIndex -= 1) {
+        this.removeControlsForSet(section.key, repeatIndex);
+        this.sectionSetItems[section.key].pop();
+      }
+    }
+
+    this.sectionSetCounts[sectionKey] = targetCount;
+  }
+  //#endregion
+
+  //#region Row Controls
   addRow(sectionKey: string, repeatIndex: number, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1002,6 +1063,7 @@ export class InspectionChecklistComponent implements OnChanges {
     const newItem = this.createChecklistItem('', true);
     setItems.push(newItem);
     this.form.addControl(this.itemControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.checked || false));
+    this.applyModeState();
   }
 
   removeRow(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
@@ -1050,7 +1112,9 @@ export class InspectionChecklistComponent implements OnChanges {
       });
     }
   }
+  //#endregion
 
+  //#region Photo controls
   toggleRequiresPhoto(item: ChecklistItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1120,6 +1184,7 @@ export class InspectionChecklistComponent implements OnChanges {
             );
 
           item.url = returnedDataUrl || null;
+          item.documentId = documentResponse.documentId || null;
           if (item.requiresPhoto) {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
             control?.setValue(!!item.url);
@@ -1156,6 +1221,7 @@ export class InspectionChecklistComponent implements OnChanges {
     }
 
     item.url = null;
+    item.documentId = null;
     if (item.requiresPhoto) {
       const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
       control?.setValue(false);
@@ -1184,39 +1250,6 @@ export class InspectionChecklistComponent implements OnChanges {
       data: dialogData,
       width: '48rem'
     });
-  }
-
-  getSetInstruction(sectionKey: string, repeatIndex: number): string {
-    if (sectionKey === 'bedrooms') {
-      return `Bedroom ${repeatIndex + 1}`;
-    }
-    if (sectionKey === 'bathrooms') {
-      return `Bathroom ${repeatIndex + 1}`;
-    }
-    return '';
-  }
-
-  addControlsForSet(sectionKey: string, repeatIndex: number): void {
-    this.getSetItems(sectionKey, repeatIndex).forEach(item => {
-      this.form.addControl(this.itemControlNameById(sectionKey, repeatIndex, item.id), new FormControl(item.checked || false));
-    });
-    if (!this.form.contains(this.notesControlName(sectionKey))) {
-      this.form.addControl(this.notesControlName(sectionKey), new FormControl(''));
-    }
-  }
-
-  removeControlsForSet(sectionKey: string, repeatIndex: number): void {
-    this.getSetItems(sectionKey, repeatIndex).forEach(item => {
-      this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, item.id));
-    });
-  }
-
-  removeAllControlsForSection(section: ChecklistSection): void {
-    const currentCount = this.getSetCount(section.key);
-    for (let repeatIndex = 0; repeatIndex < currentCount; repeatIndex += 1) {
-      this.removeControlsForSet(section.key, repeatIndex);
-    }
-    this.form.removeControl(this.notesControlName(section.key));
   }
   //#endregion
 
@@ -1261,41 +1294,11 @@ export class InspectionChecklistComponent implements OnChanges {
   get wirelessPasswordDisplay(): string {
     return this.property?.internetPassword || 'N/A';
   }
-  
-  toSectionCount(value: number | null | undefined): number {
-    if (value === null || value === undefined || Number.isNaN(value)) {
-      return 1;
-    }
-    return Math.max(1, Math.floor(value));
-  }
+  //#endregion
 
-  syncSectionSetCount(sectionKey: string, targetCount: number): void {
-    const section = this.sections.find(s => s.key === sectionKey);
-    if (!section) return;
-
-    const currentCount = this.getSetCount(sectionKey);
-    if (targetCount === currentCount) return;
-
-    if (targetCount > currentCount) {
-      for (let repeatIndex = currentCount; repeatIndex < targetCount; repeatIndex += 1) {
-        const newSetItems = section.items.map(itemText => this.createChecklistItem(itemText));
-        this.sectionSetItems[section.key].push(newSetItems);
-        this.addControlsForSet(section.key, repeatIndex);
-      }
-    } else {
-      for (let repeatIndex = currentCount - 1; repeatIndex >= targetCount; repeatIndex -= 1) {
-        this.removeControlsForSet(section.key, repeatIndex);
-        this.sectionSetItems[section.key].pop();
-      }
-    }
-
-    this.sectionSetCounts[sectionKey] = targetCount;
-  }
-
+  //#region Form Mode Methods
   applyModeState(): void {
-    if (!this.form) {
-      return;
-    }
+    if (!this.form) return;
 
     if (this.isReadonlyMode) {
       this.form.disable({ emitEvent: false });
@@ -1303,6 +1306,18 @@ export class InspectionChecklistComponent implements OnChanges {
     }
 
     this.form.enable({ emitEvent: false });
+
+    // In template mode, disable only the checkbox controls so they can't be checked;
+    if (this.isTemplateMode) {
+      this.sections.forEach(section => {
+        this.getRepeatIndexes(section.key).forEach(repeatIndex => {
+          this.getSetItems(section.key, repeatIndex).forEach(item => {
+            const ctrl = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
+            if (ctrl) ctrl.disable({ emitEvent: false });
+          });
+        });
+      });
+    }
   }
 
   get isTemplateMode(): boolean {
@@ -1317,82 +1332,10 @@ export class InspectionChecklistComponent implements OnChanges {
     return this.activeMode === 'readonly';
   }
 
-  get modeLabel(): string {
-    if (this.isTemplateMode) {
-      return 'Template Mode';
-    }
-    if (this.isAnswerMode) {
-      return 'Answer Mode';
-    }
-    return 'Read Only';
-  }
-
-  get templateToggleLabel(): string {
-    return this.isTemplateMode ? 'Template: On' : 'Template: Off';
-  }
-
-  toggleTemplateMode(event?: { source?: { checked: boolean } }): void {
-    if (this.isReadonlyMode) {
-      return;
-    }
-
-    if (this.isTemplateMode && this.isTemplateRequired()) {
-      if (event?.source) {
-        event.source.checked = true;
-      }
-      this.activeMode = 'template';
-      this.applyModeState();
-      const dialogData: GenericModalData = {
-        title: 'Inspection Template Required',
-        message: this.templateRequiredMessage,
-        icon: 'warning' as any,
-        iconColor: 'warn',
-        no: '',
-        yes: 'OK',
-        callback: (dialogRef) => {
-          this.activeMode = 'template';
-          this.applyModeState();
-          dialogRef.close(true);
-        },
-        useHTML: false,
-        hideClose: true
-      };
-
-      this.dialog.open(GenericModalComponent, {
-        data: dialogData,
-        width: '35rem'
-      });
-      return;
-    }
-
+  toggleTemplateMode(): void {
+    if (this.isReadonlyMode) return;
     this.activeMode = this.isTemplateMode ? 'answer' : 'template';
     this.applyModeState();
-  }
-
-  resolveInitialMode(): ChecklistMode {
-    if (this.mode === 'readonly') {
-      return 'readonly';
-    }
-
-    if (this.isTemplateRequired()) {
-      return 'template';
-    }
-
-    return this.templateEnabled ? 'template' : 'answer';
-  }
-
-  /** True if no template is available from any source (input, maintenance record, or already-loaded state). */
-  isTemplateRequired(): boolean {
-    if (this.templateJson && this.templateJson.trim().length > 0) {
-      return false;
-    }
-    if (this.hasLoadedSavedChecklist) {
-      return false;
-    }
-    const fromMaintenance = this.checklistType === 'inspection'
-      ? (this.maintenanceRecord?.inspectionCheckList ?? '')
-      : (this.maintenanceRecord?.inventoryCheckList ?? '');
-    return fromMaintenance.trim().length === 0;
   }
 
   getDefaultItemEditable(): boolean {

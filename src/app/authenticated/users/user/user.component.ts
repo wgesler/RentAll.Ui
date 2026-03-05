@@ -32,6 +32,7 @@ export interface UserDialogData {
 }
 
 @Component({
+    standalone: true,
     selector: 'app-user',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './user.component.html',

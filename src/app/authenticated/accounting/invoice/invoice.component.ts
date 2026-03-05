@@ -26,6 +26,7 @@ import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
+    standalone: true,
     selector: 'app-invoice',
     imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './invoice.component.html',
