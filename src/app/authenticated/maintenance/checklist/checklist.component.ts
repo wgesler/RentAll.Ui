@@ -22,6 +22,8 @@ import { MaintenanceResponse } from '../models/maintenance.model';
 import { InventoryService } from '../services/inventory.service';
 import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
+import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model';
+import { PhotoService } from '../../documents/services/photo.service';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection' | 'inventory';
@@ -67,6 +69,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
     public fb: FormBuilder,
     public authService: AuthService,
     public documentService: DocumentService,
+    public photoService: PhotoService,
     public dialog: MatDialog,
     public router: Router,
     public maintenanceService: MaintenanceService,
@@ -580,9 +583,9 @@ export class ChecklistComponent implements OnChanges, OnInit {
       currentUser?.organizationId || this.property.organizationId || '',
       this.property.officeId,
       this.property.propertyId,
-      `inspection-checklist-${this.property.propertyCode || this.property.propertyId}-${new Date().toISOString().slice(0, 10)}.pdf`,
+      `inspection-checklist-${this.property.propertyCode || this.property.propertyId}.pdf`,
       'Inspection Checklist',
-      DocumentType.InspectionPhoto
+      DocumentType.Inspection
     );
     if (!inspectionDto) {
       this.isSavingAnswersInternal = false;
@@ -671,9 +674,9 @@ export class ChecklistComponent implements OnChanges, OnInit {
       currentUser?.organizationId || this.property.organizationId || '',
       this.property.officeId,
       this.property.propertyId,
-      `inventory-checklist-${this.property.propertyCode || this.property.propertyId}-${new Date().toISOString().slice(0, 10)}.pdf`,
+      `inventory-checklist-${this.property.propertyCode || this.property.propertyId}.pdf`,
       'Inventory Checklist',
-      DocumentType.InventoryPhoto
+      DocumentType.Inventory
     );
     if (!inventoryDto) {
       this.isSavingAnswersInternal = false;
@@ -1152,39 +1155,31 @@ export class ChecklistComponent implements OnChanges, OnInit {
     reader.onload = () => {
       const base64String = btoa(reader.result as string);
       const fileName = file.name || `${sectionKey}-${repeatIndex + 1}-${item.id}.jpg`;
-      const fileExtension = fileName.includes('.') ? (fileName.split('.').pop() || 'jpg') : 'jpg';
       const contentType = file.type || 'image/jpeg';
       const currentUser = this.authService.getUser();
-      const documentRequest: DocumentRequest = {
+      const photoRequest: PhotoRequest = {
         organizationId: this.property?.organizationId || currentUser?.organizationId || '',
         officeId: this.property?.officeId || 0,
-        propertyId: this.property?.propertyId || null,
-        reservationId: null,
-        documentTypeId: DocumentType.InspectionPhoto,
-        fileName: fileName.replace('.' + fileExtension, ''),
-        fileExtension,
-        contentType,
-        documentPath: '',
+        maintenanceId: this.maintenanceRecord?.maintenanceId || null,
         fileDetails: {
           fileName,
           contentType,
           file: base64String,
           dataUrl: `data:${contentType};base64,${base64String}`
-        },
-        isDeleted: false
+        }
       };
 
-      this.documentService.createDocument(documentRequest).pipe(take(1)).subscribe({
-        next: (documentResponse: DocumentResponse) => {
-          const returnedDataUrl = documentResponse.fileDetails?.dataUrl
+      this.photoService.uploadPhoto(photoRequest).pipe(take(1)).subscribe({
+        next: (photoResponse: PhotoResponse) => {
+          const returnedDataUrl = photoResponse.fileDetails?.dataUrl
             || (
-              documentResponse.fileDetails?.file && documentResponse.fileDetails?.contentType
-                ? `data:${documentResponse.fileDetails.contentType};base64,${documentResponse.fileDetails.file}`
+              photoResponse.fileDetails?.file && photoResponse.fileDetails?.contentType
+                ? `data:${photoResponse.fileDetails.contentType};base64,${photoResponse.fileDetails.file}`
                 : null
             );
 
           item.url = returnedDataUrl || null;
-          item.documentId = documentResponse.documentId || null;
+          item.documentId = photoResponse.photoId || null;
           if (item.requiresPhoto) {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
             control?.setValue(!!item.url);

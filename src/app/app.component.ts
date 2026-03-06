@@ -98,7 +98,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId || '';
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.officeService.clearOffices();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      return;
+    }
     this.officeService.loadAllOffices(organizationId);
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {

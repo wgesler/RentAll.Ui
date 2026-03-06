@@ -327,7 +327,37 @@ td.mat-mdc-cell.align-right {
 
 td.mat-cell.align-center,
 td.mat-mdc-cell.align-center {
-    text-align:center;
+    text-align: center !important;
+    justify-content: center !important; /* when cell is flex (e.g. mobile) */
+}
+
+// Centered column content (e.g. rating stars) - span centers without changing cell layout
+.datatable-cell-center {
+  display: block !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+// Rating stars column: larger font and centered (so it applies on every load, not just when parent has scoped styles)
+td.mat-cell.mat-column-ratingStars,
+td.mat-mdc-cell.mat-column-ratingStars {
+  font-size: 1.4rem !important;
+  line-height: 1;
+  letter-spacing: 0.05rem;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+th.mat-header-cell.mat-column-ratingStars,
+th.mat-mdc-header-cell.mat-column-ratingStars {
+  text-align: center !important;
+}
+
+th.mat-header-cell.mat-column-ratingStars .mat-sort-header-container,
+th.mat-mdc-header-cell.mat-column-ratingStars .mat-sort-header-container,
+th.mat-header-cell.mat-column-ratingStars .mat-mdc-sort-header-container,
+th.mat-mdc-header-cell.mat-column-ratingStars .mat-mdc-sort-header-container {
+  justify-content: center !important;
 }
 
 // Ensure footer cells respect alignment - force right alignment for numeric columns

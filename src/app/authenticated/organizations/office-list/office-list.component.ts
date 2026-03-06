@@ -8,6 +8,7 @@ import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -49,7 +50,9 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     public officeService: OfficeService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private authService: AuthService
+  ) {
   }
 
   //#region Office-List
@@ -73,16 +76,18 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getOffices(): void {
-    const officesRequest$ = this.organizationId
-      ? this.officeService.getOfficesByOrganization(this.organizationId)
-      : this.officeService.getOffices();
-
-    officesRequest$.pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+    const orgId = (this.organizationId ?? this.authService.getUser()?.organizationId ?? '').trim();
+    if (!orgId) {
+      this.isServiceError = true;
+      this.removeLoadItem('offices');
+      return;
+    }
+    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.removeLoadItem('offices');
       }

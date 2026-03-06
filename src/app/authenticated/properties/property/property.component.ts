@@ -917,10 +917,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   loadLocationLookups(): void {
-    const orgId = this.authService.getUser()?.organizationId || '';
+    const orgId = (this.authService.getUser()?.organizationId || '').trim();
+    if (!orgId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups');
+      return;
+    }
 
     forkJoin({
-      offices: this.officeService.getOffices().pipe(take(1)),
+      offices: this.officeService.getOffices(orgId).pipe(take(1)),
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),

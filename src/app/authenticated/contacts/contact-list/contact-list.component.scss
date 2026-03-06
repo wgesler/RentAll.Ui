@@ -52,6 +52,31 @@ body {
   }
 }
 
+:host ::ng-deep th.mat-column-ratingStars,
+:host ::ng-deep th.mat-mdc-column-ratingStars {
+  text-align: center !important;
+
+  .mat-sort-header-container,
+  .mat-mdc-sort-header-container {
+    justify-content: center !important;
+  }
+}
+
+:host ::ng-deep td.mat-column-ratingStars,
+:host ::ng-deep td.mat-mdc-column-ratingStars {
+  font-size: 1.4rem;
+  line-height: 1;
+  letter-spacing: 0.05rem;
+  text-align: center !important;
+  justify-content: center !important; /* center when cell is flex */
+
+  .datatable-cell-center {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+}
+
 
 
 

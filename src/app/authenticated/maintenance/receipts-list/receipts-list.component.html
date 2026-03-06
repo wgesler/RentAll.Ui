@@ -1,17 +1,18 @@
 @if (isLoading) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading contractors...</p>
+    <p>Loading receipts...</p>
   </div>
 } @else {
   @if (isServiceError) {
-    <p class="empty-msg">Unable to load contractors.</p>
+    <p class="empty-msg">Unable to load receipts.</p>
   }
+
   <div class="mat list-layout-standard">
     <div class="tableDiv">
       <app-data-table
-        [data]="contractorsDisplay"
-        [columns]="contractorDisplayedColumns"
+        [data]="receiptsDisplay"
+        [columns]="receiptDisplayedColumns"
         [hasColumnIndex]="false"
         [hasFilter]="true"
         [hasToggleTop]="true"
@@ -25,10 +26,11 @@
         buttonIconTop="add"
         buttonColorTop="primary"
         (topToggleButtonEvent)="toggleInactive()"
-        (topButtonEvent)="addContractor()"
-        (editEvent)="goToContractor($event)"
-        (rowClickEvent)="goToContractor($event)"
-        (deleteEvent)="deleteContractor($event)" />
+        (topButtonEvent)="addReceipt()"
+        (editEvent)="goToReceipt($event)"
+        (rowClickEvent)="goToReceipt($event)"
+        (receiptClickEvent)="openReceiptDialog($event)"
+        (deleteEvent)="deleteReceipt($event)" />
     </div>
   </div>
 }

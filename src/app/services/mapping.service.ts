@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
-import { ContractorDisplayList, ContractorResponse } from '../authenticated/maintenance/models/contractor.model';
 import { getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -11,6 +10,7 @@ import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/e
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
+import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -88,23 +88,6 @@ export class MappingService {
     }));
   }
 
-  mapContractors(contractors: ContractorResponse[]): ContractorDisplayList[] {
-    return (contractors || []).map<ContractorDisplayList>((contractor: ContractorResponse) => ({
-      contractorId: contractor.contractorId,
-      organizationId: contractor.organizationId,
-      officeId: contractor.officeId,
-      officeName: contractor.officeName,
-      contractorCode: contractor.contractorCode,
-      name: contractor.name,
-      phone: this.formatter.phoneNumber(contractor.phone || ''),
-      website: contractor.website || null,
-      rating: contractor.rating,
-      ratingStars: '★'.repeat(Math.max(0, Math.min(5, contractor.rating || 0))),
-      notes: contractor.notes || null,
-      isActive: contractor.isActive
-    }));
-  }
-
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       return {
@@ -118,6 +101,8 @@ export class MappingService {
         companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
+        rating: o.rating ?? 0,
+        ratingStars: (() => { const r = Math.min(5, Math.max(0, Math.round(o.rating ?? 0))); return '★'.repeat(r) + '☆'.repeat(5 - r); })(),
         isInternational: o.isInternational || false,
         isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
       };
@@ -352,6 +337,22 @@ export class MappingService {
       isActive: workOrder.isActive,
       modifiedOn: this.formatter.formatDateTimeString(workOrder.modifiedOn),
       modifiedBy: workOrder.modifiedBy
+    }));
+  }
+
+  mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
+    return (receipts || []).map<ReceiptDisplayList>((receipt: ReceiptResponse) => ({
+      receiptId: receipt.receiptId,
+      officeId: receipt.officeId,
+      officeName: receipt.officeName,
+      propertyId: receipt.propertyId,
+      propertyCode: receipt.propertyCode,
+      maintenanceId: receipt.maintenanceId,
+      description: receipt.description,
+      receiptPath: receipt.receiptPath ?? null,
+      isActive: receipt.isActive,
+      modifiedOn: this.formatter.formatDateTimeString(receipt.modifiedOn),
+      modifiedBy: receipt.modifiedBy
     }));
   }
 

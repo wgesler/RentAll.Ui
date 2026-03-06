@@ -16,6 +16,7 @@ export interface ContactRequest {
   zip?: string;
   phone: string;
   email: string;
+  rating: number;
   notes?: string;
   isInternational: boolean;
   isActive: boolean;
@@ -40,6 +41,7 @@ export interface ContactResponse {
   zip?: string;
   phone: string;
   email: string;
+  rating: number;
   notes?: string;
   isInternational: boolean;
   isActive: boolean;
@@ -56,6 +58,8 @@ export interface ContactListDisplay {
   companyName?: string | null; 
   phone: string;
   email: string;
+  rating: number;
+  ratingStars?: string;
   isInternational: boolean;
   isActive: boolean;
 }

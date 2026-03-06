@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
+import { PhotoRequest, PhotoResponse } from '../models/photo.model';
 
 @Injectable({
   providedIn: 'root'

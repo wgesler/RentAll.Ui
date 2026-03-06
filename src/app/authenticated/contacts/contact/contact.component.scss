@@ -90,6 +90,39 @@
   }
 }
 
+.rating-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
+.rating-label {
+  font-weight: 500;
+}
+
+.rating-stars {
+  display: flex;
+  align-items: center;
+}
+
+.rating-star-btn {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  .mat-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 24px !important;
+    line-height: 24px !important;
+  }
+}
 
 

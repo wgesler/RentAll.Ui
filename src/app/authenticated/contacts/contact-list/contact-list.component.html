@@ -11,92 +11,10 @@
       </button>
     </div>
     <mat-card>
-      <div class="mat list-layout-standard">
-        <!-- Office dropdown row - just above data table -->
-        @if (showOfficeDropdown) {
-          <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-            <div class="flex items-center gap-3" style="height: 56px;">
-              <mat-form-field appearance="outline" class="office-dropdown">
-                <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          </div>
-        }
-        <div class="tableDiv">
-          <app-data-table
-            [data]="contactsDisplay"
-            [columns]="contactsDisplayedColumns"
-            [hasColumnIndex]="false"
-            [hasFilter]="true"
-            [hasToggleTop]="true"
-            [hasButtonTop]="true"
-            [hasActionsRowClick]="true"
-            [hasActionsEdit]="true"
-            [hasActionsCopy]="true"
-            [hasActionsDelete]="true"
-            [itemsPerPage]="100"
-            buttonToggleTextTop="Inactive"
-            buttonTextTop="Add"
-            buttonIconTop="add"
-            buttonColorTop="primary"
-            (topToggleButtonEvent)="toggleInactive()"
-            (topButtonEvent)="addContact()"
-            (editEvent)="goToContact($event)"
-            (copyEvent)="copyContact($event)"
-            (rowClickEvent)="goToContact($event)"
-            (deleteEvent)="deleteContact($event)"/>
-        </div>
-      </div>
+      <ng-container *ngTemplateOutlet="contactsTable"></ng-container>
     </mat-card>
   } @else {
-    <div class="mat list-layout-standard">
-      <!-- Office dropdown row - just above data table -->
-      @if (showOfficeDropdown) {
-        <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-          <div class="flex items-center gap-3" style="height: 56px;">
-            <mat-form-field appearance="outline" class="office-dropdown">
-              <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of offices; track office.officeId) {
-                  <mat-option [value]="office">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          </div>
-        </div>
-      }
-      <div class="tableDiv">
-        <app-data-table
-          [data]="contactsDisplay"
-          [columns]="contactsDisplayedColumns"
-          [hasColumnIndex]="false"
-          [hasFilter]="true"
-          [hasToggleTop]="true"
-          [hasButtonTop]="true"
-          [hasActionsRowClick]="true"
-          [hasActionsEdit]="true"
-          [hasActionsCopy]="true"
-          [hasActionsDelete]="true"
-          [itemsPerPage]="100"
-          buttonToggleTextTop="Inactive"
-          buttonTextTop="Add"
-          buttonIconTop="add"
-          buttonColorTop="primary"
-          (topToggleButtonEvent)="toggleInactive()"
-          (topButtonEvent)="addContact()"
-          (editEvent)="goToContact($event)"
-          (copyEvent)="copyContact($event)"
-          (rowClickEvent)="goToContact($event)"
-          (deleteEvent)="deleteContact($event)"/>
-      </div>
-    </div>
+    <ng-container *ngTemplateOutlet="contactsTable"></ng-container>
   }
 } @else {
   <div class="loading-container">
@@ -104,4 +22,48 @@
     <p>Loading contacts...</p>
   </div>
 }
+
+<ng-template #contactsTable>
+  <div class="mat list-layout-standard">
+    @if (showOfficeDropdown) {
+      <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+        <div class="flex items-center gap-3" style="height: 56px;">
+          <mat-form-field appearance="outline" class="office-dropdown">
+            <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+    }
+    <div class="tableDiv">
+      <app-data-table
+        [data]="contactsDisplay"
+        [columns]="contactsDisplayedColumns"
+        [hasColumnIndex]="false"
+        [hasFilter]="true"
+        [hasToggleTop]="true"
+        [hasButtonTop]="true"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsCopy]="true"
+        [hasActionsDelete]="true"
+        [itemsPerPage]="100"
+        buttonToggleTextTop="Inactive"
+        buttonTextTop="Add"
+        buttonIconTop="add"
+        buttonColorTop="primary"
+        (topToggleButtonEvent)="toggleInactive()"
+        (topButtonEvent)="addContact()"
+        (editEvent)="goToContact($event)"
+        (copyEvent)="copyContact($event)"
+        (rowClickEvent)="goToContact($event)"
+        (deleteEvent)="deleteContact($event)"/>
+    </div>
+  </div>
+</ng-template>
 

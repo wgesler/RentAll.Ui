@@ -198,12 +198,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0
     };
 
+    const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
+
     if (this.isAddMode) {
       this.officeService.createOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: OfficeResponse) => {
+        next: (_response: OfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          // Reload offices globally to ensure all components have the latest data
-          this.officeService.loadAllOffices();
+          if (orgId) this.officeService.loadAllOffices(orgId);
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -217,12 +218,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       officeRequest.officeId = officeIdNum;
-      officeRequest.organizationId = this.organizationId || this.office?.organizationId || user?.organizationId || '';
+      officeRequest.organizationId = orgId;
       this.officeService.updateOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: OfficeResponse) => {
+        next: (_response: OfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          // Reload offices globally to ensure all components have the latest data including fileDetails
-          this.officeService.loadAllOffices();
+          if (orgId) this.officeService.loadAllOffices(orgId);
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

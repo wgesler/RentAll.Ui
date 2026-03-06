@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -16,7 +16,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { EntityType, getContactTypes } from '../models/contact-enum';
+import { EntityType, getContactTypes, getEntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
@@ -29,6 +29,12 @@ import { ContactService } from '../services/contact.service';
 })
 
 export class ContactComponent implements OnInit, OnDestroy {
+  /** Contact id to edit, or 'new' for add. Component is always embedded (contacts or maintenance tabs). */
+  @Input() id: string = 'new';
+  @Input() copyFrom: string | null = null;
+  @Input() entityTypeId: number | null = null;
+  @Output() closed = new EventEmitter<{ saved?: boolean }>();
+
   isServiceError: boolean = false;
   contactId: string;
   contact: ContactResponse;
@@ -41,6 +47,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
+  readonly ratingStars: number[] = [1, 2, 3, 4, 5];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -61,34 +68,40 @@ export class ContactComponent implements OnInit, OnDestroy {
   ) {
   }
 
+  /** True when component is embedded in tabs (contacts/maintenance); false when loaded via route /auth/contacts/:id. */
+  private isEmbedded = true;
+
   //#region Contacts
   ngOnInit(): void {
     this.initializeContactTypes();
     this.loadStates();
     this.loadOffices();
 
-    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.contactId = paramMap.get('id');
-        this.isAddMode = this.contactId === 'new';
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
-          this.buildForm();
-          // Check if we're copying from another contact
-          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-            if (queryParams['copyFrom']) {
-              this.copyFromContact(queryParams['copyFrom']);
-            } else {
-              this.setFormValuesFromQueryParams();
-            }
-          });
-        } else {
-          this.getContact();
+    // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
+    // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
+    const url = this.router.url;
+    const contactDetailRoute = /\/contacts\/[^/]+$/.test(url);
+    const routeId = contactDetailRoute ? this.route.snapshot.paramMap.get('id') : null;
+    if (routeId != null) {
+      this.isEmbedded = false;
+      this.contactId = routeId;
+    } else {
+      this.contactId = this.id ?? 'new';
+    }
+    this.isAddMode = this.contactId === 'new';
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
+    this.buildForm();
+    if (this.isAddMode) {
+      if (this.copyFrom) {
+        this.copyFromContact(this.copyFrom);
+      } else {
+        this.setFormValuesFromQueryParams();
+        if (this.entityTypeId != null) {
+          this.form?.patchValue({ contactTypeId: this.entityTypeId });
         }
       }
-    });
-    if (!this.isAddMode) {
-      this.buildForm();
+    } else {
+      this.getContact();
     }
   }
   
@@ -201,6 +214,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: this.formatterService.stripPhoneFormatting(formValue.phone),
       notes: formValue.notes || undefined,
+      rating: Number(formValue.rating ?? 0),
       companyId: undefined,
       isInternational: isInternational
     };
@@ -224,23 +238,17 @@ export class ContactComponent implements OnInit, OnDestroy {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
 
-        // Refresh contact list cache then navigate so the list shows the new/updated contact
         this.contactService.loadAllContacts().pipe(take(1)).subscribe({
           next: () => {
-            const currentQueryParams = this.route.snapshot.queryParams;
-            const queryParams: Record<string, unknown> = {};
-            if (currentQueryParams['officeId']) {
-              queryParams['officeId'] = currentQueryParams['officeId'];
+            if (this.isEmbedded) {
+              this.closed.emit({ saved: true });
+            } else {
+              this.router.navigate([RouterUrl.ContactList]);
             }
-            if (currentQueryParams['tab']) {
-              queryParams['tab'] = currentQueryParams['tab'];
-            }
-            this.router.navigate([RouterUrl.ContactList], {
-              queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
-            });
           },
           error: () => {
-            this.router.navigate([RouterUrl.ContactList]);
+            if (this.isEmbedded) this.closed.emit({ saved: true });
+            else this.router.navigate([RouterUrl.ContactList]);
           }
         });
       },
@@ -266,6 +274,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: new FormControl(''),
       zip: new FormControl(''),
       notes: new FormControl(''),
+      rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
       isActive: new FormControl(true)
     });
@@ -312,6 +321,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.contact.phone),
         email: this.contact.email,
         notes: this.contact.notes || '',
+        rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
         isActive: isActiveValue
       });
@@ -344,6 +354,28 @@ export class ContactComponent implements OnInit, OnDestroy {
       stateControl?.updateValueAndValidity({ emitEvent: false });
       zipControl?.updateValueAndValidity({ emitEvent: false });
     });
+  }
+
+  /** Entity type label for the title bar (Tenant, Owner, Company, Vendor) or 'Contact'. */
+  get contactTypeTitleLabel(): string {
+    const id = this.isAddMode
+      ? (this.form?.get('contactTypeId')?.value ?? this.entityTypeId)
+      : this.contact?.entityTypeId;
+    const label = getEntityType(id);
+    const known = [EntityType.Tenant, EntityType.Owner, EntityType.Company, EntityType.Vendor].includes(Number(id));
+    return known && label ? label : 'Contact';
+  }
+
+  get ratingValue(): number {
+    const raw = Number(this.form?.get('rating')?.value ?? 0);
+    return Math.min(5, Math.max(0, Math.round(raw)));
+  }
+
+  setRating(star: number): void {
+    const normalized = Math.min(5, Math.max(0, Math.round(star)));
+    this.form?.get('rating')?.setValue(normalized);
+    this.form?.get('rating')?.markAsDirty();
+    this.form?.get('rating')?.markAsTouched();
   }
 
   getOfficeName(): string {
@@ -416,20 +448,11 @@ export class ContactComponent implements OnInit, OnDestroy {
 
 
   back(): void {
-    // Preserve query params (including officeId and tab) when navigating back
-    const currentQueryParams = this.route.snapshot.queryParams;
-    const queryParams: any = {};
-    if (currentQueryParams['officeId']) {
-      queryParams.officeId = currentQueryParams['officeId'];
+    if (this.isEmbedded) {
+      this.closed.emit({});
+    } else {
+      this.router.navigate([RouterUrl.ContactList]);
     }
-    if (currentQueryParams['tab']) {
-      queryParams.tab = currentQueryParams['tab'];
-    }
-    
-    // Navigate back to contact list, preserving query params
-    this.router.navigate([RouterUrl.ContactList], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
-    });
   }
   //#endregion
 }

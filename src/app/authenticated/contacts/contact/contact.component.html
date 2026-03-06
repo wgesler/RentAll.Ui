@@ -10,7 +10,7 @@
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">contacts</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Contact' : 'Edit Contact' }}
+            {{ isAddMode ? 'Add ' + contactTypeTitleLabel : 'Edit ' + contactTypeTitleLabel }}
           </span>
         </span>
         <div class="flex gap-2">
@@ -29,15 +29,31 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveContact()" class="info-form mb-8 pt-5">
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex items-center justify-end gap-4">
-                <mat-checkbox formControlName="isInternational" color="primary">
-                  Is International
-                </mat-checkbox>
-                <mat-checkbox formControlName="isActive" color="primary">
-                  Is Active
-                </mat-checkbox>
+            <div class="mb-4 flex justify-end items-center gap-4" style="padding-right: 5px;">
+              <div class="rating-select-wrap">
+                <span class="rating-label">Rating</span>
+                <div class="rating-stars">
+                  @for (star of ratingStars; track star) {
+                    <button
+                      mat-icon-button
+                      type="button"
+                      class="rating-star-btn"
+                      [attr.aria-label]="'Set rating to ' + star + ' stars'"
+                      (click)="setRating(star)">
+                      <mat-icon>{{ star <= ratingValue ? 'star' : 'star_border' }}</mat-icon>
+                    </button>
+                  }
+                </div>
               </div>
+              <mat-checkbox formControlName="isInternational" color="primary">
+                Is International
+              </mat-checkbox>
+              <mat-checkbox formControlName="isActive" color="primary">
+                Is Active
+              </mat-checkbox>
+            </div>
+
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
 
               <!-- Row 1: Office, Contact Type, Company/Vendor Name -->
               <mat-form-field appearance="outline" class="col-span-1">

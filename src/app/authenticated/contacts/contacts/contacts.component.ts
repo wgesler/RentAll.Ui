@@ -4,10 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, Subscription, filter, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { ContactListComponent } from '../contact-list/contact-list.component';
+import { ContactComponent } from '../contact/contact.component';
 import { EntityType } from '../models/contact-enum';
 
 @Component({
@@ -16,7 +18,8 @@ import { EntityType } from '../models/contact-enum';
     imports: [
     MaterialModule,
     FormsModule,
-    ContactListComponent
+    ContactListComponent,
+    ContactComponent
 ],
     templateUrl: './contacts.component.html',
     styleUrls: ['./contacts.component.scss']
@@ -30,12 +33,39 @@ export class ContactsComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   destroy$ = new Subject<void>();
-  
+
+  /** Embedded contact form: when set, show form in the tab with this index instead of list. */
+  showContactForm = false;
+  formContactId: string | null = null;
+  formCopyFrom: string | null = null;
+  formEntityTypeId: number | null = null;
+  formTabIndex: number | null = null;
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private contactService: ContactService
   ) { }
+
+  onOpenContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }): void {
+    this.formContactId = event.contactId;
+    this.formCopyFrom = event.copyFrom ?? null;
+    this.formEntityTypeId = event.entityTypeId ?? null;
+    this.formTabIndex = event.tabIndex ?? this.selectedTabIndex;
+    this.showContactForm = true;
+  }
+
+  onContactClosed(_event: { saved?: boolean }): void {
+    this.showContactForm = false;
+    this.formContactId = null;
+    this.formCopyFrom = null;
+    this.formEntityTypeId = null;
+    this.formTabIndex = null;
+    if (_event.saved) {
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe();
+    }
+  }
 
   //#region Contacts
   ngOnInit(): void {
@@ -48,6 +78,26 @@ export class ContactsComponent implements OnInit, OnDestroy {
     
     // Load offices for shared office selection
     this.loadOffices();
+  }
+
+  applyQueryParamState(params: Record<string, unknown>): void {
+    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
+      this.selectedTabIndex = tabIndex;
+    }
+
+    const officeId = getNumberQueryParam(params, 'officeId');
+    if (officeId !== null && this.offices.length > 0) {
+      const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.selectedOffice = matchedOffice;
+      this.selectedOfficeId = matchedOffice?.officeId ?? null;
+      return;
+    }
+
+    if (getStringQueryParam(params, 'officeId') === null) {
+      this.selectedOffice = null;
+      this.selectedOfficeId = null;
+    }
   }
   //#endregion
 
@@ -111,24 +161,4 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.officesSubscription?.unsubscribe();
   }
   //#endregion
-
-  applyQueryParamState(params: Record<string, unknown>): void {
-    const tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
-    if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
-      this.selectedTabIndex = tabIndex;
-    }
-
-    const officeId = getNumberQueryParam(params, 'officeId');
-    if (officeId !== null && this.offices.length > 0) {
-      const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.selectedOffice = matchedOffice;
-      this.selectedOfficeId = matchedOffice?.officeId ?? null;
-      return;
-    }
-
-    if (getStringQueryParam(params, 'officeId') === null) {
-      this.selectedOffice = null;
-      this.selectedOfficeId = null;
-    }
-  }
 }

@@ -12,10 +12,14 @@ import { PropertyService } from '../../properties/services/property.service';
 import { ChecklistSection, INSPECTION_SECTIONS, INVENTORY_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { MaintenanceService } from '../services/maintenance.service';
-import { ContractorListComponent } from '../contractor-list/contractor-list.component';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
+import { ContactComponent } from '../../contacts/contact/contact.component';
+import { ContactService } from '../../contacts/services/contact.service';
 import { ChecklistComponent } from '../checklist/checklist.component';
 import { HistoryComponent } from '../history/history.component';
 import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
+import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 
 @Component({
   standalone: true,
@@ -25,19 +29,27 @@ import { WorkOrderListComponent } from '../work-order-list/work-order-list.compo
     MaterialModule,
     ChecklistComponent,
     WorkOrderListComponent,
-    ContractorListComponent,
+    ReceiptsListComponent,
+    ContactListComponent,
+    ContactComponent,
     HistoryComponent
   ],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
 })
 export class MaintenanceComponent implements OnInit {
+  EntityType = EntityType;
   property: PropertyResponse | null = null;
   maintenanceRecord: MaintenanceResponse | null = null;
   templateMode = false;
   isServiceError = false;
   isSavingTemplate = false;
   selectedTabIndex = 0;
+
+  showVendorForm = false;
+  formContactId: string | null = null;
+  formCopyFrom: string | null = null;
+  formEntityTypeId: number | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -48,15 +60,33 @@ export class MaintenanceComponent implements OnInit {
     private propertyService: PropertyService,
     private maintenanceService: MaintenanceService,
     private authService: AuthService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private contactService: ContactService
   ) {}
+
+  onOpenVendor(event: { contactId: string; copyFrom?: string; entityTypeId?: number }): void {
+    this.formContactId = event.contactId;
+    this.formCopyFrom = event.copyFrom ?? null;
+    this.formEntityTypeId = event.entityTypeId ?? null;
+    this.showVendorForm = true;
+  }
+
+  onVendorFormClosed(event: { saved?: boolean }): void {
+    this.showVendorForm = false;
+    this.formContactId = null;
+    this.formCopyFrom = null;
+    this.formEntityTypeId = null;
+    if (event.saved) {
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe();
+    }
+  }
 
 
   //#region Maintenance
   ngOnInit(): void {
     this.route.queryParamMap.pipe(take(1)).subscribe(params => {
       const tabParam = Number(params.get('tab'));
-      if (!Number.isNaN(tabParam) && tabParam >= 0 && tabParam <= 4) {
+      if (!Number.isNaN(tabParam) && tabParam >= 0 && tabParam <= 5) {
         this.selectedTabIndex = tabParam;
       }
     });

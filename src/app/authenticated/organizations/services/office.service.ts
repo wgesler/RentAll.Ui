@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 
@@ -19,11 +19,15 @@ export class OfficeService {
       private configService: ConfigService) {
   }
 
-  // Load offices on startup (optionally scoped by organization)
-  loadAllOffices(organizationId?: string): void {
-    const url = organizationId ? this.controller + organizationId : this.controller;
-    
-    this.http.get<OfficeResponse[]>(url).subscribe({
+  /** Load offices for the given organization. Requires a non-empty organizationId. */
+  loadAllOffices(organizationId: string): void {
+    const id = organizationId?.trim();
+    if (!id) {
+      this.allOffices$.next([]);
+      this.officesLoaded$.next(true);
+      return;
+    }
+    this.http.get<OfficeResponse[]>(this.controller + id).subscribe({
       next: (offices) => {
         this.allOffices$.next(offices || []);
         this.officesLoaded$.next(true);
@@ -57,14 +61,18 @@ export class OfficeService {
     return this.allOffices$.value;
   }
 
-  // GET: Get all offices
-  getOffices(): Observable<OfficeResponse[]> {
-    return this.http.get<OfficeResponse[]>(this.controller);
+  /** GET offices for an organization. organizationId is required; empty string will throw to avoid silent 400s. */
+  getOffices(organizationId: string): Observable<OfficeResponse[]> {
+    const id = organizationId?.trim();
+    if (!id) {
+      return throwError(() => new Error('organizationId is required to load offices'));
+    }
+    return this.http.get<OfficeResponse[]>(this.controller + id);
   }
 
-  // GET: Get offices by organization
+  /** GET offices by organization (alias for getOffices for clarity at call sites). */
   getOfficesByOrganization(organizationId: string): Observable<OfficeResponse[]> {
-    return this.http.get<OfficeResponse[]>(this.controller + organizationId);
+    return this.getOffices(organizationId);
   }
 
   // GET: Get office by ID

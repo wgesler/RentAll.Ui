@@ -4,8 +4,8 @@ export enum DocumentType {
   ReservationLease = 2,
   Invoice = 3,
   Attachment = 4,
-  InspectionPhoto = 5,
-  InventoryPhoto = 6
+  Inspection = 5,
+  Inventory = 6
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -17,8 +17,8 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.ReservationLease]: 'Reservation Lease',
     [DocumentType.Invoice]: 'Invoice',
     [DocumentType.Attachment]: 'Attachment',
-    [DocumentType.InspectionPhoto]: 'Inspection Photo',
-    [DocumentType.InventoryPhoto]: 'Inventory Photo'
+    [DocumentType.Inspection]: 'Inspection',
+    [DocumentType.Inventory]: 'Inventory'
   };
   
   return typeMap[documentTypeId] || '';
@@ -35,7 +35,7 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.ReservationLease, label: getDocumentType(DocumentType.ReservationLease) },
     { value: DocumentType.Invoice, label: getDocumentType(DocumentType.Invoice) },
     { value: DocumentType.Attachment, label: getDocumentType(DocumentType.Attachment) },
-    { value: DocumentType.InspectionPhoto, label: getDocumentType(DocumentType.InspectionPhoto) },
-    { value: DocumentType.InventoryPhoto, label: getDocumentType(DocumentType.InventoryPhoto) }
+    { value: DocumentType.Inspection, label: getDocumentType(DocumentType.Inspection) },
+    { value: DocumentType.Inventory, label: getDocumentType(DocumentType.Inventory) }
   ];
 }

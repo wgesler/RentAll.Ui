@@ -89,8 +89,10 @@
             [style.width]="column.maxWidth"
             [style.min-width]="column.maxWidth"
             [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
+            [style.text-align]="column.alignment === 'center' ? 'center' : (column.alignment === 'right' ? 'right' : 'left')"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
+                'align-center': column.alignment === 'center', 'align-right': column.alignment === 'right',
                 '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',
                 '!text-center': column.alignment === 'center', '!text-right': column.alignment === 'right',
                 }"
@@ -217,6 +219,8 @@
                     class="inline-block flex-shrink-0"></div>
                     <span>{{item[column.name]}}</span>
                   </div>
+                  } @case ('ratingStars') {
+                    <span class="datatable-cell-center">{{item[column.name] ?? ''}}</span>
                   } @default {
                   @if (column.obfuscate) {
                     <span>
@@ -267,10 +271,14 @@
                         {{item[column.name + 'ButtonText'] ?? column?.buttonText}}
                       </button>
                     } @else {
-                      @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
+                      @if (column.alignment === 'center') {
+                        <span class="datatable-cell-center">{{item[column.name] ?? ''}}</span>
+                      } @else {
+                        @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
                       }
                     }
                   }
+                }
                 </td>
                 <!-- Footer cell for totals row -->
                 <td mat-footer-cell *matFooterCellDef

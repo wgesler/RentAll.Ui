@@ -29,7 +29,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() showCompanyColumn: boolean = false;
+  /** Tab index when used in Contacts page (0–3); included in openContact so parent can show form in the right tab. */
+  @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  /** Emitted when user adds, edits, or copies a contact; parent embeds the contact form. */
+  @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
 
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -53,17 +57,19 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone' },
     'email': { displayAs: 'Email', maxWidth: '25ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'ratingStars': { displayAs: 'Rating', maxWidth: '15ch', alignment: 'center' },
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center' }
   };
 
   private readonly columnsWithCompany: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'contactType': { displayAs: 'Contact Type', maxWidth: '20ch' },
-    'companyName': { displayAs: 'Company', maxWidth: '22ch' },
-    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone' },
-    'email': { displayAs: 'Email', maxWidth: '25ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
+    'fullName': { displayAs: 'Name', maxWidth: '20ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '20ch'  },
+    'email': { displayAs: 'Email', maxWidth: '20ch' },
+    'ratingStars': { displayAs: 'Rating', maxWidth: '15ch', alignment: 'center' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
@@ -113,27 +119,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addContact(): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Contact, ['new']);
-    const queryParams: any = {};
-    
-    // Preserve existing query params (like tab)
-    const currentParams = this.route.snapshot.queryParams;
-    if (currentParams['tab']) {
-      queryParams.tab = currentParams['tab'];
-    }
-    
-    // If entityTypeId is provided, add it as a query parameter to pre-fill the contact type
-    if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
-      queryParams.entityTypeId = this.entityTypeId;
-    }
-    
-    if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
-    }
-    
-    // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    this.openContact.emit({
+      contactId: 'new',
+      entityTypeId: this.entityTypeId ?? undefined,
+      tabIndex: this.tabIndex
     });
   }
 
@@ -156,50 +145,19 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToContact(event: ContactListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]);
-    const queryParams: any = {};
-    
-    // Preserve existing query params (like tab)
-    const currentParams = this.route.snapshot.queryParams;
-    if (currentParams['tab']) {
-      queryParams.tab = currentParams['tab'];
-    }
-    
-    if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
-    }
-    
-    // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    this.openContact.emit({
+      contactId: event.contactId,
+      entityTypeId: this.entityTypeId ?? undefined,
+      tabIndex: this.tabIndex
     });
   }
 
   copyContact(event: ContactListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Contact, ['new']);
-    const queryParams: any = {};
-    
-    // Preserve existing query params (like tab)
-    const currentParams = this.route.snapshot.queryParams;
-    if (currentParams['tab']) {
-      queryParams.tab = currentParams['tab'];
-    }
-    
-    // Add copyFrom parameter
-    queryParams.copyFrom = event.contactId;
-    
-    if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
-    }
-    
-    // If entityTypeId is provided, add it as a query parameter
-    if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
-      queryParams.entityTypeId = this.entityTypeId;
-    }
-    
-    // Navigate with query params
-    this.router.navigate([url], {
-      queryParams: queryParams
+    this.openContact.emit({
+      contactId: 'new',
+      copyFrom: event.contactId,
+      entityTypeId: this.entityTypeId ?? undefined,
+      tabIndex: this.tabIndex
     });
   }
   //#endregion
