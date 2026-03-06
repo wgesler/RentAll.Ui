@@ -5,7 +5,9 @@ import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { finalize, forkJoin, map, of, switchMap, take } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -73,6 +75,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     public documentService: DocumentService,
     public utilityService: UtilityService,
     public photoService: PhotoService,
+    public toastr: ToastrService,
     public dialog: MatDialog,
     public router: Router,
     public maintenanceService: MaintenanceService,
@@ -494,10 +497,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       finalize(() => (this.isSavingTemplateInternal = false))
     ).subscribe({
       next: () => {
+        this.toastr.success('Template saved successfully', CommonMessage.Success);
         this.templateSaved.emit(checklistJson);
       },
       error: () => {
         this.isServiceError = true;
+        this.toastr.error('Failed to save template', CommonMessage.Error);
       }
     });
   }
@@ -550,14 +555,16 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     ).pipe(map(() => void 0));
   }
 
-  /** Navigate to maintenance component (tabs) for this property, not the maintenance list. */
-  private navigateToMaintenanceTabs(): void {
+  /** Navigate to maintenance component (tabs) for this property and refresh to clear settings. tabIndex: 0=Inspection, 1=Inventory */
+  private navigateToMaintenanceTabs(tabIndex?: number): void {
     const propertyId = this.property?.propertyId;
-    if (propertyId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]));
-    } else {
-      this.router.navigateByUrl(RouterUrl.MaintenanceList);
+    let url = propertyId
+      ? RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])
+      : RouterUrl.MaintenanceList;
+    if (tabIndex !== undefined && tabIndex >= 0) {
+      url += (url.includes('?') ? '&' : '?') + `tab=${tabIndex}`;
     }
+    this.router.navigateByUrl(url).then(() => window.location.reload());
   }
 
   saveAnswersData(): void {
@@ -594,12 +601,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           next: (savedInspectionResponse: InspectionResponse) => {
             const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
             this.activeInspection = savedInspection;
+            this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
             if (shouldSubmitInspection) {
-              this.navigateToMaintenanceTabs();
+              this.navigateToMaintenanceTabs(0);
             }
           },
           error: (_err: HttpErrorResponse) => {
             this.isServiceError = true;
+            this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Success);
           }
         });
         return;
@@ -618,12 +627,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         next: (savedInspectionResponse: InspectionResponse) => {
           const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
           this.activeInspection = savedInspection;
+          this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
           if (shouldSubmitInspection) {
-            this.navigateToMaintenanceTabs();
+            this.navigateToMaintenanceTabs(0);
           }
         },
         error: (_err: HttpErrorResponse) => {
           this.isServiceError = true;
+          this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Success);
         }
       });
     };
@@ -645,6 +656,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (!inspectionDto) {
       this.isSavingAnswersInternal = false;
       this.isServiceError = true;
+      this.toastr.error('Failed to build inspection document', CommonMessage.Error);
       return;
     }
 
@@ -660,6 +672,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
         this.isServiceError = true;
+        this.toastr.error('Failed to generate inspection document', CommonMessage.Error);
       }
     });
   }
@@ -690,12 +703,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.inventoryService.updateInventory(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
           next: (savedInventory: InventoryResponse) => {
             this.activeInventory = savedInventory;
+            this.toastr.success(shouldSubmitInventory ? 'Inventory submitted successfully' : 'Inventory saved successfully', CommonMessage.Success);
             if (shouldSubmitInventory) {
-              this.navigateToMaintenanceTabs();
+              this.navigateToMaintenanceTabs(1);
             }
           },
           error: (_err: HttpErrorResponse) => {
             this.isServiceError = true;
+            this.toastr.error('Failed to save inventory', CommonMessage.Error);
           }
         });
         return;
@@ -714,12 +729,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       this.inventoryService.createInventory(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
         next: (savedInventory: InventoryResponse) => {
           this.activeInventory = savedInventory;
+          this.toastr.success(shouldSubmitInventory ? 'Inventory submitted successfully' : 'Inventory saved successfully', CommonMessage.Success);
           if (shouldSubmitInventory) {
-            this.navigateToMaintenanceTabs();
+            this.navigateToMaintenanceTabs(1);
           }
         },
         error: (_err: HttpErrorResponse) => {
           this.isServiceError = true;
+          this.toastr.error('Failed to save inventory', CommonMessage.Error);
         }
       });
     };
@@ -741,6 +758,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (!inventoryDto) {
       this.isSavingAnswersInternal = false;
       this.isServiceError = true;
+      this.toastr.error('Failed to build inventory document', CommonMessage.Error);
       return;
     }
 
@@ -756,6 +774,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
         this.isServiceError = true;
+        this.toastr.error('Failed to generate inventory document', CommonMessage.Error);
       }
     });
   }

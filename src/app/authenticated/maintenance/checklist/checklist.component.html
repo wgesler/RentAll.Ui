@@ -104,7 +104,7 @@
     } @else {
       <mat-accordion class="section-accordion" multi="true">
         @for (section of sections; track section.key; let i = $index) {
-          <mat-expansion-panel>
+          <mat-expansion-panel [expanded]="i === 0">
             <mat-expansion-panel-header>
               <mat-panel-title>
                 <span>{{ section.title }}</span>

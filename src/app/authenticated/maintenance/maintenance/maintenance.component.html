@@ -58,13 +58,6 @@
           <mat-tab label="Work Orders">
             <app-work-order-list [property]="property" />
           </mat-tab>
-          <mat-tab label="Vendors">
-            @if (showVendorForm) {
-              <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onVendorFormClosed($event)" />
-            } @else {
-              <app-contact-list [entityTypeId]="EntityType.Vendor" [showCompanyColumn]="true" (openContact)="onOpenVendor($event)" />
-            }
-          </mat-tab>
           <mat-tab label="Documents">
             <app-document-list
               [propertyId]="property?.propertyId ?? undefined"
