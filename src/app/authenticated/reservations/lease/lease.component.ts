@@ -273,7 +273,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       { fontSize: '10pt', includeLeaseStyles: true }
     );
 
-    const fileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName('lease', this.property.propertyCode, this.selectedReservation?.reservationCode);
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization!.organizationId,
@@ -1352,7 +1352,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   override async onDownload(): Promise<void> {
-    const fileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName('lease', this.property.propertyCode, this.selectedReservation?.reservationCode);
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
       documentType: DocumentType.ReservationLease,
@@ -1376,7 +1376,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const companyName = this.organization?.name;
     const companyPhone = this.formatterService.phoneNumber(this.organization?.phone) || '';
     const plainTextContent = '';
-    const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.selectedReservation?.reservationCode);
+    const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.property.propertyCode, this.selectedReservation?.reservationCode);
     const reservationCode = this.selectedReservation?.reservationCode;
 
     const emailSubject = this.emailHtml?.leaseSubject?.trim()

@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
 import { PhotoRequest, PhotoResponse } from '../models/photo.model';
 
 @Injectable({
@@ -10,7 +9,7 @@ import { PhotoRequest, PhotoResponse } from '../models/photo.model';
 })
 export class PhotoService {
   
-  private readonly controller = this.configService.config().apiUrl + 'document/';
+  private readonly controller = this.configService.config().apiUrl + 'document/photo/';
 
   constructor(
     private http: HttpClient,
@@ -24,11 +23,11 @@ export class PhotoService {
 
   // POST: Upload a photo
   uploadPhoto(photoRequest: PhotoRequest): Observable<PhotoResponse> {
-    return this.http.post<PhotoResponse>(this.controller + 'photo', photoRequest);
+    return this.http.post<PhotoResponse>(this.controller, photoRequest);
   }
+
   // DELETE: Delete a photo
   deletePhoto(photoId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + '/photo/' + photoId);
+    return this.http.delete<void>(this.controller + photoId);
   }
 }
-

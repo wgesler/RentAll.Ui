@@ -2,9 +2,10 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -18,7 +19,9 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { getDocumentTypes } from '../models/document.enum';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 import { ContactResponse } from "../../contacts/models/contact.model";
@@ -38,7 +41,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() documentTypeId?: number;
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
-  @Input() source: 'property' | 'reservation' | 'invoice' | 'documents' | null = null; // Source component where document-list is embedded
+  @Input() source: 'property' | 'reservation' | 'invoice' | 'documents' | 'maintenance' | null = null; // Source component where document-list is embedded
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
@@ -84,7 +87,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
-    'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
+    'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
   };
 
@@ -93,7 +96,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCode': { displayAs: 'Property', maxWidth: '18ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '18ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '30ch'},
-    'fileName': { displayAs: 'File Name', maxWidth: '30ch'},
+    'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
   };
   
@@ -104,6 +107,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public documentService: DocumentService,
     public toastr: ToastrService,
     public router: Router,
+    private dialog: MatDialog,
     private mappingService: MappingService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
@@ -140,7 +144,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     
     // Load data based on source
-    if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property') {
+    if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
       this.loadReservations();
     }
 
@@ -151,6 +155,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.source === 'documents') {
       this.initializeDocumentTypes();
     }
+
+    if (this.source === 'maintenance') {
+      this.initializeDocumentTypesForMaintenance();
+    }
     
     this.getDocuments();
   }
@@ -160,7 +168,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
     const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
     const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined; // Filter by documentTypeId only
-    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered;
+    const isMaintenanceDocuments = this.source === 'maintenance' && hasPropertyId;
+    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered && !isMaintenanceDocuments;
     
     if (isInAddReservationMode) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents');
@@ -288,7 +297,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
     const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
     const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined; // Filter by documentTypeId only
-    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered;
+    const isMaintenanceDocuments = this.source === 'maintenance' && hasPropertyId;
+    const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered && !isMaintenanceDocuments;
     
     // If we're in add-reservation mode, stop spinner and return immediately
     if (isInAddReservationMode) {
@@ -296,7 +306,25 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
-    if (isFiltered) {
+    if (isMaintenanceDocuments) {
+      // MAINTENANCE DOCUMENTS: Inspection + Inventory for this property (Office and Property columns shown)
+      forkJoin({
+        inspection: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inspection),
+        inventory: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory)
+      }).pipe(
+        take(1),
+        finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'))
+      ).subscribe({
+        next: ({ inspection, inventory }) => {
+          const combined = [...(inspection ?? []), ...(inventory ?? [])];
+          this.allDocuments = this.mappingService.mapDocuments(combined);
+          this.applyFilters();
+        },
+        error: () => {
+          this.isServiceError = true;
+        }
+      });
+    } else if (isFiltered) {
       // FILTERED MODE: Get documents for specific property and type (used in tabs)
       this.documentService.getByPropertyType(this.propertyId, this.documentTypeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
           next: (documents) => {
@@ -337,15 +365,29 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteDocument(document: DocumentListDisplay): void {
-    if (confirm(`Are you sure you want to delete this document?`)) {
-      this.documentService.deleteDocument(document.documentId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Document deleted successfully', CommonMessage.Success);
-          this.getDocuments(); // Refresh the list
-        },
-        error: () => {}
-      });
-    }
+    const dialogData: GenericModalData = {
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Delete',
+      callback: (dialogRef, result) => {
+        dialogRef.close(result);
+        if (result) {
+          this.documentService.deleteDocument(document.documentId).pipe(take(1)).subscribe({
+            next: () => {
+              this.toastr.success('Document deleted successfully', CommonMessage.Success);
+              this.getDocuments();
+            },
+            error: () => {}
+          });
+        }
+      },
+      useHTML: false,
+      hideClose: true
+    };
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
   }
 
   goToDocument(event: DocumentListDisplay): void {
@@ -368,6 +410,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.documentTypeId === 2) { // ReservationLease
         queryParams.reservationId = event.reservationId || null;
       }
+    } else if (this.source === 'maintenance' && this.propertyId) {
+      queryParams.returnTo = 'maintenance';
+      queryParams.propertyId = this.propertyId;
     } else {
       // Coming from sidebar, no return context needed
       queryParams.returnTo = 'sidebar';
@@ -552,8 +597,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Filter Helpers
   get isOfficeDisabled(): boolean {
-    // When coming from Invoice or Documents, keep Office enabled
-    if (this.source === 'invoice' || this.source === 'documents') {
+    // When coming from Invoice, Documents, or Maintenance, keep Office enabled
+    if (this.source === 'invoice' || this.source === 'documents' || this.source === 'maintenance') {
       return false;
     }
     // Disable when reservationId or propertyId is provided (coming from Reservation or Property)
@@ -647,6 +692,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   
   initializeDocumentTypes(): void {
     this.documentTypes = getDocumentTypes();
+  }
+
+  /** Document types for maintenance tab: Inspection and Inventory only. */
+  initializeDocumentTypesForMaintenance(): void {
+    this.documentTypes = [
+      { value: DocumentType.Inspection, label: 'Inspection' },
+      { value: DocumentType.Inventory, label: 'Inventory' }
+    ];
   }
 
   loadProperties(): void {
@@ -758,6 +811,15 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
         filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
       }
+    } else if (this.source === 'maintenance') {
+      // Filter to current property (data is already property-scoped; office filter still applies)
+      if (this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
+        filtered = filtered.filter(doc => doc.propertyId === this.propertyId);
+      }
+      // Filter by documentTypeId if selected (Inspection or Inventory)
+      if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
+        filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
+      }
     }
     
     this.documentsDisplay = filtered;
@@ -770,9 +832,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get documentsDisplayedColumns(): ColumnSet {
-    return (this.propertyId && this.documentTypeId !== undefined) 
-      ? this.tabColumns 
-      : this.sidebarColumns;
+    const useTabColumns = (this.propertyId && this.documentTypeId !== undefined) || this.source === 'maintenance';
+    return useTabColumns ? this.tabColumns : this.sidebarColumns;
   }
 
   ngOnDestroy(): void {

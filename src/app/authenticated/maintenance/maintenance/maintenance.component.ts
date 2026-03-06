@@ -17,9 +17,9 @@ import { ContactListComponent } from '../../contacts/contact-list/contact-list.c
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ChecklistComponent } from '../checklist/checklist.component';
-import { HistoryComponent } from '../history/history.component';
 import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 
 @Component({
   standalone: true,
@@ -32,7 +32,7 @@ import { ReceiptsListComponent } from '../receipts-list/receipts-list.component'
     ReceiptsListComponent,
     ContactListComponent,
     ContactComponent,
-    HistoryComponent
+    DocumentListComponent
   ],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
@@ -218,7 +218,7 @@ export class MaintenanceComponent implements OnInit {
             text: item.text,
             requiresPhoto: item.requiresPhoto,
             isEditable: defaultIsEditable,
-            url: null as string | null
+            photoPath: null as string | null
           }))
         ]
       }))

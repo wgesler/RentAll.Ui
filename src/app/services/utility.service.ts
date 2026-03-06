@@ -37,24 +37,40 @@ export class UtilityService {
   }
 
   // Generates document file name for saving/downloading documents
-   generateDocumentFileName(type: 'lease' | 'welcomeLetter' | 'invoice', code?: string): string {
+   generateDocumentFileName(type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection' | 'inventory', propertyCode?: string, reservationCode?: string): string {
     let fileName = '';
-     
+
     switch (type) {
       case 'lease':
-        fileName = `Lease_${code}.pdf`;
+        fileName = `Lease_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
         break;
       case 'welcomeLetter':
-         fileName = `Letter_${code}.pdf`;
+         fileName = `Letter_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
         break;
       case 'invoice':
-        fileName = `Invoice_${code}.pdf`;
+        fileName = `Invoice_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
+        break;
+      case 'inspection':
+        fileName = `Inspection_${propertyCode}_${this.getFilenameTimestamp()}.pdf`;
+        break;
+      case 'inventory':
+        fileName = `Inventory_${propertyCode}_${this.getFilenameTimestamp()}.pdf`;
         break;
     }
-    
+
     return fileName;
   }
 
+  getFilenameTimestamp(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day}_${h}-${min}`;
+  }
+  
   hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
     if (!groups || groups.length === 0) {
       return false;

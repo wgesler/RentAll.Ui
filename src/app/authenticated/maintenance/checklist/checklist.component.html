@@ -84,10 +84,10 @@
                     <span class="readonly-item-photo-tag">(photo required)</span>
                   }
                 </div>
-                @if (item.url) {
+                @if (getItemPhotoSrc(item)) {
                   <div class="readonly-item-photo-wrap">
                     <img
-                      [src]="item.url"
+                      [src]="getItemPhotoSrc(item)"
                       alt="Line item photo"
                       class="readonly-item-photo"
                       (click)="openPhotoPreview(item, $event)" />
@@ -177,7 +177,7 @@
                           accept="image/*"
                           [id]="photoInputId(section.key, repeatIndex, item.id)"
                           (change)="onPhotoSelected(section.key, repeatIndex, item.id, $event)" />
-                        @if (!item.url) {
+                        @if (!getItemPhotoSrc(item)) {
                           <button
                             mat-button
                             type="button"
@@ -187,7 +187,7 @@
                           </button>
                         } @else {
                           <img
-                            [src]="item.url"
+                            [src]="getItemPhotoSrc(item)"
                             alt="Uploaded line item photo"
                             class="h-10 w-10 object-cover rounded cursor-pointer border border-slate-300"
                             (click)="openPhotoPreview(item, $event)" />

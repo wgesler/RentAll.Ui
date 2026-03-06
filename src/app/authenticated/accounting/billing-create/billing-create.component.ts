@@ -160,7 +160,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     this.isSubmitting = true;
     try {
-      // Ensure we have all required data
       await this.ensureAllDataLoaded();
 
       const invoiceHtml = this.form.get('invoice')?.value || '';

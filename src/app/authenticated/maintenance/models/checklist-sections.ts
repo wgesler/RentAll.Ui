@@ -14,7 +14,10 @@ export type ChecklistItem = {
   id: string;
   text: string;
   requiresPhoto: boolean;
-  url?: string | null;
+  /** Server path (PhotoResponse.photoPath); persisted in saved checklist. */
+  photoPath?: string | null;
+  /** In-memory only: data URL for preview right after upload; not saved. */
+  displayDataUrl?: string | null;
   documentId?: string | null;
   isEditable: boolean;
   checked?: boolean;
@@ -23,7 +26,7 @@ export type ChecklistItem = {
 export type SavedChecklistItem = {
   text: string;
   requiresPhoto: boolean;
-  url?: string | null;
+  photoPath?: string | null;
   documentId?: string | null;
   checked: boolean;
   isEditable: boolean;

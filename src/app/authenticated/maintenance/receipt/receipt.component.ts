@@ -289,7 +289,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   back(): void {
     if (this.selectedPropertyId) {
       const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
-      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 3 } });
+      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 2 } });
       return;
     }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);

@@ -292,7 +292,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   back(): void {
     if (this.selectedPropertyId) {
       const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
-      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 2 } });
+      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 3 } });
       return;
     }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);

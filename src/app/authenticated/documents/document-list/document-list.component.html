@@ -79,6 +79,17 @@
               }
             </mat-select>
           </mat-form-field>
+        } @else if (source === 'maintenance') {
+          <!-- Document Type (Inspection / Inventory) for Maintenance Documents tab -->
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>Document Type</mat-label>
+            <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
+              <mat-option [value]="null">Inspection &amp; Inventory</mat-option>
+              @for (docType of documentTypes; track docType.value) {
+                <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         }
       </div>
       }
@@ -190,6 +201,17 @@
                     <mat-label>Document Type</mat-label>
                     <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
                       <mat-option [value]="null">All Document Types</mat-option>
+                      @for (docType of documentTypes; track docType.value) {
+                        <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                } @else if (source === 'maintenance') {
+                  <!-- Document Type (Inspection / Inventory) for Maintenance Documents tab -->
+                  <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-label>Document Type</mat-label>
+                    <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
+                      <mat-option [value]="null">Inspection &amp; Inventory</mat-option>
                       @for (docType of documentTypes; track docType.value) {
                         <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
                       }

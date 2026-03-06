@@ -258,7 +258,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
       // Generate file name
       const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
-      const fileName = this.utilityService.generateDocumentFileName('invoice', invoiceCode);
+      const fileName = this.utilityService.generateDocumentFileName('invoice', this.property.propertyCode, invoiceCode);
 
       const generateDto: GenerateDocumentFromHtmlDto = {
         htmlContent: htmlWithStyles,

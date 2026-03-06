@@ -258,7 +258,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.previewIframeStyles
     );
 
-    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization.organizationId,
@@ -840,7 +840,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onDownload(): Promise<void> {
-    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
@@ -873,7 +873,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const plainTextContent = '';
-    const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.selectedReservation?.reservationCode);
+    const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
   
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
     const emailTemplateHtml = recipientContact?.entityTypeId == EntityType.Company

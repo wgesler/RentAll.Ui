@@ -441,6 +441,13 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    // If we came from Maintenance > Documents tab
+    if (this.returnTo === 'maintenance' && this.propertyId) {
+      const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.propertyId]);
+      this.router.navigateByUrl(maintenanceUrl + '?tab=5'); // Documents tab index
+      return;
+    }
+
     // If we came from a tab, navigate back to that tab
     if (this.returnTo === 'tab' && this.propertyId && this.documentTypeId !== undefined) {
       if (this.documentTypeId === 2 && this.reservationId) {

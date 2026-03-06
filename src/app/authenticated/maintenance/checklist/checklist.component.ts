@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -24,6 +24,7 @@ import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
 import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model';
 import { PhotoService } from '../../documents/services/photo.service';
+import { UtilityService } from '../../../services/utility.service';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection' | 'inventory';
@@ -35,7 +36,7 @@ export type ChecklistType = 'inspection' | 'inventory';
   templateUrl: './checklist.component.html',
   styleUrl: './checklist.component.scss'
 })
-export class ChecklistComponent implements OnChanges, OnInit {
+export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   @Input() property: PropertyResponse | null = null;
   @Input() maintenanceRecord: MaintenanceResponse | null = null;
   @Input() templateJson: string | null = null;
@@ -45,7 +46,6 @@ export class ChecklistComponent implements OnChanges, OnInit {
   @Input() isSaving: boolean = false;
   @Output() templateSaved = new EventEmitter<string>();
 
-  readonly photoRequiredMessage = 'A photo is required for this item.';
 
 
   form: FormGroup;
@@ -64,18 +64,22 @@ export class ChecklistComponent implements OnChanges, OnInit {
   isSavingAnswersInternal: boolean = false;
   isServiceError: boolean = false;
   hasInitialized = false;
+  /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
+  private photoBlobUrlCache = new Map<string, string>();
 
   constructor(
     public fb: FormBuilder,
     public authService: AuthService,
     public documentService: DocumentService,
+    public utilityService: UtilityService,
     public photoService: PhotoService,
     public dialog: MatDialog,
     public router: Router,
     public maintenanceService: MaintenanceService,
     public inspectionService: InspectionService,
     public inventoryService: InventoryService,
-    public mappingService: MappingService
+    public mappingService: MappingService,
+    private cdr: ChangeDetectorRef
   ) {
 
     const user = this.authService.getUser();
@@ -168,7 +172,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
         : [baseItems.map(item => ({
           text: item.text,
           requiresPhoto: item.requiresPhoto,
-          url: null,
+          photoPath: null,
           checked: false,
           isEditable: this.getDefaultItemEditable()
         }))];
@@ -189,7 +193,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
             item,
             this.getDefaultItemEditable(),
             setItems[index]?.checked || false,
-            setItems[index]?.url || null,
+            setItems[index]?.photoPath ?? null,
             setItems[index]?.documentId || null
           ));
         }
@@ -198,7 +202,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
           { text: item.text, requiresPhoto: item.requiresPhoto },
           item.isEditable === true,
           item.checked,
-          item.url || null,
+          item.photoPath ?? null,
           item.documentId || null
         ));
       });
@@ -223,7 +227,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
         sections?: Array<{
           key: string;
           notes?: string;
-          sets?: Array<Array<{ checked?: boolean; url?: string | null; documentId?: string | null } | boolean>>;
+          sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null } | boolean>>;
         }>;
         inspectionCheckList?: string;
         inventoryCheckList?: string;
@@ -237,7 +241,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
           sections?: Array<{
             key: string;
             notes?: string;
-            sets?: Array<Array<{ checked?: boolean; url?: string | null; documentId?: string | null } | boolean>>;
+            sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null } | boolean>>;
           }>;
         };
       }
@@ -280,8 +284,8 @@ export class ChecklistComponent implements OnChanges, OnInit {
             const isChecked = typeof answerValue === 'boolean'
               ? answerValue === true
               : answerValue?.checked === true;
-            item.url = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.url === 'string'
-              ? answerValue.url
+            item.photoPath = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.photoPath === 'string'
+              ? answerValue.photoPath
               : null;
             item.documentId = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.documentId === 'string'
               ? answerValue.documentId
@@ -298,10 +302,56 @@ export class ChecklistComponent implements OnChanges, OnInit {
         hasAppliedAnswers = true;
       });
 
+      if (hasAppliedAnswers) {
+        this.loadPhotoBlobUrls();
+      }
       return hasAppliedAnswers;
     } catch {
       return false;
     }
+  }
+
+  /** Load viewable image URLs for saved photos via photo API (getPhotoByGuid), not document API. Same pattern as user profile picture. */
+  private loadPhotoBlobUrls(): void {
+    const documentIdsToLoad = new Set<string>();
+    Object.values(this.sectionSetItems).forEach(sets => {
+      sets.forEach(items => {
+        items.forEach(item => {
+          if (item.documentId && !item.displayDataUrl && !this.photoBlobUrlCache.has(item.documentId)) {
+            documentIdsToLoad.add(item.documentId);
+          }
+        });
+      });
+    });
+    documentIdsToLoad.forEach(photoId => {
+      this.photoService.getPhotoByGuid(photoId).pipe(take(1)).subscribe({
+        next: (response: PhotoResponse) => {
+          let viewUrl: string | null = null;
+          if (response.fileDetails?.file) {
+            const contentType = response.fileDetails.contentType || 'image/jpeg';
+            viewUrl = `data:${contentType};base64,${response.fileDetails.file}`;
+          } else if (response.fileDetails?.dataUrl) {
+            viewUrl = response.fileDetails.dataUrl;
+          } else if (response.photoPath && response.photoPath.startsWith('http')) {
+            viewUrl = response.photoPath;
+          }
+          if (viewUrl) {
+            this.photoBlobUrlCache.set(photoId, viewUrl);
+            this.cdr.markForCheck();
+          }
+        },
+        error: () => {}
+      });
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.photoBlobUrlCache.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    this.photoBlobUrlCache.clear();
   }
 
   parseSavedSections(rawChecklistJson: string): SavedChecklistSection[] | null {
@@ -402,7 +452,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
             text: item.text,
             requiresPhoto: item.requiresPhoto,
             isEditable: item.isEditable,
-            url: item.url || null
+            photoPath: item.photoPath ?? null
           }))
         )
       }))
@@ -423,8 +473,8 @@ export class ChecklistComponent implements OnChanges, OnInit {
               text: item.text,
               requiresPhoto: item.requiresPhoto,
               checked: !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value,
-              url: item.url || null,
-              documentId: item.documentId || null
+              photoPath: item.photoPath ?? null,
+              documentId: item.documentId ?? null
             })
           )
         )
@@ -481,22 +531,33 @@ export class ChecklistComponent implements OnChanges, OnInit {
     );
   }
 
+  /** Delete individual checklist photos via photo API (same as we use getPhotoByGuid to load them). */
   deleteChecklistPhotoDocuments() {
-    const photoDocumentIds = Array.from(new Set(
+    const photoIds = Array.from(new Set(
       this.sections
         .flatMap(section => this.getRepeatIndexes(section.key)
           .flatMap(repeatIndex => this.getSetItems(section.key, repeatIndex)))
         .map(item => item.documentId ?? null)
-        .filter((documentId): documentId is string => typeof documentId === 'string' && documentId.trim().length > 0)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
     ));
 
-    if (photoDocumentIds.length === 0) {
+    if (photoIds.length === 0) {
       return of(void 0);
     }
 
     return forkJoin(
-      photoDocumentIds.map(documentId => this.documentService.deleteDocument(documentId).pipe(take(1)))
+      photoIds.map(photoId => this.photoService.deletePhoto(photoId).pipe(take(1)))
     ).pipe(map(() => void 0));
+  }
+
+  /** Navigate to maintenance component (tabs) for this property, not the maintenance list. */
+  private navigateToMaintenanceTabs(): void {
+    const propertyId = this.property?.propertyId;
+    if (propertyId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]));
+    } else {
+      this.router.navigateByUrl(RouterUrl.MaintenanceList);
+    }
   }
 
   saveAnswersData(): void {
@@ -534,10 +595,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
             const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
             this.activeInspection = savedInspection;
             if (shouldSubmitInspection) {
-              this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
-                next: () => this.router.navigateByUrl(RouterUrl.MaintenanceList),
-                error: () => this.router.navigateByUrl(RouterUrl.MaintenanceList)
-              });
+              this.navigateToMaintenanceTabs();
             }
           },
           error: (_err: HttpErrorResponse) => {
@@ -561,10 +619,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
           const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
           this.activeInspection = savedInspection;
           if (shouldSubmitInspection) {
-            this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
-              next: () => this.router.navigateByUrl(RouterUrl.MaintenanceList),
-              error: () => this.router.navigateByUrl(RouterUrl.MaintenanceList)
-            });
+            this.navigateToMaintenanceTabs();
           }
         },
         error: (_err: HttpErrorResponse) => {
@@ -583,7 +638,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
       currentUser?.organizationId || this.property.organizationId || '',
       this.property.officeId,
       this.property.propertyId,
-      `inspection-checklist-${this.property.propertyCode || this.property.propertyId}.pdf`,
+      this.utilityService.generateDocumentFileName('inspection', this.property.propertyCode, null),
       'Inspection Checklist',
       DocumentType.Inspection
     );
@@ -593,9 +648,14 @@ export class ChecklistComponent implements OnChanges, OnInit {
       return;
     }
 
+    // Final submit: generate one standalone PDF (htmlContent has embedded images) and save it; documentPath = saved PDF
     this.documentService.generate(inspectionDto).pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
-        persistInspection(documentResponse.documentPath || null);
+        const documentPath = documentResponse.documentPath || null;
+        this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+          next: () => persistInspection(documentPath),
+          error: () => persistInspection(documentPath)
+        });
       },
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
@@ -631,7 +691,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
           next: (savedInventory: InventoryResponse) => {
             this.activeInventory = savedInventory;
             if (shouldSubmitInventory) {
-              this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({ error: () => {} });
+              this.navigateToMaintenanceTabs();
             }
           },
           error: (_err: HttpErrorResponse) => {
@@ -655,7 +715,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
         next: (savedInventory: InventoryResponse) => {
           this.activeInventory = savedInventory;
           if (shouldSubmitInventory) {
-            this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({ error: () => {} });
+            this.navigateToMaintenanceTabs();
           }
         },
         error: (_err: HttpErrorResponse) => {
@@ -674,7 +734,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
       currentUser?.organizationId || this.property.organizationId || '',
       this.property.officeId,
       this.property.propertyId,
-      `inventory-checklist-${this.property.propertyCode || this.property.propertyId}.pdf`,
+      this.utilityService.generateDocumentFileName('inventory', this.property.propertyCode, null),
       'Inventory Checklist',
       DocumentType.Inventory
     );
@@ -684,9 +744,14 @@ export class ChecklistComponent implements OnChanges, OnInit {
       return;
     }
 
+    // Final submit: generate one standalone PDF (htmlContent has embedded images) and save it; documentPath = saved PDF
     this.documentService.generate(inventoryDto).pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
-        persistInventory(documentResponse.documentPath || null);
+        const documentPath = documentResponse.documentPath || null;
+        this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+          next: () => persistInventory(documentPath),
+          error: () => persistInventory(documentPath)
+        });
       },
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
@@ -808,28 +873,30 @@ export class ChecklistComponent implements OnChanges, OnInit {
       propertyId,
       reservationId: null,
       documentTypeId: documentType,
-      fileName
+      fileName,
+      generatePdf: true
     };
   }
 
+  /** Build PDF HTML from component state so images are embedded as data URLs (no photo API calls when viewing the document). */
   buildChecklistPdfHtml(checklistJson: string, checklistTitle: string): string | null {
     try {
-      const root = JSON.parse(checklistJson) as { sections?: Array<{ title?: string; key?: string; notes?: string; sets?: Array<Array<{ text?: string; checked?: boolean; url?: string | null }>> }> };
-      const sections = Array.isArray(root.sections) ? root.sections : [];
-      if (sections.length === 0) {
+      if (!this.sections.length) {
         return null;
       }
 
-      const sectionHtml = sections.map(section => {
+      const sectionHtml = this.sections.map(section => {
         const sectionTitle = this.escapeHtml(section.title || section.key || 'Section');
-        const sets = Array.isArray(section.sets) ? section.sets : [];
-        const setHtml = sets.map((set, setIndex) => {
-          const rows = Array.isArray(set) ? set : [];
-          const rowHtml = rows.map(item => {
-            const label = this.escapeHtml(item?.text || '');
-            const checked = item?.checked === true ? '☑' : '☐';
-            const imageHtml = item?.url
-              ? `<div class="photo-wrap"><img src="${item.url}" alt="Line item photo" /></div>`
+        const repeatIndexes = this.getRepeatIndexes(section.key);
+        const setHtml = repeatIndexes.map((_, setIndex) => {
+          const setItems = this.getSetItems(section.key, setIndex);
+          const rowHtml = setItems.map(item => {
+            const label = this.escapeHtml(item.text || '');
+            const isChecked = !!this.form.get(this.itemControlNameById(section.key, setIndex, item.id))?.value;
+            const checked = isChecked ? '☑' : '☐';
+            const imageSrc = this.getItemPhotoSrc(item);
+            const imageHtml = imageSrc
+              ? `<div class="photo-wrap"><img src="${imageSrc}" alt="Line item photo" /></div>`
               : '';
             return `<li><span class="check">${checked}</span> <span>${label}</span>${imageHtml}</li>`;
           }).join('');
@@ -837,12 +904,27 @@ export class ChecklistComponent implements OnChanges, OnInit {
           return `<div class="set-wrap"><h4>Set ${setIndex + 1}</h4><ul>${rowHtml}</ul></div>`;
         }).join('');
 
-        const notesHtml = section.notes ? `<p><strong>Comments:</strong> ${this.escapeHtml(section.notes)}</p>` : '';
+        const notes = this.form.get(this.notesControlName(section.key))?.value || '';
+        const notesHtml = notes ? `<p><strong>Comments:</strong> ${this.escapeHtml(notes)}</p>` : '';
         return `<section><h3>${sectionTitle}</h3>${setHtml}${notesHtml}</section>`;
       }).join('');
 
-      const propertyName = this.escapeHtml(this.property?.propertyCode || this.property?.propertyId || 'Property');
       const documentTitle = this.escapeHtml(checklistTitle);
+      const propertyName = this.escapeHtml(this.property?.propertyCode || this.property?.propertyId || 'Property');
+      const p = this.property;
+      let headerLines = '';
+      if (p) {
+        const code = this.escapeHtml(String(p.propertyCode ?? p.propertyId ?? ''));
+        if (code) headerLines += `<p><strong>Property Code:</strong> ${code}</p>`;
+        const addrParts: string[] = [];
+        if (p.address1) addrParts.push(this.escapeHtml(String(p.address1)));
+        if (p.address2) addrParts.push(this.escapeHtml(String(p.address2)));
+        if (p.suite) addrParts.push(this.escapeHtml(String(p.suite)));
+        const csz = [p.city, p.state, p.zip].filter(Boolean).map(v => String(v)).join(', ');
+        if (csz) addrParts.push(this.escapeHtml(csz));
+        if (addrParts.length) headerLines += `<p><strong>Address:</strong> ${addrParts.join(', ')}</p>`;
+        if (p.officeName) headerLines += `<p><strong>Office:</strong> ${this.escapeHtml(String(p.officeName))}</p>`;
+      }
       return `
         <html>
           <head>
@@ -861,6 +943,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
           </head>
           <body>
             <h1>${documentTitle} - ${propertyName}</h1>
+            ${headerLines}
             ${sectionHtml}
           </body>
         </html>
@@ -969,7 +1052,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
     return this.sectionSetItems[sectionKey]?.[repeatIndex] || [];
   }
 
-  createChecklistItem(item: string | ChecklistTemplateItem, isEditable?: boolean, checked: boolean = false, url: string | null = null, documentId: string | null = null): ChecklistItem {
+  createChecklistItem(item: string | ChecklistTemplateItem, isEditable?: boolean, checked: boolean = false, photoPath: string | null = null, documentId: string | null = null): ChecklistItem {
     const id = `item_${this.nextItemId++}`;
     const templateItem = typeof item === 'string'
       ? { text: item, requiresPhoto: false }
@@ -978,7 +1061,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
       id,
       text: templateItem.text,
       requiresPhoto: templateItem.requiresPhoto,
-      url,
+      photoPath,
       documentId,
       isEditable: isEditable ?? this.getDefaultItemEditable(),
       checked
@@ -1090,29 +1173,13 @@ export class ChecklistComponent implements OnChanges, OnInit {
       return;
     }
 
-    if (event.checked && item.requiresPhoto && !item.url) {
+    if (event.checked && item.requiresPhoto && !this.getItemPhotoSrc(item)) {
       const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
       control?.setValue(false, { emitEvent: false });
       if (event.source) {
         event.source.checked = false;
       }
-
-      const dialogData: GenericModalData = {
-        title: 'Photo Required',
-        message: this.photoRequiredMessage,
-        icon: 'warning' as any,
-        iconColor: 'warn',
-        no: '',
-        yes: 'OK',
-        callback: (dialogRef) => dialogRef.close(true),
-        useHTML: false,
-        hideClose: true
-      };
-
-      this.dialog.open(GenericModalComponent, {
-        data: dialogData,
-        width: '35rem'
-      });
+      this.openPhotoUpload(sectionKey, repeatIndex, item.id);
     }
   }
   //#endregion
@@ -1123,7 +1190,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
     event.stopPropagation();
     item.requiresPhoto = !item.requiresPhoto;
     if (!item.requiresPhoto) {
-      item.url = null;
+      item.photoPath = null;
     }
   }
 
@@ -1131,10 +1198,11 @@ export class ChecklistComponent implements OnChanges, OnInit {
     return `photo_input_${sectionKey}_${repeatIndex}_${itemId}`;
   }
 
-  openPhotoUpload(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-
+  openPhotoUpload(sectionKey: string, repeatIndex: number, itemId: string, event?: Event | null): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     const inputElement = document.getElementById(this.photoInputId(sectionKey, repeatIndex, itemId)) as HTMLInputElement | null;
     inputElement?.click();
   }
@@ -1153,7 +1221,8 @@ export class ChecklistComponent implements OnChanges, OnInit {
 
     const reader = new FileReader();
     reader.onload = () => {
-      const base64String = btoa(reader.result as string);
+      const dataUrl = reader.result as string;
+      const base64String = dataUrl.includes(',') ? dataUrl.split(',')[1] : btoa(dataUrl);
       const fileName = file.name || `${sectionKey}-${repeatIndex + 1}-${item.id}.jpg`;
       const contentType = file.type || 'image/jpeg';
       const currentUser = this.authService.getUser();
@@ -1171,18 +1240,12 @@ export class ChecklistComponent implements OnChanges, OnInit {
 
       this.photoService.uploadPhoto(photoRequest).pipe(take(1)).subscribe({
         next: (photoResponse: PhotoResponse) => {
-          const returnedDataUrl = photoResponse.fileDetails?.dataUrl
-            || (
-              photoResponse.fileDetails?.file && photoResponse.fileDetails?.contentType
-                ? `data:${photoResponse.fileDetails.contentType};base64,${photoResponse.fileDetails.file}`
-                : null
-            );
-
-          item.url = returnedDataUrl || null;
+          item.photoPath = photoResponse.photoPath || null;
           item.documentId = photoResponse.photoId || null;
+          item.displayDataUrl = dataUrl;
           if (item.requiresPhoto) {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
-            control?.setValue(!!item.url);
+            control?.setValue(!!(item.photoPath || item.displayDataUrl));
           }
         },
         error: () => {
@@ -1203,7 +1266,7 @@ export class ChecklistComponent implements OnChanges, OnInit {
         }
       });
     };
-    reader.readAsBinaryString(file);
+    reader.readAsDataURL(file);
   }
 
   deletePhoto(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
@@ -1215,7 +1278,8 @@ export class ChecklistComponent implements OnChanges, OnInit {
       return;
     }
 
-    item.url = null;
+    item.photoPath = null;
+    item.displayDataUrl = null;
     item.documentId = null;
     if (item.requiresPhoto) {
       const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
@@ -1223,28 +1287,23 @@ export class ChecklistComponent implements OnChanges, OnInit {
     }
   }
 
-  openPhotoPreview(item: ChecklistItem, event: Event): void {
+  /** Image src: in-session data URL, or blob URL from download API. Never use photoPath (private blob URL) in browser. */
+  getItemPhotoSrc(item: ChecklistItem): string | null {
+    if (item.displayDataUrl) {
+      return item.displayDataUrl;
+    }
+    if (item.documentId) {
+      const cached = this.photoBlobUrlCache.get(item.documentId);
+      if (cached) {
+        return cached;
+      }
+    }
+    return null;
+  }
+
+  openPhotoPreview(_item: ChecklistItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    if (!item.url) {
-      return;
-    }
-
-    const dialogData: GenericModalData = {
-      title: 'Photo Preview',
-      message: `<div style="text-align:center;"><img src="${item.url}" alt="Line item photo" style="max-width:100%; max-height:70vh; object-fit:contain;" /></div>`,
-      icon: '' as any,
-      iconColor: 'primary',
-      no: '',
-      yes: 'OK',
-      callback: (dialogRef) => dialogRef.close(true),
-      useHTML: true
-    };
-
-    this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '48rem'
-    });
   }
   //#endregion
 
