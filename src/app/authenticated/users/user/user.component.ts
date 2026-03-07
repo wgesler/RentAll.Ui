@@ -392,7 +392,7 @@ export class UserComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadOfficesForUserOrganization(organizationId: string, officeAccess: Array<number | string>): void {
+  loadOfficesForUserOrganization(organizationId: string, officeAccess: Array<number | string>): void {
     if (!this.isPrivilegedOfficeEditor) {
        return;
     }

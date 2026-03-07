@@ -1,6 +1,7 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { MatPaginator } from '@angular/material/paginator';
@@ -10,6 +11,8 @@ import { take } from 'rxjs';
 import { FormatterService } from '../../../../app/services/formatter-service';
 import { getStatus } from '../../../enums/status.enum';
 import { MaterialModule } from '../../../material.module';
+import { GenericModalComponent } from '../modals/generic/generic-modal.component';
+import { GenericModalData } from '../modals/generic/models/generic-modal-data';
 import { PurposefulAny } from '../../../shared/models/amorphous';
 import { ButtonData } from './models/button-data';
 import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
@@ -50,6 +53,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsCalendar: boolean = false;
   @Input() hasActionsCopy: boolean = false;
   @Input() hasActionsDelete: boolean = false;
+  @Input() deleteConfirmTitle: string = 'Delete?';
+  @Input() deleteConfirmMessage: string = 'Are you sure you want to delete this item?';
   @Input() hasActionsDownload: boolean = false;
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
@@ -160,7 +165,12 @@ export class DataTableComponent implements OnChanges, OnInit {
   isToggle: boolean = false;
   selectAllToolTip: string = 'Select all visible checks';
 
-  constructor(private zone: NgZone, private formatter: FormatterService, private cdr: ChangeDetectorRef) { }
+  constructor(
+    private zone: NgZone,
+    private formatter: FormatterService,
+    private cdr: ChangeDetectorRef,
+    private dialog: MatDialog
+  ) {}
 
   ngOnInit(): void {
     // Use a filterPredicate to make sure the table only filters on visible columns
@@ -287,7 +297,23 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   emitDeleteEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
-    this.deleteEvent.emit(rowItem);
+    const dialogData: GenericModalData = {
+      title: this.deleteConfirmTitle,
+      message: this.deleteConfirmMessage,
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Delete',
+      callback: (dialogRef, result) => {
+        dialogRef.close(result);
+        if (result) {
+          this.deleteEvent.emit(rowItem);
+        }
+      },
+      useHTML: false,
+      hideClose: true
+    };
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
   }
   
   emitCancelEvent(_event: Event, rowItem: PurposefulAny): void {

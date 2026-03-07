@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
@@ -107,6 +108,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   deleteReceipt(event: ReceiptDisplayList): void {
     this.receiptService.deleteReceipt(event.receiptId).pipe(take(1)).subscribe({
       next: () => {
+        this.toastr.success('Receipt deleted successfully', CommonMessage.Success);
         this.receipts = this.receipts.filter(receipt => receipt.receiptId !== event.receiptId);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
         this.applyFilters();

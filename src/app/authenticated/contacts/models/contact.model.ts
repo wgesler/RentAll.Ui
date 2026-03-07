@@ -1,3 +1,5 @@
+import { FileDetails } from "../../documents/models/document.model";
+
 export interface ContactRequest {
   contactId?: string;
   organizationId: string;
@@ -19,6 +21,10 @@ export interface ContactRequest {
   rating: number;
   notes?: string;
   isInternational: boolean;
+  w9Path?: string | null;
+  w9FileDetails?: FileDetails | null;
+  insurancePath?: string | null;
+  insuranceFileDetails?: FileDetails | null;
   isActive: boolean;
 }
 
@@ -44,6 +50,10 @@ export interface ContactResponse {
   rating: number;
   notes?: string;
   isInternational: boolean;
+  w9Path?: string;
+  w9FileDetails?: FileDetails;
+  insurancePath?: string;
+  insuranceFileDetails?: FileDetails;
   isActive: boolean;
 }
 
@@ -61,6 +71,10 @@ export interface ContactListDisplay {
   rating: number;
   ratingStars?: string;
   isInternational: boolean;
+  w9Path?: string;
+  w9FileDetails?: FileDetails;
+  insurancePath?: string;
+  insuranceFileDetails?: FileDetails;
   isActive: boolean;
 }
 

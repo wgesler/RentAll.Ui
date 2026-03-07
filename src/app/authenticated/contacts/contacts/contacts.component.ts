@@ -48,25 +48,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
     private contactService: ContactService
   ) { }
 
-  onOpenContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }): void {
-    this.formContactId = event.contactId;
-    this.formCopyFrom = event.copyFrom ?? null;
-    this.formEntityTypeId = event.entityTypeId ?? null;
-    this.formTabIndex = event.tabIndex ?? this.selectedTabIndex;
-    this.showContactForm = true;
-  }
-
-  onContactClosed(_event: { saved?: boolean }): void {
-    this.showContactForm = false;
-    this.formContactId = null;
-    this.formCopyFrom = null;
-    this.formEntityTypeId = null;
-    this.formTabIndex = null;
-    if (_event.saved) {
-      this.contactService.loadAllContacts().pipe(take(1)).subscribe();
-    }
-  }
-
   //#region Contacts
   ngOnInit(): void {
     this.applyQueryParamState(this.route.snapshot.queryParams);
@@ -133,6 +114,25 @@ export class ContactsComponent implements OnInit, OnDestroy {
       queryParams: { tab: event.index.toString() },
       queryParamsHandling: 'merge'
     });
+  }
+
+  onOpenContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }): void {
+    this.formContactId = event.contactId;
+    this.formCopyFrom = event.copyFrom ?? null;
+    this.formEntityTypeId = event.entityTypeId ?? null;
+    this.formTabIndex = event.tabIndex ?? this.selectedTabIndex;
+    this.showContactForm = true;
+  }
+
+  onContactClosed(_event: { saved?: boolean }): void {
+    this.showContactForm = false;
+    this.formContactId = null;
+    this.formCopyFrom = null;
+    this.formEntityTypeId = null;
+    this.formTabIndex = null;
+    if (_event.saved) {
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe();
+    }
   }
   //#endregion
 

@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
@@ -19,8 +18,6 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
-import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
@@ -107,7 +104,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public documentService: DocumentService,
     public toastr: ToastrService,
     public router: Router,
-    private dialog: MatDialog,
     private mappingService: MappingService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
@@ -365,29 +361,13 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteDocument(document: DocumentListDisplay): void {
-    const dialogData: GenericModalData = {
-      title: 'Delete Document',
-      message: 'Are you sure you want to delete this document?',
-      icon: 'warning' as any,
-      iconColor: 'warn',
-      no: 'Cancel',
-      yes: 'Delete',
-      callback: (dialogRef, result) => {
-        dialogRef.close(result);
-        if (result) {
-          this.documentService.deleteDocument(document.documentId).pipe(take(1)).subscribe({
-            next: () => {
-              this.toastr.success('Document deleted successfully', CommonMessage.Success);
-              this.getDocuments();
-            },
-            error: () => {}
-          });
-        }
+    this.documentService.deleteDocument(document.documentId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Document deleted successfully', CommonMessage.Success);
+        this.getDocuments();
       },
-      useHTML: false,
-      hideClose: true
-    };
-    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' });
+      error: () => {}
+    });
   }
 
   goToDocument(event: DocumentListDisplay): void {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, Input, Output, EventEmitter, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -18,6 +18,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { EntityType, getContactTypes, getEntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
+import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
 
 @Component({
@@ -41,6 +42,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  isEmbedded: boolean = true;
   states: string[] = [];
   availableContactTypes: { value: number, label: string }[] = [];
   offices: OfficeResponse[] = [];
@@ -48,6 +50,21 @@ export class ContactComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
+  w9FileName: string | null = null;
+  w9FileDataUrl: string | null = null;
+  w9FileContentType: string | null = null;
+  w9FileDetails: FileDetails | null = null;
+  w9Path: string | null = null;
+  hasNewW9Upload = false;
+  insuranceFileName: string | null = null;
+  insuranceFileDataUrl: string | null = null;
+  insuranceFileContentType: string | null = null;
+  insuranceFileDetails: FileDetails | null = null;
+  insurancePath: string | null = null;
+  hasNewInsuranceUpload = false;
+
+  @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -67,10 +84,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService
   ) {
   }
-
-  /** True when component is embedded in tabs (contacts/maintenance); false when loaded via route /auth/contacts/:id. */
-  private isEmbedded = true;
-
   //#region Contacts
   ngOnInit(): void {
     this.initializeContactTypes();
@@ -216,7 +229,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       notes: formValue.notes || undefined,
       rating: Number(formValue.rating ?? 0),
       companyId: undefined,
-      isInternational: isInternational
+      isInternational: isInternational,
+      w9Path: this.buildW9PathForRequest(),
+      w9FileDetails: this.buildW9FileDetailsForRequest(),
+      insurancePath: this.buildInsurancePathForRequest(),
+      insuranceFileDetails: this.buildInsuranceFileDetailsForRequest()
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -329,7 +346,87 @@ export class ContactComponent implements OnInit, OnDestroy {
       if (!this.isAddMode) {
         this.form.get('contactTypeId')?.disable();
       }
+
+      // Populate W9 and Insurance from response
+      this.populateW9FromContact();
+      this.populateInsuranceFromContact();
     }
+  }
+
+  populateW9FromContact(): void {
+    if (!this.contact) return;
+    const fd = this.contact.w9FileDetails;
+    const path = this.contact.w9Path;
+    this.hasNewW9Upload = false;
+    if (fd?.file && fd?.contentType) {
+      this.w9FileDetails = fd;
+      this.w9Path = path ?? null;
+      this.w9FileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
+      this.w9FileContentType = fd.contentType;
+      this.w9FileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'W9 Form';
+    } else if (path) {
+      this.w9Path = path;
+      this.w9FileDetails = null;
+      this.w9FileName = path.replace(/^.*[/\\]/, '') || 'W9 Form';
+      this.w9FileDataUrl = null;
+      this.w9FileContentType = null;
+    } else {
+      this.w9Path = null;
+      this.w9FileDetails = null;
+      this.w9FileName = null;
+      this.w9FileDataUrl = null;
+      this.w9FileContentType = null;
+    }
+  }
+
+  populateInsuranceFromContact(): void {
+    if (!this.contact) return;
+    const fd = this.contact.insuranceFileDetails;
+    const path = this.contact.insurancePath;
+    this.hasNewInsuranceUpload = false;
+    if (fd?.file && fd?.contentType) {
+      this.insuranceFileDetails = fd;
+      this.insurancePath = path ?? null;
+      this.insuranceFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
+      this.insuranceFileContentType = fd.contentType;
+      this.insuranceFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Insurance Form';
+    } else if (path) {
+      this.insurancePath = path;
+      this.insuranceFileDetails = null;
+      this.insuranceFileName = path.replace(/^.*[/\\]/, '') || 'Insurance Form';
+      this.insuranceFileDataUrl = null;
+      this.insuranceFileContentType = null;
+    } else {
+      this.insurancePath = null;
+      this.insuranceFileDetails = null;
+      this.insuranceFileName = null;
+      this.insuranceFileDataUrl = null;
+      this.insuranceFileContentType = null;
+    }
+  }
+
+  buildW9PathForRequest(): string | undefined | null {
+    return (this.hasNewW9Upload || (this.w9FileDetails && this.w9FileDetails.file))
+      ? undefined
+      : this.w9Path;
+  }
+
+  buildW9FileDetailsForRequest(): FileDetails | undefined | null {
+    return (this.hasNewW9Upload || (this.w9FileDetails && this.w9FileDetails.file))
+      ? this.w9FileDetails ?? null
+      : undefined;
+  }
+
+  buildInsurancePathForRequest(): string | undefined | null {
+    return (this.hasNewInsuranceUpload || (this.insuranceFileDetails && this.insuranceFileDetails.file))
+      ? undefined
+      : this.insurancePath;
+  }
+
+  buildInsuranceFileDetailsForRequest(): FileDetails | undefined | null {
+    return (this.hasNewInsuranceUpload || (this.insuranceFileDetails && this.insuranceFileDetails.file))
+      ? this.insuranceFileDetails ?? null
+      : undefined;
   }
 
   initializeContactTypes(): void {
@@ -424,6 +521,88 @@ export class ContactComponent implements OnInit, OnDestroy {
         }
       });
     });
+  }
+  //#endregion
+
+  //#region W9 and Insurance upload (mirrors user.component profile picture)
+  onW9FileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) {
+      this.w9FileName = null;
+      this.w9FileDataUrl = null;
+      this.w9FileContentType = null;
+      this.w9FileDetails = null;
+      return;
+    }
+    const file = input.files[0];
+    this.w9FileName = file.name;
+    this.w9FileContentType = file.type;
+    this.w9Path = null;
+    this.hasNewW9Upload = true;
+    this.w9FileDetails = { contentType: file.type, fileName: file.name, file: '', dataUrl: '' };
+    const reader = new FileReader();
+    reader.onload = (): void => {
+      const dataUrl = reader.result as string;
+      this.w9FileDataUrl = dataUrl;
+      if (this.w9FileDetails) {
+        this.w9FileDetails.dataUrl = dataUrl;
+        const base64String = dataUrl.split(',')[1];
+        this.w9FileDetails.file = base64String ?? '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeW9Form(): void {
+    this.w9Path = null;
+    this.w9FileName = null;
+    this.w9FileDataUrl = null;
+    this.w9FileContentType = null;
+    this.w9FileDetails = null;
+    this.hasNewW9Upload = false;
+    if (this.w9FileInputRef?.nativeElement) {
+      this.w9FileInputRef.nativeElement.value = '';
+    }
+  }
+
+  onInsuranceFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) {
+      this.insuranceFileName = null;
+      this.insuranceFileDataUrl = null;
+      this.insuranceFileContentType = null;
+      this.insuranceFileDetails = null;
+      return;
+    }
+    const file = input.files[0];
+    this.insuranceFileName = file.name;
+    this.insuranceFileContentType = file.type;
+    this.insurancePath = null;
+    this.hasNewInsuranceUpload = true;
+    this.insuranceFileDetails = { contentType: file.type, fileName: file.name, file: '', dataUrl: '' };
+    const reader = new FileReader();
+    reader.onload = (): void => {
+      const dataUrl = reader.result as string;
+      this.insuranceFileDataUrl = dataUrl;
+      if (this.insuranceFileDetails) {
+        this.insuranceFileDetails.dataUrl = dataUrl;
+        const base64String = dataUrl.split(',')[1];
+        this.insuranceFileDetails.file = base64String ?? '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeInsuranceForm(): void {
+    this.insurancePath = null;
+    this.insuranceFileName = null;
+    this.insuranceFileDataUrl = null;
+    this.insuranceFileContentType = null;
+    this.insuranceFileDetails = null;
+    this.hasNewInsuranceUpload = false;
+    if (this.insuranceFileInputRef?.nativeElement) {
+      this.insuranceFileInputRef.nativeElement.value = '';
+    }
   }
   //#endregion
 
