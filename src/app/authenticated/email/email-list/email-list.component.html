@@ -69,11 +69,14 @@
               [hasActionsRowClick]="true"
               [hasActionsView]="true"
               [hasActionsEdit]="false"
-              [hasActionsDelete]="false"
+              [hasActionsDelete]="true"
+              [deleteConfirmTitle]="'Delete Email'"
+              [deleteConfirmMessage]="'Are you sure you want to delete this email?'"
               [itemsPerPage]="100"
               (viewEvent)="viewEmail($event)"
               (attachmentClickEvent)="viewDocument($event)"
-              (rowClickEvent)="viewEmail($event)"/>
+              (rowClickEvent)="viewEmail($event)"
+              (deleteEvent)="deleteEmail($event)"/>
           </div>
         </div>
       </mat-card>
@@ -150,11 +153,14 @@
               [hasActionsRowClick]="true"
               [hasActionsView]="true"
               [hasActionsEdit]="false"
-              [hasActionsDelete]="false"
+              [hasActionsDelete]="true"
+              [deleteConfirmTitle]="'Delete Email'"
+              [deleteConfirmMessage]="'Are you sure you want to delete this email?'"
               [itemsPerPage]="100"
               (viewEvent)="viewEmail($event)"
               (attachmentClickEvent)="viewDocument($event)"
-              (rowClickEvent)="viewEmail($event)"/>
+              (rowClickEvent)="viewEmail($event)"
+              (deleteEvent)="deleteEmail($event)"/>
           </div>
         </div>
       </mat-card>

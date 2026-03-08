@@ -230,10 +230,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       rating: Number(formValue.rating ?? 0),
       companyId: undefined,
       isInternational: isInternational,
-      w9Path: this.buildW9PathForRequest(),
-      w9FileDetails: this.buildW9FileDetailsForRequest(),
-      insurancePath: this.buildInsurancePathForRequest(),
-      insuranceFileDetails: this.buildInsuranceFileDetailsForRequest()
+      w9Path: this.hasNewW9Upload ? undefined : this.w9Path,
+      w9FileDetails: this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined,
+      w9Expiration: (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.w9Expiration),
+      insurancePath: this.hasNewInsuranceUpload ? undefined : this.insurancePath,
+      insuranceFileDetails: this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined,
+      insuranceExpiration: (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.insuranceExpiration)
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -293,7 +295,9 @@ export class ContactComponent implements OnInit, OnDestroy {
       notes: new FormControl(''),
       rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
-      isActive: new FormControl(true)
+      isActive: new FormControl(true),
+      w9Expiration: new FormControl<Date | null>(null),
+      insuranceExpiration: new FormControl<Date | null>(null)
     });
 
     this.setupConditionalFields();
@@ -323,6 +327,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       const isTenantOrOwner = contactTypeId === EntityType.Tenant || contactTypeId === EntityType.Owner;
       const companyName = isTenantOrOwner ? '' : ((this.contact as any).companyName ?? '');
 
+      const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
+      const w9D = w9DateStr ? new Date(w9DateStr + 'T00:00:00') : null;
+      const w9ExpirationDate = w9D && !isNaN(w9D.getTime()) ? w9D : null;
+      const insDateStr = this.contact.insuranceExpiration?.split('T')[0] ?? '';
+      const insD = insDateStr ? new Date(insDateStr + 'T00:00:00') : null;
+      const insuranceExpirationDate = insD && !isNaN(insD.getTime()) ? insD : null;
       this.form.patchValue({
         contactCode: this.contact.contactCode,
         contactTypeId: contactTypeId,
@@ -340,7 +350,9 @@ export class ContactComponent implements OnInit, OnDestroy {
         notes: this.contact.notes || '',
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
-        isActive: isActiveValue
+        isActive: isActiveValue,
+        w9Expiration: w9ExpirationDate,
+        insuranceExpiration: insuranceExpirationDate
       });
 
       if (!this.isAddMode) {
@@ -405,30 +417,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   }
 
-  buildW9PathForRequest(): string | undefined | null {
-    return (this.hasNewW9Upload || (this.w9FileDetails && this.w9FileDetails.file))
-      ? undefined
-      : this.w9Path;
-  }
-
-  buildW9FileDetailsForRequest(): FileDetails | undefined | null {
-    return (this.hasNewW9Upload || (this.w9FileDetails && this.w9FileDetails.file))
-      ? this.w9FileDetails ?? null
-      : undefined;
-  }
-
-  buildInsurancePathForRequest(): string | undefined | null {
-    return (this.hasNewInsuranceUpload || (this.insuranceFileDetails && this.insuranceFileDetails.file))
-      ? undefined
-      : this.insurancePath;
-  }
-
-  buildInsuranceFileDetailsForRequest(): FileDetails | undefined | null {
-    return (this.hasNewInsuranceUpload || (this.insuranceFileDetails && this.insuranceFileDetails.file))
-      ? this.insuranceFileDetails ?? null
-      : undefined;
-  }
-
   initializeContactTypes(): void {
     this.availableContactTypes = getContactTypes();
   }
@@ -453,7 +441,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Entity type label for the title bar (Tenant, Owner, Company, Vendor) or 'Contact'. */
   get contactTypeTitleLabel(): string {
     const id = this.isAddMode
       ? (this.form?.get('contactTypeId')?.value ?? this.entityTypeId)
@@ -524,7 +511,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region W9 and Insurance upload (mirrors user.component profile picture)
+  //#region w9/insurance Sections
   onW9FileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) {
@@ -623,8 +610,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
-
-
 
   back(): void {
     if (this.isEmbedded) {

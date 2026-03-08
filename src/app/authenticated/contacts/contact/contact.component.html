@@ -192,13 +192,16 @@
               <div class="col-span-4">
                 <mat-divider class="my-5"/>
                 <h3 class="pt-3">W9 Form</h3>
+                <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
+                  <mat-label>W9 Expiration</mat-label>
+                  <input matInput [matDatepicker]="w9ExpirationPicker" formControlName="w9Expiration" />
+                  <mat-datepicker-toggle matIconSuffix [for]="w9ExpirationPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #w9ExpirationPicker></mat-datepicker>
+                </mat-form-field>
                 <div class="flex justify-start image-input items-center mb-4">
                   @if (w9FileDataUrl && w9FileContentType?.startsWith('image/')) {
                     <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="W9 Form" [src]="w9FileDataUrl" />
                     <div class="flex flex-col gap-2 ml-4">
-                      @if (w9FileName) {
-                        <span class="text-sm font-semibold">{{ w9FileName }}</span>
-                      }
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                           Upload
@@ -213,7 +216,6 @@
                       <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                     </div>
                     <div class="flex flex-col gap-2 ml-4">
-                      <span class="text-sm font-semibold">{{ w9FileName }}</span>
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                           Upload
@@ -228,7 +230,6 @@
                       <mat-icon class="text-5xl text-slate-400">description</mat-icon>
                     </div>
                     <div class="flex flex-col gap-2 ml-4">
-                      <span class="text-sm font-semibold">{{ w9FileName }}</span>
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                           Upload
@@ -251,13 +252,16 @@
               <div class="col-span-4">
                 <mat-divider class="my-5"/>
                 <h3 class="pt-3">Insurance Form</h3>
+                <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
+                  <mat-label>Insurance Expiration</mat-label>
+                  <input matInput [matDatepicker]="insuranceExpirationPicker" formControlName="insuranceExpiration" />
+                  <mat-datepicker-toggle matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #insuranceExpirationPicker></mat-datepicker>
+                </mat-form-field>
                 <div class="flex justify-start image-input items-center mb-4">
                   @if (insuranceFileDataUrl && insuranceFileContentType?.startsWith('image/')) {
                     <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="Insurance Form" [src]="insuranceFileDataUrl" />
                     <div class="flex flex-col gap-2 ml-4">
-                      @if (insuranceFileName) {
-                        <span class="text-sm font-semibold">{{ insuranceFileName }}</span>
-                      }
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                           Upload
@@ -272,7 +276,6 @@
                       <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                     </div>
                     <div class="flex flex-col gap-2 ml-4">
-                      <span class="text-sm font-semibold">{{ insuranceFileName }}</span>
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                           Upload
@@ -287,7 +290,6 @@
                       <mat-icon class="text-5xl text-slate-400">description</mat-icon>
                     </div>
                     <div class="flex flex-col gap-2 ml-4">
-                      <span class="text-sm font-semibold">{{ insuranceFileName }}</span>
                       <div class="flex flex-col gap-2">
                         <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                           Upload

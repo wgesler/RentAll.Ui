@@ -23,8 +23,10 @@ export interface ContactRequest {
   isInternational: boolean;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
+  w9Expiration?: string | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
+  insuranceExpiration?: string | null;
   isActive: boolean;
 }
 
@@ -52,8 +54,10 @@ export interface ContactResponse {
   isInternational: boolean;
   w9Path?: string;
   w9FileDetails?: FileDetails;
+  w9Expiration?: string;
   insurancePath?: string;
   insuranceFileDetails?: FileDetails;
+  insuranceExpiration?: string;
   isActive: boolean;
 }
 
@@ -70,11 +74,6 @@ export interface ContactListDisplay {
   email: string;
   rating: number;
   ratingStars?: string;
-  isInternational: boolean;
-  w9Path?: string;
-  w9FileDetails?: FileDetails;
-  insurancePath?: string;
-  insuranceFileDetails?: FileDetails;
   isActive: boolean;
 }
 

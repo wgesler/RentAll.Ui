@@ -2,7 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { Subscription, filter, take } from 'rxjs';
@@ -77,7 +79,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
-    private contactService: ContactService
+    private contactService: ContactService,
+    private toastr: ToastrService
   ) {}
 
   //#region Email-List
@@ -366,6 +369,19 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   viewEmail(email: EmailListDisplay): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Email, [email.emailId]));
+  }
+
+  deleteEmail(email: EmailListDisplay): void {
+    this.emailService.deleteEmail(email.emailId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Email deleted successfully', CommonMessage.Success);
+        this.allEmails = this.allEmails.filter(e => e.emailId !== email.emailId);
+        this.applyFilters();
+      },
+      error: () => {
+        this.isServiceError = true;
+      }
+    });
   }
   //#endregion
 

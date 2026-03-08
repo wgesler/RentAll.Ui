@@ -23,6 +23,10 @@ export class EmailService {
     return this.http.get<EmailResponse>(this.controller + emailId);
   }
 
+  deleteEmail(emailId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + emailId);
+  }
+
   sendEmail(request: EmailRequest): Observable<EmailResponse> {
     return this.http.post<EmailResponse>(this.controller, request);
   }
