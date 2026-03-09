@@ -1,13 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
-import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -24,6 +21,9 @@ import { WorkOrderService } from '../services/work-order.service';
 })
 export class WorkOrderListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
+  /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
+  @Input() embeddedInMaintenance = false;
+  @Output() workOrderSelect = new EventEmitter<string | null>();
 
   isLoading: boolean = false;
   isServiceError: boolean = false;
@@ -38,8 +38,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   workOrderDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '15ch' },
-    description: { displayAs: 'Description', wrap: true, maxWidth: '30ch' },
+    workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
@@ -49,7 +48,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     private workOrderService: WorkOrderService,
     private mappingService: MappingService,
     private router: Router,
-    private dialog: MatDialog,
     private toastr: ToastrService
   ) {}
 
@@ -100,14 +98,20 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   addWorkOrder(): void {
     if (!this.property) return;
+    if (this.embeddedInMaintenance) {
+      this.workOrderSelect.emit(null);
+      return;
+    }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, ['new']);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
 
   deleteWorkOrder(event: WorkOrderDisplayList): void {
-    this.workOrderService.deleteWorkOrder(event.workOrderId).pipe(take(1)).subscribe({
+    const id = String(event.workOrderId);
+    if (!id) return;
+    this.workOrderService.deleteWorkOrder(id).pipe(take(1)).subscribe({
       next: () => {
-        this.workOrders = this.workOrders.filter(workOrder => workOrder.workOrderId !== event.workOrderId);
+        this.workOrders = this.workOrders.filter(workOrder => String(workOrder.workOrderId) !== String(event.workOrderId));
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
       },
@@ -119,27 +123,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   
   goToWorkOrder(event: WorkOrderDisplayList): void {
     if (!this.property) return;
+    if (this.embeddedInMaintenance) {
+      this.workOrderSelect.emit(String(event.workOrderId));
+      return;
+    }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [String(event.workOrderId)]);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
 
-  openReceiptDialog(item: WorkOrderDisplayList): void {
-    this.workOrderService.getWorkOrderById(item.workOrderId).pipe(take(1)).subscribe({
-      next: (workOrder: WorkOrderResponse) => {
-        const fd = workOrder?.fileDetails;
-        const imageSrc =
-          fd?.dataUrl ||
-          (fd?.file && fd?.contentType ? `data:${fd.contentType};base64,${fd.file}` : null);
-        if (!imageSrc) {
-          this.toastr.warning('Receipt image is not available.', 'Receipt');
-          return;
-        }
-        const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
-        this.dialog.open(ImageViewDialogComponent, { data, width: '90vw', maxWidth: '600px' });
-      },
-      error: () => this.toastr.error('Unable to load receipt.', 'Receipt')
-    });
-  }
   //#endregion
 
   //#region Filter Methods

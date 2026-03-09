@@ -55,6 +55,18 @@
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="property?.propertyCode || receipt?.propertyCode || ''" readonly disabled>
               </mat-form-field>
+
+              <mat-form-field appearance="outline" class="receipt-amount-field" style="flex: 0 0 15%; min-width: 0; max-width: 15%;">
+                <mat-label>Amount</mat-label>
+                <input matInput type="text" inputmode="decimal" formControlName="amount" required
+                  (input)="formatter.formatDecimalInput($event, form.get('amount'))"
+                  (focus)="formatter.clearDefaultDecimalOnFocus($event, form.get('amount'), '0.00')"
+                  (blur)="formatter.formatDecimalOnBlur(form.get('amount'))"
+                  (keydown.enter)="onAmountKeydown($event)">
+                @if (form.get('amount')?.hasError('required') && form.get('amount')?.touched) {
+                  <mat-error>Amount is required</mat-error>
+                }
+              </mat-form-field>
             </div>
 
             <mat-form-field appearance="outline" class="col-span-4">

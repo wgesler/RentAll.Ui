@@ -6,14 +6,20 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { FileDetails } from '../../documents/models/document.model';
+import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
+import { getWorkOrderTypes } from '../models/maintenance-enums';
+import { ReceiptResponse } from '../models/receipt.model';
+import { WorkOrderRequest, WorkOrderResponse, WorkOrderItemResponse, WorkOrderItemRequest } from '../models/work-order.model';
+import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+
+/** Editable work order item (new rows have no workOrderItemId/workOrderId; GUIDs from response). itemAmount is auto-calculated as receiptAmount + (laborHours * laborCost). */
+export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrderItemId' | 'workOrderId'>> & Pick<WorkOrderItemResponse, 'description' | 'laborHours' | 'laborCost' | 'itemAmount'> & { receiptId?: number | null; receiptAmount?: number };
 
 @Component({
   standalone: true,
@@ -23,10 +29,15 @@ import { WorkOrderService } from '../services/work-order.service';
   styleUrl: './work-order.component.scss'
 })
 export class WorkOrderComponent implements OnInit, OnDestroy {
+  /** Expose for template (labor hours integer parsing) */
+  readonly parseInt = parseInt;
+
   @Input() property: PropertyResponse | null = null;
-  @Input() workOrderId: number | null = null;
+  @Input() workOrderId: string | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
+  /** When true, component is shown inside maintenance tabs; uses @Input() workOrderId and back/saved emit only (no route nav). */
+  @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
 
@@ -40,12 +51,13 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   organizationId: string = '';
   selectedPropertyId: string | null = null;
   workOrder: WorkOrderResponse | null = null;
-  receiptPreviewDataUrl: string | null = null;
-  receiptFileName: string | null = null;
-  receiptFileDetails: FileDetails | null = null;
-  hasNewReceiptUpload: boolean = false;
-  /** Original receipt path from load; used to detect removal and avoid re-sending unchanged file */
-  originalReceiptPath: string | null = null;
+  workOrderTypeOptions = getWorkOrderTypes();
+  /** Editable list of work order items (loaded from workOrder or added by user) */
+  workOrderItems: WorkOrderItemEditable[] = [];
+  /** Receipts for the current property (for Add Receipt dropdown) */
+  propertyReceipts: ReceiptResponse[] = [];
+  /** When user is editing a currency field, hold index + field + raw edit string (so "12." is preserved until blur). Total is read-only. */
+  focusedCurrencyField: { index: number; field: 'laborCost'; editValue: string } | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrder', 'property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -57,7 +69,9 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
+    private receiptService: ReceiptService,
     private utilityService: UtilityService,
+    private formatter: FormatterService,
     private toastr: ToastrService
   ) {
     this.fb = fb;
@@ -67,15 +81,28 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
 
   //#region Work Order
   ngOnInit(): void {
-    this.organizationId = this.authService.getUser()?.organizationId || '';
+    this.organizationId = this.property?.organizationId ?? this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
+    if (this.embeddedInMaintenance) {
+      this.isAddMode = this.workOrderId == null;
+      this.selectedPropertyId = this.property?.propertyId ?? null;
+      if (this.isAddMode) {
+        this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
+      }
+      this.loadProperty();
+      this.loadWorkOrder();
+      return;
+    }
     this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
       const workOrderIdParam = paramMap.get('id');
-      if (workOrderIdParam !== null) 
-        this.workOrderId = workOrderIdParam === 'new' ? null : parseInt(workOrderIdParam, 10) || null;
+      if (workOrderIdParam !== null)
+        this.workOrderId = workOrderIdParam === 'new' ? null : workOrderIdParam;
 
       this.isAddMode = this.workOrderId == null;
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
+      if (this.isAddMode) {
+        this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
+      }
 
       this.loadProperty();
       this.loadWorkOrder();
@@ -83,42 +110,49 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   }
 
   saveWorkOrder(): void {
-    if (!this.property || !this.organizationId || this.form.invalid) {
+    if (!this.property?.propertyId || !this.property?.organizationId) {
+      this.toastr.warning('Property (with organization) is required to save.', 'Cannot Save');
+      return;
+    }
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.toastr.warning('Please complete the required fields (e.g. Work Order Type).', 'Form Incomplete');
+      return;
+    }
+    if (this.workOrderItems.length === 0) {
+      this.toastr.warning('Add at least one work order item before saving.', 'Items Required');
       return;
     }
 
-    const hasReceiptImage = !!(this.receiptFileDetails?.file) || !!(this.form.get('receiptPath')?.value) || !!(this.workOrder?.receiptPath);
-    if (!hasReceiptImage) {
-      this.toastr.warning('A receipt image is required before saving.', 'Receipt required');
+    const isCreate = this.workOrder?.workOrderId == null;
+    const workOrderItemsForSave = this.mapWorkOrderItemsForSave(isCreate);
+    const invalidItem = workOrderItemsForSave.find(item => item.itemAmount <= 0);
+    if (invalidItem) {
+      this.form.markAllAsTouched();
+      this.toastr.warning('Each work order item must have a Total greater than 0. Total = receipt amount + (labor hours × labor cost).', 'Item Total Required');
       return;
     }
 
-    // Like user profile: send fileDetails only when user uploaded a new receipt; otherwise send receiptPath (or null if removed)
-    const sendNewReceipt = this.hasNewReceiptUpload;
-    const receiptPathValue = this.form.get('receiptPath')?.value ?? this.workOrder?.receiptPath ?? null;
     const payload: WorkOrderRequest = {
-      workOrderId: this.workOrder?.workOrderId,
-      organizationId: this.organizationId,
-      officeId: this.workOrder?.officeId || this.property.officeId,
+      organizationId: this.property.organizationId,
+      officeId: this.property.officeId,
       propertyId: this.property.propertyId,
-      maintenanceId: this.workOrder?.maintenanceId || this.maintenanceId || '',
-      description: (this.form.get('description')?.value || '').trim(),
-      receiptPath: sendNewReceipt ? undefined : receiptPathValue,
-      fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
-      isActive: this.form.get('isActive')?.value
+      workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
+      description: (this.form.get('description')?.value ?? '').trim(),
+      workOrderItems: workOrderItemsForSave,
+      isActive: this.form.get('isActive')?.value ?? true
     };
+    if (!isCreate && this.workOrder?.workOrderId) {
+      payload.workOrderId = this.workOrder.workOrderId;
+    }
 
-    // Edit mode: only call update when something changed (like user profile self-edit)
+    // Edit mode: only call update when something changed
     if (this.workOrder?.workOrderId) {
-      const hasReceiptChange = this.hasNewReceiptUpload ||
-        (payload.receiptPath !== (this.workOrder.receiptPath ?? null)) ||
-        (!!payload.fileDetails !== !!(this.workOrder.fileDetails?.file));
-      const hasWorkOrderUpdates = this.workOrder
-        ? (payload.description !== (this.workOrder.description ?? '').trim()) ||
-          payload.isActive !== this.workOrder.isActive ||
-          hasReceiptChange
-        : true;
+      const hasWorkOrderUpdates =
+        payload.workOrderTypeId !== this.workOrder.workOrderTypeId ||
+        (payload.description ?? '') !== (this.workOrder.description ?? '') ||
+        payload.isActive !== this.workOrder.isActive ||
+        this.hasWorkOrderItemsChanged();
       if (!hasWorkOrderUpdates) {
         if (this.selectedPropertyId) {
           this.back();
@@ -129,32 +163,39 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
 
     this.isSubmitting = true;
 
+    console.log('Work order request (before POST/PUT):', JSON.stringify(payload, null, 2));
+
     const save$ = this.workOrder?.workOrderId
       ? this.workOrderService.updateWorkOrder(payload)
       : this.workOrderService.createWorkOrder(payload);
 
-    save$.pipe(take(1),finalize(() => { this.isSubmitting = false; })).subscribe({
+    save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
       next: (saved: WorkOrderResponse) => {
         this.workOrder = saved;
         this.isAddMode = false;
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
           propertyCode: saved.propertyCode || this.property?.propertyCode || '',
-          description: saved.description || '',
-          receiptPath: saved.receiptPath || '',
+          workOrderTypeId: saved.workOrderTypeId,
+          description: saved.description ?? '',
           isActive: saved.isActive
         });
-        this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
-        if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
-          this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
-            || `data:${saved.fileDetails.contentType};base64,${saved.fileDetails.file}`;
-          this.receiptFileName = saved.fileDetails.fileName || this.extractFileName(saved.receiptPath || '');
-        } else {
-          this.receiptPreviewDataUrl = null;
-          this.receiptFileName = this.extractFileName(saved.receiptPath || '');
-        }
-        this.hasNewReceiptUpload = false;
-        this.originalReceiptPath = saved.receiptPath ?? null;
+        this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
+          const receiptAmount = item.receiptId != null
+            ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
+            : 0;
+          return {
+            workOrderItemId: item.workOrderItemId,
+            workOrderId: item.workOrderId,
+            description: item.description ?? '',
+            receiptId: item.receiptId ?? null,
+            receiptAmount,
+            laborHours: Math.floor(Number(item.laborHours)) || 0,
+            laborCost: item.laborCost ?? 0,
+            itemAmount: item.itemAmount ?? 0
+          };
+        });
+        this.syncReceiptAmounts();
         this.savedEvent.emit();
         this.toastr.success('Work order saved.', 'Success');
         if (this.selectedPropertyId) {
@@ -173,36 +214,183 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
-      description: new FormControl('', [Validators.required]),
-      receiptPath: new FormControl(''),
+      workOrderTypeId: new FormControl(0, [Validators.required]),
+      description: new FormControl(''),
       isActive: new FormControl(true)
     });
   }
 
   populateForm(workOrder: WorkOrderResponse): void {
     this.form.patchValue({
-      officeName: this.property?.officeName || '',
-      propertyCode: this.property?.propertyCode || '',
-      description: workOrder.description || '',
-      receiptPath: workOrder.receiptPath || '',
+      officeName: this.property?.officeName ?? '',
+      propertyCode: this.property?.propertyCode ?? '',
+      workOrderTypeId: workOrder.workOrderTypeId ?? 0,
+      description: workOrder.description ?? '',
       isActive: workOrder.isActive
     });
-    this.receiptFileDetails = workOrder.fileDetails || null;
-    this.hasNewReceiptUpload = false;
-    this.originalReceiptPath = workOrder.receiptPath ?? null;
-    if (workOrder.fileDetails?.file && workOrder.fileDetails?.contentType) {
-      this.receiptPreviewDataUrl = workOrder.fileDetails.dataUrl || `data:${workOrder.fileDetails.contentType};base64,${workOrder.fileDetails.file}`;
-      this.receiptFileName = workOrder.fileDetails.fileName || this.extractFileName(workOrder.receiptPath || '');
-    } else {
-      this.receiptPreviewDataUrl = null;
-      this.receiptFileName = this.extractFileName(workOrder.receiptPath || '');
+    this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
+      workOrderItemId: item.workOrderItemId,
+      workOrderId: item.workOrderId,
+      description: item.description ?? '',
+      receiptId: item.receiptId ?? null,
+      receiptAmount: item.receiptId != null
+        ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
+        : 0,
+      laborHours: Math.floor(Number(item.laborHours)) || 0,
+      laborCost: item.laborCost ?? 0,
+      itemAmount: item.itemAmount ?? 0
+    }));
+    this.syncReceiptAmounts();
+  }
+
+  /** When propertyReceipts load (e.g. after work order), fill receiptAmount on items that have a receiptId. */
+  syncReceiptAmounts(): void {
+    this.workOrderItems.forEach(item => {
+      if (item.receiptId != null) {
+        const amt = this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
+        (item as WorkOrderItemEditable).receiptAmount = amt;
+      }
+    });
+  }
+  //#endregion
+
+  //#region Work Order Items
+  addWorkOrderItem(): void {
+    const newItem: WorkOrderItemEditable = {
+      description: '',
+      receiptId: null,
+      receiptAmount: 0,
+      laborHours: 0,
+      laborCost: 0,
+      itemAmount: 0
+    };
+    this.workOrderItems.push(newItem);
+  }
+
+  removeWorkOrderItem(index: number): void {
+    if (index >= 0 && index < this.workOrderItems.length) {
+      this.workOrderItems.splice(index, 1);
     }
+  }
+
+  updateWorkOrderItemField(index: number, field: keyof WorkOrderItemEditable, value: number | string | null): void {
+    if (this.workOrderItems[index]) {
+      (this.workOrderItems[index] as Record<string, number | string | null>)[field] = value;
+    }
+  }
+
+  /** Receipts available for this item (excludes receipts already selected by other items). */
+  getAvailableReceiptsForItem(itemIndex: number): ReceiptResponse[] {
+    const usedByOthers = new Set<number>();
+    this.workOrderItems.forEach((it, i) => {
+      if (i !== itemIndex && it.receiptId != null) {
+        usedByOthers.add(it.receiptId);
+      }
+    });
+    const currentReceiptId = this.workOrderItems[itemIndex]?.receiptId ?? null;
+    return this.propertyReceipts.filter(
+      r => !usedByOthers.has(r.receiptId) || r.receiptId === currentReceiptId
+    );
+  }
+
+  onReceiptSelectionChange(itemIndex: number, receiptId: number | null): void {
+    this.updateWorkOrderItemField(itemIndex, 'receiptId', receiptId);
+    const receipt = receiptId != null ? this.propertyReceipts.find(r => r.receiptId === receiptId) : null;
+    const receiptAmount = receipt?.amount ?? 0;
+    (this.workOrderItems[itemIndex] as WorkOrderItemEditable).receiptAmount = receiptAmount;
+    if (receipt?.description != null && receipt.description !== '') {
+      this.updateWorkOrderItemField(itemIndex, 'description', receipt.description);
+    }
+  }
+
+  /** Total = receipt amount + (labor hours × labor cost). Used for display and save. */
+  getItemTotal(item: WorkOrderItemEditable | WorkOrderItemResponse): number {
+    const editable = item as WorkOrderItemEditable;
+    const receiptAmt = editable.receiptAmount != null
+      ? Number(editable.receiptAmount)
+      : (item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0);
+    const hours = Math.floor(Number(item.laborHours)) || 0;
+    const cost = Number(item.laborCost) || 0;
+    return Math.round((receiptAmt + hours * cost) * 100) / 100;
+  }
+
+  getTotalDisplay(item: WorkOrderItemEditable): string {
+    return '$' + this.formatter.currency(this.getItemTotal(item));
+  }
+
+  getReceiptAmountDisplay(item: WorkOrderItemEditable): string {
+    const amt = item.receiptAmount ?? 0;
+    return '$' + this.formatter.currency(amt);
+  }
+
+  getLaborCostDisplay(index: number, item: WorkOrderItemEditable): string {
+    if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborCost') {
+      return this.focusedCurrencyField.editValue;
+    }
+    return '$' + this.formatter.currency(Number(item.laborCost) || 0);
+  }
+
+  onLaborCostFocus(index: number, event: Event): void {
+    const item = this.workOrderItems[index];
+    const raw = item?.laborCost != null ? String(item.laborCost) : '';
+    this.focusedCurrencyField = { index, field: 'laborCost', editValue: raw };
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
+  }
+
+  onLaborCostBlur(index: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const parsed = parseFloat(input.value) || 0;
+    this.updateWorkOrderItemField(index, 'laborCost', parsed);
+    this.focusedCurrencyField = null;
+  }
+
+  onLaborCostInput(index: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborCost') {
+      this.focusedCurrencyField = { ...this.focusedCurrencyField, editValue: input.value };
+    }
+  }
+
+  /** Map editable items to request shape. On create omit workOrderId and workOrderItemId (GUIDs returned in response); on update include them. */
+  private mapWorkOrderItemsForSave(isCreate: boolean): WorkOrderItemRequest[] {
+    return this.workOrderItems.map(item => {
+      const base: WorkOrderItemRequest = {
+        description: (item.description ?? '').trim(),
+        receiptId: item.receiptId ?? undefined,
+        laborHours: Math.floor(Number(item.laborHours)) || 0,
+        laborCost: Number(item.laborCost) || 0,
+        itemAmount: this.getItemTotal(item)
+      };
+      if (!isCreate && this.workOrder?.workOrderId) {
+        base.workOrderId = this.workOrder.workOrderId;
+        if (item.workOrderItemId != null && item.workOrderItemId !== '') {
+          base.workOrderItemId = String(item.workOrderItemId);
+        }
+      }
+      return base;
+    });
+  }
+
+  private hasWorkOrderItemsChanged(): boolean {
+    const existing = this.workOrder?.workOrderItems ?? [];
+    if (this.workOrderItems.length !== existing.length) return true;
+    for (let i = 0; i < this.workOrderItems.length; i++) {
+      const a = this.workOrderItems[i];
+      const b = existing[i];
+      if (!b) return true;
+      if ((a.description ?? '') !== (b.description ?? '') ||
+          (a.receiptId ?? null) !== (b.receiptId ?? null) ||
+          (Math.floor(Number(a.laborHours)) || 0) !== (Math.floor(Number(b.laborHours)) || 0) ||
+          (a.laborCost ?? 0) !== (b.laborCost ?? 0) ||
+          this.getItemTotal(a) !== this.getItemTotal(b)) return true;
+    }
+    return false;
   }
   //#endregion
 
   //#region Data Load Methods
   loadWorkOrder(): void {
-    if (this.isAddMode) {
+    if (this.isAddMode || this.workOrderId == null) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
       return;
     }
@@ -221,75 +409,53 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   loadProperty(): void {
     if (this.property || !this.selectedPropertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      if (this.property) {
+        this.loadPropertyReceipts();
+      }
       return;
     }
     this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (p) => {
         this.property = p;
+        if (this.property?.organizationId) {
+          this.organizationId = this.property.organizationId;
+        }
         this.form.patchValue({
           officeName: this.property?.officeName || '',
           propertyCode: this.property?.propertyCode || '',
         });
+        this.loadPropertyReceipts();
       },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');
       }
     });
   }
-  //#endregion
 
-  //#region Receipt Methods
-  openReceiptPicker(fileInput: HTMLInputElement): void {
-    if (!this.property) return;
-    fileInput.click();
-  }
-
-  onReceiptSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files && input.files.length > 0 ? input.files[0] : null;
-    if (!file || !this.property) {
+  loadPropertyReceipts(): void {
+    const propertyId = this.property?.propertyId ?? null;
+    if (!propertyId) {
+      this.propertyReceipts = [];
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64String = result.includes(',') ? result.split(',')[1] : result;
-      this.receiptFileDetails = {
-        fileName: file.name,
-        contentType: file.type || 'image/jpeg',
-        file: base64String,
-        dataUrl: result
-      };
-      this.receiptPreviewDataUrl = result;
-      this.receiptFileName = file.name;
-      this.hasNewReceiptUpload = true;
-      this.form.patchValue({ receiptPath: '' });
-    };
-    reader.readAsDataURL(file);
-  }
-
-  removeReceipt(): void {
-    this.form.patchValue({ receiptPath: null });
-    if (this.workOrder) {
-      this.workOrder.receiptPath = null;
-      this.workOrder.fileDetails = null;
-    }
-    this.receiptPreviewDataUrl = null;
-    this.receiptFileName = null;
-    this.receiptFileDetails = null;
-    this.hasNewReceiptUpload = false;
-  }
-
-  extractFileName(path: string): string | null {
-    if (!path) return null;
-    const parts = path.split(/[\\/]/);
-    return parts.length ? parts[parts.length - 1] : null;
+    this.receiptService.getReceiptsByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: (receipts) => {
+        this.propertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
+        this.syncReceiptAmounts();
+      },
+      error: () => {
+        this.propertyReceipts = [];
+      }
+    });
   }
   //#endregion
 
   //#region Utility Methods
   back(): void {
+    if (this.embeddedInMaintenance) {
+      this.backEvent.emit();
+      return;
+    }
     if (this.selectedPropertyId) {
       const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
       this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 3 } });

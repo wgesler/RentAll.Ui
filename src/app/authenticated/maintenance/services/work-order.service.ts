@@ -29,11 +29,11 @@ export class WorkOrderService {
     return this.getWorkOrdersByPropertyId(propertyId);
   }
 
-  getWorkOrderById(workOrderId: number): Observable<WorkOrderResponse> {
+  getWorkOrderById(workOrderId: string): Observable<WorkOrderResponse> {
     return this.http.get<WorkOrderResponse>(this.controller + workOrderId);
   }
 
-  getWorkOrder(organizationId: string, workOrderId: number): Observable<WorkOrderResponse> {
+  getWorkOrder(organizationId: string, workOrderId: string): Observable<WorkOrderResponse> {
     return this.http.get<WorkOrderResponse>(this.controller + workOrderId + '?organizationId=' + organizationId);
   }
 
@@ -45,7 +45,7 @@ export class WorkOrderService {
     return this.http.put<WorkOrderResponse>(this.controller, request);
   }
 
-  deleteWorkOrder(workOrderId: number): Observable<void> {
+  deleteWorkOrder(workOrderId: string): Observable<void> {
     return this.http.delete<void>(this.controller + workOrderId);
   }
 }

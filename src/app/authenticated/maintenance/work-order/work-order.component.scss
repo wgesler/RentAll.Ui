@@ -34,3 +34,60 @@
   color: #64748b;
   margin-bottom: 0.75rem;
 }
+
+.delete-ledger-line-btn {
+  margin: 0 2px;
+}
+
+.work-order-item-section {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+
+  &--first {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+// Hide number input spinner arrows (Labor Hours)
+.work-order-item-hours input[type='number'] {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+.work-order-item-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem 1rem;
+
+  .work-order-item-desc {
+    grid-column: 1 / -1;
+  }
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  // Receipt 2/6, Receipt Amount / Labor Hours / Labor Cost / Total each 1/6 (even)
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(6, 1fr);
+    .work-order-item-desc {
+      grid-column: 1 / -1;
+    }
+    .work-order-item-receipt {
+      grid-column: span 2;
+    }
+    .work-order-item-receipt-amount,
+    .work-order-item-hours,
+    .work-order-item-labor-cost,
+    .work-order-item-total {
+      grid-column: span 1;
+    }
+  }
+}

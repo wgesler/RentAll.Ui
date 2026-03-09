@@ -55,48 +55,92 @@
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="property?.propertyCode || workOrder?.propertyCode || ''" readonly disabled>
               </mat-form-field>
+
+              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                <mat-label>Work Order Type</mat-label>
+                <mat-select formControlName="workOrderTypeId" required>
+                  @for (opt of workOrderTypeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('workOrderTypeId')?.hasError('required') && form.get('workOrderTypeId')?.touched) {
+                  <mat-error>Work order type is required</mat-error>
+                }
+              </mat-form-field>
             </div>
 
             <mat-form-field appearance="outline" class="col-span-4">
               <mat-label>Description</mat-label>
-              <textarea matInput rows="4" formControlName="description" required></textarea>
-              @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
-                <mat-error>Description is required</mat-error>
-              }
+              <textarea matInput rows="3" formControlName="description" placeholder="Work order description"></textarea>
             </mat-form-field>
 
-            <div class="col-span-4">
-              <mat-label class="text-sm font-medium block mb-2">Receipt *</mat-label>
-              <div class="flex items-center gap-3">
-                @if (receiptPreviewDataUrl) {
-                  <img [src]="receiptPreviewDataUrl" alt="Receipt preview" class="object-contain max-w-xs max-h-28 border rounded p-1" />
-                } @else if (form.get('receiptPath')?.value) {
-                  <mat-icon>image</mat-icon>
-                  <span class="text-sm">{{ receiptFileName || form.get('receiptPath')?.value }}</span>
-                }
-                <div class="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    color="primary"
-                    mat-raised-button
-                    [disabled]="!property"
-                    (click)="openReceiptPicker(receiptUploadInput)">
-                    <span class="flex items-center gap-2">
-                      <mat-icon>photo_camera</mat-icon>
-                      Choose Image
-                    </span>
-                  </button>
-                  @if (form.get('receiptPath')?.value || receiptPreviewDataUrl) {
-                    <button type="button" color="accent" mat-raised-button (click)="removeReceipt()">Delete Image</button>
-                  }
-                </div>
+            <div class="col-span-4 mt-4">
+              <div class="flex justify-between items-center mb-3">
+                <span class="text-base font-medium">Work Order Items</span>
+                <button mat-raised-button type="button" color="accent" (click)="addWorkOrderItem()"
+                  class="scale-90 text-nowrap flex-shrink-0">
+                  Add Item
+                </button>
               </div>
-              <input
-                #receiptUploadInput
-                type="file"
-                accept="image/*"
-                style="display: none;"
-                (change)="onReceiptSelected($event)" />
+              @for (item of workOrderItems; track $index) {
+                <section class="work-order-item-section" [class.work-order-item-section--first]="$index === 0">
+                  <div class="flex justify-between items-start gap-2 mb-2">
+                    <span class="text-sm font-medium text-slate-600">Item {{ $index + 1 }}</span>
+                    <button mat-icon-button type="button" (click)="removeWorkOrderItem($index)"
+                      class="delete-ledger-line-btn" style="color: #ae1f66;"
+                      matTooltip="Remove this item">
+                      <mat-icon style="color: #ae1f66;">close</mat-icon>
+                    </button>
+                  </div>
+                  <div class="work-order-item-fields">
+                    <mat-form-field appearance="outline" class="work-order-item-desc">
+                      <mat-label>Description</mat-label>
+                      <textarea matInput rows="2"
+                        [value]="item.description ?? ''"
+                        (input)="updateWorkOrderItemField($index, 'description', $any($event.target).value)"
+                        placeholder="Item description"></textarea>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="work-order-item-receipt">
+                      <mat-label>Receipt</mat-label>
+                      <mat-select [value]="item.receiptId ?? null"
+                        (selectionChange)="onReceiptSelectionChange($index, $event.value)">
+                        <mat-option [value]="null">No receipt</mat-option>
+                        @for (r of getAvailableReceiptsForItem($index); track r.receiptId) {
+                          <mat-option [value]="r.receiptId">
+                            {{ r.description || ('Receipt #' + r.receiptId) }}
+                          </mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="work-order-item-receipt-amount">
+                      <mat-label>Receipt Amount</mat-label>
+                      <input matInput [value]="getReceiptAmountDisplay(item)" readonly>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="work-order-item-hours">
+                      <mat-label>Labor Hours</mat-label>
+                      <input matInput type="number"
+                        [value]="item.laborHours ?? ''"
+                        (input)="updateWorkOrderItemField($index, 'laborHours', parseInt($any($event.target).value, 10) || 0)"
+                        min="0" step="1">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="work-order-item-labor-cost">
+                      <mat-label>Labor Cost</mat-label>
+                      <input matInput type="text" inputmode="decimal"
+                        [value]="getLaborCostDisplay($index, item)"
+                        (focus)="onLaborCostFocus($index, $event)"
+                        (blur)="onLaborCostBlur($index, $event)"
+                        (input)="onLaborCostInput($index, $event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="work-order-item-total">
+                      <mat-label>Total *</mat-label>
+                      <input matInput [value]="getTotalDisplay(item)" readonly>
+                      @if (getItemTotal(item) <= 0) {
+                        <mat-error>Total is required (receipt amount + labor hours × labor cost must be greater than 0)</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                </section>
+              }
             </div>
 
           </div>

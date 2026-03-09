@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,6 +25,9 @@ import { ReceiptService } from '../services/receipt.service';
 })
 export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
+  /** When true, selection is emitted via receiptSelect and no navigation occurs (e.g. embedded in maintenance). */
+  @Input() embeddedInMaintenance = false;
+  @Output() receiptSelect = new EventEmitter<number | null>();
 
   isLoading: boolean = false;
   isServiceError: boolean = false;
@@ -39,8 +42,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   receiptDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '15ch' },
-    description: { displayAs: 'Description', wrap: true, maxWidth: '30ch' },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch' },
+    description: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
@@ -101,6 +105,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   addReceipt(): void {
     if (!this.property) return;
+    if (this.embeddedInMaintenance) {
+      this.receiptSelect.emit(null);
+      return;
+    }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceReceipt, ['new']);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
@@ -121,6 +129,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   goToReceipt(event: ReceiptDisplayList): void {
     if (!this.property) return;
+    if (this.embeddedInMaintenance) {
+      this.receiptSelect.emit(event.receiptId);
+      return;
+    }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceReceipt, [String(event.receiptId)]);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }

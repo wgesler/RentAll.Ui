@@ -15,6 +15,8 @@ import { MaintenanceService } from '../services/maintenance.service';
 import { ChecklistComponent } from '../checklist/checklist.component';
 import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
+import { ReceiptComponent } from '../receipt/receipt.component';
+import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 
 @Component({
@@ -26,6 +28,8 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
     ChecklistComponent,
     WorkOrderListComponent,
     ReceiptsListComponent,
+    ReceiptComponent,
+    WorkOrderComponent,
     DocumentListComponent
   ],
   templateUrl: './maintenance.component.html',
@@ -38,6 +42,12 @@ export class MaintenanceComponent implements OnInit {
   isServiceError = false;
   isSavingTemplate = false;
   selectedTabIndex = 0;
+  /** When true, Receipts tab shows receipt detail instead of list. selectedReceiptId is null for "new". */
+  showReceiptDetail = false;
+  selectedReceiptId: number | null = null;
+  /** When true, Work Orders tab shows work order detail instead of list. selectedWorkOrderId is null for "new". */
+  showWorkOrderDetail = false;
+  selectedWorkOrderId: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -197,6 +207,36 @@ export class MaintenanceComponent implements OnInit {
 
   onTabChange(event: { index: number }): void {
     this.selectedTabIndex = event.index;
+  }
+
+  onReceiptSelect(receiptId: number | null): void {
+    this.showReceiptDetail = true;
+    this.selectedReceiptId = receiptId;
+  }
+
+  onReceiptBack(): void {
+    this.showReceiptDetail = false;
+    this.selectedReceiptId = null;
+  }
+
+  onReceiptSaved(): void {
+    this.showReceiptDetail = false;
+    this.selectedReceiptId = null;
+  }
+
+  onWorkOrderSelect(workOrderId: string | null): void {
+    this.showWorkOrderDetail = true;
+    this.selectedWorkOrderId = workOrderId;
+  }
+
+  onWorkOrderBack(): void {
+    this.showWorkOrderDetail = false;
+    this.selectedWorkOrderId = null;
+  }
+
+  onWorkOrderSaved(): void {
+    this.showWorkOrderDetail = false;
+    this.selectedWorkOrderId = null;
   }
 
   back(): void {

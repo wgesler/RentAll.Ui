@@ -7,6 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FileDetails } from '../../documents/models/document.model';
+import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -27,6 +28,8 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   @Input() receiptId: number | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
+  /** When true, component is shown inside maintenance tabs; uses @Input() receiptId and back/saved emit only (no route nav). */
+  @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
 
@@ -57,6 +60,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     private router: Router,
     private propertyService: PropertyService,
     private utilityService: UtilityService,
+    public formatter: FormatterService,
     private toastr: ToastrService
   ) {
     this.fb = fb;
@@ -68,6 +72,13 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
+    if (this.embeddedInMaintenance) {
+      this.isAddMode = this.receiptId == null;
+      this.selectedPropertyId = this.property?.propertyId ?? null;
+      this.loadProperty();
+      this.loadReceipt();
+      return;
+    }
     this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
       const receiptIdParam = paramMap.get('id');
       if (receiptIdParam !== null)
@@ -95,6 +106,8 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
     const sendNewReceipt = this.hasNewReceiptUpload;
     const receiptPathValue = this.form.get('receiptPath')?.value ?? this.receipt?.receiptPath ?? null;
+    const amountStr = this.form.get('amount')?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    const amountValue = parseFloat(amountStr) || 0;
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
@@ -102,6 +115,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       propertyId: this.property.propertyId,
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
+      amount: amountValue,
       receiptPath: sendNewReceipt ? undefined : receiptPathValue,
       fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
       isActive: this.form.get('isActive')?.value
@@ -113,6 +127,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         (!!payload.fileDetails !== !!(this.receipt.fileDetails?.file));
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
+          payload.amount !== (this.receipt.amount ?? 0) ||
           payload.isActive !== this.receipt.isActive ||
           hasReceiptChange
         : true;
@@ -138,6 +153,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
           officeName: saved.officeName || this.property?.officeName || '',
           propertyCode: saved.propertyCode || this.property?.propertyCode || '',
           description: saved.description || '',
+          amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
           receiptPath: saved.receiptPath || '',
           isActive: saved.isActive
         });
@@ -170,6 +186,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
+      amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       receiptPath: new FormControl(''),
       isActive: new FormControl(true)
@@ -181,6 +198,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       officeName: this.property?.officeName || '',
       propertyCode: this.property?.propertyCode || '',
       description: receipt.description || '',
+      amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
       receiptPath: receipt.receiptPath || '',
       isActive: receipt.isActive
     });
@@ -283,10 +301,18 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     const parts = path.split(/[\\/]/);
     return parts.length ? parts[parts.length - 1] : null;
   }
+
+  onAmountKeydown(event: Event): void {
+    this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
+  }
   //#endregion
 
   //#region Utility Methods
   back(): void {
+    if (this.embeddedInMaintenance) {
+      this.backEvent.emit();
+      return;
+    }
     if (this.selectedPropertyId) {
       const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
       this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 2 } });

@@ -11,6 +11,7 @@ import { EmailHtmlResponse } from '../authenticated/email/models/email-html.mode
 import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
+import { getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -331,9 +332,8 @@ export class MappingService {
       officeName: workOrder.officeName,
       propertyId: workOrder.propertyId,
       propertyCode: workOrder.propertyCode,
-      maintenanceId: workOrder.maintenanceId,
-      description: workOrder.description,
-      receiptPath: workOrder.receiptPath ?? null,
+      workOrderTypeId: workOrder.workOrderTypeId,
+      workOrderType: getWorkOrderType(workOrder.workOrderTypeId),
       isActive: workOrder.isActive,
       modifiedOn: this.formatter.formatDateTimeString(workOrder.modifiedOn),
       modifiedBy: workOrder.modifiedBy
@@ -341,7 +341,7 @@ export class MappingService {
   }
 
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
-    return (receipts || []).map<ReceiptDisplayList>((receipt: ReceiptResponse) => ({
+    return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => ({
       receiptId: receipt.receiptId,
       officeId: receipt.officeId,
       officeName: receipt.officeName,
@@ -349,6 +349,8 @@ export class MappingService {
       propertyCode: receipt.propertyCode,
       maintenanceId: receipt.maintenanceId,
       description: receipt.description,
+      amount: receipt.amount ?? 0,
+      amountDisplay: '$' + this.formatter.currency(receipt.amount ?? 0),
       receiptPath: receipt.receiptPath ?? null,
       isActive: receipt.isActive,
       modifiedOn: this.formatter.formatDateTimeString(receipt.modifiedOn),

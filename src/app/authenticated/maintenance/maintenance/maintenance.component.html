@@ -53,10 +53,34 @@
             }
           </mat-tab>
           <mat-tab label="Receipts">
-            <app-receipts-list [property]="property" />
+            @if (showReceiptDetail) {
+              <app-receipt
+                [property]="property"
+                [receiptId]="selectedReceiptId"
+                [embeddedInMaintenance]="true"
+                (backEvent)="onReceiptBack()"
+                (savedEvent)="onReceiptSaved()" />
+            } @else {
+              <app-receipts-list
+                [property]="property"
+                [embeddedInMaintenance]="true"
+                (receiptSelect)="onReceiptSelect($event)" />
+            }
           </mat-tab>
           <mat-tab label="Work Orders">
-            <app-work-order-list [property]="property" />
+            @if (showWorkOrderDetail) {
+              <app-work-order
+                [property]="property"
+                [workOrderId]="selectedWorkOrderId"
+                [embeddedInMaintenance]="true"
+                (backEvent)="onWorkOrderBack()"
+                (savedEvent)="onWorkOrderSaved()" />
+            } @else {
+              <app-work-order-list
+                [property]="property"
+                [embeddedInMaintenance]="true"
+                (workOrderSelect)="onWorkOrderSelect($event)" />
+            }
           </mat-tab>
           <mat-tab label="Documents">
             <app-document-list
