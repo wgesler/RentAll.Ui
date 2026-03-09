@@ -425,3 +425,9 @@ mat-form-field input,
 .table-filter-row-actions-wrap app-data-table .datatable-search-wrap {
   padding-right: var(--filter-row-actions-reserve) !important;
 }
+
+/* Work Order Items table: force even column spacing (overrides reset and component encapsulation) */
+.work-order-items-table th,
+.work-order-items-table td {
+  padding: 5px 6px !important;
+}

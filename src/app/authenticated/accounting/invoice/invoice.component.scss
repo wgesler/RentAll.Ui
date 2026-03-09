@@ -111,6 +111,16 @@
     }
   }
   
+  /* Description and Amount - no borders */
+  input[type="text"].ledger-input-no-border {
+    border: none !important;
+    background: transparent;
+    
+    &:focus {
+      outline: none;
+    }
+  }
+  
   /* Remove extra spacing from icon buttons */
   .mat-mdc-icon-button {
     width: 32px;

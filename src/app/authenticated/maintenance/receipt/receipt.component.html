@@ -41,7 +41,7 @@
             <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
               @if (!isAddMode) {
                 <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                  <mat-label>Code</mat-label>
+                  <mat-label>No</mat-label>
                   <input matInput [value]="receipt?.receiptId || ''" readonly disabled>
                 </mat-form-field>
               }
@@ -55,27 +55,28 @@
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="property?.propertyCode || receipt?.propertyCode || ''" readonly disabled>
               </mat-form-field>
+            </div>
 
+            <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
               <mat-form-field appearance="outline" class="receipt-amount-field" style="flex: 0 0 15%; min-width: 0; max-width: 15%;">
                 <mat-label>Amount</mat-label>
-                <input matInput type="text" inputmode="decimal" formControlName="amount" required
-                  (input)="formatter.formatDecimalInput($event, form.get('amount'))"
-                  (focus)="formatter.clearDefaultDecimalOnFocus($event, form.get('amount'), '0.00')"
-                  (blur)="formatter.formatDecimalOnBlur(form.get('amount'))"
+                <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
+                  (focus)="onAmountFocus($event)"
+                  (blur)="onAmountBlur($event)"
+                  (input)="onAmountInput($event)"
                   (keydown.enter)="onAmountKeydown($event)">
                 @if (form.get('amount')?.hasError('required') && form.get('amount')?.touched) {
                   <mat-error>Amount is required</mat-error>
                 }
               </mat-form-field>
+              <mat-form-field appearance="outline" style="flex: 1; min-width: 0;">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description" required>
+                @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
+                  <mat-error>Description is required</mat-error>
+                }
+              </mat-form-field>
             </div>
-
-            <mat-form-field appearance="outline" class="col-span-4">
-              <mat-label>Description</mat-label>
-              <textarea matInput rows="4" formControlName="description" required></textarea>
-              @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
-                <mat-error>Description is required</mat-error>
-              }
-            </mat-form-field>
 
             <div class="col-span-4">
               <mat-label class="text-sm font-medium block mb-2">Receipt *</mat-label>

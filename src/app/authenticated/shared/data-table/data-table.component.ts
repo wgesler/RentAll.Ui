@@ -105,6 +105,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() applyAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount enter key
   @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
+  @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() calendarEvent = new EventEmitter<PurposefulAny>();

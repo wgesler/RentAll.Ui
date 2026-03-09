@@ -39,7 +39,7 @@
       <ng-container>
         <tr class="mat-row mat-no-data-row" *matNoDataRow>
           <td class="mat-cell" [attr.colspan]="displayedColumns.length">
-            No data found...
+            {{ noDataMessage }}
           </td>
         </tr>
       </ng-container>

@@ -48,6 +48,9 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   receiptFileDetails: FileDetails | null = null;
   hasNewReceiptUpload: boolean = false;
   originalReceiptPath: string | null = null;
+  /** When true, amount input shows raw value for editing (no $); when false, shows getAmountDisplay() with $ prefix. */
+  amountFocused = false;
+  amountEditValue = '';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -304,6 +307,45 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
   onAmountKeydown(event: Event): void {
     this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
+  }
+
+  /** Display amount with $ prefix when not focused (like work-order Receipt Amount). */
+  getAmountDisplay(): string {
+    if (this.amountFocused) {
+      return this.amountEditValue;
+    }
+    const raw = this.form.get('amount')?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    const num = parseFloat(raw) || 0;
+    return '$' + this.formatter.currency(num);
+  }
+
+  onAmountFocus(event: Event): void {
+    const control = this.form.get('amount');
+    const current = control?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    this.amountEditValue = current || '';
+    this.amountFocused = true;
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
+  }
+
+  onAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const raw = input?.value?.replace(/[^0-9.]/g, '') ?? '';
+    const num = parseFloat(raw) || 0;
+    const formatted = num.toFixed(2);
+    const control = this.form.get('amount');
+    control?.setValue(formatted, { emitEvent: false });
+    control?.markAsTouched();
+    this.amountFocused = false;
+    this.amountEditValue = '';
+  }
+
+  onAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input?.value ?? '';
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    this.amountEditValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
   }
   //#endregion
 

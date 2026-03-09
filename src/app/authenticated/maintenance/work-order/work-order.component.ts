@@ -318,6 +318,15 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     return '$' + this.formatter.currency(this.getItemTotal(item));
   }
 
+  /** Sum of all work order item totals (for Total Amount display). */
+  getTotalAmount(): number {
+    return this.workOrderItems.reduce((sum, item) => sum + this.getItemTotal(item), 0);
+  }
+
+  getTotalAmountDisplay(): string {
+    return '$' + this.formatter.currency(this.getTotalAmount());
+  }
+
   getReceiptAmountDisplay(item: WorkOrderItemEditable): string {
     const amt = item.receiptAmount ?? 0;
     return '$' + this.formatter.currency(amt);
