@@ -228,14 +228,13 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
     });
+
     this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
       workOrderItemId: item.workOrderItemId,
       workOrderId: item.workOrderId,
       description: item.description ?? '',
       receiptId: item.receiptId ?? null,
-      receiptAmount: item.receiptId != null
-        ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
-        : 0,
+      receiptAmount: item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0,
       laborHours: Math.floor(Number(item.laborHours)) || 0,
       laborCost: item.laborCost ?? 0,
       itemAmount: item.itemAmount ?? 0
@@ -361,7 +360,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   }
 
   /** Map editable items to request shape. On create omit workOrderId and workOrderItemId (GUIDs returned in response); on update include them. */
-  private mapWorkOrderItemsForSave(isCreate: boolean): WorkOrderItemRequest[] {
+  mapWorkOrderItemsForSave(isCreate: boolean): WorkOrderItemRequest[] {
     return this.workOrderItems.map(item => {
       const base: WorkOrderItemRequest = {
         description: (item.description ?? '').trim(),
@@ -380,7 +379,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     });
   }
 
-  private hasWorkOrderItemsChanged(): boolean {
+  hasWorkOrderItemsChanged(): boolean {
     const existing = this.workOrder?.workOrderItems ?? [];
     if (this.workOrderItems.length !== existing.length) return true;
     for (let i = 0; i < this.workOrderItems.length; i++) {

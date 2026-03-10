@@ -39,13 +39,6 @@
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
-              @if (!isAddMode) {
-                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                  <mat-label>No</mat-label>
-                  <input matInput [value]="workOrder?.workOrderId || ''" readonly disabled>
-                </mat-form-field>
-              }
-
               <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
                 <mat-label>Office</mat-label>
                 <input matInput [value]="property?.officeName || workOrder?.officeName || ''" readonly disabled>

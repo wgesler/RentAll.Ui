@@ -1,0 +1,446 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+  <title>Guest Invoice</title>
+
+  <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style type="text/css">
+    P.breakhere {
+      page-break-before: always;
+    }
+
+    @media print {
+      @page {
+        margin: 0.75in;
+        size: letter;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;Edward Jones Client Survey: Get Rewarded for Your Time
+        Edward Jones Client Survey<research@survey.cmbclient.net>
+        color-adjust: exact;
+      }
+
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+  </style>
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: arial, sans-serif;
+      max-width: 8.5in;
+      width: 8.5in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    p {
+      font-size: 10pt;
+      line-height: 150%;
+    }
+
+    #container {
+      max-width: 100% !important;
+      width: 100% !important;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
+    }
+
+    .header-row {
+      display: table;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .logo-container {
+      display: table-cell;
+      vertical-align: top;
+      width: 100%;
+      text-align: left;
+    }
+
+    .logo {
+      max-height: 100px;
+      max-width: 200px;
+      display: block;
+    }
+
+    .invoice-info-header {
+      display: table-cell;
+      vertical-align: top;
+      text-align: right;
+      width: 50%;
+    }
+
+    .invoice-info-header p {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
+    h3 {
+      text-align: center !important;
+      font-size: 14pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 5px !important;
+      padding: 0 !important;
+    }
+    
+    .border {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .border p {
+      margin: 0;
+    }
+
+    /* Make the first rows boxes equal height */
+    table#container tbody tr:first-child td {
+      height: 1px;
+    }
+    
+    table#container tbody tr:first-child td .border {
+      height: 100%;
+    }
+
+    .borderless {
+      padding: 10px;
+      margin-top: 10px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .borderless p {
+      margin: 0;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    table th, table td {
+      padding: 8px;
+      text-align: left;
+    }
+
+    table th {
+      font-weight: 800;
+      background-color: #f5f5f5;
+    }
+
+    table .text-right {
+      text-align: right;
+    }
+
+    .charges-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0;
+      margin-bottom: 0;
+      display: table;
+      box-sizing: border-box;
+    }
+
+    .charges-table th {
+      font-weight: 600;
+      background-color: #f5f5f5;
+      padding: 8px;
+      text-align: left;
+      border: none;
+    }
+
+    .charges-table th.text-right {
+      text-align: right;
+    }
+
+    .charges-table td {
+      padding: 8px;
+      text-align: left;
+      border: none;
+    }
+
+    .charges-table td.text-right {
+      text-align: right;
+    }
+
+    .charges-table .ledger-line-row td {
+      font-size: 8pt;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .charges-table .total-row td {
+      border: none;
+      border-top: 2px solid #000;
+      font-weight: bold;
+    }
+
+    .totals {
+      margin-top: 24px;
+      margin-left: auto;
+      width: 300px;
+    }
+
+    .totals table {
+      margin-bottom: 0;
+      border: none;
+    }
+
+    .totals td {
+      border: none;
+      padding: 4px 8px;
+    }
+
+    .totals .total-row td {
+      font-weight: 800;
+      border-top: 2px solid #000;
+      padding-top: 12px;
+    }
+
+    .accounting-office-container {
+      width: fit-content;
+      margin: 0;
+      font-size: 9pt;
+      line-height: 1.4;
+    }
+
+    .accounting-office-container table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .accounting-office-logo-cell {
+      width: 150px;
+      padding-right: 10px;
+      vertical-align: middle;
+    }
+
+    .accounting-office-info-cell {
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .accounting-office-container img {
+      max-height: 60px;
+      max-width: 150px;
+      display: block;
+    }
+
+    .accounting-office-container p {
+      margin: 2px 0;
+      font-size: 9pt;
+      text-align: left;
+    }
+
+    .accounting-office-invoice-number {
+      margin-top: 10px;
+      text-align: left;
+    }
+
+    .accounting-office-email {
+      color: #0000EE;
+      text-decoration: underline;
+    }
+
+    #footer {
+      max-width: 100% !important;
+      width: 100% !important;
+      font-size: 8pt;
+      color: #999;
+      padding: 10px 5px 10px 5px !important;
+    }
+
+    #footer td {
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.5 !important;
+      text-align: center !important;
+    }
+
+    #footer p {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1.5 !important;
+    }
+
+    #footer br {
+      line-height: 1.5 !important;
+    }
+
+  </style>
+</head>
+
+<body>
+<div class="page">
+  <!-- Header Row: Accounting Office Information and Invoice Information -->
+  <div class="header-row">
+    <div class="logo-container">
+      <div class="accounting-office-container">
+        <table>
+          <tr>
+            <td class="accounting-office-logo-cell">
+              <img src="{{officeLogoBase64}}" alt="Accounting Office Logo">
+            </td>
+            <td class="accounting-office-info-cell">
+              <p><strong>{{accountingOfficeName}}</strong></p>
+              <p>{{accountingOfficeAddress}}</p>
+              <p>{{accountingOfficeCityStateZip}}</p>
+              <p><span class="accounting-office-email">{{accountingOfficeEmail}}</span></p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="invoice-info-header">
+    </div>
+  </div>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <h3 style="text-align: center; margin-top: 20px; margin-bottom: 10px;"><span class="label">Client Invoice #:</span> {{invoiceName}}</h3>
+  <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
+          <div class="border">
+            <p>
+              <span class="label">Client Number:</span> {{reservationCode}}<br>
+              <span class="label">Client Name:</span> {{contactName}}<br>
+              <span class="label">Company Name:</span> {{companyName}}<br>
+              <span class="label">Client Address:</span> {{contactAddress}}<br>
+            </p>
+          </div>
+        </td>
+
+        <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
+          <div class="border">
+            <p>
+              <span class="label">Property Address:</span> {{propertyAddress}}<br>
+              <span class="label">Unit ID:</span> {{propertySuite}}<br>
+              <span class="label">Billing Type:</span> {{billingMethod}}<br>
+            </p>
+          </div>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td colspan="2" style="padding: 5px;">
+          <div class="border">
+            <h3>Charges</h3>
+            <table class="charges-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Ledger lines will be inserted here -->
+                {{ledgerLinesRows}}
+                <tr class="total-row">
+                  <td colspan="2" class="text-right"><span class="label">Balance Due:</span></td>
+                  <td class="text-right">{{totalDue}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td colspan="2" style="padding: 5px;">
+          <div class="border">
+            <h3 style="text-align: left; padding-left: 15px;">Payment Information</h3>
+            <p style="padding-left: 15px;">Please remit payments to:</p>
+            <p style="padding-left: 15px;"><strong>{{accountingOfficeName}}<br>{{accountingOfficeAddress}}<br>{{accountingOfficeCityStateZip}}</strong></p>
+
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr valign="top">
+                <td width="50%" style="vertical-align: top; padding: 0; width: 50% !important;">
+                  <div class="border">
+                    <p>
+                      <span class="label">Bank Name:</span> {{accountingOfficeBank}}<br>
+                      <span class="label">Bank Phone:</span> {{accountingOfficeBankPhone}}<br>
+                      <span class="label">Bank Address:</span> {{accountingOfficeBankAddress}}<br>
+                    </p>
+                  </div>
+                </td>
+
+                <td width="50%" style="vertical-align: top; padding: 0; width: 50% !important;">
+                  <div class="border">
+                    <p>
+                      <span class="label">Routing #:</span> {{accountingOfficeBankRouting}}<br>
+                      <span class="label">Account #:</span> {{accountingOfficeBankAccount}}<br>
+                      <span class="label">SWIFT Code:</span> {{accountingOfficeSwithCode}}<br>
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <p style="padding-left: 15px;">Thank you for staying with {{accountingOfficeName}}.</p>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <br>
+
+  <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td align="center">
+          <span style="font-weight: bold">{{accountingOfficeName}}</span><br>
+          {{accountingOfficeAddress}}&nbsp;{{accountingOfficeCityStateZip}}<br>
+          <b>P:</b>&nbsp;{{accountingOfficePhone}}&nbsp;&nbsp;&nbsp; <b>W:</b>&nbsp;{{accountingOfficeWebsite}}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
