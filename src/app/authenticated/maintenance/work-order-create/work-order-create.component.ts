@@ -53,7 +53,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   property: PropertyResponse | null = null;
   reservation: ReservationResponse | null = null;
   reservationContact: ContactResponse | null = null;
-  owner1Contact: ContactResponse | null = null;
+  ownerContact: ContactResponse | null = null;
   organization: OrganizationResponse | null = null;
   /** Property receipts for looking up receipt amount by receiptId in document rows. */
   propertyReceipts: ReceiptResponse[] = [];
@@ -109,6 +109,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     });
   }
 
+  //#region Data Load Methods
   loadData(): void {
     this.http.get('assets/work-order.html', { responseType: 'text' }).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template');
@@ -154,17 +155,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   loadAccountingOffice(): void {
-    this.accountingOfficeService.getAccountingOffices().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
-    })).subscribe({
+    this.accountingOfficeService.getAccountingOffices().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'); })).subscribe({
       next: offices => {
         const activeOffices = (offices || []).filter(o => o.isActive !== false);
         const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? 1;
-        this.selectedAccountingOffice =
-          activeOffices.find(o => o.officeId === officeId) ||
-          activeOffices.find(o => o.officeId === 1) ||
-          activeOffices[0] ||
-          null;
+        this.selectedAccountingOffice = activeOffices.find(o => o.officeId === officeId);
         this.updateAccountingOfficeLogo();
         this.tryGeneratePreview();
       },
@@ -194,9 +189,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.tryGeneratePreview();
       return;
     }
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-    })).subscribe({
+
+    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: p => {
         this.property = p;
         this.loadClientPartyData();
@@ -223,7 +217,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       }
     });
   }
+  //#endregion
 
+  //#region Top Bar Buttons
   tryGeneratePreview(): void {
     if (!this.templateHtml || !this.workOrder) {
       return;
@@ -357,11 +353,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner && this.property?.owner1Id) {
       this.contactService.getContactByGuid(this.property.owner1Id).pipe(take(1)).subscribe({
         next: owner => {
-          this.owner1Contact = owner;
+          this.ownerContact = owner;
           this.tryGeneratePreview();
         },
         error: () => {
-          this.owner1Contact = null;
+          this.ownerContact = null;
           this.tryGeneratePreview();
         }
       });
@@ -394,8 +390,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
       return {
-        contactName: this.owner1Contact?.fullName || '',
-        contactAddress: this.getContactAddress(this.owner1Contact)
+        contactName: this.ownerContact?.fullName || '',
+        contactAddress: this.getContactAddress(this.ownerContact)
       };
     }
 
@@ -549,7 +545,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     });
     this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+  //#endregion
 
+  //#region Utility Methods
   getEmailRecipientByType(): { email: string; name: string } {
     if (!this.workOrder) {
       return { email: '', name: '' };
@@ -557,8 +555,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
       return {
-        email: this.owner1Contact?.email || '',
-        name: this.owner1Contact?.fullName || `${this.owner1Contact?.firstName || ''} ${this.owner1Contact?.lastName || ''}`.trim()
+        email: this.ownerContact?.email || '',
+        name: this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim()
       };
     }
 
@@ -594,5 +592,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);
   }
+  //#endregion
 }
 

@@ -18,6 +18,7 @@
         [hasToggleTop]="true"
         [hasButtonTop]="true"
         [hasActionsRowClick]="true"
+        [hasActionsView]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
         [deleteConfirmTitle]="'Delete Work Order'"
@@ -29,6 +30,7 @@
         buttonColorTop="primary"
         (topToggleButtonEvent)="toggleInactive()"
         (topButtonEvent)="addWorkOrder()"
+        (viewEvent)="viewWorkOrder($event)"
         (editEvent)="goToWorkOrder($event)"
         (rowClickEvent)="goToWorkOrder($event)"
         (deleteEvent)="deleteWorkOrder($event)" />

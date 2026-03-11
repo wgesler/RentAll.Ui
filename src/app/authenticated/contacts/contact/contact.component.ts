@@ -227,6 +227,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: this.formatterService.stripPhoneFormatting(formValue.phone),
       notes: formValue.notes || undefined,
+      markup: this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
       companyId: undefined,
       isInternational: isInternational,
@@ -293,6 +294,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: new FormControl(''),
       zip: new FormControl(''),
       notes: new FormControl(''),
+      markup: new FormControl('25%'),
       rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
       isActive: new FormControl(true),
@@ -301,6 +303,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
 
     this.setupConditionalFields();
+    this.formatContractMarkup();
 
     // When contact type is Company or Vendor, Company Name is required; for Tenant/Owner clear it and remove required
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
@@ -348,6 +351,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         phone: this.formatterService.phoneNumber(this.contact.phone),
         email: this.contact.email,
         notes: this.contact.notes || '',
+        markup: this.formatterService.formatPercentageValue(this.contact.markup, 25),
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
         isActive: isActiveValue,
@@ -590,6 +594,24 @@ export class ContactComponent implements OnInit, OnDestroy {
     if (this.insuranceFileInputRef?.nativeElement) {
       this.insuranceFileInputRef.nativeElement.value = '';
     }
+  }
+  //#endregion
+
+  //#region Contract negotiation helpers
+  onContractMarkupInput(event: Event): void {
+    this.formatterService.formatPercentageInput(event, this.form.get('markup'));
+  }
+
+  clearContractMarkupOnFocus(event: FocusEvent): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get('markup'));
+  }
+
+  formatContractMarkupOnEnter(event: KeyboardEvent): void {
+    this.formatterService.formatPercentageOnEnter(event, this.form.get('markup'), 25);
+  }
+
+  formatContractMarkup(): void {
+    this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 25);
   }
   //#endregion
 

@@ -27,6 +27,7 @@ export interface ContactRequest {
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
+  markup: number;
   isActive: boolean;
 }
 
@@ -58,6 +59,7 @@ export interface ContactResponse {
   insurancePath?: string;
   insuranceFileDetails?: FileDetails;
   insuranceExpiration?: string;
+  markup: number;
   isActive: boolean;
 }
 

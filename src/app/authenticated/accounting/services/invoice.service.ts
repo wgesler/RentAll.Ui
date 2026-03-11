@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
@@ -30,6 +30,11 @@ export class InvoiceService {
   // GET: Get invoice by ID
   getInvoiceByGuid(invoiceId: string): Observable<InvoiceResponse> {
     return this.http.get<InvoiceResponse>(this.controller + 'invoice/' + invoiceId);
+  }
+
+  // GET: Find invoice by code within an office.
+  getInvoiceByCode(invoiceCode: string): Observable<InvoiceResponse | null> {
+     return this.http.get<InvoiceResponse>(this.controller + 'invoice-code/' + invoiceCode);
   }
 
     // GET: Get invoice by property ID

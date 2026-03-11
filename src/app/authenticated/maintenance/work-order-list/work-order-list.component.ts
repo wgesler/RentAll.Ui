@@ -84,10 +84,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     this.isLoading = true;
     this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
-        console.log('Work order list response:', JSON.stringify(workOrders ?? [], null, 2));
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        console.log('Work order list mapped display:', JSON.stringify(this.allWorkOrders ?? [], null, 2));
         this.applyFilters();
       },
       error: () => {
@@ -132,6 +130,15 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [String(event.workOrderId)]);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
+  }
+
+  viewWorkOrder(event: WorkOrderDisplayList): void {
+    const workOrderId = String(event.workOrderId);
+    if (!workOrderId) return;
+    const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
+    this.router.navigateByUrl(
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}`
+    );
   }
 
   //#endregion

@@ -47,6 +47,15 @@ export class CostCodesService {
     );
   }
 
+  // GET: Get cost code by code within an office.
+  getCostCodeByCode(costCode: string, officeId: number): Observable<CostCodesResponse | null> {
+    return this.getCostCodesByOfficeId(officeId).pipe(
+      map((costCodes: CostCodesResponse[] = []) =>
+        (costCodes || []).find(c => (c.costCode || '').trim().toLowerCase() === (costCode || '').trim().toLowerCase()) || null
+      )
+    );
+  }
+
   // POST: Create a new cost code
   createCostCode(costCode: CostCodesRequest): Observable<CostCodesResponse> {
     return this.http.post<any>(this.controller, costCode).pipe(

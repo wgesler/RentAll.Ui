@@ -39,7 +39,7 @@
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
-              <mat-form-field appearance="outline" style="flex: 0 0 12%; min-width: 0; max-width: 12%;">
+              <mat-form-field appearance="outline" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
                 <mat-label>Code</mat-label>
                 <input matInput [value]="form.get('workOrderCode')?.value || ''" readonly disabled>
               </mat-form-field>
@@ -49,7 +49,7 @@
                 <input matInput [value]="property?.officeName || workOrder?.officeName || ''" readonly disabled>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
+              <mat-form-field appearance="outline" style="flex: 0 0 16%; min-width: 0; max-width: 16%;">
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="property?.propertyCode || workOrder?.propertyCode || ''" readonly disabled>
               </mat-form-field>
@@ -67,7 +67,7 @@
               </mat-form-field>
 
               @if (isTenantTypeSelected()) {
-                <mat-form-field appearance="outline" style="flex: 0 0 22%; min-width: 0; max-width: 22%;">
+                <mat-form-field appearance="outline" style="flex: 1 1 auto; min-width: 0;">
                   <mat-label>Tenant</mat-label>
                   <mat-select formControlName="reservationId">
                     <mat-option [value]="null">Select Reservation</mat-option>

@@ -307,6 +307,11 @@ mat-form-field input,
   fill: #000000 !important;
 }
 
+// Global expansion panel content spacing baseline
+.mat-expansion-panel .mat-expansion-panel-body {
+  padding: 16px !important;
+}
+
 /* Global list top-controls sizing/shape baseline */
 .list-top-controls {
   display: flex;

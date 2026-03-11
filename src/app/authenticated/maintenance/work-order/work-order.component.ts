@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, forkJoin, finalize, map, of, take } from 'rxjs';
+import { BehaviorSubject, Observable, forkJoin, finalize, map, of, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -16,7 +16,13 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { getWorkOrderTypes } from '../models/maintenance-enums';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { TransactionType } from '../../accounting/models/accounting-enum';
+import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
+import { InvoiceService } from '../../accounting/services/invoice.service';
+import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { WorkOrderRequest, WorkOrderResponse, WorkOrderItemResponse, WorkOrderItemRequest } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -33,14 +39,14 @@ export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrd
   styleUrl: './work-order.component.scss'
 })
 export class WorkOrderComponent implements OnInit, OnDestroy {
-  /** Expose for template (labor hours integer parsing) */
+
   readonly parseInt = parseInt;
+  readonly costCode = '4100';
 
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
-  /** When true, component is shown inside maintenance tabs; uses @Input() workOrderId and back/saved emit only (no route nav). */
   @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
@@ -56,17 +62,14 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   selectedPropertyId: string | null = null;
   workOrder: WorkOrderResponse | null = null;
   workOrderTypeOptions = getWorkOrderTypes();
-  /** Editable list of work order items (loaded from workOrder or added by user) */
   workOrderItems: WorkOrderItemEditable[] = [];
-  /** Receipts for the current property (for Add Receipt dropdown) */
   propertyReceipts: ReceiptResponse[] = [];
-  /** Accounting office used to generate next work order code in add mode. */
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
-  /** Reservations for the current property (Tenant work orders only). */
   propertyReservations: ReservationResponse[] = [];
-  /** When user is editing a currency field, hold index + field + raw edit string (so "12." is preserved until blur). Total is read-only. */
+  ownerContact: ContactResponse | null = null;
+  costCodeId: string | null = null;
   focusedCurrencyField: { index: number; field: 'laborCost'; editValue: string } | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrder', 'property']));
@@ -79,6 +82,9 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
+    private contactService: ContactService,
+    private costCodeService: CostCodesService,
+    private invoiceService: InvoiceService,
     private accountingOfficeService: AccountingOfficeService,
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
@@ -95,6 +101,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.property?.organizationId ?? this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
+    this.loadCostCode();
     this.form.get('workOrderTypeId')?.valueChanges.subscribe(typeId => {
       if (Number(typeId) !== 0) {
         this.form.patchValue({ reservationId: null }, { emitEvent: false });
@@ -103,6 +110,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
           this.workOrder.reservationCode = null;
         }
       }
+      this.loadOwnerContactForMarkup();
     });
     if (this.embeddedInMaintenance) {
       this.isAddMode = this.workOrderId == null;
@@ -187,8 +195,6 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
 
     this.isSubmitting = true;
 
-    console.log('Work order request (before POST/PUT):', JSON.stringify(payload, null, 2));
-
     const save$ = this.workOrder?.workOrderId
       ? this.workOrderService.updateWorkOrder(payload)
       : this.workOrderService.createWorkOrder(payload);
@@ -198,6 +204,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
         this.workOrder = saved;
         this.isAddMode = false;
         const wasCreate = isCreate;
+        let totalAmount: number = 0;
         this.form.patchValue({
           workOrderCode: saved.workOrderCode ?? this.generatedWorkOrderCode ?? '',
           officeName: saved.officeName || this.property?.officeName || '',
@@ -208,9 +215,8 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
           isActive: saved.isActive
         });
         this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
-          const receiptAmount = item.receiptId != null
-            ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
-            : 0;
+          const receiptAmount = item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0;
+          totalAmount += item.itemAmount;
           return {
             workOrderItemId: item.workOrderItemId,
             workOrderId: item.workOrderId,
@@ -230,6 +236,10 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
         this.updateReceiptsWorkOrderCode(saved.workOrderCode ?? this.generatedWorkOrderCode ?? '');
         this.loadPropertyReceipts(); /* refresh receipts so dropdown and display stay in sync */
         this.toastr.success('Work order saved.', 'Success');
+
+        // Save this work order as an invoice that can be paid
+        this.saveWorkOrderAsInvoice(saved, totalAmount);
+
         if (this.selectedPropertyId) {
           this.back();
         }
@@ -239,46 +249,73 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       }
     });
   }
-  //#endregion
 
-  /** On untouched edit state show View, otherwise Save. */
-  isViewModeBeforeChanges(): boolean {
-    if (this.isAddMode || !this.workOrder?.workOrderId) {
-      return false;
+  saveWorkOrderAsInvoice(workOrder: WorkOrderResponse, totalAmount: number): void {
+    const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
+    if (workOrderTypeId !== WorkOrderType.Tenant) {
+      return;
     }
-    const payload: WorkOrderRequest = {
-      organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
-      officeId: this.property?.officeId ?? this.workOrder.officeId,
-      propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
-      workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
-      reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
-      reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
-      description: (this.form.get('description')?.value ?? '').trim(),
-      workOrderItems: this.mapWorkOrderItemsForSave(false),
-      isActive: this.form.get('isActive')?.value ?? true,
-      workOrderId: this.workOrder.workOrderId
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const workOrderRef = this.form.get('workOrderCode')?.value || this.workOrder?.workOrderCode || this.workOrder?.workOrderId || this.workOrderId || 'Work Order';
+    const roundedTotalAmount = Math.round(totalAmount * 100) / 100;
+
+    const ledgerLines: LedgerLineRequest[] = [
+      {
+        lineNumber: 1,
+        transactionTypeId: TransactionType.Charge,
+        reservationId: workOrder.reservationId,
+        costCodeId: this.costCodeId,
+        description: workOrderRef,
+        amount: roundedTotalAmount
+      }
+    ];
+
+    const invoiceRequest: InvoiceRequest = {
+      organizationId: this.property.organizationId,
+      officeId: this.property.officeId,
+      officeName: this.property.officeName,
+      reservationId: workOrder.reservationId,
+      reservationCode: workOrder.reservationCode,
+      invoiceCode: workOrder.workOrderCode,
+      startDate: nowIso,
+      endDate: nowIso,
+      invoiceDate: nowIso,
+      dueDate: nowIso,
+      invoicePeriod: `${this.formatter.dateOnly(now)} - ${this.formatter.dateOnly(now)}`,
+      totalAmount: roundedTotalAmount,
+      paidAmount: 0,
+      notes: `Generated from Work Order ${workOrderRef}`,
+      isActive: true,
+      ledgerLines
     };
-    return !this.hasWorkOrderUpdates(payload);
-  }
 
-  onPrimaryAction(): void {
-    if (this.isViewModeBeforeChanges()) {
-      this.openWorkOrderView();
-      return;
-    }
-    this.saveWorkOrder();
+    this.isSubmitting = true;
+    this.invoiceService.getInvoiceByCode(invoiceRequest.invoiceCode || '').pipe(take(1),
+      switchMap(existingInvoice => {
+        if (existingInvoice) {
+          invoiceRequest.invoiceId = existingInvoice.invoiceId;
+          ledgerLines[0].invoiceId = existingInvoice.invoiceId;
+          ledgerLines[0].ledgerLineId = existingInvoice.ledgerLines[0].ledgerLineId;
+          return this.invoiceService.updateInvoice(invoiceRequest);
+        }
+        return this.invoiceService.createInvoice(invoiceRequest);
+      }),
+      finalize(() => { this.isSubmitting = false; })
+    ).subscribe({
+      next: (invoice) => {
+        if (!invoice) {
+          return;
+        }
+        this.toastr.success(`Invoice ${invoice.invoiceCode || ''} saved from work order.`, 'Success');
+      },
+      error: () => {
+        this.toastr.error('Unable to save invoice from work order.', 'Error');
+      }
+    });
   }
-
-  openWorkOrderView(): void {
-    const id = this.workOrder?.workOrderId ?? this.workOrderId;
-    if (!id) {
-      this.toastr.warning('Save the work order before viewing.', 'No Work Order');
-      return;
-    }
-    this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(this.property?.propertyId ?? this.selectedPropertyId ?? '')}&returnTo=work-order`
-    );
-  }
+  //#endregion
 
   //#region Form Methods
   buildForm(): void {
@@ -317,14 +354,51 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     this.syncReceiptAmounts();
   }
 
-  /** When propertyReceipts load (e.g. after work order), fill receiptAmount on items that have a receiptId. */
   syncReceiptAmounts(): void {
     this.workOrderItems.forEach(item => {
       if (item.receiptId != null) {
         const amt = this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
-        (item as WorkOrderItemEditable).receiptAmount = amt;
+        (item as WorkOrderItemEditable).receiptAmount = this.applyOwnerMarkup(amt);
       }
     });
+  }
+
+  isViewModeBeforeChanges(): boolean {
+    if (this.isAddMode || !this.workOrder?.workOrderId) {
+      return false;
+    }
+    const payload: WorkOrderRequest = {
+      organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
+      officeId: this.property?.officeId ?? this.workOrder.officeId,
+      propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
+      workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
+      reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
+      reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
+      description: (this.form.get('description')?.value ?? '').trim(),
+      workOrderItems: this.mapWorkOrderItemsForSave(false),
+      isActive: this.form.get('isActive')?.value ?? true,
+      workOrderId: this.workOrder.workOrderId
+    };
+    return !this.hasWorkOrderUpdates(payload);
+  }
+
+  onPrimaryAction(): void {
+    if (this.isViewModeBeforeChanges()) {
+      this.openWorkOrderView();
+      return;
+    }
+    this.saveWorkOrder();
+  }
+
+  openWorkOrderView(): void {
+    const id = this.workOrder?.workOrderId ?? this.workOrderId;
+    if (!id) {
+      this.toastr.warning('Save the work order before viewing.', 'No Work Order');
+      return;
+    }
+    this.router.navigateByUrl(
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(this.property?.propertyId ?? this.selectedPropertyId ?? '')}&returnTo=work-order`
+    );
   }
   //#endregion
 
@@ -380,11 +454,51 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   onReceiptSelectionChange(itemIndex: number, receiptId: number | null): void {
     this.updateWorkOrderItemField(itemIndex, 'receiptId', receiptId);
     const receipt = receiptId != null ? this.propertyReceipts.find(r => r.receiptId === receiptId) : null;
-    const receiptAmount = receipt?.amount ?? 0;
+    const receiptAmount = this.applyOwnerMarkup(receipt?.amount ?? 0);
     (this.workOrderItems[itemIndex] as WorkOrderItemEditable).receiptAmount = receiptAmount;
     if (receipt?.description != null && receipt.description !== '') {
       this.updateWorkOrderItemField(itemIndex, 'description', receipt.description);
     }
+  }
+
+  private isOwnerTypeSelected(): boolean {
+    return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
+  }
+
+  loadOwnerContactForMarkup(): void {
+    if (!this.isOwnerTypeSelected()) {
+      this.ownerContact = null;
+      this.syncReceiptAmounts();
+      return;
+    }
+    const ownerId = this.property?.owner1Id ?? null;
+    if (!ownerId) {
+      this.ownerContact = null;
+      this.syncReceiptAmounts();
+      return;
+    }
+    this.contactService.getContactByGuid(ownerId).pipe(take(1)).subscribe({
+      next: owner => {
+        this.ownerContact = owner;
+        this.syncReceiptAmounts();
+      },
+      error: () => {
+        this.ownerContact = null;
+        this.syncReceiptAmounts();
+      }
+    });
+  }
+
+  applyOwnerMarkup(baseAmount: number): number {
+    const amount = Number(baseAmount) || 0;
+    if (!this.isOwnerTypeSelected()) {
+      return Math.round(amount * 100) / 100;
+    }
+    const markupPct = Number(this.ownerContact?.markup ?? 0);
+    if (!Number.isFinite(markupPct) || markupPct === 0) {
+      return Math.round(amount * 100) / 100;
+    }
+    return Math.round(amount * (1 + markupPct / 100) * 100) / 100;
   }
 
   /** Total = receipt amount + (labor hours × labor cost). Used for display and save. */
@@ -482,7 +596,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  private hasWorkOrderUpdates(payload: WorkOrderRequest): boolean {
+  hasWorkOrderUpdates(payload: WorkOrderRequest): boolean {
     if (!this.workOrder) {
       return true;
     }
@@ -496,7 +610,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     );
   }
 
-  private getSelectedReservationCode(): string | null {
+  getSelectedReservationCode(): string | null {
     const reservationId = this.form.get('reservationId')?.value ?? null;
     if (!reservationId) {
       return null;
@@ -524,6 +638,22 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  loadCostCode(): void {
+    const officeId = this.property?.officeId ?? null;
+    if (!officeId) {
+      this.costCodeId = null;
+      return;
+    }
+    this.costCodeService.getCostCodeByCode(this.costCode, officeId).pipe(take(1)).subscribe({
+      next: (costCode) => {
+        this.costCodeId = costCode?.costCodeId ?? null;
+      },
+      error: () => {
+        this.costCodeId = null;
+      }
+    });
+  }
+
   loadWorkOrder(): void {
     if (this.isAddMode || this.workOrderId == null) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
@@ -548,6 +678,8 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
         this.loadAccountingOfficeForWorkOrderCode();
         this.loadPropertyReservations();
         this.loadPropertyReceipts();
+        this.loadOwnerContactForMarkup();
+        this.loadCostCode();
       }
       return;
     }
@@ -565,6 +697,8 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
         this.loadAccountingOfficeForWorkOrderCode();
         this.loadPropertyReservations();
         this.loadPropertyReceipts();
+        this.loadOwnerContactForMarkup();
+        this.loadCostCode();
       },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');
@@ -572,7 +706,6 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Load all property receipts (no filter by workOrderCode) so line items can display their receipt and dropdown can filter correctly. */
   loadPropertyReceipts(): void {
     const propertyId = this.property?.propertyId ?? null;
     if (!propertyId) {
@@ -627,7 +760,9 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Work-order post save updates
   updateAccountingOfficeWorkOrderNoAfterCreate(): void {
     if (!this.accountingOffice || this.nextWorkOrderNo == null) {
       return;
@@ -667,7 +802,6 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** After work order save, set workOrderCode on each receipt used in work order items. */
   updateReceiptsWorkOrderCode(workOrderCode: string): void {
     const receiptIds = [...new Set(this.workOrderItems.map(i => i.receiptId).filter((id): id is number => id != null))];
     if (receiptIds.length === 0) return;

@@ -160,6 +160,73 @@ export class FormatterService {
         this.formatDecimalControl(control);
     }
 
+    // Keeps only numeric percentage input (digits + single decimal point).
+    formatPercentageInput(event: Event, control: AbstractControl | null): void {
+        const input = event.target as HTMLInputElement;
+        const rawValue = (input.value || '').replace('%', '');
+        const value = rawValue.replace(/[^0-9.]/g, '');
+
+        const parts = value.split('.');
+        let sanitized = value;
+        if (parts.length > 2) {
+            sanitized = parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        input.value = sanitized;
+        control?.setValue(sanitized, { emitEvent: false });
+    }
+
+    // Removes the percent suffix while editing.
+    clearPercentageOnFocus(event: FocusEvent, control: AbstractControl | null): void {
+        const input = event.target as HTMLInputElement;
+        const current = (input?.value ?? '').trim();
+        const raw = current.replace('%', '').trim();
+        input.value = raw;
+        control?.setValue(raw, { emitEvent: false });
+    }
+
+    // Formats numeric percentage as display text (e.g., 25 -> "25%").
+    formatPercentageControl(control: AbstractControl | null, defaultValue: number = 25): void {
+        const raw = (control?.value ?? '').toString().replace('%', '').trim();
+        const parsed = parseFloat(raw);
+        const normalized = Number.isFinite(parsed) ? parsed : defaultValue;
+        const formattedNumber = this.decimalPipe.transform(normalized, '1.0-2') ?? `${defaultValue}`;
+        control?.setValue(`${formattedNumber}%`, { emitEvent: false });
+    }
+
+    // Formats a numeric percentage value for display.
+    formatPercentageValue(value: number | null | undefined, defaultValue: number = 25): string {
+        const normalized = Number.isFinite(Number(value)) ? Number(value) : defaultValue;
+        const formattedNumber = this.decimalPipe.transform(normalized, '1.0-2') ?? `${defaultValue}`;
+        return `${formattedNumber}%`;
+    }
+
+    // Parses a percentage display/input value into a numeric percentage.
+    parsePercentageValue(value: string | number | null | undefined, defaultValue: number = 25): number {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+        const raw = (value ?? '').toString().replace('%', '').trim();
+        const parsed = parseFloat(raw);
+        return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    // Formats percentage on Enter and exits the field.
+    formatPercentageOnEnter(event: KeyboardEvent, control: AbstractControl | null, defaultValue: number = 25): void {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+        this.formatPercentageControl(control, defaultValue);
+        (event.target as HTMLInputElement)?.blur();
+    }
+
+    // Formats percentage on blur.
+    formatPercentageOnBlur(control: AbstractControl | null, defaultValue: number = 25): void {
+        this.formatPercentageControl(control, defaultValue);
+    }
+
     
     /*******************  Phone Numbers *******************/
     // Formats a phone number - supports US (10 digits) and international (up to 15 digits)
