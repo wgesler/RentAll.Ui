@@ -78,6 +78,7 @@ export interface GenerateDocumentFromHtmlDto {
   officeName: string;
   propertyId?: string | null;
   reservationId?: string | null;
+  reservationCode?: string | null;
   documentTypeId: DocumentType;
   fileName: string;
   /** When true, backend must generate a standalone PDF (images embedded) and save that file; documentPath must point to the PDF. */

@@ -55,6 +55,11 @@
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="property?.propertyCode || receipt?.propertyCode || ''" readonly disabled>
               </mat-form-field>
+
+              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                <mat-label>Work Order Code</mat-label>
+                <input matInput formControlName="workOrderCode">
+              </mat-form-field>
             </div>
 
             <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">

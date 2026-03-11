@@ -2,7 +2,8 @@ export enum EmailType {
   Other = 0,
   PropertyLetter = 1,
   ReservationLease = 2,
-  Invoice = 3
+  Invoice = 3,
+  WorkOrder = 4
 }
 
 export function getEmailType(emailTypeId: number | undefined): string {
@@ -12,7 +13,8 @@ export function getEmailType(emailTypeId: number | undefined): string {
     [EmailType.Other]: 'Other',
     [EmailType.PropertyLetter]: 'Welcome Letter',
     [EmailType.ReservationLease]: 'Reservation Lease',
-    [EmailType.Invoice]: 'Invoice'
+    [EmailType.Invoice]: 'Invoice',
+    [EmailType.WorkOrder]: 'Work Order'
   };
 
   return typeMap[emailTypeId] || '';

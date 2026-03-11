@@ -20,6 +20,7 @@ export interface AccountingOfficeRequest {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  workOrderNo: number;
   logoPath?: string; 
   fileDetails?: FileDetails;
   isActive: boolean;
@@ -45,6 +46,7 @@ export interface AccountingOfficeResponse {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  workOrderNo: number;
   logoPath?: string; 
   fileDetails?: FileDetails;
   isActive: boolean;

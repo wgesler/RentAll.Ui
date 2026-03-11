@@ -339,17 +339,16 @@
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
-  <h3 style="text-align: center; margin-top: 20px; margin-bottom: 10px;"><span class="label">Client Invoice #:</span> {{invoiceName}}</h3>
+  <h3 style="text-align: center; margin-top: 20px; margin-bottom: 10px;"><span class="label">Work Order No:</span> {{workOrderCode}}</h3>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
             <p>
-              <span class="label">Client Number:</span> {{reservationCode}}<br>
               <span class="label">Client Name:</span> {{contactName}}<br>
-              <span class="label">Company Name:</span> {{companyName}}<br>
               <span class="label">Client Address:</span> {{contactAddress}}<br>
+              <span class="label">Billing Type:</span> {{billingMethod}}<br>
             </p>
           </div>
         </td>
@@ -357,10 +356,19 @@
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
             <p>
+              <span class="label">Property Code:</span> {{propertyCode}}<br>
               <span class="label">Property Address:</span> {{propertyAddress}}<br>
               <span class="label">Unit ID:</span> {{propertySuite}}<br>
-              <span class="label">Billing Type:</span> {{billingMethod}}<br>
             </p>
+          </div>
+        </td>
+      </tr>
+
+      <tr valign="top">
+        <td colspan="2" style="padding: 15px 5px 5px 5px;">
+          <div class="border">
+            <h3>Description</h3>
+            <p>{{workOrderDescription}}</p>
           </div>
         </td>
       </tr>
@@ -374,14 +382,17 @@
                 <tr>
                   <th>Date</th>
                   <th>Description</th>
-                  <th class="text-right">Amount</th>
+                  <th>Amount</th>
+                  <th>Hours</th>
+                  <th>Cost</th>
+                  <th class="text-right">Total</th>
                 </tr>
               </thead>
               <tbody>
-                <!-- Ledger lines will be inserted here -->
-                {{ledgerLinesRows}}
+                <!-- Work Order Items will be inserted here -->
+                {{workOrderItemRows}}
                 <tr class="total-row">
-                  <td colspan="2" class="text-right"><span class="label">Balance Due:</span></td>
+                  <td colspan="5" class="text-right"><span class="label">Balance Due:</span></td>
                   <td class="text-right">{{totalDue}}</td>
                 </tr>
               </tbody>

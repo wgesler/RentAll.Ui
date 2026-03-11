@@ -64,6 +64,7 @@
               <app-receipts-list
                 [property]="property"
                 [embeddedInMaintenance]="true"
+                [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)" />
             }
           </mat-tab>

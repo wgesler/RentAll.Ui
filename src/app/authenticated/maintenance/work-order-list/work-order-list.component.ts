@@ -38,10 +38,11 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   workOrderDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, maxWidth: '15ch'}
   };
 
   constructor(
@@ -83,8 +84,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     this.isLoading = true;
     this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
+        console.log('Work order list response:', JSON.stringify(workOrders ?? [], null, 2));
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        console.log('Work order list mapped display:', JSON.stringify(this.allWorkOrders ?? [], null, 2));
         this.applyFilters();
       },
       error: () => {

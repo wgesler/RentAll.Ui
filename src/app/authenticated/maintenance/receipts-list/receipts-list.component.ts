@@ -27,6 +27,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
   /** When true, selection is emitted via receiptSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
+  /** Increment from parent to trigger a refresh (e.g. after a work order save updates receipts). */
+  @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<number | null>();
 
   isLoading: boolean = false;
@@ -42,6 +44,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   receiptDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    workOrderCode: { displayAs: 'WO Code', wrap: false, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch' },
     description: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
@@ -82,6 +85,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.selectedPropertyId = propertyId;
         this.getReceipts(propertyId);
       }
+    }
+    if (changes['refreshTrigger'] && this.property?.propertyId) {
+      this.getReceipts(this.property.propertyId);
     }
   }
 

@@ -83,7 +83,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
-    'documentTypeName': { displayAs: 'Document Type', maxWidth: '25ch'},
+    'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
   };
@@ -92,7 +92,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'officeName': { displayAs: 'Office', maxWidth: '18ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '18ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '18ch', sortType: 'natural' },
-    'documentTypeName': { displayAs: 'Document Type', maxWidth: '30ch'},
+    'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
   };
@@ -303,17 +303,18 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     if (isMaintenanceDocuments) {
-      // MAINTENANCE DOCUMENTS: Inspection + Inventory for this property (Office and Property columns shown)
+      // MAINTENANCE DOCUMENTS: Inspection + Inventory + Work Order for this property (Office and Property columns shown)
       forkJoin({
         inspection: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inspection),
-        inventory: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory)
+        inventory: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory),
+        workOrder: this.documentService.getByPropertyType(this.propertyId!, DocumentType.WorkOrder)
       }).pipe(
         take(1),
         finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'))
       ).subscribe({
-        next: ({ inspection, inventory }) => {
-          const combined = [...(inspection ?? []), ...(inventory ?? [])];
-          this.allDocuments = this.mappingService.mapDocuments(combined);
+        next: ({ inspection, inventory, workOrder }) => {
+          const combined = [...(inspection ?? []), ...(inventory ?? []), ...(workOrder ?? [])];
+          this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(combined));
           this.applyFilters();
         },
         error: () => {
@@ -326,7 +327,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           next: (documents) => {
             // Double-check filter: ensure they match the requested documentTypeId
             const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
-            this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
+            this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
             this.applyFilters(); // Apply office filter if needed
           },
           error: () => {
@@ -339,7 +340,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         next: (documents) => {
           // Filter documents by documentTypeId
           const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
-          this.allDocuments = this.mappingService.mapDocuments(filteredDocuments);
+          this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
           this.applyFilters(); // Apply office filter if needed
         },
         error: () => {
@@ -350,7 +351,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       // UNFILTERED MODE: Get ALL documents (used in sidebar navigation)
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
         next: (documents) => {
-          this.allDocuments = this.mappingService.mapDocuments(documents);
+          this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(documents));
           this.applyFilters(); // Apply office filter if needed
         },
         error: () => {
@@ -550,6 +551,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           // Show all reservations filtered by office if office is selected
           this.filterReservations();
         }
+        this.allDocuments = this.enrichReservationCodes(this.allDocuments);
         this.applyFilters();
       },
       error: () => {
@@ -674,11 +676,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.documentTypes = getDocumentTypes();
   }
 
-  /** Document types for maintenance tab: Inspection and Inventory only. */
+  /** Document types for maintenance tab. */
   initializeDocumentTypesForMaintenance(): void {
     this.documentTypes = [
       { value: DocumentType.Inspection, label: 'Inspection' },
-      { value: DocumentType.Inventory, label: 'Inventory' }
+      { value: DocumentType.Inventory, label: 'Inventory' },
+      { value: DocumentType.WorkOrder, label: 'Work Order' }
     ];
   }
 
@@ -803,6 +806,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.documentsDisplay = filtered;
+  }
+
+  private enrichReservationCodes(documents: DocumentListDisplay[]): DocumentListDisplay[] {
+    if (!documents?.length) {
+      return documents ?? [];
+    }
+    const reservationCodeById = new Map<string, string>(
+      (this.reservations ?? [])
+        .filter(r => !!r.reservationId)
+        .map(r => [r.reservationId, r.reservationCode || ''])
+    );
+    return documents.map(doc => {
+      if (doc.reservationCode && doc.reservationCode.trim() !== '') {
+        return doc;
+      }
+      const fallbackCode = doc.reservationId ? (reservationCodeById.get(doc.reservationId) || '') : '';
+      return { ...doc, reservationCode: fallbackCode };
+    });
   }
   //#endregion
 

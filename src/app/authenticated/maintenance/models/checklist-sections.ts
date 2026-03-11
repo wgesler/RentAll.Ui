@@ -47,72 +47,224 @@ export type SavedAnswerSection = {
 
 export const INVENTORY_SECTIONS: ChecklistSection[] = [
   {
-    key: 'frontEntrance',
-    title: 'Front Entrance',
+    key: 'keysAndAccess',
+    title: 'Keys and Access',
     items: [
-      { text: 'Side Table.', requiresPhoto: false },
+      { text: 'Unit Keys (1,2,3)', requiresPhoto: false },
+      { text: 'Mail Keys (1,2,3)', requiresPhoto: false },
+      { text: 'Building Keys (1,2,3)', requiresPhoto: false },
+      { text: 'Garage Remotes (1,2,3)', requiresPhoto: false },
+      { text: 'FOB (1,2,3)', requiresPhoto: false },
+      { text: 'Amenities Access', requiresPhoto: false }
     ]
   },
   {
-    key: 'diningRoom',
-    title: 'Dining Room',
+    key: 'cleaningStatus',
+    title: 'Cleaning Status',
     items: [
-      { text: 'Dining Table.', requiresPhoto: false },
-      { text: '4 Chairs.', requiresPhoto: false },
-      { text: '2 Place settings.', requiresPhoto: false },
-      { text: 'Photo: Full view.', requiresPhoto: false }
-   ]
+      { text: 'Cleaning Done', requiresPhoto: false },
+      { text: 'Needs to be Redone', requiresPhoto: false },
+      { text: 'Not Done', requiresPhoto: false },
+      { text: 'Spot Clean Carpets', requiresPhoto: false },
+      { text: 'Whole Carpet Clean', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'filtersAndBulbs',
+    title: 'Filters and Bulbs',
+    items: [
+      { text: 'Spare Filters in Unit', requiresPhoto: false },
+      { text: 'Filters Need Replacing', requiresPhoto: false },
+      { text: 'Need to Purchase More Filters', requiresPhoto: false },
+      { text: 'Filter Size', requiresPhoto: false },
+      { text: 'Spare Bulbs in Unit', requiresPhoto: false },
+      { text: 'Bulbs Need Replacing', requiresPhoto: false },
+      { text: 'Need to Purchase More Bulbs', requiresPhoto: false },
+      { text: 'Specialty Bulbs Needed', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'kitchenTools',
+    title: 'Kitchen – Tools & Utensils',
+    items: [
+      { text: 'Baking Dish', requiresPhoto: false },
+      { text: 'Broiler Pan', requiresPhoto: false },
+      { text: 'Can Opener', requiresPhoto: false },
+      { text: 'Colander', requiresPhoto: false },
+      { text: 'Cookie Sheet', requiresPhoto: false },
+      { text: 'Corkscrew', requiresPhoto: false },
+      { text: 'Cutting Board', requiresPhoto: false },
+      { text: 'Cheese Grater', requiresPhoto: false },
+      { text: 'Knife Block with Steak Knives', requiresPhoto: false },
+      { text: 'Ice Cream Scoop', requiresPhoto: false },
+      { text: 'Ladle', requiresPhoto: false },
+      { text: 'Measuring Cup (2 cup)', requiresPhoto: false },
+      { text: 'Measuring Cup Set', requiresPhoto: false },
+      { text: 'Measuring Spoon Set', requiresPhoto: false },
+      { text: 'Mixing Bowls (3)', requiresPhoto: false },
+      { text: 'Pizza Cutter', requiresPhoto: false },
+      { text: 'Salt and Pepper', requiresPhoto: false },
+      { text: 'Baking Spatula', requiresPhoto: false },
+      { text: 'Flipper Spatula', requiresPhoto: false },
+      { text: 'Cooking Spoon', requiresPhoto: false },
+      { text: 'Slotted Spoons', requiresPhoto: false },
+      { text: 'Tea Kettle', requiresPhoto: false },
+      { text: 'Tongs', requiresPhoto: false },
+      { text: 'Vegetable Peeler', requiresPhoto: false },
+      { text: 'Tupperware Set', requiresPhoto: false },
+      { text: 'Utensil Holder (Counter)', requiresPhoto: false },
+      { text: 'Utensil Holder (Drawer)', requiresPhoto: false },
+      { text: 'Glass Water Pitcher', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'kitchenDishes',
+    title: 'Kitchen – Dishes and Glassware',
+    items: [
+      { text: '8 Large Plates', requiresPhoto: false },
+      { text: '8 Small Plates', requiresPhoto: false },
+      { text: '8 Bowls', requiresPhoto: false },
+      { text: '8 Tall Glasses', requiresPhoto: false },
+      { text: '8 Medium Glasses', requiresPhoto: false },
+      { text: '8 Wine Glasses', requiresPhoto: false },
+      { text: '8 Coffee Mugs', requiresPhoto: false },
+      { text: '8 Forks', requiresPhoto: false },
+      { text: '8 Spoons', requiresPhoto: false },
+      { text: '8 Knives', requiresPhoto: false },
+      { text: 'Cutlery Tray', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'kitchenCookware',
+    title: 'Kitchen – Pots and Cookware',
+    items: [
+      { text: 'Large Frying Pan with Lid', requiresPhoto: false },
+      { text: 'Small Frying Pan with Lid', requiresPhoto: false },
+      { text: 'Large Sauce Pan with Lid', requiresPhoto: false },
+      { text: 'Small Sauce Pan with Lid', requiresPhoto: false },
+      { text: 'Pasta Pot with Lid', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'kitchenLinens',
+    title: 'Kitchen – Linens and Misc',
+    items: [
+      { text: 'Dish Towels', requiresPhoto: false },
+      { text: 'Dish Cloths', requiresPhoto: false },
+      { text: 'Potholders (2)', requiresPhoto: false },
+      { text: 'Placemats (4)', requiresPhoto: false },
+      { text: 'Napkins (4)', requiresPhoto: false },
+      { text: 'Trash Can', requiresPhoto: false },
+      { text: 'Fire Extinguisher', requiresPhoto: false },
+      { text: 'Kitchen Rug', requiresPhoto: false }
+    ]
   },
   {
     key: 'livingRoom',
     title: 'Living Room',
     items: [
-      { text: 'Couch.', requiresPhoto: false },
-      { text: '2 Endtables.', requiresPhoto: false },
+      { text: 'Flat Screen TV', requiresPhoto: true },
+      { text: 'TV Remote', requiresPhoto: false },
+      { text: 'TV Stand', requiresPhoto: false },
+      { text: 'Couch', requiresPhoto: false },
+      { text: 'Chair', requiresPhoto: false },
+      { text: 'End Tables', requiresPhoto: false },
       { text: 'Coffee Table', requiresPhoto: false },
-      { text: 'Lounge Chair.', requiresPhoto: false }
+      { text: 'Dish Box', requiresPhoto: false },
+      { text: 'Dish Remote', requiresPhoto: false },
+      { text: 'DVD Player', requiresPhoto: false },
+      { text: 'DVD Remote', requiresPhoto: false },
+      { text: 'Stereo', requiresPhoto: false },
+      { text: 'Surge Protector', requiresPhoto: false }
     ]
   },
   {
-    key: 'kitchen',
-    title: 'Kitchen',
-    hint: 'Please take photos of the outside/inside of all appliances.',
+    key: 'bedroom',
+    title: 'Bedroom',
     items: [
-      { text: '8 large plates', requiresPhoto: false },
-      { text: '8 small plate', requiresPhoto: false },
-      { text: '8 glasses.', requiresPhoto: false },
-      { text: '8 mugs.', requiresPhoto: false },
-      { text: '8 spoons.', requiresPhoto: false },
-      { text: '8 knives.', requiresPhoto: false },
-      { text: '8 forks', requiresPhoto: false }
+      { text: 'Bed Frame', requiresPhoto: false },
+      { text: 'Headboard', requiresPhoto: false },
+      { text: 'Mattress', requiresPhoto: false },
+      { text: 'Mattress Pad', requiresPhoto: false },
+      { text: 'Sheet Set', requiresPhoto: false },
+      { text: 'Pillows', requiresPhoto: false },
+      { text: 'Blanket', requiresPhoto: false },
+      { text: 'Bedspread', requiresPhoto: false },
+      { text: 'Shams', requiresPhoto: false },
+      { text: 'Dresser', requiresPhoto: false },
+      { text: 'Night Stand', requiresPhoto: false },
+      { text: 'Table Lamp', requiresPhoto: false },
+      { text: 'Ceiling Fan', requiresPhoto: false },
+      { text: 'Ceiling Fan Remote', requiresPhoto: false },
+      { text: 'Flat Screen TV', requiresPhoto: true },
+      { text: 'TV Remote', requiresPhoto: false },
+      { text: 'Cable Box', requiresPhoto: false },
+      { text: 'Cable Remote', requiresPhoto: false },
+      { text: 'Clock Radio / iPod Dock', requiresPhoto: false }
     ]
   },
   {
-    key: 'bedrooms',
-    title: 'Bedrooms',
+    key: 'bathroom',
+    title: 'Bathroom',
     items: [
-      { text: 'Bed', requiresPhoto: false },
-      { text: '2 End Tables', requiresPhoto: false },
-      { text: '1 Dresser', requiresPhoto: false },
-    ]
-  },
-  {
-    key: 'bathrooms',
-    title: 'Bathrooms',
-    items: [
+      { text: 'Bath Towels (4)', requiresPhoto: false },
+      { text: 'Hand Towels (4)', requiresPhoto: false },
+      { text: 'Face Towels (4)', requiresPhoto: false },
+      { text: 'Bath Mat', requiresPhoto: false },
+      { text: 'Bath Rug', requiresPhoto: false },
       { text: 'Soap Dish', requiresPhoto: false },
-      { text: '2 Towels', requiresPhoto: false },
+      { text: 'Plunger', requiresPhoto: false },
+      { text: 'Toilet Brush', requiresPhoto: false },
+      { text: 'Trash Can', requiresPhoto: false },
+      { text: 'Shower Curtain or Glass Door', requiresPhoto: false },
+      { text: 'Shower Curtain Liner', requiresPhoto: false }
     ]
   },
   {
-    key: 'utilityRoom',
-    title: 'Utility Room',
+    key: 'cleaningLaundry',
+    title: 'Cleaning and Laundry',
     items: [
-      { text: '1 Iron and Ironing Board', requiresPhoto: false },
-      { text: '1 Vacuum', requiresPhoto: false },
-      { text: '1 Broom and dustpan', requiresPhoto: false },
+      { text: 'Vacuum', requiresPhoto: false },
+      { text: 'Mop', requiresPhoto: false },
+      { text: 'Broom', requiresPhoto: false },
+      { text: 'Dust Pan', requiresPhoto: false },
+      { text: 'Bucket', requiresPhoto: false },
+      { text: 'Iron', requiresPhoto: false },
+      { text: 'Ironing Board', requiresPhoto: false },
+      { text: 'Ironing Board Cover', requiresPhoto: false },
+      { text: 'Step Ladder', requiresPhoto: false }
     ]
   },
+  {
+    key: 'officeArea',
+    title: 'Office / Internet',
+    items: [
+      { text: 'Wireless Router', requiresPhoto: false },
+      { text: 'WiFi SSID', requiresPhoto: false },
+      { text: 'WiFi Password', requiresPhoto: false }
+    ]
+  },
+  {
+    key: 'appliances',
+    title: 'Appliances and Systems',
+    hint: 'Capture model and serial numbers where available.',
+    items: [
+      { text: 'Refrigerator', requiresPhoto: true },
+      { text: 'Stove / Oven', requiresPhoto: true },
+      { text: 'Microwave', requiresPhoto: true },
+      { text: 'Dishwasher', requiresPhoto: true },
+      { text: 'Garbage Disposal', requiresPhoto: false },
+      { text: 'Washer', requiresPhoto: true },
+      { text: 'Dryer', requiresPhoto: true },
+      { text: 'HVAC', requiresPhoto: true },
+      { text: 'Water Heater', requiresPhoto: true },
+      { text: 'Thermostat', requiresPhoto: false },
+      { text: 'Garage Door', requiresPhoto: false },
+      { text: 'Main Room TV', requiresPhoto: true },
+      { text: 'Primary Bedroom TV', requiresPhoto: true },
+      { text: 'Guest Bedroom TV', requiresPhoto: true }
+    ]
+  }
 ];
 
 export const INSPECTION_SECTIONS: ChecklistSection[] = [

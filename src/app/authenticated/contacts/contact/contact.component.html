@@ -188,123 +188,125 @@
                 <textarea matInput formControlName="notes" rows="3"></textarea>
               </mat-form-field>
 
-              <!-- W9 Form Section -->
-              <div class="col-span-4">
-                <mat-divider class="my-5"/>
-                <h3 class="pt-3">W9 Form</h3>
-                <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
-                  <mat-label>W9 Expiration</mat-label>
-                  <input matInput [matDatepicker]="w9ExpirationPicker" formControlName="w9Expiration" />
-                  <mat-datepicker-toggle matIconSuffix [for]="w9ExpirationPicker"></mat-datepicker-toggle>
-                  <mat-datepicker #w9ExpirationPicker></mat-datepicker>
-                </mat-form-field>
-                <div class="flex justify-start image-input items-center mb-4">
-                  @if (w9FileDataUrl && w9FileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="W9 Form" [src]="w9FileDataUrl" />
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
-                          Delete
-                        </button>
+              <div class="col-span-4 owner-forms-layout owner-forms-layout--side-by-side">
+                <!-- W9 Form Section -->
+                <div class="owner-form-section">
+                  <mat-divider class="my-5"/>
+                  <h3 class="pt-3 font-bold">W9 Form</h3>
+                  <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
+                    <mat-label>W9 Expiration</mat-label>
+                    <input matInput [matDatepicker]="w9ExpirationPicker" formControlName="w9Expiration" />
+                    <mat-datepicker-toggle matIconSuffix [for]="w9ExpirationPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #w9ExpirationPicker></mat-datepicker>
+                  </mat-form-field>
+                  <div class="flex justify-start image-input items-center mb-4">
+                    @if (w9FileDataUrl && w9FileContentType?.startsWith('image/')) {
+                      <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="W9 Form" [src]="w9FileDataUrl" />
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  } @else if (w9FileName && w9FileDataUrl) {
-                    <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
-                      <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
-                    </div>
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
-                          Delete
-                        </button>
+                    } @else if (w9FileName && w9FileDataUrl) {
+                      <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                        <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                       </div>
-                    </div>
-                  } @else if (w9FileName) {
-                    <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
-                      <mat-icon class="text-5xl text-slate-400">description</mat-icon>
-                    </div>
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
-                          Delete
-                        </button>
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  } @else {
-                    <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
-                      Upload
-                    </button>
-                  }
-                  <input #w9FileInput type="file" (change)="onW9FileSelected($event)" style="display: none;" />
+                    } @else if (w9FileName) {
+                      <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                        <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+                      </div>
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
+                        Upload
+                      </button>
+                    }
+                    <input #w9FileInput type="file" (change)="onW9FileSelected($event)" style="display: none;" />
+                  </div>
                 </div>
-              </div>
 
-              <!-- Insurance Form Section -->
-              <div class="col-span-4">
-                <mat-divider class="my-5"/>
-                <h3 class="pt-3">Insurance Form</h3>
-                <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
-                  <mat-label>Insurance Expiration</mat-label>
-                  <input matInput [matDatepicker]="insuranceExpirationPicker" formControlName="insuranceExpiration" />
-                  <mat-datepicker-toggle matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
-                  <mat-datepicker #insuranceExpirationPicker></mat-datepicker>
-                </mat-form-field>
-                <div class="flex justify-start image-input items-center mb-4">
-                  @if (insuranceFileDataUrl && insuranceFileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="Insurance Form" [src]="insuranceFileDataUrl" />
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
-                          Delete
-                        </button>
+                <!-- Insurance Form Section -->
+                <div class="owner-form-section">
+                  <mat-divider class="my-5"/>
+                  <h3 class="pt-3 font-bold">Insurance Form</h3>
+                  <mat-form-field appearance="outline" class="block mb-4" style="max-width: 240px;">
+                    <mat-label>Insurance Expiration</mat-label>
+                    <input matInput [matDatepicker]="insuranceExpirationPicker" formControlName="insuranceExpiration" />
+                    <mat-datepicker-toggle matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #insuranceExpirationPicker></mat-datepicker>
+                  </mat-form-field>
+                  <div class="flex justify-start image-input items-center mb-4">
+                    @if (insuranceFileDataUrl && insuranceFileContentType?.startsWith('image/')) {
+                      <img class="object-contain max-w-xs max-h-44 border border-slate-300 rounded" alt="Insurance Form" [src]="insuranceFileDataUrl" />
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  } @else if (insuranceFileName && insuranceFileDataUrl) {
-                    <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
-                      <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
-                    </div>
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
-                          Delete
-                        </button>
+                    } @else if (insuranceFileName && insuranceFileDataUrl) {
+                      <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                        <mat-icon class="text-5xl text-slate-400">picture_as_pdf</mat-icon>
                       </div>
-                    </div>
-                  } @else if (insuranceFileName) {
-                    <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
-                      <mat-icon class="text-5xl text-slate-400">description</mat-icon>
-                    </div>
-                    <div class="flex flex-col gap-2 ml-4">
-                      <div class="flex flex-col gap-2">
-                        <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
-                          Upload
-                        </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
-                          Delete
-                        </button>
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  } @else {
-                    <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
-                      Upload
-                    </button>
-                  }
-                  <input #insuranceFileInput type="file" (change)="onInsuranceFileSelected($event)" style="display: none;" />
+                    } @else if (insuranceFileName) {
+                      <div class="flex items-center justify-center object-contain max-w-xs max-h-44 border border-slate-300 rounded bg-slate-100 p-4">
+                        <mat-icon class="text-5xl text-slate-400">description</mat-icon>
+                      </div>
+                      <div class="flex flex-col gap-2 ml-4">
+                        <div class="flex flex-col gap-2">
+                          <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
+                            Upload
+                          </button>
+                          <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
+                        Upload
+                      </button>
+                    }
+                    <input #insuranceFileInput type="file" (change)="onInsuranceFileSelected($event)" style="display: none;" />
+                  </div>
                 </div>
               </div>
             </div>

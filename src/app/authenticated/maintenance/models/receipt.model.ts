@@ -8,6 +8,7 @@ export interface ReceiptRequest {
   maintenanceId: string;
   description: string;
   amount: number;
+  workOrderCode: string;
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   isActive: boolean;
@@ -23,6 +24,7 @@ export interface ReceiptResponse {
   maintenanceId: string;
   description: string;
   amount: number;
+  workOrderCode: string;
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   isActive: boolean;
@@ -37,6 +39,7 @@ export interface ReceiptDisplayList {
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
+  workOrderCode: string;
   description: string;
   amount: number;
   amountDisplay?: string; // formatted for list (e.g. $0.00)

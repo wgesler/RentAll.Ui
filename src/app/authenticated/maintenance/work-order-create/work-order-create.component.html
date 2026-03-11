@@ -1,0 +1,78 @@
+@if (isLoading$ | async) {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">build</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Work Order</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" (click)="goBack()" class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+      <mat-card>
+        <div class="loading-container">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Loading work order preview...</p>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <span class="flex flex-column items-center gap-3 py-4">
+          <mat-icon class="flex-shrink-0">build</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Work Order</span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" (click)="goBack()" class="scale-90 text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+      <mat-card>
+        <div class="mat">
+          <div class="flex gap-2 mt-4 px-4 justify-end">
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!previewIframeHtml">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+            <button mat-raised-button type="button" color="primary" (click)="saveWorkOrderDocument()" [disabled]="!previewIframeHtml || isSubmitting">
+              <mat-icon>save</mat-icon>
+              {{ isSubmitting ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+
+          <div class="preview-section">
+            @if (previewIframeHtml) {
+              <iframe
+                [srcdoc]="safePreviewIframeHtml"
+                class="preview-iframe"
+                [attr.key]="iframeKey"
+                (load)="injectStylesIntoIframe()"
+                frameborder="0">
+              </iframe>
+            } @else {
+              <div class="empty-preview">No preview is available for this work order.</div>
+            }
+          </div>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+}
+

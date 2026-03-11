@@ -107,14 +107,24 @@
     border-bottom: 1px solid #e0e0e0;
   }
 
-  th {
+  thead th {
     background-color: #f5f5f5;
-    font-weight: 500;
+    font-weight: 400;
     font-size: 14px !important;
+    line-height: 20px; /* match line-item row height (same as input height) */
+  }
+
+  /* Right-align headers to match right-aligned body cells (Amount, Hours, Cost, Total) */
+  thead th.wo-col-amount,
+  thead th.wo-col-hours,
+  thead th.wo-col-cost,
+  thead th.wo-col-total,
+  thead th.wo-col-actions {
+    text-align: right !important;
   }
 
   .line-items-two-line-header {
-    line-height: 1.2;
+    line-height: 1.25;
     white-space: normal;
   }
 
@@ -132,9 +142,18 @@
   /* Uniform horizontal padding so spacing between columns is even */
   th,
   td {
-    padding: 5px 6px !important;
+    padding: 4px 8px !important;
     vertical-align: middle;
     line-height: 1.25;
+  }
+
+  /* Extra right padding for right-justified column headers */
+  thead th.wo-col-amount,
+  thead th.wo-col-hours,
+  thead th.wo-col-cost,
+  thead th.wo-col-total,
+  thead th.wo-col-actions {
+    padding-right: 14px !important;
   }
 
   tbody td {
@@ -147,38 +166,18 @@
   }
 
   .wo-col-amount,
+  .wo-col-hours,
   .wo-col-cost,
   .wo-col-total {
     text-align: right !important;
   }
 
-  /* Nudge Hours column right */
-  th.wo-col-hours,
-  td.wo-col-hours {
-    padding-left: 16px !important;
-  }
+  .hours-cell {
+    text-align: right !important;
 
-  /* Direct visual offset so the shift is obvious regardless of table layout math */
-  .wo-hours-shift {
-    position: relative;
-    left: 35px;
-  }
-
-  .wo-hours-value-shift {
-    left: 45px;
-  }
-
-  /* Directly shift Cost/Total header text and values right by 10px */
-  th.wo-col-cost,
-  th.wo-col-total {
-    position: relative;
-    left: -20px;
-  }
-
-  td.wo-col-cost input,
-  td.wo-col-total input {
-    position: relative;
-    left: -5px;
+    input {
+      text-align: right !important;
+    }
   }
 
   .amount-value-cell,
@@ -197,13 +196,14 @@
   }
 
   mat-select {
-    min-height: 32px;
-    height: 32px;
+    min-height: 20px;
+    height: 20px;
     font-size: 14px !important;
   }
 
   .mat-mdc-select-trigger {
-    height: 32px;
+    height: 20px;
+    min-height: 20px;
     padding: 0 6px;
     display: flex;
     align-items: center;
@@ -212,8 +212,9 @@
 
   input[type="text"],
   input[type="number"] {
-    height: 28px;
-    line-height: 28px;
+    height: 20px;
+    min-height: 20px;
+    line-height: 20px;
     padding: 0 6px;
     box-sizing: border-box;
     width: 100%;

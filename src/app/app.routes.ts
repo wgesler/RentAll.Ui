@@ -36,6 +36,7 @@ import { RegionComponent } from './authenticated/organizations/region/region.com
 import { MaintenanceListComponent } from './authenticated/maintenance/maintenance-list/maintenance-list.component';
 import { MaintenanceComponent } from './authenticated/maintenance/maintenance/maintenance.component';
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
+import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { PropertyComponent } from './authenticated/properties/property/property.component';
@@ -63,6 +64,7 @@ export enum RouterToken {
   MaintenanceList = 'maintenance',
   Maintenance = RouterToken.MaintenanceList + '/:id',
   MaintenanceWorkOrder = 'work-order/:id',
+  WorkOrderCreate = 'work-order-create',
   MaintenanceReceipt = 'receipt/:id',
   PropertyList = 'properties',
   Property = RouterToken.PropertyList + '/:id',
@@ -115,6 +117,7 @@ export enum RouterUrl {
   MaintenanceList       = `${RouterToken.Auth}/${RouterToken.MaintenanceList}`,
   Maintenance           = `${RouterToken.Auth}/${RouterToken.Maintenance}`,
   MaintenanceWorkOrder  = `${RouterToken.Auth}/${RouterToken.MaintenanceWorkOrder}`,
+  WorkOrderCreate       = `${RouterToken.Auth}/${RouterToken.WorkOrderCreate}`,
   MaintenanceReceipt     = `${RouterToken.Auth}/${RouterToken.MaintenanceReceipt}`,
   PropertyList          = `${RouterToken.Auth}/${RouterToken.PropertyList}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
@@ -173,6 +176,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Maintenance, component: MaintenanceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },

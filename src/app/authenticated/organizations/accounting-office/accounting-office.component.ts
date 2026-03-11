@@ -214,6 +214,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankSwiftCode: formValue.bankSwiftCode || '',
       bankAddress: formValue.bankAddress || '',
       bankPhone: bankPhoneDigits,
+      workOrderNo: Number(formValue.workOrderNo) || 0,
       email: formValue.email || '',
       website: formValue.website || '',
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
@@ -302,6 +303,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankSwiftCode: new FormControl('', [Validators.required]),
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -328,6 +330,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         bankSwiftCode: this.accountingOffice.bankSwiftCode || '',
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
+        workOrderNo: this.accountingOffice.workOrderNo ?? 0,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }

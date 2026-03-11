@@ -1,8 +1,11 @@
 export interface WorkOrderRequest {
   workOrderId?: string;
+  workOrderCode?: string;
   organizationId: string;
   officeId: number;
   propertyId: string;
+  reservationId?: string | null;
+  reservationCode?: string | null;
   workOrderTypeId: number;
   description: string;
   workOrderItems: WorkOrderItemRequest[];
@@ -11,11 +14,14 @@ export interface WorkOrderRequest {
 
 export interface WorkOrderResponse {
   workOrderId: string;
+  workOrderCode?: string;
   organizationId: string;
   officeId: number;
   officeName: string;
   propertyId: string;
   propertyCode: string;
+  reservationId?: string | null;
+  reservationCode?: string | null;
   workOrderTypeId: number;
   description: string;
   workOrderItems: WorkOrderItemResponse[];
@@ -30,6 +36,7 @@ export interface WorkOrderDisplayList {
   officeName: string;
   propertyId: string;
   propertyCode: string;
+  reservationCode?: string | null;
   workOrderTypeId: number;
   workOrderType?: string; // display label from WorkOrderType enum
   isActive: boolean;

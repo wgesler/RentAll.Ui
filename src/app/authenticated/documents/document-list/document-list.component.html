@@ -84,7 +84,7 @@
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>Document Type</mat-label>
             <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
-              <mat-option [value]="null">Inspection &amp; Inventory</mat-option>
+              <mat-option [value]="null">Document Types</mat-option>
               @for (docType of documentTypes; track docType.value) {
                 <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
               }
@@ -213,7 +213,7 @@
                   <mat-form-field appearance="outline" style="width: 300px;">
                     <mat-label>Document Type</mat-label>
                     <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
-                      <mat-option [value]="null">Inspection &amp; Inventory</mat-option>
+                      <mat-option [value]="null">Document Types</mat-option>
                       @for (docType of documentTypes; track docType.value) {
                         <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
                       }

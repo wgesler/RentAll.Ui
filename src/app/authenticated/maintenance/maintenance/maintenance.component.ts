@@ -48,6 +48,8 @@ export class MaintenanceComponent implements OnInit {
   /** When true, Work Orders tab shows work order detail instead of list. selectedWorkOrderId is null for "new". */
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
+  /** Increment to tell Receipts list to refetch (e.g. after work order save). */
+  refreshReceiptsTrigger = 0;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -237,6 +239,7 @@ export class MaintenanceComponent implements OnInit {
   onWorkOrderSaved(): void {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.refreshReceiptsTrigger++;
   }
 
   back(): void {
