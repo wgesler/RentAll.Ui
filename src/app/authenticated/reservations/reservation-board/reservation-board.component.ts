@@ -236,7 +236,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return groups;
   }
 
-  private parseDateOnly(value: string | Date | null | undefined): Date | null {
+  parseDateOnly(value: string | Date | null | undefined): Date | null {
     if (!value) {
       return null;
     }
@@ -393,79 +393,62 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
-  getDaysInMonth(reservation: ReservationListResponse, date: Date): number {
-    const selectedDate = new Date(date);
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth() + 1;
-    const totalDaysInMonth = new Date(year, month, 0).getDate(); // Total days in the month
-    
-    let daysInMonth = totalDaysInMonth;
-    
-    // Get arrival and departure dates
-    const arrival = new Date(reservation.arrivalDate);
-    arrival.setHours(0, 0, 0, 0);
-    const departure = new Date(reservation.departureDate);
-    departure.setHours(0, 0, 0, 0);
-    const compareDate = new Date(date);
-    compareDate.setHours(0, 0, 0, 0);
-    
-    // Check if arrival date is in this month and after the first
-    const arrivalYear = arrival.getFullYear();
-    const arrivalMonth = arrival.getMonth() + 1;
-    const arrivalDay = arrival.getDate();
-    
-    if (arrivalYear === year && arrivalMonth === month && arrivalDay > 1) {
-      // Subtract days before arrival (don't include arrival day itself)
-      daysInMonth = daysInMonth - arrivalDay;
-    }
-    
-    // Check if departure date is within this month
-    const departureYear = departure.getFullYear();
-    const departureMonth = departure.getMonth() + 1;
-    const departureDay = departure.getDate();
-    
-    if (departureYear === year && departureMonth === month) {
-      // Subtract days after departure (don't include departure day itself)
-      const daysToRefundDeposit = totalDaysInMonth - departureDay;
-      daysInMonth = daysInMonth - daysToRefundDeposit;
-    }
-
-    const currentMonth = new Date().getMonth() + 1;
-    const currentDay = new Date().getDate();
-
-    if (currentMonth === month) {
-       daysInMonth = daysInMonth - currentDay;
-   }
-
-    return daysInMonth;
-  }
-
-  getCharactersForMonth(daysInMonth: number, fullName: string, date: Date): string {
-    const currentDate = new Date();
-    const currentDay = currentDate.getDate();
-    const currentMonth =  currentDate.getMonth() + 1;
+  getCharactersForMonth(fullName: string, date: Date): string {
     const requestedDate = new Date(date);
     const year = requestedDate.getFullYear();
     const month = requestedDate.getMonth() + 1;
-    const totalDaysInMonth = new Date(year, month, 0).getDate(); 
+    const totalDaysInMonth = new Date(year, month, 0).getDate();
 
-    // If there's a partial month, show the last characters of the name
-    if(fullName.length > daysInMonth || (currentMonth === month && currentDay > 1)) {
-      const partial =  fullName.slice(- (daysInMonth + 1)) + ' ';
-      let spaces = ' '.repeat(totalDaysInMonth - partial.length);
-      return spaces + partial;
+    const normalizedName = (fullName || '').toUpperCase();
+    if (!normalizedName) {
+      return ' '.repeat(totalDaysInMonth);
     }
 
-    // Should return a full month's worth of characters
-    // Use totalDaysInMonth (full month) instead of daysInMonth (which might be partial)
-    let availableForblanks = totalDaysInMonth - fullName.length;
-    let blanks = Math.floor(availableForblanks / 2);
-    let remainder = availableForblanks % 2;
-    let total = ' '.repeat(blanks) + fullName + ' '.repeat(blanks) + ' '.repeat(remainder);
-    if(total.length !== totalDaysInMonth)
-     throw new Error(`assertion failed. total: ${total.length} month: ${totalDaysInMonth}`)
+    if (normalizedName.length >= totalDaysInMonth) {
+      // Fill as many letters as possible when the name is longer than the month.
+      return normalizedName.slice(0, totalDaysInMonth);
+    }
 
-    return total;
+    const availableForBlanks = totalDaysInMonth - normalizedName.length;
+    const leadingBlanks = Math.floor(availableForBlanks / 2);
+    const trailingBlanks = availableForBlanks - leadingBlanks;
+    return ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
+  }
+
+  getCharactersForReservation(fullName: string, reservationDays: number): string {
+    const normalizedName = (fullName || '').toUpperCase();
+    if (reservationDays <= 0) {
+      return '';
+    }
+
+    if (!normalizedName) {
+      return ' '.repeat(reservationDays);
+    }
+
+    if (normalizedName.length >= reservationDays) {
+      return normalizedName.slice(0, reservationDays);
+    }
+
+    const availableForBlanks = reservationDays - normalizedName.length;
+    const leadingBlanks = Math.floor(availableForBlanks / 2);
+    const trailingBlanks = availableForBlanks - leadingBlanks;
+    return ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
+  }
+
+  shouldCenterAcrossReservation(arrival: Date, departure: Date): boolean {
+    const startMonthIndex = arrival.getFullYear() * 12 + arrival.getMonth();
+    const endMonthIndex = departure.getFullYear() * 12 + departure.getMonth();
+    const consecutiveMonths = endMonthIndex - startMonthIndex === 1;
+
+    if (!consecutiveMonths) {
+      return false;
+    }
+
+    const startsMidMonth = arrival.getDate() > 1;
+    const endMonthLastDay = new Date(departure.getFullYear(), departure.getMonth() + 1, 0).getDate();
+    const endsMidMonth = departure.getDate() < endMonthLastDay;
+
+    return startsMidMonth && endsMidMonth;
   }
 
   getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
@@ -505,10 +488,18 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       const fullName = this.getBoardDisplayName(reservation).toUpperCase();
- 
-      let monthDays = this.getDaysInMonth(reservation, date);
-      let monthChars = this.getCharactersForMonth(monthDays, fullName, date);
-      
+      const reservationDays = Math.floor((departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      if (reservationDays > 0 && this.shouldCenterAcrossReservation(arrival, departure)) {
+        const reservationChars = this.getCharactersForReservation(fullName, reservationDays);
+        const dayOffset = Math.floor((compareDate.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayOffset >= 0 && dayOffset < reservationChars.length) {
+          return reservationChars[dayOffset];
+        }
+        return ' ';
+      }
+
+      const monthChars = this.getCharactersForMonth(fullName, date);
       const day = date.getDate();
       return monthChars[day - 1];
     }
@@ -516,7 +507,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return 'R';
   }
 
-  private getBoardDisplayName(reservation: ReservationListResponse): string {
+  getBoardDisplayName(reservation: ReservationListResponse): string {
     const companyName = this.getCompanyDisplayToken(reservation.companyName);
     const contactFullName = (reservation.contactName || '').trim();
     const tenantName = (reservation.tenantName || '').trim();
@@ -533,7 +524,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return [companyName, contactFullName || tenantName].filter(Boolean).join(' ');
   }
 
-  private getCompanyDisplayToken(companyName: string | null | undefined): string {
+  getCompanyDisplayToken(companyName: string | null | undefined): string {
     const words = (companyName || '')
       .trim()
       .split(/\s+/)
