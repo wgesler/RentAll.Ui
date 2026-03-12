@@ -53,18 +53,18 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone' , maxWidth: '20ch' },
-    'email': { displayAs: 'Email', maxWidth: '25ch' },
-     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center' }
+    'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
 
   private readonly columnsWithCompany: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
-    'fullName': { displayAs: 'Name', maxWidth: '20ch' },
+    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch'  },
-    'email': { displayAs: 'Email', maxWidth: '20ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
 
   get contactsDisplayedColumns(): ColumnSet {

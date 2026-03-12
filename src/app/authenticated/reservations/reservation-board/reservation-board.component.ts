@@ -517,7 +517,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   private getBoardDisplayName(reservation: ReservationListResponse): string {
-    const companyName = (reservation.companyName || '').trim();
+    const companyName = this.getCompanyDisplayToken(reservation.companyName);
     const contactFullName = (reservation.contactName || '').trim();
     const tenantName = (reservation.tenantName || '').trim();
     const reservationTypeId = reservation.reservationTypeId;
@@ -531,6 +531,21 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     return [companyName, contactFullName || tenantName].filter(Boolean).join(' ');
+  }
+
+  private getCompanyDisplayToken(companyName: string | null | undefined): string {
+    const words = (companyName || '')
+      .trim()
+      .split(/\s+/)
+      .map(word => word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
+      .filter(Boolean);
+
+    const firstMeaningfulWord = words.find(word => {
+      const lowered = word.toLowerCase();
+      return lowered !== 'the' && lowered !== 'a' && lowered !== 'an';
+    });
+
+    return firstMeaningfulWord || '';
   }
   //#endregion
 
