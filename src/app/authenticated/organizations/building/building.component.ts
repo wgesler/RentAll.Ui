@@ -182,7 +182,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     this.form = this.fb.group({
       buildingCode: new FormControl('', [Validators.required]),
       name: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      description: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
       hoaName: new FormControl(''),
       hoaPhone: new FormControl('', [

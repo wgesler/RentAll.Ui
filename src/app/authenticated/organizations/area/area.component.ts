@@ -179,7 +179,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
     this.form = this.fb.group({
       areaCode: new FormControl('', [Validators.required]),
       name: new FormControl('', [Validators.required]),
-      description: new FormControl('', [Validators.required]),
+      description: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
       isActive: new FormControl(true)
     });
