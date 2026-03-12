@@ -258,8 +258,8 @@
                   </mat-form-field>
                 </div>
                 
-                <!-- Row 5: Bedroom1, Bedroom2, Bedroom3, Bedroom4 -->
-                <div class="features-row spread availability-row">
+                <!-- Row 5: Bedroom1, Bedroom2, Bedroom3, Bedroom4, Sofabed -->
+                <div class="features-row spread availability-row" style="flex-wrap: nowrap;">
                   <mat-form-field appearance="outline" class="compact-select">
                     <mat-label>Bedroom 1</mat-label>
                     <mat-select formControlName="bedroomId1">
@@ -290,6 +290,15 @@
                   <mat-form-field appearance="outline" class="compact-select">
                     <mat-label>Bedroom 4</mat-label>
                     <mat-select formControlName="bedroomId4">
+                      <mat-option [value]="0">None</mat-option>
+                      @for (bedSize of bedSizeTypes; track bedSize.value) {
+                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="compact-select">
+                    <mat-label>Sofabed</mat-label>
+                    <mat-select formControlName="sofabed">
                       <mat-option [value]="0">None</mat-option>
                       @for (bedSize of bedSizeTypes; track bedSize.value) {
                         <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
@@ -500,6 +509,27 @@
                     <input matInput formControlName="parkingNotes">
                   </mat-form-field>
                 </div>
+
+                <!-- Line 4: Trash (moved from Trash section) -->
+                <div class="flex items-center gap-4 mb-2">
+                  <mat-form-field appearance="outline" style="width: 220px; min-width: 220px;">
+                    <mat-label>Trash Pickup</mat-label>
+                    <mat-select formControlName="trashPickupId">
+                      <mat-option value="">Select Day</mat-option>
+                      @for (day of trashDays; track day.value) {
+                        <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                      <mat-error>Trash pickup is required</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="flex-1">
+                    <mat-label>Trash Removal</mat-label>
+                    <input matInput formControlName="trashRemoval">
+                  </mat-form-field>
+                </div>
               </div>
             </mat-expansion-panel>
 
@@ -518,8 +548,8 @@
                     <mat-checkbox formControlName="microwave">Microwave</mat-checkbox>
                     <mat-checkbox formControlName="dishwasher">Dishwasher</mat-checkbox>
                     <mat-checkbox formControlName="bathtub">Bathtub</mat-checkbox>
-                    <mat-checkbox formControlName="washerDryer">Washer/Dryer</mat-checkbox>
-                    <mat-checkbox formControlName="sofabeds">Sofabeds</mat-checkbox>
+                    <mat-checkbox formControlName="washerDryerInUnit">Washer/Dryer In Unit</mat-checkbox>
+                    <mat-checkbox formControlName="washerDryerInBldg">Washer/Dryer In Bldg</mat-checkbox>
                   </div>
                   </div>
                 </div>
@@ -568,58 +598,11 @@
                     <mat-checkbox formControlName="patio">Patio</mat-checkbox>
                     <mat-checkbox formControlName="yard">Yard</mat-checkbox>
                     <mat-checkbox formControlName="garden">Garden</mat-checkbox>
-                  </div>
-                  </div>
-                </div>
-              </div>
-            </mat-expansion-panel>
-
-            <!-- Pool & Spa Section -->
-            <mat-expansion-panel [expanded]="expandedSections.pool" (opened)="onPanelOpened('pool')" (closed)="onPanelClosed('pool')" class="mb-4">
-              <mat-expansion-panel-header>
-                <mat-panel-title>Pool & Spa</mat-panel-title>
-              </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
-                <div class="col-span-4">
-                  <div class="features-container">
-                  <div class="grid grid-cols-5 gap-4 items-center features-content">
                     <mat-checkbox formControlName="commonPool">Common Pool</mat-checkbox>
                     <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
                     <mat-checkbox formControlName="jacuzzi">Jacuzzi</mat-checkbox>
                     <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
                     <mat-checkbox formControlName="gym">Gym</mat-checkbox>
-                  </div>
-                  </div>
-                </div>
-              </div>
-            </mat-expansion-panel>
-
-            <!-- Trash Section -->
-            <mat-expansion-panel [expanded]="expandedSections.trash" (opened)="onPanelOpened('trash')" (closed)="onPanelClosed('trash')" class="mb-4">
-              <mat-expansion-panel-header>
-                <mat-panel-title>Trash</mat-panel-title>
-              </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
-                <div class="col-span-4">
-                  <div class="features-container">
-                  <div class="grid grid-cols-4 gap-x-1.5 items-center features-content">
-                    <mat-form-field appearance="outline" class="col-span-1">
-                      <mat-label>Pickup</mat-label>
-                      <mat-select formControlName="trashPickupId">
-                        <mat-option value="">Select Day</mat-option>
-                        @for (day of trashDays; track day.value) {
-                          <mat-option [value]="day.value">{{ day.label }}</mat-option>
-                        }
-                      </mat-select>
-                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
-                        <mat-error>Trash pickup is required</mat-error>
-                      }
-                    </mat-form-field>
-
-                    <mat-form-field appearance="outline" class="col-span-3">
-                      <mat-label>Removal</mat-label>
-                      <input matInput formControlName="trashRemoval">
-                    </mat-form-field>
                   </div>
                   </div>
                 </div>

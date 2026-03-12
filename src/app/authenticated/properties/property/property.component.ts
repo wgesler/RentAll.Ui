@@ -110,7 +110,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     kitchen: false,
     electronics: false,
     outdoor: false,
-    pool: false,
     trash: false,
     amenities: false,
     description: false
@@ -173,7 +172,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
           kitchen: allExpanded,
           electronics: allExpanded,
           outdoor: allExpanded,
-          pool: allExpanded,
           trash: allExpanded,
           amenities: allExpanded,
           description: allExpanded
@@ -405,11 +403,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
       propertyRequest.yard = false;
     }
 
-    // Assign location IDs directly (now GUIDs)
+    // Assign location IDs directly
     propertyRequest.officeId = formValue.officeId || null;
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
     propertyRequest.buildingId = formValue.buildingId || null;
+
+    // Sofabed is a bed-size dropdown; send selected bed type id.
+    propertyRequest.sofabed = formValue.sofabed ? Number(formValue.sofabed) : 0;
     
     // Map parkingNotes field (note: API expects lowercase 'parkingnotes' in request)
     propertyRequest.parkingnotes = formValue.parkingNotes || '';
@@ -499,7 +500,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       
       // Kitchen & Electronics tab
       kitchen: new FormControl(false),
-      washerDryer: new FormControl(false),
+      washerDryerInUnit: new FormControl(false),
+      washerDryerInBldg: new FormControl(false),
       trashRemoval: new FormControl(''),
       trashPickupId: new FormControl(null, [Validators.required]),
       oven: new FormControl(false),
@@ -549,7 +551,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       gated: new FormControl(false),
       heating: new FormControl(false),
       ac: new FormControl(false),
-      sofabeds: new FormControl(false),
+      sofabed: new FormControl(0),
       smoking: new FormControl(false),
       petsAllowed: new FormControl(false),
       dogsOkay: new FormControl({ value: false, disabled: true }),
@@ -620,6 +622,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.bedroomId2 = this.property.bedroomId2 ?? 0;
       formData.bedroomId3 = this.property.bedroomId3 ?? 0;
       formData.bedroomId4 = this.property.bedroomId4 ?? 0;
+      formData.washerDryerInUnit = this.property.washerDryerInUnit ?? false;
+      formData.washerDryerInBldg = this.property.washerDryerInBldg ?? false;
+      formData.sofabed = Number(this.property.sofabed ?? 0);
      
       // Handle string fields that might be null/undefined - convert to empty strings
       const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',

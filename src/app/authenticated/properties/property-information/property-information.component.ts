@@ -344,11 +344,15 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   populateDefaultsFromProperty(): void {
     if (!this.property) return;
 
+    const laundryText = this.property.washerDryerInUnit
+      ? 'Washer and Dryer in Unit'
+      : (this.property.washerDryerInBldg ? 'Washer and Dryer in Building' : '');
+
     this.form.patchValue({
-      laundry: this.property.washerDryer ? 'Washer and Dryer in Unit' : '',
+      laundry: laundryText,
       providedFurnishings: this.property.unfurnished ? 'Unfurnished' : 'Furniture & Households',
       housekeeping: 'NA',
-      parkingInformation: (this.property as any).parkingNotes || '',
+      parkingInformation: this.property.parkingNotes || '',
       televisionSource: this.getTelevisionSourceFromProperty(),
       internetService: this.getInternetServiceFromProperty(),
       keyReturn: '',

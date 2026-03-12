@@ -32,6 +32,7 @@ export interface PropertyRequest {
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
+  sofabed: number;
   
   // Address section
   address1: string;
@@ -79,8 +80,8 @@ export interface PropertyRequest {
   microwave: boolean;
   dishwasher: boolean;
   bathtub: boolean;
-  washerDryer: boolean;
-  sofabeds: boolean;
+  washerDryerInUnit: boolean;
+  washerDryerInBldg: boolean;
   
   // Electronics section
   tv: boolean;
@@ -146,6 +147,7 @@ export interface PropertyResponse {
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
+  sofabed: number;
   
   // Address section
   address1: string;
@@ -194,8 +196,8 @@ export interface PropertyResponse {
   microwave: boolean;
   dishwasher: boolean;
   bathtub: boolean;
-  washerDryer: boolean;
-  sofabeds: boolean;
+  washerDryerInUnit: boolean;
+  washerDryerInBldg: boolean;
   
   // Electronics section
   tv: boolean;
