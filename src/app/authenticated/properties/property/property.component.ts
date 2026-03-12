@@ -408,8 +408,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
     propertyRequest.buildingId = formValue.buildingId || null;
-    propertyRequest.latitude = formValue.latitude != null && formValue.latitude !== '' ? Number(formValue.latitude) : 0;
-    propertyRequest.longitude = formValue.longitude != null && formValue.longitude !== '' ? Number(formValue.longitude) : 0;
+    propertyRequest.latitude = this.parseCoordinateValue(formValue.latitude, 0);
+    propertyRequest.longitude = this.parseCoordinateValue(formValue.longitude, 0);
 
     // Sofabed is a bed-size dropdown; send selected bed type id.
     propertyRequest.sofabed = formValue.sofabed ? Number(formValue.sofabed) : 0;
@@ -565,8 +565,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       regionId: new FormControl<number | null>(null),
       areaId: new FormControl<number | null>(null),
       buildingId: new FormControl<number | null>(null),
-      latitude: new FormControl('0.00'),
-      longitude: new FormControl('-0.00'),
+      latitude: new FormControl('0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
+      longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
       isActive: new FormControl(true)
     });
@@ -656,8 +656,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.regionId = this.property.regionId || null;
       formData.areaId = this.property.areaId || null;
       formData.buildingId = this.property.buildingId || null;
-      formData.latitude = this.property.latitude != null ? Number(this.property.latitude).toFixed(2) : '0.00';
-      formData.longitude = this.property.longitude != null ? Number(this.property.longitude).toFixed(2) : '-0.00';
+      formData.latitude = this.formatCoordinateValue(this.property.latitude, '0.00');
+      formData.longitude = this.formatCoordinateValue(this.property.longitude, '-0.00');
 
       // Default required fields when API omits them so validation does not run as if user had left them empty
       if (this.property.trashPickupId == null || this.property.trashPickupId === undefined) {
@@ -1107,6 +1107,21 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const upperValue = input.value.toUpperCase();
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
+  }
+
+  private formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
+    if (value === null || value === undefined || value === '') {
+      return defaultValue;
+    }
+    return String(value);
+  }
+
+  private parseCoordinateValue(value: string | number | null | undefined, defaultValue: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return defaultValue;
+    }
+    return parsed;
   }
   //#endregion
 

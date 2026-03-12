@@ -459,12 +459,18 @@
 
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>Latitude</mat-label>
-                    <input matInput type="text" inputmode="decimal" formControlName="latitude">
+                    <input matInput type="text" inputmode="decimal" formControlName="latitude" maxlength="32" placeholder="0.00000000">
+                    @if (form.get('latitude')?.hasError('pattern') && form.get('latitude')?.touched) {
+                      <mat-error>Use up to 8 decimal places</mat-error>
+                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
                     <mat-label>Longitude</mat-label>
-                    <input matInput type="text" inputmode="decimal" formControlName="longitude">
+                    <input matInput type="text" inputmode="decimal" formControlName="longitude" maxlength="32" placeholder="-0.00000000">
+                    @if (form.get('longitude')?.hasError('pattern') && form.get('longitude')?.touched) {
+                      <mat-error>Use up to 8 decimal places</mat-error>
+                    }
                   </mat-form-field>
                 </div>
               </div>
