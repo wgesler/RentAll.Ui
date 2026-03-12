@@ -91,6 +91,7 @@ export interface ReservationResponse {
 export interface ReservationListResponse {
   reservationId: string;
   reservationCode: string;
+  reservationTypeId?: number;
   propertyId: string;
   propertyCode: string;
   officeId: number;
@@ -115,6 +116,7 @@ export interface ReservationListResponse {
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
+  reservationTypeId?: number;
   propertyId: string;
   propertyCode: string;
   officeId: number;

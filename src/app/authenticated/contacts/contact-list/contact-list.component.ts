@@ -29,10 +29,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() showCompanyColumn: boolean = false;
-  /** Tab index when used in Contacts page (0–3); included in openContact so parent can show form in the right tab. */
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
-  /** Emitted when user adds, edits, or copies a contact; parent embeds the contact form. */
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
 
   panelOpenState: boolean = true;
@@ -54,10 +52,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone' },
+    'phone': { displayAs: 'Phone' , maxWidth: '20ch' },
     'email': { displayAs: 'Email', maxWidth: '25ch' },
-    'ratingStars': { displayAs: 'Rating', maxWidth: '15ch', alignment: 'center' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center' }
+     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center' }
   };
 
   private readonly columnsWithCompany: ColumnSet = {
@@ -67,7 +64,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Name', maxWidth: '20ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch'  },
     'email': { displayAs: 'Email', maxWidth: '20ch' },
-    'ratingStars': { displayAs: 'Rating', maxWidth: '15ch', alignment: 'center' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };
 
@@ -125,7 +121,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteContact(contact: ContactListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${contact.fullName}?`)) {
+    const contactName = (contact.fullName || '').trim() || 'this contact';
+    if (confirm(`Are you sure you want to delete ${contactName}?`)) {
         this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
         next: () => {
           this.toastr.success('Contact deleted successfully', CommonMessage.Success);

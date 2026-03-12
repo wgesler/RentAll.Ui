@@ -161,11 +161,12 @@ export class PropertyComponent implements OnInit, OnDestroy {
       if (paramMap.has('id')) {
         this.propertyId = paramMap.get('id');
         this.isAddMode = this.propertyId === 'new';
+        const openBasicSection = this.route.snapshot.queryParamMap.get('section') === 'basic';
         
         // Set panel expansion state based on mode
         const allExpanded = this.isAddMode;
         this.expandedSections = {
-          basic: allExpanded,
+          basic: allExpanded || (!this.isAddMode && openBasicSection),
           address: allExpanded,
           location: allExpanded,
           features: allExpanded,

@@ -218,7 +218,7 @@
                 </mat-form-field>
               }
 
-              <!-- Line 3: Contact Name, Phone, Email -->
+              <!-- Line 3: Contact Name, Company Name, Phone, Email -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
                 <mat-select formControlName="contactId" required>
@@ -235,11 +235,16 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Company Name</mat-label>
+                <input matInput formControlName="companyName" readonly class="readonly-field">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Phone</mat-label>
                 <input matInput formControlName="phone" readonly class="readonly-field">
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-2">
+              <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Email</mat-label>
                 <input matInput type="email" formControlName="email" readonly class="readonly-field">
               </mat-form-field>

@@ -7,8 +7,8 @@ export interface ContactRequest {
   entityTypeId: number;
   entityId?: string | null;
   companyName?: string | null;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   officeId: number;
   companyId?: string;
   address1?: string;
@@ -16,7 +16,7 @@ export interface ContactRequest {
   city?: string;
   state?: string;
   zip?: string;
-  phone: string;
+  phone?: string | null;
   email: string;
   rating: number;
   notes?: string;
@@ -38,9 +38,9 @@ export interface ContactResponse {
   entityTypeId: number;
   entityId?: string | null;
   companyName?: string | null;
-  firstName: string;
-  lastName: string;
-  fullName: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
   officeId: number;
   officeName: string;
   address1?: string;
@@ -48,7 +48,7 @@ export interface ContactResponse {
   city?: string;
   state?: string;
   zip?: string;
-  phone: string;
+  phone?: string | null;
   email: string;
   rating: number;
   notes?: string;
@@ -68,11 +68,11 @@ export interface ContactListDisplay {
   contactCode: string;
   officeId: number;
   officeName: string;
-  fullName: string;
+  fullName?: string | null;
   contactType: string;
   entityTypeId?: number;
   companyName?: string | null; 
-  phone: string;
+  phone?: string | null;
   email: string;
   rating: number;
   ratingStars?: string;

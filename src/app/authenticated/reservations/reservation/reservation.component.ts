@@ -418,6 +418,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       agentId: new FormControl(null, [Validators.required]),
       tenantName: new FormControl('', [Validators.required]), // Always enabled
       contactId: new FormControl('', [Validators.required]), // Always enabled
+      companyName: new FormControl({ value: '', disabled: true }), // Display selected contact company name
       entityCompanyName: new FormControl({ value: '', disabled: true }), // Display Company name if EntityTypeId is Company
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
@@ -484,6 +485,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       propertyAddress: this.selectedProperty?.shortAddress || '',
       agentId: this.reservation.agentId || null,
       contactId: this.reservation.contactId || null,
+      companyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       tenantName: this.reservation.tenantName || '',
       entityCompanyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       reservationStatusId: this.reservation.reservationStatusId,
@@ -595,6 +597,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.form.patchValue({ 
         phone: '',
         email: '',
+        companyName: '',
         entityCompanyName: '',
         tenantName: '',
         contactId: ''
@@ -797,7 +800,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
 
     // Phone and email remain disabled (read-only) - just update their values
+    const selectedCompanyName = (this.selectedContact.companyName || '').trim();
     this.form.patchValue({
+      companyName: selectedCompanyName,
       phone: this.formatterService.phoneNumber(this.selectedContact.phone) || '',
       email: this.selectedContact.email || '',
     }, { emitEvent: false });
@@ -806,7 +811,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if (this.selectedContact.entityTypeId === EntityType.Company && this.selectedContact.entityId) {
       const companyContact = this.companyContacts.find(c => c.contactId === this.selectedContact!.entityId);
       const companyName = companyContact?.fullName ?? '';
-      this.form.patchValue({ entityCompanyName: companyName }, { emitEvent: false });
+      this.form.patchValue(
+        {
+          entityCompanyName: companyName,
+          companyName: selectedCompanyName || companyName
+        },
+        { emitEvent: false }
+      );
     } else {
       this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
     }

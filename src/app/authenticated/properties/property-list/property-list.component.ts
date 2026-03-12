@@ -195,7 +195,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Routing Methods
   goToProperty(event: PropertyListDisplay): void {
     this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
+      this.router.navigate(
+        [RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId])],
+        { queryParams: { section: 'basic' } }
+      );
     });
   }
 

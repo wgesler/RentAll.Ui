@@ -12,7 +12,7 @@
           @if (showContactForm && formTabIndex === 0) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Tenant" [showCompanyColumn]="true" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
         <mat-tab label="Owners">

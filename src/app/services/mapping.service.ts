@@ -91,12 +91,14 @@ export class MappingService {
 
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
+      const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
+      const displayName = (o.fullName ?? '').trim() || combinedName || o.companyName || '';
       return {
         contactId: o.contactId,
         contactCode: o.contactCode,
         officeId: o.officeId,
         officeName: o.officeName,
-        fullName: o.fullName,
+        fullName: displayName,
         contactType: getEntityType(o.entityTypeId),
         entityTypeId: o.entityTypeId,
         companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,

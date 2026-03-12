@@ -214,6 +214,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
     const entityTypeId = formValue.contactTypeId;
     const isInternational = formValue.isInternational || false;
+    const strippedPhone = this.formatterService.stripPhoneFormatting(formValue.phone);
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
@@ -225,7 +226,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
       state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
-      phone: this.formatterService.stripPhoneFormatting(formValue.phone),
+      phone: strippedPhone ? strippedPhone : null,
       notes: formValue.notes || undefined,
       markup: this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
@@ -240,8 +241,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
-    const isTenantOrOwner = entityTypeId === EntityType.Tenant || entityTypeId === EntityType.Owner;
-    (contactRequest as any).companyName = isTenantOrOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
+    const isOwner = entityTypeId === EntityType.Owner;
+    (contactRequest as any).companyName = isOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
 
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
@@ -282,11 +283,11 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
-      firstName: new FormControl('', [Validators.required]),
-      lastName: new FormControl('', [Validators.required]),
+      firstName: new FormControl(''),
+      lastName: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
       companyName: new FormControl(''),
-      phone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
+      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
       address2: new FormControl(''),
@@ -305,14 +306,14 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
     this.formatContractMarkup();
 
-    // When contact type is Company or Vendor, Company Name is required; for Tenant/Owner clear it and remove required
+    // Company/Vendor require company name. Tenant is optional. Owner clears company name.
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
       const companyNameControl = this.form.get('companyName');
       if (contactTypeId === EntityType.Company || contactTypeId === EntityType.Vendor) {
         companyNameControl?.setValidators([Validators.required]);
       } else {
         companyNameControl?.clearValidators();
-        if (contactTypeId === EntityType.Tenant || contactTypeId === EntityType.Owner) {
+        if (contactTypeId === EntityType.Owner) {
           companyNameControl?.setValue('');
         }
       }
@@ -327,8 +328,8 @@ export class ContactComponent implements OnInit, OnDestroy {
         : Boolean(this.contact.isActive);
       
       const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
-      const isTenantOrOwner = contactTypeId === EntityType.Tenant || contactTypeId === EntityType.Owner;
-      const companyName = isTenantOrOwner ? '' : ((this.contact as any).companyName ?? '');
+      const isOwner = contactTypeId === EntityType.Owner;
+      const companyName = isOwner ? '' : ((this.contact as any).companyName ?? '');
 
       const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
       const w9D = w9DateStr ? new Date(w9DateStr + 'T00:00:00') : null;

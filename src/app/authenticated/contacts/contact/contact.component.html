@@ -83,10 +83,10 @@
                 }
               </mat-form-field>
 
-              @if (form.get('contactTypeId')?.value !== EntityType.Tenant && form.get('contactTypeId')?.value !== EntityType.Owner) {
+              @if (form.get('contactTypeId')?.value !== EntityType.Owner) {
                 <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Company ? 'Company Name' : (form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company') }}</mat-label>
-                  <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Company ? 'Enter company name' : (form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name')">
+                  <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
+                  <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
                 </mat-form-field>
               }
 
@@ -101,28 +101,19 @@
                 
                 <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>First Name</mat-label>
-                  <input matInput formControlName="firstName" required>
-                  @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
-                    <mat-error>First Name is required</mat-error>
-                  }
+                  <input matInput formControlName="firstName">
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
                   <mat-label>Last Name</mat-label>
-                  <input matInput formControlName="lastName" required>
-                  @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
-                    <mat-error>Last Name is required</mat-error>
-                  }
+                  <input matInput formControlName="lastName">
                 </mat-form-field>
               </div>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
-                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                  <mat-error>Phone is required</mat-error>
-                }
-                @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched && !form.get('phone')?.hasError('required')) {
+                <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
+                @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched) {
                   <mat-error>Invalid phone format</mat-error>
                 }
               </mat-form-field>

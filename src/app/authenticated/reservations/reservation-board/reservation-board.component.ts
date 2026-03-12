@@ -17,7 +17,7 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { ReservationStatus } from '../models/reservation-enum';
+import { ReservationStatus, ReservationType } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
@@ -504,9 +504,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
-      
-
-      const fullName = `${reservation.contactName || ''}`.trim().toUpperCase();
+      const fullName = this.getBoardDisplayName(reservation).toUpperCase();
  
       let monthDays = this.getDaysInMonth(reservation, date);
       let monthChars = this.getCharactersForMonth(monthDays, fullName, date);
@@ -516,6 +514,23 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
     
     return 'R';
+  }
+
+  private getBoardDisplayName(reservation: ReservationListResponse): string {
+    const companyName = (reservation.companyName || '').trim();
+    const contactFullName = (reservation.contactName || '').trim();
+    const tenantName = (reservation.tenantName || '').trim();
+    const reservationTypeId = reservation.reservationTypeId;
+
+    if (reservationTypeId === ReservationType.Individual) {
+      return [companyName, contactFullName].filter(Boolean).join(' ');
+    }
+
+    if (reservationTypeId === ReservationType.Corporate) {
+      return [companyName, tenantName].filter(Boolean).join(' ');
+    }
+
+    return [companyName, contactFullName || tenantName].filter(Boolean).join(' ');
   }
   //#endregion
 
