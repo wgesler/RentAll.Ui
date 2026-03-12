@@ -408,6 +408,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
     propertyRequest.buildingId = formValue.buildingId || null;
+    propertyRequest.latitude = formValue.latitude != null && formValue.latitude !== '' ? Number(formValue.latitude) : 0;
+    propertyRequest.longitude = formValue.longitude != null && formValue.longitude !== '' ? Number(formValue.longitude) : 0;
 
     // Sofabed is a bed-size dropdown; send selected bed type id.
     propertyRequest.sofabed = formValue.sofabed ? Number(formValue.sofabed) : 0;
@@ -563,6 +565,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       regionId: new FormControl<number | null>(null),
       areaId: new FormControl<number | null>(null),
       buildingId: new FormControl<number | null>(null),
+      latitude: new FormControl('0.00'),
+      longitude: new FormControl('-0.00'),
       
       isActive: new FormControl(true)
     });
@@ -652,6 +656,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.regionId = this.property.regionId || null;
       formData.areaId = this.property.areaId || null;
       formData.buildingId = this.property.buildingId || null;
+      formData.latitude = this.property.latitude != null ? Number(this.property.latitude).toFixed(2) : '0.00';
+      formData.longitude = this.property.longitude != null ? Number(this.property.longitude).toFixed(2) : '-0.00';
 
       // Default required fields when API omits them so validation does not run as if user had left them empty
       if (this.property.trashPickupId == null || this.property.trashPickupId === undefined) {
@@ -669,6 +675,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
+      this.syncConditionalFieldState();
       this.form.markAsUntouched();
       this.form.markAsPristine();
 
@@ -840,46 +847,49 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
 
     // Set initial state based on current values
+    this.syncConditionalFieldState();
+  }
+
+  private syncConditionalFieldState(): void {
     const alarmValue = this.form.get('alarm')?.value;
     const keypadAccessValue = this.form.get('keypadAccess')?.value;
     const parkingValue = this.form.get('parking')?.value;
-    
+    const petsAllowedValue = this.form.get('petsAllowed')?.value;
+
     if (alarmValue) {
-      this.form.get('alarmCode')?.enable();
+      this.form.get('alarmCode')?.enable({ emitEvent: false });
     } else {
-      this.form.get('alarmCode')?.disable();
+      this.form.get('alarmCode')?.disable({ emitEvent: false });
       this.form.get('alarmCode')?.setValue('', { emitEvent: false });
     }
 
     if (keypadAccessValue) {
-      this.form.get('masterKeyCode')?.enable();
-      this.form.get('tenantKeyCode')?.enable();
+      this.form.get('masterKeyCode')?.enable({ emitEvent: false });
+      this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
     } else {
-      this.form.get('masterKeyCode')?.disable();
+      this.form.get('masterKeyCode')?.disable({ emitEvent: false });
       this.form.get('masterKeyCode')?.setValue('', { emitEvent: false });
-      this.form.get('tenantKeyCode')?.disable();
+      this.form.get('tenantKeyCode')?.disable({ emitEvent: false });
       this.form.get('tenantKeyCode')?.setValue('', { emitEvent: false });
     }
 
     if (parkingValue) {
-      this.form.get('parkingNotes')?.enable();
+      this.form.get('parkingNotes')?.enable({ emitEvent: false });
     } else {
-      this.form.get('parkingNotes')?.disable();
+      this.form.get('parkingNotes')?.disable({ emitEvent: false });
       this.form.get('parkingNotes')?.setValue('', { emitEvent: false });
     }
 
-    // Set initial state for pet-related fields based on petsAllowed
-    const petsAllowedValue = this.form.get('petsAllowed')?.value;
     if (petsAllowedValue) {
-      this.form.get('dogsOkay')?.enable();
-      this.form.get('catsOkay')?.enable();
-      this.form.get('poundLimit')?.enable();
+      this.form.get('dogsOkay')?.enable({ emitEvent: false });
+      this.form.get('catsOkay')?.enable({ emitEvent: false });
+      this.form.get('poundLimit')?.enable({ emitEvent: false });
     } else {
-      this.form.get('dogsOkay')?.disable();
+      this.form.get('dogsOkay')?.disable({ emitEvent: false });
       this.form.get('dogsOkay')?.setValue(false, { emitEvent: false });
-      this.form.get('catsOkay')?.disable();
+      this.form.get('catsOkay')?.disable({ emitEvent: false });
       this.form.get('catsOkay')?.setValue(false, { emitEvent: false });
-      this.form.get('poundLimit')?.disable();
+      this.form.get('poundLimit')?.disable({ emitEvent: false });
       this.form.get('poundLimit')?.setValue('', { emitEvent: false });
     }
   }

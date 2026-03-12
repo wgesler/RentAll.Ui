@@ -315,7 +315,7 @@
                 <mat-panel-title>Address</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="features-container">
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <!-- Top line: Address1, Address2, Suite -->
                 <div class="col-span-4 flex items-center gap-x-1.5">
                   <mat-form-field appearance="outline" class="flex-1">
@@ -409,7 +409,7 @@
                 <mat-panel-title>Location</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="features-container">
-                <div class="grid grid-cols-4 gap-x-1.5 gap-y-4 features-content">
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-6 features-content">
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Office</mat-label>
                     @if (isAddMode) {
@@ -456,18 +456,28 @@
                       }
                     </mat-select>
                   </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Latitude</mat-label>
+                    <input matInput type="text" inputmode="decimal" formControlName="latitude">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Longitude</mat-label>
+                    <input matInput type="text" inputmode="decimal" formControlName="longitude">
+                  </mat-form-field>
                 </div>
               </div>
             </mat-expansion-panel>
 
             <!-- Features & Security Section -->
-            <mat-expansion-panel [expanded]="expandedSections.features" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4">
+            <mat-expansion-panel [expanded]="expandedSections.features" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4 features-panel-compact">
               <mat-expansion-panel-header>
                 <mat-panel-title>Features & Security</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="features-container">
                 <!-- Line 1: Unfurnished, Heating, AC, Elevator, Security, Gated -->
-                <div class="flex items-center justify-between mb-4" style="padding-right: 46px;">
+                <div class="flex items-center justify-between mb-6" style="padding-right: 46px;">
                   <mat-checkbox formControlName="unfurnished">Unfurnished</mat-checkbox>
                   <mat-checkbox formControlName="heating">Heating</mat-checkbox>
                   <mat-checkbox formControlName="ac">AC</mat-checkbox>
@@ -477,7 +487,7 @@
                 </div>
 
                 <!-- Line 2: Alarm, Code, Keypad Access, Master Key Code, Tenant Key Code -->
-                <div class="flex items-center gap-4 mb-4">
+                <div class="flex items-center gap-4 mb-6">
                   <mat-checkbox formControlName="alarm">Alarm</mat-checkbox>
                   <mat-form-field appearance="outline" style="width: 18ch; min-width: 18ch;">
                     <mat-label>Code</mat-label>
@@ -495,7 +505,7 @@
                 </div>
 
                 <!-- Line 3: Pets Allowed, DogsOkay, CatsOkay, Pound Limit, Parking, Parking Notes -->
-                <div class="flex items-center gap-4 mb-4">
+                <div class="flex items-center gap-4 mb-6">
                   <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
                   <mat-checkbox formControlName="dogsOkay">DogsOkay</mat-checkbox>
                   <mat-checkbox formControlName="catsOkay">CatsOkay</mat-checkbox>
@@ -511,7 +521,7 @@
                 </div>
 
                 <!-- Line 4: Trash (moved from Trash section) -->
-                <div class="flex items-center gap-4 mb-2">
+                <div class="flex items-center gap-4 mb-6">
                   <mat-form-field appearance="outline" style="width: 220px; min-width: 220px;">
                     <mat-label>Trash Pickup</mat-label>
                     <mat-select formControlName="trashPickupId">
@@ -538,7 +548,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Kitchen & Bath</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <div class="col-span-4">
                   <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-center features-content">
@@ -561,7 +571,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Electronics</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <div class="col-span-4">
                   <div class="features-container">
                     <div class="grid grid-cols-4 gap-4 items-center features-content">
@@ -590,7 +600,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Outdoor Spaces</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <div class="col-span-4">
                   <div class="features-container">
                   <div class="grid grid-cols-4 gap-4 items-center features-content">
@@ -614,7 +624,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Additional Amenities</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Additional Amenities</mat-label>
                   <textarea matInput formControlName="amenities" rows="3"></textarea>
@@ -627,7 +637,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Description</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              <div class="grid grid-cols-4 gap-x-1.5 gap-y-6">
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Description</mat-label>
                   <textarea matInput formControlName="description" rows="3"></textarea>
@@ -637,7 +647,7 @@
             </mat-accordion>
 
             <!-- Notes Section -->
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mt-4">
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-6 mt-4">
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Notes</mat-label>
                 <textarea matInput formControlName="notes" rows="3"></textarea>

@@ -78,9 +78,8 @@
   position: relative;
   border: 1px solid rgba(0, 0, 0, 0.38);
   border-radius: 4px;
-  padding: 16px;
+  padding: 18px;
   margin-top: 8px;
-  padding-top: 20px;
   
   .features-label {
     position: absolute;
@@ -94,7 +93,7 @@
   }
   
   .features-content {
-    margin-top: 4px;
+    margin-top: 0;
   }
   
   .alarm-code-field {
@@ -159,7 +158,7 @@
 }
 
 .availability-row + .availability-row {
-  margin-top: 4px;
+  margin-top: 24px;
 }
 
 .section-label {
@@ -351,4 +350,34 @@ section.content-card {
     box-sizing: border-box;
     overflow-x: hidden; // Prevent horizontal overflow from affecting width
   }
+}
+
+/* Keep all entry controls visually consistent (same as Trash Pickup). */
+:host ::ng-deep .info-form .mat-mdc-form-field {
+  .mat-mdc-text-field-wrapper,
+  .mat-mdc-form-field-flex,
+  .mat-mdc-form-field-infix {
+    min-height: 48px !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  input.mat-mdc-input-element,
+  .mat-mdc-select-value-text,
+  .mat-mdc-select-value {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+  }
+}
+
+/* Remove always-reserved hint/error space so section top/bottom spacing matches. */
+:host ::ng-deep .info-form .mat-mdc-form-field-subscript-wrapper,
+:host ::ng-deep .info-form .mat-mdc-form-field-bottom-align::before {
+  min-height: 0 !important;
+  height: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }

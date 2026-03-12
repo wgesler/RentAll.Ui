@@ -52,6 +52,8 @@ export interface PropertyRequest {
   regionId?: number | null;
   areaId?: number | null;
   buildingId?: number | null;
+  latitude: number;
+  longitude: number;
 
   // Features & Security section
   unfurnished: boolean;
@@ -168,7 +170,9 @@ export interface PropertyResponse {
   regionId?: number | null;
   areaId?: number | null;
   buildingId?: number | null;
-
+  latitude: number;
+  longitude: number;
+  
   // Features & Security section
   unfurnished: boolean;
   heating: boolean;
