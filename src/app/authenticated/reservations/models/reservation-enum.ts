@@ -38,7 +38,8 @@ export function getReservationStatuses(): { value: number, label: string }[] {
     { value: ReservationStatus.GaveNotice, label: getReservationStatus(ReservationStatus.GaveNotice) },
     { value: ReservationStatus.FirstRightRefusal, label: getReservationStatus(ReservationStatus.FirstRightRefusal) },
     { value: ReservationStatus.Maintenance, label: getReservationStatus(ReservationStatus.Maintenance) },
-    { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) }
+    { value: ReservationStatus.OwnerBlocked, label: getReservationStatus(ReservationStatus.OwnerBlocked) },
+    { value: ReservationStatus.Offline, label: getReservationStatus(ReservationStatus.Offline) }
   ];
 }
 //#endregion
