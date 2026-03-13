@@ -13,6 +13,7 @@ export interface UserRequest {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
   isActive: boolean;
@@ -32,6 +33,7 @@ export interface UserResponse {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
   isActive: boolean;
@@ -45,6 +47,8 @@ export interface UserListDisplay {
   email: string;
   phone: string;
   startupPageDisplay: string;
+  defaultOfficeId?: number | null;
+  defaultOffice: string;
   userGroups: string[];
   userGroupsDisplay: string;
   isActive: boolean;

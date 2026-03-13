@@ -6,6 +6,7 @@ import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, take
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
+import { GlobalOfficeSelectionService } from './authenticated/organizations/services/global-office-selection.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private organizationListService: OrganizationListService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
     private utilityService: UtilityService
@@ -107,6 +109,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.officeService.loadAllOffices(organizationId);
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
+         const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+         const availableOffices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
+         this.globalOfficeSelectionService.syncWithAvailableOffices(availableOffices, preferredOfficeId);
          this.loadCostCodes();
       },
       error: () => {
@@ -137,7 +142,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   initializeOrganizationList(): void {
     const user = this.authService.getUser();
-    const userGuid = user.userId;
+    const userGuid = user.userGuid || user.userId;
     const adminUserGuid = '00000000-0000-0000-0000-000000000000';
 
     if (userGuid === adminUserGuid) {

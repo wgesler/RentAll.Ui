@@ -86,7 +86,7 @@ export class LoginComponent {
             return;
           }
 
-          const startupPageId = user?.startupPageId ?? StartupPage.Dashboard;
+          const startupPageId = user?.startupPage ?? user?.startupPageId ?? StartupPage.Dashboard;
           
           // Redirect based on user's startup page preference
           let redirectUrl: string;

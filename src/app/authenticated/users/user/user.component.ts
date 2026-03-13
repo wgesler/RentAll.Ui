@@ -57,6 +57,7 @@ export class UserComponent implements OnInit, OnDestroy {
   organizationsSubscription: Subscription;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
+  availableDefaultOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   agents: AgentResponse[] = [];
   availableAgents: { value: string, label: string }[] = [];
@@ -239,6 +240,9 @@ export class UserComponent implements OnInit, OnDestroy {
     const startupPageIdValue = formValue.startupPageId !== undefined && formValue.startupPageId !== null
       ? (typeof formValue.startupPageId === 'number' ? formValue.startupPageId : parseInt(String(formValue.startupPageId), 10))
       : 0;
+    const defaultOfficeIdValue = formValue.defaultOffice !== undefined && formValue.defaultOffice !== null && String(formValue.defaultOffice).trim() !== ''
+      ? (typeof formValue.defaultOffice === 'number' ? formValue.defaultOffice : parseInt(String(formValue.defaultOffice), 10))
+      : null;
     const commissionRateValue = formValue.commissionRate !== undefined && formValue.commissionRate !== null && String(formValue.commissionRate).trim() !== ''
       ? parseFloat(String(formValue.commissionRate).replace(/[^0-9.]/g, ''))
       : null;
@@ -255,6 +259,7 @@ export class UserComponent implements OnInit, OnDestroy {
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       profilePath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.profilePath,
       startupPageId: startupPageIdValue,
+      defaultOfficeId: defaultOfficeIdValue,
       agentId: formValue.agentId || null,
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
       isActive: formValue.isActive
@@ -266,6 +271,7 @@ export class UserComponent implements OnInit, OnDestroy {
       userRequest.userGroups = this.user.userGroups || [];
       userRequest.officeAccess = this.user.officeAccess || [];
       userRequest.startupPageId = this.user.startupPageId ?? userRequest.startupPageId;
+      userRequest.defaultOfficeId = this.user.defaultOfficeId ?? userRequest.defaultOfficeId;
       userRequest.agentId = this.user.agentId || null;
       userRequest.commissionRate = this.user.commissionRate ?? null;
       userRequest.isActive = this.user.isActive;
@@ -312,6 +318,7 @@ export class UserComponent implements OnInit, OnDestroy {
         userRequest.phone !== this.user.phone ||
         JSON.stringify(userRequest.userGroups) !== JSON.stringify(this.user.userGroups) ||
         JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
+        userRequest.defaultOfficeId !== (this.user.defaultOfficeId ?? null) ||
         userRequest.isActive !== this.user.isActive ||
         userRequest.organizationId !== this.user.organizationId ||
         userRequest.commissionRate !== (this.user.commissionRate ?? null) ||
@@ -415,10 +422,13 @@ export class UserComponent implements OnInit, OnDestroy {
         // Ensure selected user's office access remains checked after the office options refresh.
         if (this.form) {
           this.form.get('officeAccess')?.setValue([...selectedOfficeIds], { emitEvent: false });
+          this.form.get('defaultOffice')?.setValue(this.user?.defaultOfficeId ?? null, { emitEvent: false });
+          this.syncDefaultOfficeOptions();
         }
       },
       error: () => {
         this.availableOffices = [];
+        this.availableDefaultOffices = [];
       }
     });
   }
@@ -444,6 +454,9 @@ export class UserComponent implements OnInit, OnDestroy {
 
   //#region Form methods
   buildForm(): void {
+    const jwtDefaultOffice = this.authService.getUser()?.defaultOfficeId ?? null;
+    const defaultOfficeAccess = this.isAddMode && jwtDefaultOffice !== null ? [jwtDefaultOffice] : [];
+    const initialDefaultOffice = this.user?.defaultOfficeId ?? jwtDefaultOffice;
     // Password fields are optional by default - validators will be set conditionally based on changePassword toggle
     const formControls: any = {
       organizationId: new FormControl({ value: '', disabled: this.selfEdit }, [Validators.required]),
@@ -454,7 +467,8 @@ export class UserComponent implements OnInit, OnDestroy {
       password: new FormControl('', [this.passwordStrengthValidator]),
       confirmPassword: new FormControl('', [this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]),
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
-      officeAccess: new FormControl({ value: [], disabled: this.selfEdit }, [Validators.required]),
+      officeAccess: new FormControl({ value: defaultOfficeAccess, disabled: this.selfEdit }, [Validators.required]),
+      defaultOffice: new FormControl(initialDefaultOffice),
       changePassword: new FormControl(this.isAddMode ? true : false), // Toggle to enable/require password fields - default to true in add mode
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
       startupPageId: new FormControl(0, [Validators.required]),
@@ -476,6 +490,7 @@ export class UserComponent implements OnInit, OnDestroy {
       this.form.get('userGroups')?.disable({ emitEvent: false });
       this.form.get('officeAccess')?.disable({ emitEvent: false });
       this.form.get('startupPageId')?.disable({ emitEvent: false });
+      this.form.get('defaultOffice')?.disable({ emitEvent: false });
       this.form.get('agentId')?.disable({ emitEvent: false });
       this.form.get('commissionRate')?.disable({ emitEvent: false });
       this.form.get('isActive')?.disable({ emitEvent: false });
@@ -623,7 +638,13 @@ export class UserComponent implements OnInit, OnDestroy {
       // Do not clear during initial populate from the loaded user record.
       if (!this.isPopulatingUserForm) {
         this.form.get('officeAccess')?.setValue([]);
+        this.form.get('defaultOffice')?.setValue(null, { emitEvent: false });
       }
+      this.syncDefaultOfficeOptions();
+    });
+
+    this.form.get('officeAccess')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncDefaultOfficeOptions();
     });
 
     this.form.get('agentId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -677,6 +698,7 @@ export class UserComponent implements OnInit, OnDestroy {
         password: '', // Don't populate password in edit mode
         confirmPassword: '', // Don't populate confirm password in edit mode
         startupPageId: this.user.startupPageId ?? 0,
+        defaultOffice: this.user.defaultOfficeId ?? null,
         agentId: this.user.agentId ?? null,
         commissionRate: this.user.commissionRate !== null && this.user.commissionRate !== undefined
           ? Number(this.user.commissionRate).toFixed(2)
@@ -694,6 +716,7 @@ export class UserComponent implements OnInit, OnDestroy {
         : [];
       this.form.get('officeAccess')?.setValue(officeAccessNumbers);
       this.filterOfficesByOrganization();
+      this.syncDefaultOfficeOptions();
       this.applyCommissionRateState();
       this.isPopulatingUserForm = false;
      }
@@ -718,6 +741,27 @@ export class UserComponent implements OnInit, OnDestroy {
     } else {
       // If no organization selected, show all active offices (fallback)
       this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices.filter(office => office.isActive));
+    }
+    this.syncDefaultOfficeOptions();
+  }
+
+  syncDefaultOfficeOptions(): void {
+    if (!this.form) {
+      return;
+    }
+
+    const selectedOfficeIds = new Set<number>(
+      (((this.form.get('officeAccess')?.value as Array<number | string>) || [])
+        .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+        .filter(id => !isNaN(id)))
+    );
+
+    this.availableDefaultOffices = this.availableOffices.filter(office => selectedOfficeIds.has(office.value));
+
+    const currentDefaultOffice = this.form.get('defaultOffice')?.value;
+    const hasCurrentDefaultOffice = this.availableDefaultOffices.some(office => office.value === currentDefaultOffice);
+    if (!hasCurrentDefaultOffice) {
+      this.form.get('defaultOffice')?.setValue(null, { emitEvent: false });
     }
   }
 

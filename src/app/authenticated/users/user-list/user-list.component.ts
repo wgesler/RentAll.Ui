@@ -51,6 +51,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '18ch' },
     'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '20ch' },
+    'defaultOffice': { displayAs: 'Default Office', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '40ch'},
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
@@ -120,6 +121,8 @@ export class UserListComponent implements OnInit, OnDestroy {
             organizationName: orgMap.get(user.organizationId) || '',
             officeAccess: (user.officeAccess || []).map(id => Number(id)).filter(id => !isNaN(id)),
             startupPageDisplay: getStartupPage(user.startupPageId),
+            defaultOfficeId: user.defaultOfficeId ?? null,
+            defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId),
             userGroups: userGroups,
             userGroupsDisplay: userGroupsDisplay,
             isActive: user.isActive
@@ -204,6 +207,7 @@ export class UserListComponent implements OnInit, OnDestroy {
           }
         }
 
+        this.refreshDefaultOfficeDisplay();
         this.applyFilters();
       });
     });
@@ -238,6 +242,25 @@ export class UserListComponent implements OnInit, OnDestroy {
 
       return typeof group === 'number' && group === role;
     });
+  }
+
+  private getDefaultOfficeName(defaultOfficeId: number | null): string {
+    if (defaultOfficeId === null || defaultOfficeId === undefined) {
+      return '';
+    }
+    const office = this.offices.find(o => o.officeId === Number(defaultOfficeId));
+    return office?.name || String(defaultOfficeId);
+  }
+
+  private refreshDefaultOfficeDisplay(): void {
+    if (!this.allUsers?.length) {
+      return;
+    }
+
+    this.allUsers = this.allUsers.map(user => ({
+      ...user,
+      defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId ?? null)
+    }));
   }
 
   ngOnDestroy(): void {

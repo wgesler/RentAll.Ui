@@ -117,23 +117,7 @@
                     <mat-error>User Groups is required</mat-error>
                   }
                 </mat-form-field>
-              }
 
-              @if (isPrivilegedOfficeEditor || isAddMode) {
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Startup Page</mat-label>
-                  <mat-select formControlName="startupPageId" required>
-                    @for (page of availableStartupPages; track page.value) {
-                      <mat-option [value]="page.value">{{ page.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
-                    <mat-error>Startup Page is required</mat-error>
-                  }
-                </mat-form-field>
-              }
-
-              @if (isPrivilegedOfficeEditor || isAddMode) {
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Agent</mat-label>
                   <mat-select formControlName="agentId">
@@ -151,6 +135,30 @@
                     (input)="onCommissionRateInput($event)"
                     (keydown)="onCommissionRateEnter($event)"
                     (blur)="formatCommissionRate()">
+                </mat-form-field>
+              }
+
+              @if (isPrivilegedOfficeEditor || isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>Startup Page</mat-label>
+                  <mat-select formControlName="startupPageId" required>
+                    @for (page of availableStartupPages; track page.value) {
+                      <mat-option [value]="page.value">{{ page.label }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
+                    <mat-error>Startup Page is required</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>Default Office</mat-label>
+                  <mat-select formControlName="defaultOffice">
+                    <mat-option [value]="null">None</mat-option>
+                    @for (office of availableDefaultOffices; track office.value) {
+                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
               }
 

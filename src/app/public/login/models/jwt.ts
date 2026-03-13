@@ -30,28 +30,34 @@ export class JwtContainer {
             }
         }
         
-        // Parse startupPageId - should be a number
-        const startupPageIdRaw = user.StartupPageId || user.startupPageId || user.StartupPage || user.startupPage;
-        const startupPageId = startupPageIdRaw !== undefined && startupPageIdRaw !== null 
-            ? (typeof startupPageIdRaw === 'number' ? startupPageIdRaw : parseInt(String(startupPageIdRaw), 10))
+        const startupPageRaw = user.StartupPage ?? user.startupPage ?? user.StartupPageId ?? user.startupPageId;
+        const startupPage = startupPageRaw !== undefined && startupPageRaw !== null
+            ? (typeof startupPageRaw === 'number' ? startupPageRaw : parseInt(String(startupPageRaw), 10))
             : 0;
+        const defaultOfficeIdRaw = user.DefaultOfficeId ?? user.defaultOfficeId ?? user.DefaultOffice ?? user.defaultOffice;
+        const defaultOfficeId = defaultOfficeIdRaw !== undefined && defaultOfficeIdRaw !== null
+            ? (typeof defaultOfficeIdRaw === 'number' ? defaultOfficeIdRaw : parseInt(String(defaultOfficeIdRaw), 10))
+            : null;
         const agentId = user.AgentId || user.agentId || null;
+        const userGuid = user.UserGuid || user.userGuid || user.UserId || user.userId || '';
         
         this.user = new JwtUser(
-            user.UserId || user.userId || '',
+            userGuid,
             user.OrganizationId || user.organizationId || '',
             user.FirstName || user.firstName || '',
             user.LastName || user.lastName || '',
             user.Email || user.email || '',
             user.Phone || user.phone || '',
             userGroups,
-            startupPageId,
+            startupPage,
+            defaultOfficeId,
             agentId
         );
     }
 }
 
 export class JwtUser {
+    userGuid: string;
     userId: string;
     organizationId: string;
     firstName: string;
@@ -59,30 +65,38 @@ export class JwtUser {
     email: string;
     phone: string;
     userGroups: string[];
+    startupPage: number;
     startupPageId: number;
+    defaultOfficeId: number | null;
     agentId: string | null;
   
 
 
     constructor(
-        userId: string,
+        userGuid: string,
         organizationId: string,
         firstName: string,
         lastName: string,
         email: string,
         phone: string,
         userGroups: string[],
-        startupPageId: number,
+        startupPage: number,
+        defaultOfficeId: number | null = null,
         agentId: string | null = null
     ) {
-        this.userId = userId;
+        this.userGuid = userGuid;
+        // Keep userId for backward compatibility in existing UI code paths.
+        this.userId = userGuid;
         this.organizationId = organizationId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.phone = phone;
         this.userGroups = userGroups;
-        this.startupPageId = startupPageId;
+        this.startupPage = startupPage;
+        // Keep startupPageId for backward compatibility in existing UI code paths.
+        this.startupPageId = startupPage;
+        this.defaultOfficeId = defaultOfficeId;
         this.agentId = agentId;
     }
 }

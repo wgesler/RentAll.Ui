@@ -33,12 +33,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isSidebarExpanded = true;
   offices: OfficeResponse[] = [];
   selectedGlobalOfficeId: number | null = null;
-  
+  private userDefaultOfficeId: number | null = null;
+
   // Profile picture properties
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
   private sidebarSubscription?: Subscription;
   private officesSubscription?: Subscription;
+  private selectedOfficeSubscription?: Subscription;
 
   constructor(
     private authService: AuthService,
@@ -52,6 +54,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ) { }
   
   ngOnInit(): void {
+    // Stay in sync with global office selection (e.g. when app initializes from user default)
+    this.selectedOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().subscribe(id => {
+      this.selectedGlobalOfficeId = id;
+    });
     // Load user profile picture when component initializes
     this.loadUserProfilePicture();
     this.sidebarSubscription = this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
@@ -64,6 +70,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.userSubscription?.unsubscribe();
     this.sidebarSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
+    this.selectedOfficeSubscription?.unsubscribe();
   }
   
   loadUserProfilePicture(): void {
@@ -74,6 +81,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
     
     this.userSubscription = this.userService.getUserByGuid(currentUser.userId).pipe(take(1)).subscribe({
       next: (userResponse: UserResponse) => {
+        this.userDefaultOfficeId = userResponse.defaultOfficeId ?? null;
+        // Initialize working office from user's default if we have offices
+        if (this.offices.length > 0 && this.userDefaultOfficeId !== null) {
+          this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, this.userDefaultOfficeId);
+        }
         // Set profile picture URL from fileDetails or profilePath
         if (userResponse.fileDetails && userResponse.fileDetails.file) {
           // Construct data URL from fileDetails
@@ -147,7 +159,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.officesSubscription?.unsubscribe();
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = (allOffices || []).filter(office => office.isActive);
-        this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices);
+        const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
+        this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, preferredId);
       });
     });
   }

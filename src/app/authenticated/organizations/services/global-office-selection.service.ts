@@ -22,10 +22,16 @@ export class GlobalOfficeSelectionService {
     this.writeToStorage(officeId);
   }
 
-  syncWithAvailableOffices(offices: OfficeResponse[]): number | null {
+  syncWithAvailableOffices(offices: OfficeResponse[], preferredOfficeId: number | null = null): number | null {
     if (!offices?.length) {
       this.setSelectedOfficeId(null);
       return null;
+    }
+
+    // When user has a default office (e.g. from JWT or profile), use it to initialize the dropdown
+    if (preferredOfficeId !== null && offices.some(office => office.officeId === preferredOfficeId)) {
+      this.setSelectedOfficeId(preferredOfficeId);
+      return preferredOfficeId;
     }
 
     const currentSelection = this.getSelectedOfficeIdValue();
