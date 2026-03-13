@@ -7,6 +7,7 @@ import { take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
 import { UserGroups } from '../../users/models/user-enums';
@@ -20,8 +21,10 @@ import { BuildingListComponent } from '../building-list/building-list.component'
 import { BuildingComponent } from '../building/building.component';
 import { ColorListComponent } from '../color-list/color-list.component';
 import { ColorComponent } from '../color/color.component';
+import { AccountingOfficeResponse } from '../models/accounting-office.model';
 import { OrganizationResponse } from '../models/organization.model';
-import { OfficeListComponent } from '../office-list/office-list.component';
+import { OfficeResponse } from '../models/office.model';
+import { OfficeListComponent, OfficeCopyPayload } from '../office-list/office-list.component';
 import { OfficeComponent } from '../office/office.component';
 import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
@@ -68,8 +71,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   agentId: string | null = null;
   isEditingOffice: boolean = false;
   officeId: string | number | null = null;
+  copyOfficeData: OfficeResponse | null = null;
   isEditingAccountingOffice: boolean = false;
   accountingOfficeId: string | number | null = null;
+  copyAccountingOfficeData: AccountingOfficeResponse | null = null;
   isEditingRegion: boolean = false;
   regionId: string | number | null = null;
   isEditingArea: boolean = false;
@@ -92,7 +97,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private navigationContext: NavigationContextService,
     private organizationService: OrganizationService,
-    private authService: AuthService
+    private authService: AuthService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
   }
 
@@ -100,7 +106,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
-    
+    // Cost Codes in Settings: default to working office so list is filtered by office
+    this.selectedCostCodesOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
     // Check if user is SuperAdmin
     const user = this.authService.getUser();
     this.currentUserOrganizationId = user?.organizationId || null;
@@ -164,27 +171,45 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   onOfficeSelected(officeId: string | number | null): void {
     this.officeId = officeId;
+    this.copyOfficeData = null;
     this.isEditingOffice = officeId !== null;
     if (this.isEditingOffice) {
       this.expandedSections.offices = true;
     }
   }
 
+  onCopyOffice(payload: OfficeCopyPayload): void {
+    this.copyOfficeData = payload.office;
+    this.officeId = 'new';
+    this.isEditingOffice = true;
+    this.expandedSections.offices = true;
+  }
+
   onOfficeBack(): void {
     this.officeId = null;
+    this.copyOfficeData = null;
     this.isEditingOffice = false;
   }
 
   onAccountingOfficeSelected(accountingOfficeId: string | number | null): void {
     this.accountingOfficeId = accountingOfficeId;
+    this.copyAccountingOfficeData = null;
     this.isEditingAccountingOffice = accountingOfficeId !== null;
     if (this.isEditingAccountingOffice) {
       this.expandedSections.accountingOffices = true;
     }
   }
 
+  onCopyAccountingOffice(accountingOffice: AccountingOfficeResponse): void {
+    this.copyAccountingOfficeData = accountingOffice;
+    this.accountingOfficeId = 'new';
+    this.isEditingAccountingOffice = true;
+    this.expandedSections.accountingOffices = true;
+  }
+
   onAccountingOfficeBack(): void {
     this.accountingOfficeId = null;
+    this.copyAccountingOfficeData = null;
     this.isEditingAccountingOffice = false;
   }
 

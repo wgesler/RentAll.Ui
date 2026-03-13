@@ -7,6 +7,7 @@ export interface ContactRequest {
   entityTypeId: number;
   entityId?: string | null;
   companyName?: string | null;
+  displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
   officeId: number;
@@ -38,11 +39,13 @@ export interface ContactResponse {
   entityTypeId: number;
   entityId?: string | null;
   companyName?: string | null;
+  displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
   fullName?: string | null;
   officeId: number;
   officeName: string;
+  companyId?: string | null;
   address1?: string;
   address2?: string;
   city?: string;

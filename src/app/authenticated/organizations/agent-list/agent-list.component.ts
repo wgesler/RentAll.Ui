@@ -100,6 +100,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Filtering Methods
+  /** Agents are never filtered by office (including when embeddedInSettings). Only isActive is applied. */
   applyFilters(): void {
     this.agentsDisplay = this.showInactive
       ? this.allAgents

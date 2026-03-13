@@ -12,6 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { RegionListDisplay, RegionResponse } from '../models/region.model';
+import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
 import { OfficeService } from '../services/office.service';
 import { RegionService } from '../services/region.service';
 
@@ -33,8 +34,8 @@ export class RegionListComponent implements OnInit, OnDestroy {
   regionsDisplay: RegionListDisplay[] = [];
 
   regionsDisplayedColumns: ColumnSet = {
-    'regionCode': { displayAs: 'Code', maxWidth: '20ch' },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'regionCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
     'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
@@ -48,7 +49,8 @@ export class RegionListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
   }
 
   //#region Region-List
@@ -108,9 +110,16 @@ export class RegionListComponent implements OnInit, OnDestroy {
 
   //#region Filtering Methods
   applyFilters(): void {
+    let filtered = this.allRegions;
+    if (this.embeddedInSettings) {
+      const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      if (officeId !== null) {
+        filtered = filtered.filter(region => region.officeId === officeId);
+      }
+    }
     this.regionsDisplay = this.showInactive
-      ? this.allRegions
-      : this.allRegions.filter(region => region.isActive);
+      ? filtered
+      : filtered.filter(region => region.isActive);
   }
 
   toggleInactive(): void {

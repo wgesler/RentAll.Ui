@@ -84,10 +84,16 @@
               </mat-form-field>
 
               @if (form.get('contactTypeId')?.value !== EntityType.Owner) {
-                <mat-form-field appearance="outline" class="col-span-2">
+                <mat-form-field appearance="outline" [class.col-span-2]="form.get('contactTypeId')?.value !== EntityType.Company" class="col-span-1">
                   <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
                   <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
                 </mat-form-field>
+                @if (form.get('contactTypeId')?.value === EntityType.Company) {
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Display Name</mat-label>
+                    <input matInput formControlName="displayName" placeholder="Enter display name">
+                  </mat-form-field>
+                }
               }
 
               <!-- Row 2: Code, First Name, Last Name -->

@@ -87,4 +87,19 @@ export class UtilityService {
       return typeof group === 'number' && group === role;
     });
   }
+
+  getCompanyDisplayToken(companyName: string | null | undefined): string {
+    const words = (companyName || '')
+      .trim()
+      .split(/\s+/)
+      .map(word => word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
+      .filter(Boolean);
+
+    const firstMeaningfulWord = words.find(word => {
+      const lowered = word.toLowerCase();
+      return lowered !== 'the' && lowered !== 'a' && lowered !== 'an';
+    });
+
+    return firstMeaningfulWord || '';
+  }
 }

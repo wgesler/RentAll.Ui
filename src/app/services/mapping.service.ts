@@ -92,7 +92,7 @@ export class MappingService {
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
-      const displayName = (o.fullName ?? '').trim() || combinedName || o.companyName || '';
+      const displayName = (o.fullName ?? o.displayName ?? '').trim() || combinedName || o.companyName || '';
       return {
         contactId: o.contactId,
         contactCode: o.contactCode,

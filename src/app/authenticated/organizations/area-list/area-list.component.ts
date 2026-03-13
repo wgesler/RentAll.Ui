@@ -13,6 +13,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AreaListDisplay, AreaResponse } from '../models/area.model';
 import { AreaService } from '../services/area.service';
+import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -33,8 +34,8 @@ export class AreaListComponent implements OnInit, OnDestroy {
   areasDisplay: AreaListDisplay[] = [];
 
   areasDisplayedColumns: ColumnSet = {
-    'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
     'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
@@ -48,7 +49,8 @@ export class AreaListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
   }
 
   //#region Area-List
@@ -102,9 +104,16 @@ export class AreaListComponent implements OnInit, OnDestroy {
 
   //#region Filtering Methods
   applyFilters(): void {
+    let filtered = this.allAreas;
+    if (this.embeddedInSettings) {
+      const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      if (officeId !== null) {
+        filtered = filtered.filter(area => Number(area.officeId) === officeId);
+      }
+    }
     this.areasDisplay = this.showInactive
-      ? this.allAreas
-      : this.allAreas.filter(area => area.isActive);
+      ? filtered
+      : filtered.filter(area => area.isActive);
   }
 
   toggleInactive(): void {

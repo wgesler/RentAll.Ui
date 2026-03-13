@@ -27,6 +27,7 @@ import { OfficeService } from '../services/office.service';
 export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
+  @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -69,12 +70,21 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
+    // Copy-from state when navigating from list (non-embedded)
+    const nav = this.router.getCurrentNavigation();
+    if (nav?.extras?.state?.['copyFrom'] && !this.copyFrom) {
+      this.copyFrom = nav.extras.state['copyFrom'] as OfficeResponse;
+    }
+
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
         this.removeLoadItem('office');
         this.buildForm();
+        if (this.copyFrom) {
+          setTimeout(() => this.populateFormFromCopy(), 0);
+        }
       } else {
         this.getOffice(this.id.toString());
       }
@@ -82,6 +92,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['copyFrom'] && this.copyFrom && this.form && this.isAddMode) {
+      this.populateFormFromCopy();
+    }
     // If id changes, reload office
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
@@ -91,6 +104,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.removeLoadItem('office');
         this.buildForm();
+        if (this.copyFrom) {
+          setTimeout(() => this.populateFormFromCopy(), 0);
+        }
       }
     }
   }
@@ -360,6 +376,48 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         });
       }, 0);
     }
+  }
+
+  populateFormFromCopy(): void {
+    if (!this.copyFrom || !this.form) return;
+    const o = this.copyFrom;
+    this.form.patchValue({
+      officeCode: o.officeCode?.toUpperCase() || '',
+      name: o.name || '',
+      address1: o.address1 || '',
+      address2: o.address2 || '',
+      suite: o.suite || '',
+      city: o.city || '',
+      state: o.state || '',
+      zip: o.zip || '',
+      phone: this.formatterService.phoneNumber(o.phone) || '',
+      fax: this.formatterService.phoneNumber(o.fax) || '',
+      website: o.website || '',
+      isInternational: o.isInternational || false,
+      isActive: o.isActive
+    }, { emitEvent: false });
+    this.form.patchValue({
+      maintenanceEmail: o.maintenanceEmail || '',
+      afterHoursPhone: this.formatterService.phoneNumber(o.afterHoursPhone) || '',
+      afterHoursInstructions: o.afterHoursInstructions || '',
+      defaultDeposit: o.defaultDeposit != null ? o.defaultDeposit.toFixed(2) : '0.00',
+      defaultSdw: o.defaultSdw != null ? o.defaultSdw.toFixed(2) : '0.00',
+      daysToRefundDeposit: o.daysToRefundDeposit != null ? o.daysToRefundDeposit.toString() : '0',
+      defaultKeyFee: o.defaultKeyFee != null ? o.defaultKeyFee.toFixed(2) : '0.00',
+      undisclosedPetFee: o.undisclosedPetFee != null ? o.undisclosedPetFee.toFixed(2) : '0.00',
+      minimumSmokingFee: o.minimumSmokingFee != null ? o.minimumSmokingFee.toFixed(2) : '0.00',
+      utilityOneBed: o.utilityOneBed != null ? o.utilityOneBed.toFixed(2) : '0.00',
+      utilityTwoBed: o.utilityTwoBed != null ? o.utilityTwoBed.toFixed(2) : '0.00',
+      utilityThreeBed: o.utilityThreeBed != null ? o.utilityThreeBed.toFixed(2) : '0.00',
+      utilityFourBed: o.utilityFourBed != null ? o.utilityFourBed.toFixed(2) : '0.00',
+      utilityHouse: o.utilityHouse != null ? o.utilityHouse.toFixed(2) : '0.00',
+      maidOneBed: o.maidOneBed != null ? o.maidOneBed.toFixed(2) : '0.00',
+      maidTwoBed: o.maidTwoBed != null ? o.maidTwoBed.toFixed(2) : '0.00',
+      maidThreeBed: o.maidThreeBed != null ? o.maidThreeBed.toFixed(2) : '0.00',
+      maidFourBed: o.maidFourBed != null ? o.maidFourBed.toFixed(2) : '0.00',
+      parkingLowEnd: o.parkingLowEnd != null ? o.parkingLowEnd.toFixed(2) : '0.00',
+      parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00'
+    }, { emitEvent: false });
   }
   //#endregion
 

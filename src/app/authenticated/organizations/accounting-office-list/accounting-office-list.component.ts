@@ -29,6 +29,7 @@ import { OfficeService } from '../services/office.service';
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
   @Output() officeSelected = new EventEmitter<string | number | null>();
+  @Output() copyAccountingOfficeEvent = new EventEmitter<AccountingOfficeResponse>();
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -112,6 +113,21 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       const url = RouterUrl.replaceTokens(RouterUrl.AccountingOffice, [event.officeId.toString()]);
       this.router.navigateByUrl(url);
     }
+  }
+
+  copyAccountingOffice(row: AccountingOfficeListDisplay): void {
+    this.accountingOfficeService.getAccountingOfficeById(row.officeId).pipe(take(1)).subscribe({
+      next: (response: AccountingOfficeResponse) => {
+        const copyData: AccountingOfficeResponse = { ...response, name: '' };
+        if (this.embeddedInSettings) {
+          this.copyAccountingOfficeEvent.emit(copyData);
+        } else {
+          const url = '/' + RouterUrl.replaceTokens(RouterUrl.AccountingOffice, ['new']);
+          this.router.navigateByUrl(url, { state: { copyFrom: copyData } });
+        }
+      },
+      error: () => {}
+    });
   }
   //#endregion
 

@@ -37,9 +37,9 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingOffice && officeId) {
-                <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" (backEvent)="onOfficeBack()"></app-office>
+                <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (backEvent)="onOfficeBack()"></app-office>
               } @else {
-                <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)"></app-office-list>
+                <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
               }
             </div>
           </mat-expansion-panel>
@@ -122,9 +122,9 @@
             </mat-expansion-panel-header>
             <div class="agents-container">
               @if (isEditingAccountingOffice && accountingOfficeId) {
-                <app-accounting-office [id]="accountingOfficeId" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
               } @else {
-                <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)"></app-accounting-office-list>
+                <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
               }
             </div>
           </mat-expansion-panel>

@@ -15,6 +15,11 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeListDisplay, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
 
+export interface OfficeCopyPayload {
+  office: OfficeResponse;
+  organizationId: string | null;
+}
+
 @Component({
     standalone: true,
     selector: 'app-office-list',
@@ -27,6 +32,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
+  @Output() copyOfficeEvent = new EventEmitter<OfficeCopyPayload>();
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -113,6 +119,24 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       const url = RouterUrl.replaceTokens(RouterUrl.Office, [event.officeId.toString()]);
       this.router.navigateByUrl(url);
     }
+  }
+
+  copyOffice(row: OfficeListDisplay): void {
+    this.officeService.getOfficeById(row.officeId).pipe(take(1)).subscribe({
+      next: (response: OfficeResponse) => {
+        const copyData: OfficeResponse = { ...response, name: '' };
+        if (this.embeddedInSettings) {
+          this.copyOfficeEvent.emit({
+            office: copyData,
+            organizationId: this.organizationId ?? null
+          });
+        } else {
+          const url = '/' + RouterUrl.replaceTokens(RouterUrl.Office, ['new']);
+          this.router.navigateByUrl(url, { state: { copyFrom: copyData } });
+        }
+      },
+      error: () => {}
+    });
   }
   //#endregion
 

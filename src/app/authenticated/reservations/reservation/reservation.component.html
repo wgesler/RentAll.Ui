@@ -225,7 +225,11 @@
                   <mat-option [value]="newContactOptionValue">New Contact</mat-option>
                   @for (contact of filteredContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">
-                      {{ contact.firstName }} {{ contact.lastName }}
+                      @if (contact.entityTypeId === EntityType.Company) {
+                        {{ contact.displayName ?? contact.companyName }}: {{ contact.firstName }} {{ contact.lastName }}
+                      } @else {
+                        {{ contact.firstName }} {{ contact.lastName }}
+                      }
                     </mat-option>
                   }
                 </mat-select>

@@ -33,8 +33,8 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   buildingsDisplay: BuildingListDisplay[] = [];
 
   buildingsDisplayedColumns: ColumnSet = {
-    'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
+    'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'description': { displayAs: 'Description', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }

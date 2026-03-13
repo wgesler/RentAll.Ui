@@ -216,11 +216,15 @@ export class ContactComponent implements OnInit, OnDestroy {
     const entityTypeId = formValue.contactTypeId;
     const isInternational = formValue.isInternational || false;
     const strippedPhone = this.formatterService.stripPhoneFormatting(formValue.phone);
+    const isCompanyType = entityTypeId === EntityType.Company;
+    const derivedDisplayName = isCompanyType && (formValue.displayName || '').trim()
+      ? (formValue.displayName || '').trim()
+      : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId,
-      entityId: undefined,
+      entityId: this.contact?.entityId ?? undefined,
       officeId: formValue.officeId || undefined,
       address1: formValue.address1 || '',
       address2: formValue.address2 || undefined,
@@ -231,7 +235,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       notes: this.compactDialogMode ? (null as unknown as string) : (formValue.notes || undefined),
       markup: this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
-      companyId: undefined,
+      companyId: this.contact?.companyId ?? undefined,
+      displayName: derivedDisplayName,
       isInternational: isInternational,
       w9Path: this.compactDialogMode ? null : (this.hasNewW9Upload ? undefined : this.w9Path),
       w9FileDetails: this.compactDialogMode ? null : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
@@ -243,7 +248,9 @@ export class ContactComponent implements OnInit, OnDestroy {
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
     const isOwner = entityTypeId === EntityType.Owner;
-    (contactRequest as any).companyName = isOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
+    contactRequest.companyName = isOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
+    const isCompany = entityTypeId === EntityType.Company;
+    contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
 
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
@@ -290,6 +297,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       lastName: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
       companyName: new FormControl(''),
+      displayName: new FormControl(''),
       phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
@@ -312,6 +320,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     // Company/Vendor require company name. Tenant is optional. Owner clears company name.
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
       const companyNameControl = this.form.get('companyName');
+      const displayNameControl = this.form.get('displayName');
       if (contactTypeId === EntityType.Company || contactTypeId === EntityType.Vendor) {
         companyNameControl?.setValidators([Validators.required]);
       } else {
@@ -319,6 +328,9 @@ export class ContactComponent implements OnInit, OnDestroy {
         if (contactTypeId === EntityType.Owner) {
           companyNameControl?.setValue('');
         }
+      }
+      if (contactTypeId !== EntityType.Company && displayNameControl) {
+        displayNameControl.setValue('');
       }
       companyNameControl?.updateValueAndValidity({ emitEvent: false });
     });
@@ -347,6 +359,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         lastName: this.contact.lastName,
         officeId: this.contact.officeId || null,
         companyName: companyName,
+        displayName: this.contact.displayName ?? '',
         address1: this.contact.address1 || '',
         address2: this.contact.address2 || '',
         city: this.contact.city || '',

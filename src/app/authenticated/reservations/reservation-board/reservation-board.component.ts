@@ -20,6 +20,7 @@ import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationStatus, ReservationType } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
+import { EntityType } from '../../contacts/models/contact-enum';
 
 
 
@@ -119,7 +120,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
        });
     });
   }
-
 
   loadColors(): void {
     this.colorService.getColors().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors'); })).subscribe({
@@ -508,35 +508,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   getBoardDisplayName(reservation: ReservationListResponse): string {
-    const companyName = this.getCompanyDisplayToken(reservation.companyName);
-    const contactFullName = (reservation.contactName || '').trim();
-    const tenantName = (reservation.tenantName || '').trim();
-    const reservationTypeId = reservation.reservationTypeId;
+    const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
+    const shortCompanyName = contact?.displayName || this.utilityService.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
+    const contacName = reservation.contactName ?? contact.firstName + ' ' + contact.lastName;
 
-    if (reservationTypeId === ReservationType.Individual) {
-      return [companyName, contactFullName].filter(Boolean).join(' ');
+    if (reservation.reservationTypeId === ReservationType.Corporate) {
+      return [shortCompanyName, reservation.tenantName].filter(Boolean).join(' ');
     }
 
-    if (reservationTypeId === ReservationType.Corporate) {
-      return [companyName, tenantName].filter(Boolean).join(' ');
-    }
+    return [shortCompanyName, contacName].filter(Boolean).join(' ');
 
-    return [companyName, contactFullName || tenantName].filter(Boolean).join(' ');
-  }
-
-  getCompanyDisplayToken(companyName: string | null | undefined): string {
-    const words = (companyName || '')
-      .trim()
-      .split(/\s+/)
-      .map(word => word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
-      .filter(Boolean);
-
-    const firstMeaningfulWord = words.find(word => {
-      const lowered = word.toLowerCase();
-      return lowered !== 'the' && lowered !== 'a' && lowered !== 'an';
-    });
-
-    return firstMeaningfulWord || '';
   }
   //#endregion
 

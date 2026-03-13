@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -60,7 +61,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, maxWidth: '20ch', sort: false, wrap: false, alignment: 'left' },
+    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
@@ -74,7 +75,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     public route: ActivatedRoute,
     public mappingService: MappingService,
     private officeService: OfficeService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
   }
 
   //#region CostCodes-List
@@ -217,6 +219,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         // Set selectedOffice from parent input.
         if (this.officeId !== null && this.officeId !== undefined) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+        } else if (this.embeddedInSettings && this.offices.length > 0) {
+          // In Settings, Cost Codes are filtered by office: default to working office
+          const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          this.selectedOffice = globalId !== null
+            ? (this.offices.find(o => o.officeId === globalId) || null)
+            : null;
         }
         
         // Auto-select if only one office available (unless officeId input/query param is provided)

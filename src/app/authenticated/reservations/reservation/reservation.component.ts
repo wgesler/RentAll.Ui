@@ -820,8 +820,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     const selectedContactFullName = (this.selectedContact.fullName || '').trim() ||
       `${this.selectedContact.firstName || ''} ${this.selectedContact.lastName || ''}`.trim();
 
-    // Phone, email and companyName remain disabled (read-only) - just update their values
-    const selectedCompanyName = (this.selectedContact.companyName || '').trim();
+    // Phone, email and companyName remain disabled (read-only) - just update their values. Prefer displayName so e.g. "Harvard" not "Harvard University".
+    const selectedCompanyName = (this.selectedContact.displayName ?? (this.utilityService.getCompanyDisplayToken(this.selectedContact.companyName ?? null) || this.selectedContact.companyName || '')).trim();
     this.form.patchValue({
       companyName: selectedCompanyName,
       phone: this.formatterService.phoneNumber(this.selectedContact.phone) || '',

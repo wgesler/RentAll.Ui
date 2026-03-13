@@ -30,6 +30,7 @@ import { OfficeService } from '../services/office.service';
 
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
+  @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   
   isServiceError: boolean = false;
@@ -80,6 +81,12 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.returnToSettings = params['returnTo'] === 'settings';
     });
 
+    // Copy-from state when navigating from list (non-embedded)
+    const nav = this.router.getCurrentNavigation();
+    if (nav?.extras?.state?.['copyFrom'] && !this.copyFrom) {
+      this.copyFrom = nav.extras.state['copyFrom'] as AccountingOfficeResponse;
+    }
+
     // Wait for offices to be loaded before loading accounting office data
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       // Use the input id
@@ -89,6 +96,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
           this.buildForm();
           this.setupOfficeSelectionHandler();
+          if (this.copyFrom) {
+            setTimeout(() => this.populateFormFromCopy(), 0);
+          }
         } else {
           this.getAccountingOffice(this.id.toString());
         }
@@ -97,6 +107,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['copyFrom'] && this.copyFrom && this.form && this.isAddMode) {
+      this.populateFormFromCopy();
+    }
     // If id changes, reload office
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
@@ -109,6 +122,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
           this.buildForm();
           this.setupOfficeSelectionHandler();
+          if (this.copyFrom) {
+            setTimeout(() => this.populateFormFromCopy(), 0);
+          }
         }
       });
     }
@@ -334,6 +350,33 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }
+  }
+
+  populateFormFromCopy(): void {
+    if (!this.copyFrom || !this.form) return;
+    const o = this.copyFrom;
+    this.form.patchValue({
+      officeId: o.officeId || null,
+      name: o.name || '',
+      address1: o.address1 || '',
+      address2: o.address2 || '',
+      suite: o.suite || '',
+      city: o.city || '',
+      state: o.state || '',
+      zip: o.zip || '',
+      phone: this.formatterService.phoneNumber(o.phone) || '',
+      fax: o.fax ? this.formatterService.phoneNumber(o.fax) : '',
+      email: o.email || '',
+      website: o.website || '',
+      bankName: o.bankName || '',
+      bankRouting: o.bankRouting || '',
+      bankAccount: o.bankAccount || '',
+      bankSwiftCode: o.bankSwiftCode || '',
+      bankAddress: o.bankAddress || '',
+      bankPhone: o.bankPhone ? this.formatterService.phoneNumber(o.bankPhone) : '',
+      workOrderNo: o.workOrderNo ?? 0,
+      isActive: o.isActive
+    }, { emitEvent: false });
   }
 
   setupOfficeSelectionHandler(): void {
