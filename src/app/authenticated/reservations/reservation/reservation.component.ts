@@ -111,7 +111,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   availableChargeCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'companyContacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   readonly tabParamToIndex: Record<string, number> = {
@@ -148,7 +148,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadOrganization();
     this.loadProperties();
     this.loadAgents();
-    this.loadCompanyContacts();
     this.loadOffices();
     
     // Initialize form immediately to prevent template errors
@@ -248,7 +247,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       next: (response: ReservationResponse) => {
         this.reservation = response;
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
         this.populateForm();
       },
       error: () => {
@@ -419,7 +418,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       tenantName: new FormControl('', [Validators.required]), // Always enabled
       contactId: new FormControl('', [Validators.required]), // Always enabled
       companyName: new FormControl({ value: '', disabled: true }), // Display selected contact company name
-      entityCompanyName: new FormControl({ value: '', disabled: true }), // Display Company name if EntityTypeId is Company
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(null, [Validators.required]),
@@ -462,7 +460,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
     this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
-    this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+    this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
@@ -487,7 +485,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       contactId: this.reservation.contactId || null,
       companyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       tenantName: this.reservation.tenantName || '',
-      entityCompanyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       reservationStatusId: this.reservation.reservationStatusId,
       reservationNoticeId: this.reservation.reservationNoticeId,
       arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
@@ -515,7 +512,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }, { emitEvent: false });
 
     // Find selected contact - contacts are guaranteed to be loaded at this point
-    this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId) || null;
+    this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
     this.updateContactFields();
    
     // Update pet and maid service fields after patching
@@ -556,8 +553,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
           this.loadCostCodes();
         }
       }
-      if(this.reservation?.contactId)
-        this.selectedContact = this.contacts.find(c => c.contactId == this.reservation.contactId)
+      if (this.reservation?.contactId) {
+        this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
+      }
 
       const propertyAddress = this.selectedProperty?.shortAddress || '';
       const propertyCode = this.selectedProperty?.propertyCode || '';
@@ -572,12 +570,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.updateDepartureFeeValue();
       this.updatePetFields();
       this.updateMaidServiceFields();
+      this.updateContactFields();
     });
   }
 
   setupContactSelectionHandler(): void {
     this.form.get('contactId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactId => {
-      this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
+      this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) : null;
       this.updateContactFields();
     });
   }
@@ -598,13 +597,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
         phone: '',
         email: '',
         companyName: '',
-        entityCompanyName: '',
         tenantName: '',
         contactId: ''
       }, { emitEvent: false });
       
       // Clear selected contact reference
       this.selectedContact = null;
+      this.updateContactFields();
     });
   }
     
@@ -795,40 +794,37 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   updateContactFields(): void {
-    if (!this.selectedContact) {
-      return;
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    if (reservationTypeId === ReservationType.Owner) {
+      this.selectedContact = this.contacts.find(c => c.contactId === this.selectedProperty?.owner1Id) || null;;
+      this.form.patchValue({ contactId: this.selectedContact.contactId }, { emitEvent: false });
     }
 
-    // Phone and email remain disabled (read-only) - just update their values
+    const selectedContactFullName = (this.selectedContact.fullName || '').trim() ||
+      `${this.selectedContact.firstName || ''} ${this.selectedContact.lastName || ''}`.trim();
+
+    // Phone, email and companyName remain disabled (read-only) - just update their values
     const selectedCompanyName = (this.selectedContact.companyName || '').trim();
     this.form.patchValue({
       companyName: selectedCompanyName,
       phone: this.formatterService.phoneNumber(this.selectedContact.phone) || '',
       email: this.selectedContact.email || '',
     }, { emitEvent: false });
-  
-    // Set company name when contact is a company (entityTypeId === Company and entityId references company contact)
-    if (this.selectedContact.entityTypeId === EntityType.Company && this.selectedContact.entityId) {
-      const companyContact = this.companyContacts.find(c => c.contactId === this.selectedContact!.entityId);
-      const companyName = companyContact?.fullName ?? '';
-      this.form.patchValue(
-        {
-          entityCompanyName: companyName,
-          companyName: selectedCompanyName || companyName
-        },
-        { emitEvent: false }
-      );
-    } else {
-      this.form.patchValue({ entityCompanyName: '' }, { emitEvent: false });
+
+    if (reservationTypeId === ReservationType.Owner) {
+      this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
+      return;
     }
 
-    // If the reservation already has a tenantName, use this
+    if (reservationTypeId === ReservationType.Individual) {
+      this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
+      return;
+    }
+
+    // Keep existing behavior for non-individual reservations.
     const tenantName = this.form.get('tenantName')?.value;
-    if(tenantName === null || tenantName === undefined) {
-      if (this.selectedContact.entityTypeId !== EntityType.Company) {
-        const contactName = `${this.selectedContact.firstName || ''} ${this.selectedContact.lastName || ''}`.trim();
-        this.form.patchValue({ tenantName: contactName }, { emitEvent: false });
-      }
+    if ((tenantName === null || tenantName === undefined) && this.selectedContact.entityTypeId !== EntityType.Company) {
+      this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
     }
  }
 
@@ -1060,19 +1056,6 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
        });
-    });
-  }
-
-  loadCompanyContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companyContacts'); })).subscribe({
-        next: (contacts) => {
-          this.companyContacts = contacts || [];
-        },
-        error: () => {
-          this.companyContacts = [];
-        }
-      });
     });
   }
 
