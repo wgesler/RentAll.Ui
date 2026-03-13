@@ -2,7 +2,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { Observable, Subscription, map, shareReplay, take } from 'rxjs';
+import { Observable, Subscription, filter, map, shareReplay, take } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { JwtUser } from '../../../../public/login/models/jwt';
 import { AuthService } from '../../../../services/auth.service';
@@ -11,6 +11,9 @@ import { DailyQuote } from '../../../../shared/models/daily-quote';
 import { UserResponse } from '../../../users/models/user.model';
 import { UserService } from '../../../users/services/user.service';
 import { UserComponent } from '../../../users/user/user.component';
+import { OfficeResponse } from '../../../organizations/models/office.model';
+import { OfficeService } from '../../../organizations/services/office.service';
+import { GlobalOfficeSelectionService } from '../../../organizations/services/global-office-selection.service';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -28,11 +31,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall).pipe( map(result => result.matches), shareReplay() );
   isMobile: boolean = false;
   isSidebarExpanded = true;
+  offices: OfficeResponse[] = [];
+  selectedGlobalOfficeId: number | null = null;
   
   // Profile picture properties
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
   private sidebarSubscription?: Subscription;
+  private officesSubscription?: Subscription;
 
   constructor(
     private authService: AuthService,
@@ -40,6 +46,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private breakpointObserver: BreakpointObserver,
     private dialog: MatDialog,
     private userService: UserService,
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private sidebarStateService: SidebarStateService
   ) { }
   
@@ -49,11 +57,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.sidebarSubscription = this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
       this.isSidebarExpanded = isExpanded;
     });
+    this.loadGlobalOfficeOptions();
   }
   
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
     this.sidebarSubscription?.unsubscribe();
+    this.officesSubscription?.unsubscribe();
   }
   
   loadUserProfilePicture(): void {
@@ -113,5 +123,32 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.sidebarStateService.requestToggle();
+  }
+
+  onGlobalOfficeSelect(officeId: number | null): void {
+    this.selectedGlobalOfficeId = officeId;
+    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+  }
+
+  stopMenuPropagation(event: Event): void {
+    event.stopPropagation();
+  }
+
+  getSelectedOfficeName(): string {
+    if (this.selectedGlobalOfficeId === null) {
+      return 'All Offices';
+    }
+
+    return this.offices.find(office => office.officeId === this.selectedGlobalOfficeId)?.name || 'All Offices';
+  }
+
+  private loadGlobalOfficeOptions(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription?.unsubscribe();
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = (allOffices || []).filter(office => office.isActive);
+        this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices);
+      });
+    });
   }
 }

@@ -41,17 +41,36 @@
         </button>
   
         <mat-menu #menu="matMenu" xPosition="after" class="header-mat-menu">
-          <div class="w-full px-4 pt-2">
-            <p class="text-sm mb-0 text-end">Logged in as:</p>
-            <button mat-button class="w-full text-end p-0 min-w-0 h-auto" (click)="openUserDialog(); menuTrigger.closeMenu()" style="text-transform: none;">
-              <div class="w-full text-end">
-                <div class="text-xs font-normal">{{ user?.firstName + ' ' + user?.lastName }}</div>
-                <div class="text-xs font-normal text-blue-600 mb-1">{{ user?.email }}</div>
+          <div class="account-menu" (click)="stopMenuPropagation($event)">
+            <div class="account-title">
+              Logged in as:
+            </div>
+
+            <div class="account-details">
+              <div class="account-pair">
+                <div class="account-name" (click)="openUserDialog(); menuTrigger.closeMenu()">{{ user?.firstName + ' ' + user?.lastName }}</div>
+                <div class="email" (click)="openUserDialog(); menuTrigger.closeMenu()">{{ user?.email }}</div>
               </div>
-            </button>
+
+              <div class="account-pair office-pair">
+                <div class="office-label">Working Office</div>
+                <div class="office-value" [matMenuTriggerFor]="officeSelectionMenu">{{ getSelectedOfficeName() }}</div>
+              </div>
+            </div>
           </div>
-  
+
           <mat-divider></mat-divider>
+
+          <mat-menu #officeSelectionMenu="matMenu" xPosition="before">
+            <button mat-menu-item (click)="onGlobalOfficeSelect(null)">
+              All Offices
+            </button>
+            @for (office of offices; track office.officeId) {
+              <button mat-menu-item (click)="onGlobalOfficeSelect(office.officeId)">
+                {{ office.name }}
+              </button>
+            }
+          </mat-menu>
   
           <button mat-menu-item (click)="logout()" id="logout-button">
             <mat-icon class="rotate-180">logout</mat-icon>

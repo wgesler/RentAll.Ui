@@ -110,3 +110,73 @@
     border: 2px solid rgba(255, 255, 255, 0.5);
     flex-shrink: 0;
 }
+
+.account-menu {
+  padding: 12px 16px;
+  box-sizing: border-box;
+  min-width: 280px;
+  max-width: 320px;
+  overflow-x: hidden;
+}
+
+.account-title {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: right;
+  padding-right: 0;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #222;
+}
+
+.account-details {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: right;
+  padding-right: 14px;
+}
+
+.account-pair {
+  margin: 0;
+}
+
+.account-pair > div {
+  margin: 1px 0;
+  line-height: 1.25;
+}
+
+.office-pair {
+  margin-top: 10px;
+}
+
+.account-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+  cursor: pointer;
+}
+
+.email {
+  font-size: 13px;
+  color: #2563eb;
+  cursor: pointer;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.office-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+}
+
+.office-value {
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

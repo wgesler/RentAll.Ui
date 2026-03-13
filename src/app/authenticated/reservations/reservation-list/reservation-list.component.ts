@@ -10,6 +10,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -69,7 +70,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private propertyService: PropertyService,
     private utilityService: UtilityService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
   }
 
   //#region Reservation List
@@ -98,7 +100,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOffice = null;
             this.applyFilters();
           }
         }
@@ -222,15 +223,19 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
           this.showOfficeDropdown = true;
         }
         
+        const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
         if (this.officeId !== null && this.officeId !== undefined) {
           const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
           if (matchingOffice !== this.selectedOffice) {
             this.selectedOffice = matchingOffice;
-            if (this.selectedOffice) {
-              this.applyFilters();
-            } else {
-              this.applyFilters();
-            }
+            this.applyFilters();
+          }
+        } else if (globalOfficeId !== null) {
+          const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+          if (globalOffice && globalOffice !== this.selectedOffice) {
+            this.selectedOffice = globalOffice;
+            this.officeIdChange.emit(globalOffice.officeId);
+            this.applyFilters();
           }
         } else if (this.selectedOffice && this.offices.length === 1) {
           this.applyFilters();

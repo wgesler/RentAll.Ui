@@ -13,6 +13,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -61,6 +62,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     public userService: UserService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private authService: AuthService,
     public toastr: ToastrService,
     public router: Router,
@@ -196,6 +198,10 @@ export class UserListComponent implements OnInit, OnDestroy {
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
+          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          if (globalOfficeId !== null) {
+            this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+          }
         }
 
         this.applyFilters();

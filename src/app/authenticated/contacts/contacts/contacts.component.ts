@@ -6,6 +6,7 @@ import { Subject, Subscription, filter, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { ContactListComponent } from '../contact-list/contact-list.component';
@@ -45,6 +46,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private contactService: ContactService
   ) { }
 
@@ -148,6 +150,15 @@ export class ContactsComponent implements OnInit, OnDestroy {
         if (!this.selectedOffice && this.offices.length === 1) {
           this.selectedOffice = this.offices[0];
           this.selectedOfficeId = this.offices[0].officeId;
+        } else if (!this.selectedOffice) {
+          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          if (globalOfficeId !== null) {
+            const globalOffice = this.offices.find(office => office.officeId === globalOfficeId) || null;
+            if (globalOffice) {
+              this.selectedOffice = globalOffice;
+              this.selectedOfficeId = globalOffice.officeId;
+            }
+          }
         }
       });
     });

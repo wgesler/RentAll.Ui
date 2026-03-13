@@ -12,6 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatus } from '../../properties/models/property-enums';
 import { PropertyListDisplay } from '../../properties/models/property.model';
@@ -63,12 +64,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     authService: AuthService,
     officeService: OfficeService,
+    globalOfficeSelectionService: GlobalOfficeSelectionService,
     route: ActivatedRoute,
     utilityService: UtilityService,
     ngZone: NgZone
   ) {
     this.authService = authService;
     this.officeService = officeService;
+    this.globalOfficeSelectionService = globalOfficeSelectionService;
     this.route = route;
     this.utilityService = utilityService;
     this.ngZone = ngZone;
@@ -76,6 +79,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   authService: AuthService;
   officeService: OfficeService;
+  globalOfficeSelectionService: GlobalOfficeSelectionService;
   route: ActivatedRoute;
   utilityService: UtilityService;
   ngZone: NgZone;
@@ -106,7 +110,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOffice = null;
             this.applyFilters();
           }
         }
@@ -200,10 +203,18 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           this.showOfficeDropdown = true;
         }
         
+        const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
         if (this.officeId !== null && this.officeId !== undefined) {
           const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
           if (matchingOffice !== this.selectedOffice) {
             this.selectedOffice = matchingOffice;
+            this.applyFilters();
+          }
+        } else if (globalOfficeId !== null) {
+          const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+          if (globalOffice && globalOffice !== this.selectedOffice) {
+            this.selectedOffice = globalOffice;
+            this.officeIdChange.emit(globalOffice.officeId);
             this.applyFilters();
           }
         } else if (this.selectedOffice && this.offices.length === 1) {

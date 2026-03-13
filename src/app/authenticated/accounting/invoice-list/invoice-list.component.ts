@@ -16,6 +16,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -148,6 +149,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
@@ -821,13 +823,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           return;
         }
         
-        // For Accounting tab, keep default as All Offices.
-        // Only auto-select single office for non-accounting contexts.
+        // Preserve single-office behavior; otherwise default from global office context.
         if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'accounting') {
           this.selectedOffice = this.offices[0];
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
+          if (this.officeId === null || this.officeId === undefined) {
+            const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            if (globalOfficeId !== null) {
+              this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+            }
+          }
         }
         
         // Set selectedOffice from input

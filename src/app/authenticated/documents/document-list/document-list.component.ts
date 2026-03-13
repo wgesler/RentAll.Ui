@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListDisplay } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -106,6 +107,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     private mappingService: MappingService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
     private route: ActivatedRoute,
@@ -474,6 +476,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           if (this.officeId !== null && this.officeId !== undefined) {
             this.selectedOfficeId = this.officeId;
           } else {
+            this.selectedOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          }
+
+          if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
             this.selectedOfficeId = null;
           }
           
@@ -518,7 +524,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOfficeId = null;
             this.applyFilters();
           }
         }
