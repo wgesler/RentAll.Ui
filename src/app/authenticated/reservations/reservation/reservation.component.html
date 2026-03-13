@@ -222,7 +222,7 @@
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Contact Name</mat-label>
                 <mat-select formControlName="contactId" required>
-                  <mat-option value="">Select Contact</mat-option>
+                  <mat-option [value]="newContactOptionValue">New Contact</mat-option>
                   @for (contact of filteredContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">
                       {{ contact.firstName }} {{ contact.lastName }}

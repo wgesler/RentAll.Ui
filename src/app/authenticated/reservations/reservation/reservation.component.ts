@@ -19,6 +19,7 @@ import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
@@ -120,6 +121,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     email: 3,
     documents: 4
   };
+  readonly newContactOptionValue = '__new_contact__';
 
   constructor(
     public reservationService: ReservationService,
@@ -420,7 +422,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       companyName: new FormControl({ value: '', disabled: true }), // Display selected contact company name
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
-      reservationNoticeId: new FormControl(null, [Validators.required]),
+      reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required]),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
@@ -576,7 +578,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   setupContactSelectionHandler(): void {
     this.form.get('contactId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactId => {
-      this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) : null;
+      if (contactId === this.newContactOptionValue) {
+        this.form.patchValue({ contactId: '' }, { emitEvent: false });
+        this.openNewContactDialog();
+        return;
+      }
+
+      this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
       this.updateContactFields();
     });
   }
@@ -796,8 +804,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
   updateContactFields(): void {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     if (reservationTypeId === ReservationType.Owner) {
-      this.selectedContact = this.contacts.find(c => c.contactId === this.selectedProperty?.owner1Id) || null;;
-      this.form.patchValue({ contactId: this.selectedContact.contactId }, { emitEvent: false });
+      this.selectedContact = this.contacts.find(c => c.contactId === this.selectedProperty?.owner1Id) || null;
+      this.form.patchValue({ contactId: this.selectedContact?.contactId || '' }, { emitEvent: false });
+    }
+
+    if (!this.selectedContact) {
+      this.form.patchValue({
+        companyName: '',
+        phone: '',
+        email: ''
+      }, { emitEvent: false });
+      return;
     }
 
     const selectedContactFullName = (this.selectedContact.fullName || '').trim() ||
@@ -827,6 +844,68 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
     }
  }
+
+  openNewContactDialog(): void {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    let entityTypeId: number | null = null;
+
+    if (reservationTypeId === ReservationType.Individual) {
+      entityTypeId = EntityType.Tenant;
+    } else if (reservationTypeId === ReservationType.Corporate) {
+      entityTypeId = EntityType.Company;
+    } else if (reservationTypeId === ReservationType.Owner) {
+      entityTypeId = EntityType.Owner;
+    }
+
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.entityTypeId = entityTypeId;
+    dialogRef.componentInstance.compactDialogMode = true;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+        next: () => {
+          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+            this.contacts = contacts || [];
+            let targetReservationTypeId: number | null = null;
+            if (result.entityTypeId === EntityType.Tenant) {
+              targetReservationTypeId = ReservationType.Individual;
+            } else if (result.entityTypeId === EntityType.Company) {
+              targetReservationTypeId = ReservationType.Corporate;
+            }
+
+            if (targetReservationTypeId !== null) {
+              this.form.patchValue({ reservationTypeId: targetReservationTypeId }, { emitEvent: false });
+              this.updateReservationStatusesByReservationType();
+              this.updateContactsByReservationType();
+              this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
+              this.updateEnabledFieldsByReservationType();
+            } else {
+              this.updateContactsByReservationType();
+            }
+
+            this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
+            this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
+            this.updateContactFields();
+          });
+        },
+        error: () => {}
+      });
+    });
+  }
 
   updateDepositValues(): void {
     if (!this.selectedOffice) {

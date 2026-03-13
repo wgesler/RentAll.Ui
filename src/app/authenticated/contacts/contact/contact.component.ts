@@ -34,7 +34,8 @@ export class ContactComponent implements OnInit, OnDestroy {
   @Input() id: string = 'new';
   @Input() copyFrom: string | null = null;
   @Input() entityTypeId: number | null = null;
-  @Output() closed = new EventEmitter<{ saved?: boolean }>();
+  @Input() compactDialogMode: boolean = false;
+  @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
 
   isServiceError: boolean = false;
   contactId: string;
@@ -227,17 +228,17 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: strippedPhone ? strippedPhone : null,
-      notes: formValue.notes || undefined,
+      notes: this.compactDialogMode ? (null as unknown as string) : (formValue.notes || undefined),
       markup: this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
       companyId: undefined,
       isInternational: isInternational,
-      w9Path: this.hasNewW9Upload ? undefined : this.w9Path,
-      w9FileDetails: this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined,
-      w9Expiration: (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.w9Expiration),
-      insurancePath: this.hasNewInsuranceUpload ? undefined : this.insurancePath,
-      insuranceFileDetails: this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined,
-      insuranceExpiration: (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.insuranceExpiration)
+      w9Path: this.compactDialogMode ? null : (this.hasNewW9Upload ? undefined : this.w9Path),
+      w9FileDetails: this.compactDialogMode ? null : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
+      w9Expiration: this.compactDialogMode ? null : (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.w9Expiration),
+      insurancePath: this.compactDialogMode ? null : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
+      insuranceFileDetails: this.compactDialogMode ? null : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
+      insuranceExpiration: this.compactDialogMode ? null : (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.insuranceExpiration)
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -255,20 +256,22 @@ export class ContactComponent implements OnInit, OnDestroy {
       : this.contactService.updateContact(contactRequest);
 
     save$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-      next: () => {
+      next: (savedContact: ContactResponse) => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        const savedContactId = savedContact?.contactId || contactRequest.contactId;
+        const savedEntityTypeId = savedContact?.entityTypeId ?? contactRequest.entityTypeId;
 
         this.contactService.loadAllContacts().pipe(take(1)).subscribe({
           next: () => {
             if (this.isEmbedded) {
-              this.closed.emit({ saved: true });
+              this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
             } else {
               this.router.navigate([RouterUrl.ContactList]);
             }
           },
           error: () => {
-            if (this.isEmbedded) this.closed.emit({ saved: true });
+            if (this.isEmbedded) this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
             else this.router.navigate([RouterUrl.ContactList]);
           }
         });
