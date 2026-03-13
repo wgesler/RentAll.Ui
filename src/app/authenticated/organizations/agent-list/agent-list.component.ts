@@ -36,7 +36,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
     'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents']));

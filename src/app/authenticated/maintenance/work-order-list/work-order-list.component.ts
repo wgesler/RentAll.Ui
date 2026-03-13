@@ -40,7 +40,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch' },
+    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, maxWidth: '15ch'}
   };

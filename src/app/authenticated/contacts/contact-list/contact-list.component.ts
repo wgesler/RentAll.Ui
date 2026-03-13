@@ -54,7 +54,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone' , maxWidth: '20ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, maxWidth: '10ch', alignment: 'center' }
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   private readonly columnsWithCompany: ColumnSet = {
@@ -64,7 +64,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch'  },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, maxWidth: '10ch', alignment: 'center' }
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   get contactsDisplayedColumns(): ColumnSet {

@@ -89,12 +89,13 @@
             [style.width]="column.maxWidth"
             [style.min-width]="column.maxWidth"
             [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
-            [style.text-align]="column.alignment === 'center' ? 'center' : (column.alignment === 'right' ? 'right' : 'left')"
+            [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
-                'align-center': column.alignment === 'center', 'align-right': column.alignment === 'right',
-                '!text-left': column.alignment === 'left', '!text-justify': column.alignment === 'justify',
-                '!text-center': column.alignment === 'center', '!text-right': column.alignment === 'right',
+                'align-center': getColumnAlignment(column) === 'center', 'align-right': getColumnAlignment(column) === 'right',
+                '!text-left': getColumnAlignment(column) === 'left', '!text-justify': getColumnAlignment(column) === 'justify',
+                '!text-center': getColumnAlignment(column) === 'center', '!text-right': getColumnAlignment(column) === 'right',
+                'datatable-checkbox-td': column.isCheckbox,
                 }"
             appMatTooltipShowIfTruncated [matTooltip]="item[column.name]?.value">
 
@@ -248,9 +249,11 @@
                       <span [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'">{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
                     }
                   } @else if (column.isCheckbox) {
-                    <mat-checkbox [checked]="item[column.name]"
-                      [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
-                      disabled/>
+                    <div class="datatable-checkbox-cell">
+                      <mat-checkbox [checked]="item[column.name]"
+                        [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
+                        disabled/>
+                    </div>
                   } @else if (column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
                       <mat-select [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
@@ -271,7 +274,7 @@
                         {{item[column.name + 'ButtonText'] ?? column?.buttonText}}
                       </button>
                     } @else {
-                      @if (column.alignment === 'center') {
+                      @if (getColumnAlignment(column) === 'center') {
                         <span class="datatable-cell-center">{{item[column.name] ?? ''}}</span>
                       } @else {
                         @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
@@ -297,15 +300,15 @@
                   [style.white-space]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'nowrap' : null"
                   [style.text-overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'clip' : null"
                   [style.overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'visible' : null"
-                  [attr.data-text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
-                  [style.text-align]="(column.alignment === 'right' || !column.alignment) ? 'right' : (column.alignment === 'center' ? 'center' : (column.alignment === 'justify' ? 'justify' : 'left'))"
+                  [attr.data-text-align]="(getFooterAlignment(column) === 'right') ? 'right' : (getFooterAlignment(column) === 'center' ? 'center' : (getFooterAlignment(column) === 'justify' ? 'justify' : 'left'))"
+                  [style.text-align]="(getFooterAlignment(column) === 'right') ? 'right' : (getFooterAlignment(column) === 'center' ? 'center' : (getFooterAlignment(column) === 'justify' ? 'justify' : 'left'))"
                     [ngClass]="{
                         'no-wrap': !column.wrap || (totalsRow && data.length > 0 && totalsRow[column.name]),
                         'datatable-truncated': !!column.maxWidth && !(totalsRow && data.length > 0 && totalsRow[column.name]),
-                        '!text-left': column.alignment === 'left',
-                        '!text-justify': column.alignment === 'justify',
-                        '!text-center': column.alignment === 'center',
-                        '!text-right': column.alignment === 'right' || !column.alignment
+                        '!text-left': getFooterAlignment(column) === 'left',
+                        '!text-justify': getFooterAlignment(column) === 'justify',
+                        '!text-center': getFooterAlignment(column) === 'center',
+                        '!text-right': getFooterAlignment(column) === 'right'
                     }">
                   @if (totalsRow && data.length > 0) {
                     @if (column.name === 'expand') {

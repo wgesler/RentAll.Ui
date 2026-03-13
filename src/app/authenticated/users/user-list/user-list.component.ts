@@ -51,7 +51,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     'phone': { displayAs: 'Phone', maxWidth: '18ch' },
     'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '40ch'},
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, maxWidth: '15ch', sort: false, wrap: false, alignment: 'left' }
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices']));

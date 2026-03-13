@@ -85,7 +85,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
+    'createdOn': { displayAs: 'Created', maxWidth: '25ch', alignment: 'center' },
   };
 
   tabColumns: ColumnSet = {
@@ -94,7 +94,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '18ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '25ch'},
+    'createdOn': { displayAs: 'Created', maxWidth: '25ch', alignment: 'center' },
   };
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());

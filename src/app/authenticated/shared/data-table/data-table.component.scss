@@ -208,7 +208,8 @@ th.mat-mdc-header-cell {
   font-weight: 600;
   color: black;
   padding: 0 10px;
-  word-break: break-word !important;
+  word-break: normal !important;
+  white-space: nowrap !important;
   max-width:175px;
   
 }
@@ -218,9 +219,38 @@ th.mat-mdc-header-cell {
   justify-content: flex-end !important;
 }
 
+th.mat-header-cell[data-alignment="center"],
+th.mat-mdc-header-cell[data-alignment="center"] {
+  text-align: center !important;
+}
+
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-container,
-:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-container {
-  justify-content: center !important;
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-container,
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-container,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-container {
+  display: grid !important;
+  grid-template-columns: 18px 1fr 18px !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-content,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-content,
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-content,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-content {
+  grid-column: 2 !important;
+  justify-self: center !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-arrow,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-arrow,
+:host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-arrow,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-arrow {
+  grid-column: 3 !important;
+  justify-self: end !important;
+  position: static !important;
 }
 
 :host ::ng-deep th.mat-header-cell[data-alignment="left"] .mat-sort-header-container,
@@ -266,17 +296,6 @@ td.mat-mdc-cell p {
   display: flex;
   align-items: center;
   margin-bottom: 0;
-}
-
-:host ::ng-deep td.mat-cell .mat-mdc-checkbox-touch-target,
-:host ::ng-deep td.mat-mdc-cell .mat-mdc-checkbox-touch-target {
-  width: 32px !important;
-  height: 32px !important;
-}
-
-:host ::ng-deep td.mat-cell .mat-mdc-checkbox .mdc-checkbox,
-:host ::ng-deep td.mat-mdc-cell .mat-mdc-checkbox .mdc-checkbox {
-  padding: 4px !important;
 }
 
 td.mat-cell button,
@@ -336,6 +355,24 @@ td.mat-mdc-cell.align-center {
   display: block !important;
   text-align: center !important;
   width: 100% !important;
+}
+
+.datatable-checkbox-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100%;
+  height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+td.mat-cell.datatable-checkbox-td,
+td.mat-mdc-cell.datatable-checkbox-td {
+  padding: 0 10px !important;
+  vertical-align: middle !important;
+  text-align: center !important;
 }
 
 // Rating stars column: larger font and centered (so it applies on every load, not just when parent has scoped styles)

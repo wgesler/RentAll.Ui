@@ -139,8 +139,29 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   tableColumns: ColumnData[] = [];
   
+  isDateColumn(column: ColumnData): boolean {
+    const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
+    // Common date/time naming patterns used across list views.
+    return /(date|arrival|departure|check[\s-]?in|check[\s-]?out|start|end|from|until|due|created|updated|expires|expiration|dob|birth)/.test(target);
+  }
+
+  getColumnAlignment(column: ColumnData): string {
+    if (column.alignment) {
+      return column.alignment;
+    }
+    return this.isDateColumn(column) ? 'center' : 'left';
+  }
+
   getHeaderAlignment(column: ColumnData): string {
-    return column.headerAlignment || column.alignment || 'left';
+    return column.headerAlignment || this.getColumnAlignment(column);
+  }
+
+  getFooterAlignment(column: ColumnData): string {
+    if (column.alignment) {
+      return column.alignment;
+    }
+    // Keep previous footer behavior (default right), except date columns should center.
+    return this.isDateColumn(column) ? 'center' : 'right';
   }
 
   getColumnByName(colName: string): ColumnData | undefined {
@@ -155,7 +176,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     const lastColumn = this.tableColumns.find(col => col.name === lastColumnName);
     if (!lastColumn) return false;
     
-    const alignment = lastColumn.headerAlignment || lastColumn.alignment || 'left';
+    const alignment = lastColumn.headerAlignment || this.getColumnAlignment(lastColumn);
     return alignment === 'right';
   }
   

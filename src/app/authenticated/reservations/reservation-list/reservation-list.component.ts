@@ -52,9 +52,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
-    'arrivalDate': { displayAs: 'Arrival', maxWidth: '15ch' },
-    'departureDate': { displayAs: 'Departure', maxWidth: '15ch' },
-    'hasCredit': { displayAs: 'Has Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    'arrivalDate': { displayAs: 'Arrival', maxWidth: '16ch', alignment: 'center'},
+    'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
+    'hasCredit': { displayAs: 'Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 

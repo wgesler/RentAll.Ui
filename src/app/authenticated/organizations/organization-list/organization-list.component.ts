@@ -37,7 +37,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     'zip': { displayAs: 'Zip' },
     'phone': { displayAs: 'Phone' },
     'website': { displayAs: 'Website' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));

@@ -48,7 +48,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch' },
     description: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch' },
+    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
     isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
   };

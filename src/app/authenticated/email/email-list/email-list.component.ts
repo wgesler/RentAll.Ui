@@ -68,8 +68,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     subject: { displayAs: 'Subject', maxWidth: '25ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
-    attachmentPath: { displayAs: 'Attachment', maxWidth: '15ch', sort: false, alignment: 'center' },
-    createdOn: { displayAs: 'Sent', maxWidth: '24ch' }
+    attachmentPath: { displayAs: 'Attachment', maxWidth: '20ch', sort: false, alignment: 'center' },
+    createdOn: { displayAs: 'Sent', maxWidth: '24ch', alignment: 'center' }
   };
 
   constructor(
