@@ -513,6 +513,7 @@ export class MappingService {
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
+        reservationTypeId: o.reservationTypeId,
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
         officeId: o.officeId,

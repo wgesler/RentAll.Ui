@@ -662,9 +662,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   getBoardDisplayName(reservation: ReservationListResponse): string {
     const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
     const shortCompanyName = contact?.displayName || this.utilityService.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
-    const contacName = reservation.contactName ?? contact.firstName + ' ' + contact.lastName;
+    const contacName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
 
-    if (reservation.reservationTypeId === ReservationType.Corporate) {
+    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact.entityTypeId === EntityType.Company);
+    if (isCorporate) {
       return [shortCompanyName, reservation.tenantName].filter(Boolean).join(' ');
     }
 
