@@ -43,6 +43,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
 
+  /** Cache for getReservationDisplayText so template always shows the same computed value (EOM/SOM name logic). */
+  private displayTextCache = new Map<string, string>();
+
   startDate: Date = null;
   endDate: Date = null;
 
@@ -154,6 +157,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         this.reservations = reservations.filter(r => r.isActive);
+        this.displayTextCache.clear();
         // Load properties after reservations are loaded so we can use reservation monthly rates
         this.loadProperties();
       },
@@ -201,6 +205,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     this.calendarDays = days;
+    this.displayTextCache.clear();
   }
 
   formatCurrency(amount: number): string {
@@ -393,6 +398,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
+  /**
+   * Single month: EOM/SOM/available per user formula.
+   * EOM = last day of month - 1 (or -2 if last day is Departure).
+   * SOM = 1 if first day visible and not arrival; 3 if day 1 is Arrival; arrival+2 if arrival in middle; or board first day if partial month.
+   * Available = EOM - SOM (number of character slots from SOM through EOM).
+   * Rules: name length <= available -> center with equal blanks; name length > available -> last character at EOM, print backwards.
+   */
   getCharactersForMonth(fullName: string, date: Date, arrivalDate?: Date | null, departureDate?: Date | null): string {
     const requestedDate = new Date(date);
     const year = requestedDate.getFullYear();
@@ -410,33 +422,28 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     arrDate?.setHours(0, 0, 0, 0);
     depDate?.setHours(0, 0, 0, 0);
 
-    // EOM: last day of month we may use. Never use the last day; if that day is Departure, don't use the last 2 days.
-    const isDepartureOnLastDay = depDate &&
-      depDate.getFullYear() === year &&
-      depDate.getMonth() === month &&
-      depDate.getDate() === lastDayOfMonth;
+    // EOM: last day of month we may use. Never use the last day; if last day is Departure, EOM = last day - 2.
+    const isDepartureOnLastDay = depDate && depDate.getFullYear() === year && depDate.getMonth() === month && depDate.getDate() === lastDayOfMonth;
     const EOM = isDepartureOnLastDay ? lastDayOfMonth - 2 : lastDayOfMonth - 1;
 
-    // SOM: first day of month we may use. If day 1 isn't visible (partial first month), use board's first day. If arrival is in this month, skip arrival day and the next (SOM = arrivalDay + 2).
-    const isFirstMonthOnBoard = this.startDate &&
-      this.startDate.getFullYear() === year &&
-      this.startDate.getMonth() === month;
+    // SOM: When arrival is in this month, use arrival+2 first (so arrival day shows A). Else if partial first month use board first day. Else if day 1 is Arrival then 3, else 1.
+    const isFirstMonthOnBoard = this.startDate && this.startDate.getFullYear() === year && this.startDate.getMonth() === month;
     const firstDayVisible = this.startDate?.getDate() ?? 1;
     const isPartialFirstMonth = isFirstMonthOnBoard && firstDayVisible > 1;
-    const isArrivalInThisMonth = arrDate &&
-      arrDate.getFullYear() === year &&
-      arrDate.getMonth() === month;
+    const isArrivalInThisMonth = arrDate && arrDate.getFullYear() === year && arrDate.getMonth() === month;
+    const arrivalDay = isArrivalInThisMonth ? arrDate!.getDate() : 0;
 
     let SOM: number;
-    if (isPartialFirstMonth) {
+    if (isArrivalInThisMonth && arrivalDay === 1) {
+      SOM = 3;
+    } else if (isArrivalInThisMonth && arrivalDay > 1) {
+      SOM = arrivalDay + 2;
+    } else if (isPartialFirstMonth) {
       SOM = firstDayVisible;
-    } else if (isArrivalInThisMonth) {
-      SOM = (arrDate!.getDate()) + 2; // skip arrival day and the day after
     } else {
       SOM = 1;
     }
 
-    // Available character slots from day SOM through day EOM (inclusive)
     const availableSpaces = Math.max(0, EOM - SOM + 1);
 
     let content: string;
@@ -459,74 +466,152 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return prefix + content + suffix;
   }
 
-  getCharactersForReservation(fullName: string, reservationDays: number): string {
+  getCharactersForReservation(fullName: string, availableSpaces: number): string {
     const normalizedName = (fullName || '').toUpperCase();
-    if (reservationDays <= 0) {
+    if (availableSpaces <= 0) {
       return '';
     }
 
     if (!normalizedName) {
-      return ' '.repeat(reservationDays);
+      return ' '.repeat(availableSpaces);
     }
 
-    if (normalizedName.length >= reservationDays) {
-      return normalizedName.slice(0, reservationDays);
+    if (normalizedName.length > availableSpaces) {
+      // Last character at end of span, work backward (use last availableSpaces chars)
+      return normalizedName.slice(-availableSpaces);
     }
 
-    const availableForBlanks = reservationDays - normalizedName.length;
+    const availableForBlanks = availableSpaces - normalizedName.length;
     const leadingBlanks = Math.floor(availableForBlanks / 2);
     const trailingBlanks = availableForBlanks - leadingBlanks;
     return ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
   }
 
+  /**
+   * Use two-month span only when we have two consecutive PARTIAL months (month before departure + departure month).
+   * First month partial = board starts in that month after day 1, or arrival is in that month.
+   * Second month partial = departure is before the last day of the month.
+   * If either month is full, treat each month independently (single-month logic per month).
+   */
   shouldCenterAcrossReservation(arrival: Date, departure: Date): boolean {
     const startMonthIndex = arrival.getFullYear() * 12 + arrival.getMonth();
     const endMonthIndex = departure.getFullYear() * 12 + departure.getMonth();
-    const consecutiveMonths = endMonthIndex - startMonthIndex === 1;
-
-    if (!consecutiveMonths) {
+    if (endMonthIndex - startMonthIndex < 1) {
       return false;
     }
 
-    const startsMidMonth = arrival.getDate() > 1;
-    const endMonthLastDay = new Date(departure.getFullYear(), departure.getMonth() + 1, 0).getDate();
-    const endsMidMonth = departure.getDate() < endMonthLastDay;
+    const y2 = departure.getFullYear();
+    const m2 = departure.getMonth();
+    const y1 = m2 === 0 ? y2 - 1 : y2;
+    const m1 = m2 === 0 ? 11 : m2 - 1;
+    const lastDay2 = new Date(y2, m2 + 1, 0).getDate();
+    const depDay = departure.getDate();
 
-    return startsMidMonth && endsMidMonth;
+    const firstMonthPartial = (this.startDate &&
+      this.startDate.getFullYear() === y1 &&
+      this.startDate.getMonth() === m1 &&
+      (this.startDate.getDate() ?? 1) > 1) ||
+      (arrival.getFullYear() === y1 && arrival.getMonth() === m1);
+    const secondMonthPartial = depDay < lastDay2;
+
+    return firstMonthPartial && secondMonthPartial;
+  }
+
+  /**
+   * Two consecutive partial months = last two months of the reservation (month before departure + departure month).
+   * First month can be partial because the board starts mid-month (viewable space); second because reservation ends mid-month.
+   * SOM (month 1): board first day if board starts in that month; else arrival+2 if arrival in that month; else 1.
+   * EOM (month 2) = Departure - 2. EOM1 = last day of month 1 - 1.
+   */
+  getTwoMonthSpanAvailable(arrival: Date, departure: Date): { totalAvailable: number; getCharIndex: (d: Date) => number } {
+    const y2 = departure.getFullYear();
+    const m2 = departure.getMonth();
+    // First month of the span = month before departure
+    const y1 = m2 === 0 ? y2 - 1 : y2;
+    const m1 = m2 === 0 ? 11 : m2 - 1;
+
+    const lastDay1 = new Date(y1, m1 + 1, 0).getDate();
+    const lastDay2 = new Date(y2, m2 + 1, 0).getDate();
+    const depDay = departure.getDate();
+
+    // SOM for first month: when arrival is in this month, use arrival+2 so we skip arrival day (show A) and the day after; else if board starts here (partial view), use board first day; else 1
+    const isBoardFirstMonth = this.startDate &&
+      this.startDate.getFullYear() === y1 &&
+      this.startDate.getMonth() === m1 &&
+      (this.startDate.getDate() ?? 1) > 1;
+    const firstDayVisible = this.startDate?.getDate() ?? 1;
+    const arrivalInFirstMonth = arrival.getFullYear() === y1 && arrival.getMonth() === m1;
+
+    let SOM: number;
+    if (arrivalInFirstMonth) {
+      SOM = arrival.getDate() + 2;
+    } else if (isBoardFirstMonth) {
+      SOM = firstDayVisible;
+    } else {
+      SOM = 1;
+    }
+
+    // When spanning 2 partial months, the last day of the first month gets a character (not blank)
+    const EOM1 = lastDay1;
+    // Second month: full month (departure on last day) -> EOM2 = last day - 1; partial -> EOM2 = depDay - 2
+    const isFullSecondMonth = depDay === lastDay2;
+    const EOM2 = isFullSecondMonth ? lastDay2 - 1 : Math.max(0, depDay - 2);
+
+    const available1 = Math.max(0, EOM1 - SOM + 1);
+    const available2 = EOM2;
+    const totalAvailable = available1 + available2;
+
+    const getCharIndex = (d: Date): number => {
+      const yd = d.getFullYear();
+      const md = d.getMonth();
+      const day = d.getDate();
+      if (yd === y1 && md === m1) {
+        if (day >= SOM && day <= EOM1) return day - SOM;
+        return -1;
+      }
+      if (yd === y2 && md === m2) {
+        if (day >= 1 && day <= EOM2) return available1 + (day - 1);
+        return -1;
+      }
+      return -1;
+    };
+
+    return { totalAvailable, getCharIndex };
   }
 
   getReservationDisplayText(reservation: ReservationListResponse | null, date: Date): string {
     if (!reservation) {
       return '';
     }
-
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
-    
     const arrival = new Date(reservation.arrivalDate);
     arrival.setHours(0, 0, 0, 0);
     const departure = new Date(reservation.departureDate);
     departure.setHours(0, 0, 0, 0);
 
+    // Arrival day always shows A and departure day always shows D, regardless of status (including OwnerBlocked and Maintenance)
     if (compareDate.getTime() === arrival.getTime()) {
       return 'A';
     }
-    
     if (compareDate.getTime() === departure.getTime()) {
       return 'D';
     }
-    
+
+    const cacheKey = `${reservation.reservationId}-${compareDate.getTime()}`;
+    const cached = this.displayTextCache.get(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    let result: string;
+
     // For OwnerBlocked status, show "O" instead of "R"
     if (reservation.reservationStatusId === ReservationStatus.OwnerBlocked) {
-      return 'O';
-    }
-    
-    // For Maintenance status, show "M" instead of "R"
-    if (reservation.reservationStatusId === ReservationStatus.Maintenance) {
-      return 'M';
-    }
-    
-    if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
+      result = 'O';
+    } else if (reservation.reservationStatusId === ReservationStatus.Maintenance) {
+      result = 'M';
+    } else if (reservation.reservationStatusId === ReservationStatus.PreBooking ||
         reservation.reservationStatusId === ReservationStatus.Confirmed ||
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
@@ -535,20 +620,43 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       const reservationDays = Math.floor((departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       if (reservationDays > 0 && this.shouldCenterAcrossReservation(arrival, departure)) {
-        const reservationChars = this.getCharactersForReservation(fullName, reservationDays);
-        const dayOffset = Math.floor((compareDate.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayOffset >= 0 && dayOffset < reservationChars.length) {
-          return reservationChars[dayOffset];
+        if (compareDate.getTime() === arrival.getTime()) {
+          result = 'A';
+        } else if (compareDate.getTime() === departure.getTime()) {
+          result = 'D';
+        } else {
+          const { totalAvailable, getCharIndex } = this.getTwoMonthSpanAvailable(arrival, departure);
+          const reservationChars = this.getCharactersForReservation(fullName, totalAvailable);
+          const idx = getCharIndex(compareDate);
+          if (idx >= 0 && idx < reservationChars.length) {
+            result = reservationChars[idx];
+          } else {
+            result = ' ';
+          }
         }
-        return ' ';
+      } else {
+        if (compareDate.getTime() === arrival.getTime()) {
+          result = 'A';
+        } else if (compareDate.getTime() === departure.getTime()) {
+          result = 'D';
+        } else {
+          const monthChars = this.getCharactersForMonth(fullName, date, arrival, departure);
+          const day = date.getDate();
+          result = monthChars[day - 1] ?? ' ';
+        }
       }
-
-      const monthChars = this.getCharactersForMonth(fullName, date, arrival, departure);
-      const day = date.getDate();
-      return monthChars[day - 1];
+    } else {
+      if (compareDate.getTime() === arrival.getTime()) {
+        result = 'A';
+      } else if (compareDate.getTime() === departure.getTime()) {
+        result = 'D';
+      } else {
+        result = 'R';
+      }
     }
-    
-    return 'R';
+
+    this.displayTextCache.set(cacheKey, result);
+    return result;
   }
 
   getBoardDisplayName(reservation: ReservationListResponse): string {
