@@ -393,26 +393,64 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
-  getCharactersForMonth(fullName: string, date: Date): string {
+  getCharactersForMonth(fullName: string, date: Date, departureDate?: Date | null): string {
     const requestedDate = new Date(date);
     const year = requestedDate.getFullYear();
-    const month = requestedDate.getMonth() + 1;
-    const totalDaysInMonth = new Date(year, month, 0).getDate();
+    const month = requestedDate.getMonth();
+    const month1Based = month + 1;
+    const totalDaysInMonth = new Date(year, month1Based, 0).getDate();
 
     const normalizedName = (fullName || '').toUpperCase();
     if (!normalizedName) {
       return ' '.repeat(totalDaysInMonth);
     }
 
-    if (normalizedName.length >= totalDaysInMonth) {
-      // Fill as many letters as possible when the name is longer than the month.
-      return normalizedName.slice(0, totalDaysInMonth);
+    // Check if this is the board's first month and it's partial (starts after day 1)
+    const isFirstMonthOnBoard = this.startDate &&
+      this.startDate.getFullYear() === year &&
+      this.startDate.getMonth() === month;
+    const firstDayOfPartial = this.startDate?.getDate() ?? 1;
+    const isPartialFirstMonth = isFirstMonthOnBoard && firstDayOfPartial > 1;
+
+    // Never use the last day of the month for name letters
+    let availableSpaces = isPartialFirstMonth
+      ? totalDaysInMonth - firstDayOfPartial + 1
+      : totalDaysInMonth;
+    availableSpaces = Math.max(0, availableSpaces - 1);
+
+    // If the last day of the month is the reservation's departure day, also leave the second-to-last day blank
+    const depDate = departureDate ? new Date(departureDate) : null;
+    depDate?.setHours(0, 0, 0, 0);
+    const isDepartureOnLastDayOfMonth = depDate &&
+      depDate.getFullYear() === year &&
+      depDate.getMonth() === month &&
+      depDate.getDate() === totalDaysInMonth;
+    if (isDepartureOnLastDayOfMonth) {
+      availableSpaces = Math.max(0, availableSpaces - 1);
     }
 
-    const availableForBlanks = totalDaysInMonth - normalizedName.length;
-    const leadingBlanks = Math.floor(availableForBlanks / 2);
-    const trailingBlanks = availableForBlanks - leadingBlanks;
-    return ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
+    const trailingBlanksCount = isDepartureOnLastDayOfMonth ? 2 : 1;
+
+    let content: string;
+    if (availableSpaces === 0) {
+      content = '';
+    } else if (normalizedName.length <= availableSpaces) {
+      // Standard formula: equal blanks on either side to center the name
+      const availableForBlanks = availableSpaces - normalizedName.length;
+      const leadingBlanks = Math.floor(availableForBlanks / 2);
+      const trailingBlanks = availableForBlanks - leadingBlanks;
+      content = ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
+    } else {
+      // Name longer than available: use last N characters so name prints "backward" (right-aligned, end of name visible)
+      content = normalizedName.slice(-availableSpaces);
+    }
+
+    if (isPartialFirstMonth) {
+      // Pad from day 1 to (firstDayOfPartial - 1) with spaces, then content, then blank last day(s)
+      return ' '.repeat(firstDayOfPartial - 1) + content + ' '.repeat(trailingBlanksCount);
+    }
+
+    return content + ' '.repeat(trailingBlanksCount);
   }
 
   getCharactersForReservation(fullName: string, reservationDays: number): string {
@@ -499,7 +537,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         return ' ';
       }
 
-      const monthChars = this.getCharactersForMonth(fullName, date);
+      const monthChars = this.getCharactersForMonth(fullName, date, departure);
       const day = date.getDate();
       return monthChars[day - 1];
     }
