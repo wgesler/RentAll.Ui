@@ -4,7 +4,7 @@ import { Component, ElementRef, OnDestroy, OnInit, Input, Output, EventEmitter, 
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -15,6 +15,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { EntityType, getContactTypes, getEntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
@@ -49,6 +50,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   w9FileName: string | null = null;
@@ -81,6 +83,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private authService: AuthService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private mappingService: MappingService,
     private utilityService: UtilityService
   ) {
@@ -90,6 +93,12 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.initializeContactTypes();
     this.loadStates();
     this.loadOffices();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      if (this.isAddMode && this.form && this.offices.length > 0) {
+        this.form.patchValue({ officeId: officeId ?? null });
+      }
+    });
 
     // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
     // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
@@ -150,6 +159,14 @@ export class ContactComponent implements OnInit, OnDestroy {
       const office = this.offices.find(o => o.officeId === officeId);
       if (office) {
         this.form.patchValue({ officeId: office.officeId });
+      }
+    } else if (this.isAddMode) {
+      const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      if (globalOfficeId != null) {
+        const office = this.offices.find(o => o.officeId === globalOfficeId);
+        if (office) {
+          this.form.patchValue({ officeId: office.officeId });
+        }
       }
     }
     
@@ -333,6 +350,10 @@ export class ContactComponent implements OnInit, OnDestroy {
         displayNameControl.setValue('');
       }
       companyNameControl?.updateValueAndValidity({ emitEvent: false });
+    });
+
+    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+      this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
     });
   }
 
@@ -646,6 +667,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.globalOfficeSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

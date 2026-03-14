@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -30,6 +30,7 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentService } from '../../organizations/services/agent.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyListResponse } from '../../properties/models/property.model';
@@ -102,6 +103,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
@@ -140,7 +142,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
-    private costCodesService: CostCodesService
+    private costCodesService: CostCodesService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
   }
 
@@ -151,7 +154,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadProperties();
     this.loadAgents();
     this.loadOffices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      if (this.offices.length > 0 && this.isAddMode) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        if (this.selectedOffice) {
+          this.loadCostCodes();
+        }
+        this.filterPropertiesByOffice();
+      }
+    });
+
     // Initialize form immediately to prevent template errors
     this.buildForm();
     
@@ -176,6 +189,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
           const officeId = parseInt(queryParams['officeId'], 10);
           if (!isNaN(officeId)) {
             this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+            if (this.selectedOffice) {
+              this.loadCostCodes();
+              this.filterPropertiesByOffice();
+            }
+          }
+        } else if (this.isAddMode && this.offices.length > 0) {
+          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          if (globalOfficeId != null) {
+            this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
             if (this.selectedOffice) {
               this.loadCostCodes();
               this.filterPropertiesByOffice();
@@ -1348,6 +1370,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
@@ -1774,6 +1797,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.globalOfficeSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();

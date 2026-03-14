@@ -4,7 +4,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -27,13 +27,14 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
-import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -91,10 +92,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
-  /** All properties (id + code) for the Property Code dropdown. */
-  propertyList: PropertyListResponse[] = [];
-  /** Sentinel value when user must enter a new code (Add mode). */
-  readonly NEW_PROPERTY_CODE = '__NEW__';
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   regions: RegionResponse[] = [];
@@ -138,9 +135,12 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private documentReloadService: DocumentReloadService,
     private utilityService: UtilityService,
     private propertyLetterService: PropertyLetterService,
-    private reservationService: ReservationService
+    private reservationService: ReservationService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
   }
+
+  private globalOfficeSubscription?: Subscription;
 
   //#region Property
   ngOnInit(): void {
@@ -148,6 +148,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.loadContacts();
     this.loadLocationLookups();
     this.loadReservations();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      if (this.offices.length > 0 && !this.property) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        if (this.form) {
+          this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null });
+          this.filterReservations();
+        }
+      }
+    });
 
     // Initialize dropdown menus
     this.initializeTrashDays();
@@ -159,7 +169,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     this.buildForm();
     this.applyOfficeControlState();
-    this.loadPropertyList();
 
     // Set isAddMode from route params and load property if needed
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
@@ -226,18 +235,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
   }
 
-  loadPropertyList(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyList');
-    this.propertyService.getPropertyList().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyList'); })).subscribe({
-      next: (list) => {
-        this.propertyList = list || [];
-      },
-      error: () => {
-        this.propertyList = [];
-      }
-    });
-  }
-
   getProperty(): void {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
@@ -285,7 +282,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
           
           this.populateForm();
           this.form.get('propertyCode')?.setValue('');
-          this.form.get('propertyCodeOption')?.setValue(this.NEW_PROPERTY_CODE, { emitEvent: false });
 
           // Now set conditional fields based on copied values
           const alarmValue = this.form.get('alarm')?.value;
@@ -361,8 +357,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
 
-    // Exclude dropdown-only control from request
-    const { propertyStyle, propertyType, propertyStatus, propertyCodeOption, ...restFormValue } = formValue;
+    // Exclude enum/display-only controls from request
+    const { propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
     const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
     
     // Transform fields that need special handling
@@ -485,8 +481,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const codeValidators = this.isAddMode ? [Validators.required] : [];
     
     this.form = this.fb.group({
-      // Rental tab - propertyCodeOption drives dropdown selection; propertyCode is the value sent to API
-      propertyCodeOption: new FormControl<string>(this.NEW_PROPERTY_CODE),
       propertyCode: new FormControl('', codeValidators),
       owner1Id: new FormControl('', contactValidators),
       owner2Id: new FormControl(null),
@@ -612,10 +606,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
       const formData: any = { ...this.property };
       
       // Transform fields that need special handling
-      // Convert propertyCode to uppercase; sync dropdown option
       const code = this.property.propertyCode?.toUpperCase() || '';
       formData.propertyCode = code;
-      formData.propertyCodeOption = code;
       formData.owner1Id = this.property.owner1Id || '';
       formData.owner2Id = this.property.owner2Id || null;
       formData.owner3Id = this.property.owner3Id || null;
@@ -981,8 +973,19 @@ export class PropertyComponent implements OnInit, OnDestroy {
           }
         } else {
           this.showOfficeDropdown = true;
+          if (!this.property && this.form) {
+            const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            if (globalOfficeId != null) {
+              const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+              if (globalOffice) {
+                this.selectedOffice = globalOffice;
+                this.form.patchValue({ officeId: globalOffice.officeId });
+                this.filterReservations();
+              }
+            }
+          }
         }
-        
+
         // If property is already loaded, update location fields in form and set selectedOffice
         if (this.property && this.form) {
           const propertyOfficeId = this.property.officeId;
@@ -1108,6 +1111,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.form.get('officeId')?.value ?? null);
     const officeId = this.form.get('officeId')?.value;
     if (officeId) {
       this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
@@ -1117,6 +1121,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.filterReservations();
     // Clear selected reservation when office changes
     this.selectedReservationId = null;
+  }
+
+  /** Owners filtered by the form's selected office for the Owner dropdowns. */
+  get ownerContacts(): ContactResponse[] {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) return this.contacts;
+    return this.contacts.filter(c => Number(c.officeId) === Number(officeId));
   }
 
   onReservationChange(): void {
@@ -1129,21 +1140,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const upperValue = input.value.toUpperCase();
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
-  }
-
-  /** True when "Enter new code" is selected in the Property Code dropdown (value comes from input). */
-  get isNewPropertyCodeSelected(): boolean {
-    const option = this.form.get('propertyCodeOption')?.value;
-    return option === this.NEW_PROPERTY_CODE || option == null || option === '';
-  }
-
-  /** Handle Property Code dropdown selection: sync propertyCode when an existing code is selected. */
-  onPropertyCodeSelect(value: string): void {
-    if (value && value !== this.NEW_PROPERTY_CODE) {
-      this.form.patchValue({ propertyCode: value.toUpperCase() }, { emitEvent: false });
-    } else {
-      this.form.patchValue({ propertyCode: '' }, { emitEvent: false });
-    }
   }
 
   private formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
@@ -1166,6 +1162,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.globalOfficeSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

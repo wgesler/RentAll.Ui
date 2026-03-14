@@ -58,31 +58,20 @@
               </button>
             </div>
             
-            <!-- Second line: Property Code (dropdown mapping PropertyId to Code), Owner1, Owner2, Owner3 -->
+            <!-- Second line: Property Code, Owner1, Owner2, Owner3 -->
             <div class="mb-4 flex items-center gap-3">
               <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
                 <mat-label>Property Code</mat-label>
-                <mat-select formControlName="propertyCodeOption" (selectionChange)="onPropertyCodeSelect($event.value)">
-                  <mat-option [value]="NEW_PROPERTY_CODE">— Enter new code —</mat-option>
-                  @for (p of propertyList; track p.propertyId) {
-                    <mat-option [value]="p.propertyCode">{{ p.propertyCode }}</mat-option>
-                  }
-                </mat-select>
+                <input matInput formControlName="propertyCode" maxlength="15" (input)="onCodeInput($event)">
                 @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
                   <mat-error>Code is required</mat-error>
                 }
               </mat-form-field>
-              @if (isNewPropertyCodeSelected) {
-                <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
-                  <mat-label>New Code</mat-label>
-                  <input matInput formControlName="propertyCode" maxlength="15" (input)="onCodeInput($event)">
-                </mat-form-field>
-              }
               <mat-form-field appearance="outline" style="flex: 1.2; min-width: 180px;">
                 <mat-label>Owner</mat-label>
                 <mat-select formControlName="owner1Id">
                   <mat-option value="">Select Owner</mat-option>
-                  @for (contact of contacts; track contact.contactId) {
+                  @for (contact of ownerContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
                   }
                 </mat-select>
@@ -94,7 +83,7 @@
                 <mat-label>Owner 2 (Optional)</mat-label>
                 <mat-select formControlName="owner2Id">
                   <mat-option [value]="null">Select Owner</mat-option>
-                  @for (contact of contacts; track contact.contactId) {
+                  @for (contact of ownerContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
                   }
                 </mat-select>
@@ -103,7 +92,7 @@
                 <mat-label>Owner 3 (Optional)</mat-label>
                 <mat-select formControlName="owner3Id">
                   <mat-option [value]="null">Select Owner</mat-option>
-                  @for (contact of contacts; track contact.contactId) {
+                  @for (contact of ownerContacts; track contact.contactId) {
                     <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
                   }
                 </mat-select>

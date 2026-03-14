@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -14,6 +14,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -44,6 +45,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
 
   reservations: ReservationListResponse[] = [];
@@ -85,7 +87,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
     private utilityService: UtilityService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
   }
 
@@ -94,6 +97,15 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.isPaymentMode = false;
     this.loadOffices();
     this.loadReservations();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0 && this.isAddMode && this.form) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.form.get('officeId')?.setValue(officeId ?? null, { emitEvent: false });
+        this.updateAvailableReservations();
+        this.filterCostCodes();
+      }
+    });
     this.loadCostCodes();
     
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
@@ -153,6 +165,16 @@ export class InvoiceComponent implements OnInit, OnDestroy {
               this.setInvoiceCode(this.selectedReservation);
             }
           }
+        }
+      }
+    } else if (this.isAddMode && this.offices.length > 0 && this.form) {
+      const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      if (globalOfficeId != null) {
+        this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+        if (this.selectedOffice) {
+          this.form.get('officeId')?.setValue(globalOfficeId, { emitEvent: false });
+          this.updateAvailableReservations();
+          this.filterCostCodes();
         }
       }
     }
@@ -872,6 +894,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   setupOfficeIdHandler(): void {
     // Subscribe to officeId changes - just set selectedOffice and trigger updates
     this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+      this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
       this.updateAvailableReservations();
       this.filterCostCodes();
@@ -1520,6 +1543,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
    //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.reservationIdSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

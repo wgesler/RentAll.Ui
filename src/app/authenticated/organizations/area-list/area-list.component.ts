@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -43,6 +43,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['areas']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private globalOfficeSubscription?: Subscription;
 
   constructor(
     public areaService: AreaService,
@@ -56,6 +57,9 @@ export class AreaListComponent implements OnInit, OnDestroy {
   //#region Area-List
   ngOnInit(): void {
     this.getAreas();
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(() => {
+      this.applyFilters();
+    });
   }
 
   addArea(): void {
@@ -131,6 +135,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

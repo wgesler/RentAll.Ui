@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, O
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -44,6 +44,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -87,7 +88,15 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Maintenance-List
   ngOnInit(): void {
     this.loadOffices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(officeId ?? null);
+        this.applyFilters();
+      }
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -227,6 +236,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
@@ -239,6 +249,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

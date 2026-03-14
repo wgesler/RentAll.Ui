@@ -2,7 +2,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, Subscription, filter, take, takeUntil } from 'rxjs';
+import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -31,6 +31,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   destroy$ = new Subject<void>();
@@ -61,6 +62,17 @@ export class ContactsComponent implements OnInit, OnDestroy {
     
     // Load offices for shared office selection
     this.loadOffices();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+        const queryParams: Record<string, string> = { tab: this.selectedTabIndex.toString() };
+        if (this.selectedOfficeId != null) queryParams['officeId'] = this.selectedOfficeId.toString();
+        else queryParams['officeId'] = '';
+        this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge' });
+      }
+    });
   }
 
   applyQueryParamState(params: Record<string, unknown>): void {
@@ -86,6 +98,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
   //#region Form Response Methods
   onOfficeIdChange(officeId: number | null): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
     this.selectedOfficeId = officeId;
     
     if (officeId !== null) {
@@ -169,6 +182,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.globalOfficeSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
   }
   //#endregion

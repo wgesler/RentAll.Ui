@@ -352,6 +352,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
