@@ -393,64 +393,70 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return brightness > 128 ? '#000000' : '#ffffff';
   }
 
-  getCharactersForMonth(fullName: string, date: Date, departureDate?: Date | null): string {
+  getCharactersForMonth(fullName: string, date: Date, arrivalDate?: Date | null, departureDate?: Date | null): string {
     const requestedDate = new Date(date);
     const year = requestedDate.getFullYear();
     const month = requestedDate.getMonth();
     const month1Based = month + 1;
-    const totalDaysInMonth = new Date(year, month1Based, 0).getDate();
+    const lastDayOfMonth = new Date(year, month1Based, 0).getDate();
 
     const normalizedName = (fullName || '').toUpperCase();
     if (!normalizedName) {
-      return ' '.repeat(totalDaysInMonth);
+      return ' '.repeat(lastDayOfMonth);
     }
 
-    // Check if this is the board's first month and it's partial (starts after day 1)
+    const arrDate = arrivalDate ? new Date(arrivalDate) : null;
+    const depDate = departureDate ? new Date(departureDate) : null;
+    arrDate?.setHours(0, 0, 0, 0);
+    depDate?.setHours(0, 0, 0, 0);
+
+    // EOM: last day of month we may use. Never use the last day; if that day is Departure, don't use the last 2 days.
+    const isDepartureOnLastDay = depDate &&
+      depDate.getFullYear() === year &&
+      depDate.getMonth() === month &&
+      depDate.getDate() === lastDayOfMonth;
+    const EOM = isDepartureOnLastDay ? lastDayOfMonth - 2 : lastDayOfMonth - 1;
+
+    // SOM: first day of month we may use. If day 1 isn't visible (partial first month), use board's first day. If arrival is in this month, skip arrival day and the next (SOM = arrivalDay + 2).
     const isFirstMonthOnBoard = this.startDate &&
       this.startDate.getFullYear() === year &&
       this.startDate.getMonth() === month;
-    const firstDayOfPartial = this.startDate?.getDate() ?? 1;
-    const isPartialFirstMonth = isFirstMonthOnBoard && firstDayOfPartial > 1;
+    const firstDayVisible = this.startDate?.getDate() ?? 1;
+    const isPartialFirstMonth = isFirstMonthOnBoard && firstDayVisible > 1;
+    const isArrivalInThisMonth = arrDate &&
+      arrDate.getFullYear() === year &&
+      arrDate.getMonth() === month;
 
-    // Never use the last day of the month for name letters
-    let availableSpaces = isPartialFirstMonth
-      ? totalDaysInMonth - firstDayOfPartial + 1
-      : totalDaysInMonth;
-    availableSpaces = Math.max(0, availableSpaces - 1);
-
-    // If the last day of the month is the reservation's departure day, also leave the second-to-last day blank
-    const depDate = departureDate ? new Date(departureDate) : null;
-    depDate?.setHours(0, 0, 0, 0);
-    const isDepartureOnLastDayOfMonth = depDate &&
-      depDate.getFullYear() === year &&
-      depDate.getMonth() === month &&
-      depDate.getDate() === totalDaysInMonth;
-    if (isDepartureOnLastDayOfMonth) {
-      availableSpaces = Math.max(0, availableSpaces - 1);
+    let SOM: number;
+    if (isPartialFirstMonth) {
+      SOM = firstDayVisible;
+    } else if (isArrivalInThisMonth) {
+      SOM = (arrDate!.getDate()) + 2; // skip arrival day and the day after
+    } else {
+      SOM = 1;
     }
 
-    const trailingBlanksCount = isDepartureOnLastDayOfMonth ? 2 : 1;
+    // Available character slots from day SOM through day EOM (inclusive)
+    const availableSpaces = Math.max(0, EOM - SOM + 1);
 
     let content: string;
     if (availableSpaces === 0) {
       content = '';
     } else if (normalizedName.length <= availableSpaces) {
-      // Standard formula: equal blanks on either side to center the name
+      // Rule 1: equal blanks on front/back (standard centering)
       const availableForBlanks = availableSpaces - normalizedName.length;
       const leadingBlanks = Math.floor(availableForBlanks / 2);
       const trailingBlanks = availableForBlanks - leadingBlanks;
       content = ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
     } else {
-      // Name longer than available: use last N characters so name prints "backward" (right-aligned, end of name visible)
+      // Rule 2: start at EOM and print name backwards (use last availableSpaces characters)
       content = normalizedName.slice(-availableSpaces);
     }
 
-    if (isPartialFirstMonth) {
-      // Pad from day 1 to (firstDayOfPartial - 1) with spaces, then content, then blank last day(s)
-      return ' '.repeat(firstDayOfPartial - 1) + content + ' '.repeat(trailingBlanksCount);
-    }
-
-    return content + ' '.repeat(trailingBlanksCount);
+    // Build full month string: spaces before SOM, content in SOM..EOM, spaces after EOM
+    const prefix = ' '.repeat(SOM - 1);
+    const suffix = ' '.repeat(lastDayOfMonth - EOM);
+    return prefix + content + suffix;
   }
 
   getCharactersForReservation(fullName: string, reservationDays: number): string {
@@ -537,7 +543,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         return ' ';
       }
 
-      const monthChars = this.getCharactersForMonth(fullName, date, departure);
+      const monthChars = this.getCharactersForMonth(fullName, date, arrival, departure);
       const day = date.getDate();
       return monthChars[day - 1];
     }
