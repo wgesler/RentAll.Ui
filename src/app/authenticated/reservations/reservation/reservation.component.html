@@ -65,17 +65,33 @@
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               @if (!isAddMode) {
-                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property Code (1/4), Property Address (1/4 or 2/4), Credit Due (1/4 if > 0) -->
+                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property (1/4 when editable) or Property Code (1/4 when read-only), Property Address, Credit Due (1/4 if > 0) -->
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Reservation Code</mat-label>
                   <input matInput formControlName="reservationCode" readonly class="readonly-field">
                 </mat-form-field>
 
-                <!-- Edit Mode: Property Code (read-only) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Property Code</mat-label>
-                  <input matInput formControlName="propertyCode" readonly class="readonly-field">
-                </mat-form-field>
+                @if (canEditProperty) {
+                  <!-- Reservation has not started: property is editable -->
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Property</mat-label>
+                    <mat-select formControlName="propertyId" required>
+                      <mat-option value="">Select Property</mat-option>
+                      @for (property of availableProperties; track property.propertyId) {
+                        <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
+                      }
+                    </mat-select>
+                    @if (form.get('propertyId')?.hasError('required') && form.get('propertyId')?.touched) {
+                      <mat-error>Property is required</mat-error>
+                    }
+                  </mat-form-field>
+                } @else {
+                  <!-- Reservation has started: Property Code read-only -->
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Property Code</mat-label>
+                    <input matInput formControlName="propertyCode" readonly class="readonly-field">
+                  </mat-form-field>
+                }
 
                 <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>

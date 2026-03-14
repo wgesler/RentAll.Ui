@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -16,7 +16,7 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ReservationListDisplay, ReservationListResponse } from '../models/reservation-model';
+import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -43,6 +43,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -77,7 +78,15 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Reservation List
   ngOnInit(): void {
     this.loadOffices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(officeId ?? null);
+        this.applyFilters();
+      }
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -160,17 +169,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteReservation(reservation: ReservationListDisplay): void {
-    if (confirm(`Are you sure you want to delete this reservation?`)) {
-      this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
-          // Remove from local arrays instead of reloading
-          this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
-          this.applyFilters();
-        },
-        error: () => {}
-      });
-    }
+    this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
+        this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+        this.applyFilters();
+      },
+      error: () => {}
+    });
   }
 
   goToReservation(event: ReservationListDisplay): void {
@@ -190,6 +196,25 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     if (event.contactId) {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
     }
+  }
+
+  copyReservation(row: ReservationListDisplay): void {
+    this.reservationService.getReservationByGuid(row.reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        const url = RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']);
+        const queryParams: Record<string, unknown> = {};
+        if (this.selectedOffice) {
+          queryParams['officeId'] = this.selectedOffice.officeId;
+        }
+        this.router.navigate([url], {
+          queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+          state: { copyFromReservation: reservation }
+        });
+      },
+      error: () => {
+        this.toastr.error('Could not load reservation to copy', CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
@@ -353,6 +378,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

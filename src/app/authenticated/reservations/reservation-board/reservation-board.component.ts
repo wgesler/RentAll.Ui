@@ -3,7 +3,7 @@ import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -13,6 +13,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ColorResponse } from '../../organizations/models/color.model';
 import { ColorService } from '../../organizations/services/color.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -51,6 +52,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private destroy$ = new Subject<void>();
 
   constructor(
     private propertyService: PropertyService,
@@ -61,7 +63,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private toastr: ToastrService,
     private mappingService: MappingService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) { }
 
   //#region Reservation-Board
@@ -70,7 +73,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.generateCalendarDays();
     this.loadContacts();
     this.loadColors();
-    this.loadReservations(); 
+    this.loadReservations();
+
+    // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
+    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(() => this.loadReservations());
   }
 
   setDefaultDateRange(): void {
@@ -145,20 +152,26 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     properties$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(properties || [], this.reservations);
+        const workingOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        const filtered = workingOfficeId == null
+          ? (properties || [])
+          : (properties || []).filter(p => p.officeId === workingOfficeId);
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(filtered, this.reservations);
       },
       error: () => {
         this.properties = [];
       }
     });
   }
-  
+
   loadReservations(): void {
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
-        this.reservations = reservations.filter(r => r.isActive);
+        const workingOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        this.reservations = reservations.filter(r =>
+          r.isActive && (workingOfficeId == null || r.officeId === workingOfficeId)
+        );
         this.displayTextCache.clear();
-        // Load properties after reservations are loaded so we can use reservation monthly rates
         this.loadProperties();
       },
       error: () => {
@@ -746,6 +759,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

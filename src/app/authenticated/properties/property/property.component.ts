@@ -33,7 +33,7 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
-import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -91,6 +91,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  /** All properties (id + code) for the Property Code dropdown. */
+  propertyList: PropertyListResponse[] = [];
+  /** Sentinel value when user must enter a new code (Add mode). */
+  readonly NEW_PROPERTY_CODE = '__NEW__';
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   regions: RegionResponse[] = [];
@@ -155,7 +159,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     this.buildForm();
     this.applyOfficeControlState();
-  
+    this.loadPropertyList();
+
     // Set isAddMode from route params and load property if needed
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
@@ -221,6 +226,18 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
   }
 
+  loadPropertyList(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyList');
+    this.propertyService.getPropertyList().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyList'); })).subscribe({
+      next: (list) => {
+        this.propertyList = list || [];
+      },
+      error: () => {
+        this.propertyList = [];
+      }
+    });
+  }
+
   getProperty(): void {
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
@@ -268,7 +285,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
           
           this.populateForm();
           this.form.get('propertyCode')?.setValue('');
-          
+          this.form.get('propertyCodeOption')?.setValue(this.NEW_PROPERTY_CODE, { emitEvent: false });
+
           // Now set conditional fields based on copied values
           const alarmValue = this.form.get('alarm')?.value;
           const keypadAccessValue = this.form.get('keypadAccess')?.value;
@@ -342,9 +360,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     // Use getRawValue() to include disabled form controls
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-    
-    // Start with form values - bulk copy (excluding fields that need special mapping)
-    const { propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
+
+    // Exclude dropdown-only control from request
+    const { propertyStyle, propertyType, propertyStatus, propertyCodeOption, ...restFormValue } = formValue;
     const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
     
     // Transform fields that need special handling
@@ -467,7 +485,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const codeValidators = this.isAddMode ? [Validators.required] : [];
     
     this.form = this.fb.group({
-      // Rental tab
+      // Rental tab - propertyCodeOption drives dropdown selection; propertyCode is the value sent to API
+      propertyCodeOption: new FormControl<string>(this.NEW_PROPERTY_CODE),
       propertyCode: new FormControl('', codeValidators),
       owner1Id: new FormControl('', contactValidators),
       owner2Id: new FormControl(null),
@@ -593,8 +612,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
       const formData: any = { ...this.property };
       
       // Transform fields that need special handling
-      // Convert propertyCode to uppercase
-      formData.propertyCode = this.property.propertyCode?.toUpperCase() || '';
+      // Convert propertyCode to uppercase; sync dropdown option
+      const code = this.property.propertyCode?.toUpperCase() || '';
+      formData.propertyCode = code;
+      formData.propertyCodeOption = code;
       formData.owner1Id = this.property.owner1Id || '';
       formData.owner2Id = this.property.owner2Id || null;
       formData.owner3Id = this.property.owner3Id || null;
@@ -1108,6 +1129,21 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const upperValue = input.value.toUpperCase();
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
+  }
+
+  /** True when "Enter new code" is selected in the Property Code dropdown (value comes from input). */
+  get isNewPropertyCodeSelected(): boolean {
+    const option = this.form.get('propertyCodeOption')?.value;
+    return option === this.NEW_PROPERTY_CODE || option == null || option === '';
+  }
+
+  /** Handle Property Code dropdown selection: sync propertyCode when an existing code is selected. */
+  onPropertyCodeSelect(value: string): void {
+    if (value && value !== this.NEW_PROPERTY_CODE) {
+      this.form.patchValue({ propertyCode: value.toUpperCase() }, { emitEvent: false });
+    } else {
+      this.form.patchValue({ propertyCode: '' }, { emitEvent: false });
+    }
   }
 
   private formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {

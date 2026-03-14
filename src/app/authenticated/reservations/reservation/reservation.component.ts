@@ -38,7 +38,7 @@ import { GenericModalComponent } from '../../shared/modals/generic/generic-modal
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
-import { ExtraFeeLineRequest, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { ExtraFeeLineRequest, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 
@@ -188,13 +188,103 @@ export class ReservationComponent implements OnInit, OnDestroy {
     // Set up handlers after all data is loaded, then load reservation if needed
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.setupFormHandlers();
-      
+
       if (this.isAddMode) {
         this.applyAddModePrefillFromQueryParams();
+        const copyFrom = (history.state?.copyFromReservation) as ReservationResponse | undefined;
+        if (copyFrom) {
+          this.applyCopyFromReservation(copyFrom);
+        }
       } else {
         this.getReservation();
       }
     });
+  }
+
+  /** Pre-fill form from a copied reservation: empty property code, arrival = today, same stay length. */
+  private applyCopyFromReservation(source: ReservationResponse): void {
+    if (!this.form || !source) return;
+
+    this.selectedOffice = this.offices.find(o => o.officeId === source.officeId) || null;
+    this.selectedProperty = null;
+    this.selectedContact = this.contacts.find(c => c.contactId === source.contactId) || null;
+    if (this.selectedOffice) {
+      this.loadCostCodes();
+    }
+    this.filterPropertiesByOffice();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const arrivalSource = source.arrivalDate ? new Date(source.arrivalDate) : null;
+    const departureSource = source.departureDate ? new Date(source.departureDate) : null;
+    const stayDays = arrivalSource && departureSource
+      ? Math.max(1, Math.ceil((departureSource.getTime() - arrivalSource.getTime()) / (24 * 60 * 60 * 1000)))
+      : 1;
+    const departure = new Date(today);
+    departure.setDate(departure.getDate() + stayDays);
+    departure.setHours(0, 0, 0, 0);
+
+    this.form.patchValue({ reservationTypeId: source.reservationTypeId }, { emitEvent: false });
+    this.updateReservationStatusesByReservationType();
+    this.updateContactsByReservationType();
+    this.updateEnabledFieldsByReservationType();
+
+    this.form.patchValue({
+      isActive: true,
+      allowExtensions: source.allowExtensions ?? true,
+      reservationCode: '',
+      propertyId: '',
+      propertyCode: '',
+      propertyAddress: '',
+      agentId: source.agentId || null,
+      contactId: source.contactId || null,
+      companyName: (source as { companyName?: string })?.companyName ?? '',
+      tenantName: source.tenantName || '',
+      reservationStatusId: source.reservationStatusId,
+      reservationNoticeId: source.reservationNoticeId ?? undefined,
+      arrivalDate: today,
+      departureDate: departure,
+      checkInTimeId: source.checkInTimeId,
+      checkOutTimeId: source.checkOutTimeId,
+      billingTypeId: source.billingTypeId ?? BillingType.Monthly,
+      billingMethodId: source.billingMethodId ?? BillingMethod.Invoice,
+      prorateTypeId: source.prorateTypeId ?? null,
+      billingRate: (source.billingRate ?? 0).toFixed(2),
+      numberOfPeople: source.numberOfPeople === 0 ? 1 : source.numberOfPeople,
+      depositType: source.depositTypeId ?? DepositType.Deposit,
+      deposit: source.deposit !== null && source.deposit !== undefined ? source.deposit.toFixed(2) : '0.00',
+      departureFee: (source.departureFee ?? 0).toFixed(2),
+      pets: source.hasPets ?? false,
+      petFee: (source.petFee ?? 0).toFixed(2),
+      numberOfPets: source.numberOfPets ?? 0,
+      petDescription: source.petDescription || '',
+      maidService: source.maidService ?? false,
+      maidStartDate: (() => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + 7);
+        return d;
+      })(),
+      maidServiceFee: (source.maidServiceFee ?? 0).toFixed(2),
+      frequencyId: source.frequencyId ?? Frequency.NA,
+      taxes: source.taxes === 0 ? null : source.taxes,
+      notes: source.notes || ''
+    }, { emitEvent: false });
+
+    this.departureDateStartAt = today;
+    this.updateContactFields();
+    this.updatePetFields();
+    this.updateMaidServiceFields();
+    this.updateMaidStartDate();
+    if (source.extraFeeLines?.length) {
+      this.extraFeeLines = source.extraFeeLines.map(line => ({
+        extraFeeLineId: null,
+        feeDescription: line.feeDescription ?? null,
+        feeAmount: line.feeAmount,
+        feeFrequencyId: line.feeFrequencyId,
+        costCodeId: line.costCodeId,
+        isNew: true
+      }));
+    }
   }
 
   private applyAddModePrefillFromQueryParams(): void {
@@ -522,6 +612,36 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.updateMaidServiceFields();
     this.loadExtraFeeLines();
     this.updateMaidStartDate();
+    this.updatePropertyIdEditState();
+  }
+
+  /** True when editing an existing reservation whose arrival date is in the future (property can be changed). */
+  get canEditProperty(): boolean {
+    if (this.isAddMode || !this.reservation) {
+      return false;
+    }
+    const arrival = this.form.get('arrivalDate')?.value as Date | null;
+    if (!arrival) {
+      return false;
+    }
+    const arrivalStart = new Date(arrival);
+    arrivalStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return arrivalStart > todayStart;
+  }
+
+  /** Enable or disable propertyId based on whether the reservation has started (edit mode only). */
+  updatePropertyIdEditState(): void {
+    const control = this.form.get('propertyId');
+    if (!control) {
+      return;
+    }
+    if (this.canEditProperty) {
+      control.enable({ emitEvent: false });
+    } else if (!this.isAddMode) {
+      control.disable({ emitEvent: false });
+    }
   }
     
   setupFormHandlers(): void {
@@ -678,6 +798,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.departureDateStartAt = new Date(arrivalDate);
       } else if (!arrivalDate) {
         this.departureDateStartAt = null;
+      }
+      this.updatePropertyIdEditState();
+      if (this.canEditProperty) {
+        this.filterPropertiesByOffice();
+      }
+    });
+    this.form.get('departureDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.canEditProperty) {
+        this.filterPropertiesByOffice();
       }
     });
   }
@@ -1249,20 +1378,61 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   filterPropertiesByOffice(): void {
-    if (!this.selectedOffice) {
-      this.availableProperties = this.properties;
+    const officeFiltered = !this.selectedOffice
+      ? this.properties
+      : this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
+
+    if (!this.canEditProperty || !this.reservation) {
+      this.availableProperties = officeFiltered;
+      this.applySelectedPropertyClearIfOfficeMismatch();
       return;
     }
-    
-    this.availableProperties = this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
-    
-    if (this.selectedProperty && this.selectedProperty.officeId !== this.selectedOffice.officeId) {
+
+    const arrivalRaw = this.form.get('arrivalDate')?.value ?? this.reservation?.arrivalDate;
+    const departureRaw = this.form.get('departureDate')?.value ?? this.reservation?.departureDate;
+    if (!arrivalRaw || !departureRaw) {
+      this.availableProperties = officeFiltered;
+      this.applySelectedPropertyClearIfOfficeMismatch();
+      return;
+    }
+
+    const arrival = this.normalizeDateForConflict(arrivalRaw);
+    const departure = this.normalizeDateForConflict(departureRaw);
+    const currentReservationId = this.reservation.reservationId;
+    const currentPropertyId = this.reservation.propertyId;
+
+    this.reservationService.getReservationList().pipe(take(1), catchError(() => of([] as ReservationListResponse[]))).subscribe(list => {
+      const propertyIdsWithConflict = new Set<string>();
+      for (const r of list) {
+        if (r.reservationId === currentReservationId || !r.isActive) continue;
+        if (!r.arrivalDate || !r.departureDate) continue;
+        const rArr = this.normalizeDateForConflict(r.arrivalDate);
+        const rDep = this.normalizeDateForConflict(r.departureDate);
+        if (arrival <= rDep && departure >= rArr) {
+          propertyIdsWithConflict.add(r.propertyId);
+        }
+      }
+      this.availableProperties = officeFiltered.filter(p =>
+        !propertyIdsWithConflict.has(p.propertyId) || p.propertyId === currentPropertyId
+      );
+      this.applySelectedPropertyClearIfOfficeMismatch();
+    });
+  }
+
+  private normalizeDateForConflict(value: string | Date | null | undefined): Date {
+    const d = value instanceof Date ? new Date(value) : new Date(value as string);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  private applySelectedPropertyClearIfOfficeMismatch(): void {
+    if (this.selectedProperty && this.selectedOffice && this.selectedProperty.officeId !== this.selectedOffice.officeId) {
       this.selectedProperty = null;
       this.form.patchValue({
         propertyId: '',
         propertyAddress: '',
         propertyCode: ''
-      });
+      }, { emitEvent: false });
     }
   }
   //#endregion
