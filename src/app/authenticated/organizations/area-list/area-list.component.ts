@@ -81,15 +81,13 @@ export class AreaListComponent implements OnInit, OnDestroy {
   }
 
   deleteArea(area: AreaListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${area.areaCode}?`)) {
-      this.areaService.deleteArea(area.areaId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Area deleted successfully', CommonMessage.Success);
-          this.getAreas();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    }
+    this.areaService.deleteArea(area.areaId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Area deleted successfully', CommonMessage.Success);
+        this.getAreas();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   goToArea(event: AreaListDisplay): void {

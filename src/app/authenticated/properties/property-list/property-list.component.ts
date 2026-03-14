@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -43,6 +43,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -78,7 +79,15 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Property-List
   ngOnInit(): void {
     this.loadOffices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(officeId ?? null);
+        this.applyFilters();
+      }
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -177,19 +186,17 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteProperty(property: PropertyListDisplay): void {
-    if (confirm(`Are you sure you want to delete this property?`)) {
-      this.propertyService.deleteProperty(property.propertyId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Property deleted successfully', CommonMessage.Success);
-          this.getProperties(); // Refresh the list
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+    this.propertyService.deleteProperty(property.propertyId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Property deleted successfully', CommonMessage.Success);
+        this.getProperties();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-      });
-    }
+      }
+    });
   }
   //#endregion
   
@@ -274,6 +281,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
@@ -286,6 +294,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -78,15 +78,13 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
 
   deleteAgent(agent: AgentListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${agent.agentCode}?`)) {
-      this.agentService.deleteAgent(agent.agentId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Agent deleted successfully', CommonMessage.Success);
-          this.getAgents();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    }
+    this.agentService.deleteAgent(agent.agentId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Agent deleted successfully', CommonMessage.Success);
+        this.getAgents();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   goToAgent(event: AgentListDisplay): void {

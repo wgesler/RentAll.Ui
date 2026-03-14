@@ -94,16 +94,14 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   }
 
   deleteAccountingOffice(office: AccountingOfficeListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${office.name}?`)) {
-      this.accountingOfficeService.deleteAccountingOffice(office.officeId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Accounting Office deleted successfully', CommonMessage.Success);
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
-          this.getAccountingOffices();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    }
+    this.accountingOfficeService.deleteAccountingOffice(office.officeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Accounting Office deleted successfully', CommonMessage.Success);
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
+        this.getAccountingOffices();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   goToAccountingOffice(event: AccountingOfficeListDisplay): void {

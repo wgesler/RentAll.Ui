@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -47,6 +47,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
 
   routerSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
 
   private readonly baseColumns: ColumnSet = {
@@ -90,7 +91,15 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     this.loadContacts();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(officeId ?? null);
+        this.applyFilters();
+      }
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -123,22 +132,19 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteContact(contact: ContactListDisplay): void {
-    const contactName = (contact.fullName || '').trim() || 'this contact';
-    if (confirm(`Are you sure you want to delete ${contactName}?`)) {
-        this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Contact deleted successfully', CommonMessage.Success);
-          this.contactService.getContacts().pipe(take(1)).subscribe({
-            next: contacts => {
-              this.allContacts = this.mappingService.mapContacts(contacts || []);
-              this.applyFilters();
-            },
-            error: () => {}
-          });
-        },
-        error: () => {}
-      });
-    }
+    this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Contact deleted successfully', CommonMessage.Success);
+        this.contactService.getContacts().pipe(take(1)).subscribe({
+          next: contacts => {
+            this.allContacts = this.mappingService.mapContacts(contacts || []);
+            this.applyFilters();
+          },
+          error: () => {}
+        });
+      },
+      error: () => {}
+    });
   }
 
   goToContact(event: ContactListDisplay): void {
@@ -212,6 +218,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
  
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
@@ -272,6 +279,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.routerSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

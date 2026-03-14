@@ -134,26 +134,22 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteCostCode(costCode: CostCodesResponse): void {
-    // Use officeId from the costCode response, fallback to selectedOffice
     const officeIdToUse = costCode.officeId || this.selectedOffice?.officeId;
     if (!officeIdToUse) {
       return;
     }
-    if (confirm(`Are you sure you want to delete this cost code?`)) {
-      this.costCodesService.deleteCostCode(officeIdToUse, costCode.costCodeId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Cost Code deleted successfully', CommonMessage.Success);
-          // Refresh cost codes for this office from the service
-          this.costCodesService.refreshCostCodesForOffice(officeIdToUse);
-          this.filterCostCodes(); // Refresh the display
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+    this.costCodesService.deleteCostCode(officeIdToUse, costCode.costCodeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Cost Code deleted successfully', CommonMessage.Success);
+        this.costCodesService.refreshCostCodesForOffice(officeIdToUse);
+        this.filterCostCodes();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-      });
-    }
+      }
+    });
   }
 
   goToCostCode(event: CostCodesResponse): void {

@@ -4,7 +4,7 @@ import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -41,6 +41,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   isSuperAdminUser: boolean = false;
   organizations: OrganizationResponse[] = [];
   selectedOrganization: OrganizationResponse | null = null;
@@ -77,6 +78,14 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.isSuperAdminUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.getUsers();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.refreshDefaultOfficeDisplay();
+        this.applyFilters();
+      }
+    });
   }
 
   addUser(): void {
@@ -139,15 +148,13 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
 
   deleteUser(user: UserListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${user.fullName}?`)) {
-      this.userService.deleteUser(user.userId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('User deleted successfully', CommonMessage.Success);
-          this.getUsers(); // Refresh the list
-        },
-        error: () => {}
-      });
-    }
+    this.userService.deleteUser(user.userId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('User deleted successfully', CommonMessage.Success);
+        this.getUsers();
+      },
+      error: () => {}
+    });
   }
   
   goToUser(event: UserListDisplay): void {
@@ -180,6 +187,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.applyFilters();
   }
 
@@ -265,6 +273,7 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

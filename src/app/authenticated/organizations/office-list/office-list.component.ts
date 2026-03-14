@@ -101,15 +101,13 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   deleteOffice(office: OfficeListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${office.officeCode}?`)) {
-      this.officeService.deleteOffice(office.officeId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Office deleted successfully', CommonMessage.Success);
-          this.getOffices();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    }
+    this.officeService.deleteOffice(office.officeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Office deleted successfully', CommonMessage.Success);
+        this.getOffices();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   goToOffice(event: OfficeListDisplay): void {

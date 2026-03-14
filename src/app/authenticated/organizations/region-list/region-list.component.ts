@@ -83,19 +83,17 @@ export class RegionListComponent implements OnInit, OnDestroy {
   }
 
   deleteRegion(region: RegionListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${region.regionCode}?`)) {
-      this.regionService.deleteRegion(region.regionId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Region deleted successfully', CommonMessage.Success);
-          this.getRegions();
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+    this.regionService.deleteRegion(region.regionId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Region deleted successfully', CommonMessage.Success);
+        this.getRegions();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-      });
-    }
+      }
+    });
   }
 
   goToRegion(event: RegionListDisplay): void {

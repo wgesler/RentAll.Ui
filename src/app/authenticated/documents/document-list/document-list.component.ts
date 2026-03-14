@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -59,6 +59,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   
   // Reservation selection for filtering (when coming from reservation or invoice)
@@ -140,7 +141,28 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     // Add 'documents' to loading set before loading
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
     this.loadOffices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOfficeId = officeId;
+        this.officeIdChange.emit(officeId);
+        if (this.source === 'invoice') {
+          this.filterCompanies();
+        }
+        if (this.source === 'reservation' || this.source === 'invoice') {
+          this.filterReservations();
+        } else if (this.source === 'documents') {
+          this.filterReservations();
+          this.selectedReservationId = null;
+        } else if (this.source === 'property') {
+          this.filterReservations();
+          this.selectedReservationId = null;
+          this.reservationIdChange.emit(this.selectedReservationId);
+        }
+        this.applyFilters();
+      }
+    });
+
     // Load data based on source
     if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
       this.loadReservations();
@@ -745,6 +767,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.officeIdChange.emit(this.selectedOfficeId);
     if (this.source === 'invoice') {
       this.filterCompanies();
@@ -844,6 +867,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

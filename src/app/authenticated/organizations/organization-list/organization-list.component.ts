@@ -75,19 +75,17 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   }
 
   deleteOrganization(organization: OrganizationListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${organization.name}?`)) {
-      this.organizationService.deleteOrganization(organization.organizationId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Organization deleted successfully', CommonMessage.Success);
-          this.getOrganizations(); // Refresh the list
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+    this.organizationService.deleteOrganization(organization.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Organization deleted successfully', CommonMessage.Success);
+        this.getOrganizations();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-      });
-    }
+      }
+    });
   }
 
   goToOrganization(event: OrganizationListDisplay): void {

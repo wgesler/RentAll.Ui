@@ -79,15 +79,13 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   }
 
   deleteBuilding(building: BuildingListDisplay): void {
-    if (confirm(`Are you sure you want to delete ${building.buildingCode}?`)) {
-      this.buildingService.deleteBuilding(building.buildingId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Building deleted successfully', CommonMessage.Success);
-          this.getBuildings();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    }
+    this.buildingService.deleteBuilding(building.buildingId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Building deleted successfully', CommonMessage.Success);
+        this.getBuildings();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   goToBuilding(event: BuildingListDisplay): void {

@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -66,6 +66,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
@@ -165,6 +166,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isSuperUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(officeId ?? null);
+        this.filterCompanyContacts();
+        this.filterReservations();
+        if (this.selectedOffice) {
+          this.filterCostCodes();
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.getInvoices();
+        } else {
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+          this.loadAllInvoices();
+          this.selectedReservation = null;
+          this.selectedCompanyContact = null;
+          this.applyFilters();
+        }
+      }
+    });
     this.loadCompanyContacts();
     this.loadCostCodes();
     this.loadAllInvoices();
@@ -398,20 +419,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Action Methods
   deleteInvoice(invoice: InvoiceResponse): void {
-    if (confirm(`Are you sure you want to delete this invoice?`)) {
-      this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
-        next: () => {
-          this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
-          // Refresh the invoice list
-          this.loadAllInvoices();
-        },
-        error: (err: HttpErrorResponse) => {
-          if (err.status === 404) {
-            // Handle not found error if business logic requires
-          }
+    this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
+        this.loadAllInvoices();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 404) {
+          // Handle not found error if business logic requires
         }
-      });
-    }
+      }
+    });
   }
 
   printInvoice(invoice: InvoiceResponse): void {
@@ -964,6 +982,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     // Emit office change to parent
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
@@ -1618,6 +1637,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.itemsToLoad$.complete();
     this.costCodesSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
   }
