@@ -1,5 +1,5 @@
 
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
@@ -48,7 +48,8 @@ export class ContactsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
-    private contactService: ContactService
+    private contactService: ContactService,
+    private cdr: ChangeDetectorRef
   ) { }
 
   //#region Contacts
@@ -67,6 +68,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
       if (this.offices.length > 0) {
         this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
         this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+        this.cdr.markForCheck();
         const queryParams: Record<string, string> = { tab: this.selectedTabIndex.toString() };
         if (this.selectedOfficeId != null) queryParams['officeId'] = this.selectedOfficeId.toString();
         else queryParams['officeId'] = '';

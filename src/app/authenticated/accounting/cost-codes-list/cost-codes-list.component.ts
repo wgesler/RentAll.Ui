@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -44,6 +44,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   isEditingCostCodes: boolean = false;
@@ -83,6 +84,14 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.loadOffices();
     this.loadCostCodes();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+        this.filterCostCodes();
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -251,14 +260,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Filter Methods
   onOfficeChange(): void {
-    // Emit office change to parent
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
       this.officeIdChange.emit(null);
     }
-    
-    // Filter cost codes - show all if no office selected, or filter by office if selected
     this.filterCostCodes();
   }
   
@@ -316,6 +323,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

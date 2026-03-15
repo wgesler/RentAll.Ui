@@ -175,11 +175,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     let filtered = this.allContacts;
     
     // Filter by entityTypeId if provided
+    // Filter by type (Tenant / Owner / Company / Vendor)
     if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
       filtered = filtered.filter(contact => contact.entityTypeId === this.entityTypeId);
     }
-    
-    // Filter by office
+
+    // Filter by office (parent passes global office or manual selection; null = All Offices)
     if (this.selectedOffice) {
       filtered = filtered.filter(contact => contact.officeId === this.selectedOffice.officeId);
     }
@@ -203,15 +204,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
-      
+
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          if (this.selectedOffice) {
-            this.applyFilters();
-          } else {
-            this.applyFilters();
-          }
+          this.selectedOffice = newOfficeId != null ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
+          this.applyFilters();
         }
       }
     }
@@ -245,31 +242,19 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
+
         if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
           this.selectedOffice = this.offices[0];
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
         }
-        
-        const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-        if (this.officeId !== null && this.officeId !== undefined) {
-          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-          if (matchingOffice !== this.selectedOffice) {
-            this.selectedOffice = matchingOffice;
-            this.applyFilters();
-          }
-        } else if (globalOfficeId !== null) {
-          const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-          if (globalOffice && globalOffice !== this.selectedOffice) {
-            this.selectedOffice = globalOffice;
-            this.officeIdChange.emit(globalOffice.officeId);
-            this.applyFilters();
-          }
-        } else if (this.selectedOffice && this.offices.length === 1) {
-          this.applyFilters();
-        }
+
+        // Use only parent's officeId (global or manual selection). Null = All Offices.
+        this.selectedOffice = (this.officeId != null && this.offices.length > 0)
+          ? this.offices.find(o => o.officeId === this.officeId) || null
+          : null;
+        this.applyFilters();
       });
     });
   }

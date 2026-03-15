@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, map, of, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, map, of, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -32,6 +32,7 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -68,6 +69,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
@@ -125,6 +127,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService,
     private accountingOfficeService: AccountingOfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private route: ActivatedRoute,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService
@@ -136,6 +139,12 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.applyOfficeSelection(officeId);
+      }
+    });
+
     // Read query params if component is used standalone (not via @Input)
     // Use forkJoin to ensure query params are read before proceeding
     forkJoin({
@@ -186,6 +195,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
         if (this.officeId !== null) {
           this.applyOfficeSelection(this.officeId);
+        } else {
+          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          if (globalOfficeId != null && this.offices.length > 0) {
+            this.applyOfficeSelection(globalOfficeId);
+          }
         }
         if (this.companyId) {
           this.loadCompanyContact(this.companyId);
@@ -652,6 +666,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Form Response Methods
   onOfficeSelected(officeId: number | null): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
     if (!officeId) {
       this.selectedOffice = null;
       this.updateOfficeLogo();
@@ -1236,6 +1251,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.accountingOfficesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

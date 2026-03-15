@@ -1,9 +1,10 @@
 
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription, filter, take } from 'rxjs';
+import { Subscription, filter, skip, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -52,7 +53,7 @@ interface LedgerLineWithDateFields {
     templateUrl: './general-ledger.component.html',
     styleUrls: ['./general-ledger.component.scss']
 })
-export class GeneralLedgerComponent implements OnInit, OnChanges {
+export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   @Input() hideFilters: boolean = false;
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
@@ -73,6 +74,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   companyContacts: ContactResponse[] = [];
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   officesSubscription?: Subscription;
+  private globalOfficeSubscription?: Subscription;
   reservationsSubscription?: Subscription;
   companyContactsSubscription?: Subscription;
   invoicesSubscription?: Subscription;
@@ -102,7 +104,8 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     private accountingService: InvoiceService,
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
-    private formatter: FormatterService
+    private formatter: FormatterService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {}
 
   //#region General-Ledger
@@ -112,9 +115,21 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
     this.loadCompanyContacts();
     this.loadCostCodes();
     this.loadInvoices();
-    
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOfficeId = officeId ?? null;
+        this.officeIdChange.emit(this.selectedOfficeId);
+        this.filterCompanyContacts();
+        this.filterReservations();
+        this.selectedReservationId = null;
+        this.reservationIdChange.emit(this.selectedReservationId);
+        this.loadInvoices();
+      }
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
+      if (this.officeId !== null && this.officeId !== undefined && this.offices.length > 0) {
         this.selectedOfficeId = this.officeId;
       }
     });
@@ -163,6 +178,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   }
    
   onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanyContacts();
     this.filterReservations();
@@ -195,8 +211,16 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
           
           if (this.officeId !== null && this.officeId !== undefined) {
             this.selectedOfficeId = this.officeId;
+          } else {
+            const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            if (globalId != null) {
+              this.selectedOfficeId = globalId;
+              this.filterCompanyContacts();
+              this.filterReservations();
+              this.loadInvoices();
+            }
           }
-          
+
           // Keep General Ledger defaults as All Offices.
           this.showOfficeDropdown = true;
         },
@@ -471,6 +495,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.reservationsSubscription?.unsubscribe();
     this.companyContactsSubscription?.unsubscribe();
     this.invoicesSubscription?.unsubscribe();
