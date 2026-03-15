@@ -97,6 +97,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
+  /** Full lists by org (before office filter); used to re-filter when office changes. */
+  allRegionsByOrg: RegionResponse[] = [];
+  allAreasByOrg: AreaResponse[] = [];
+  allBuildingsByOrg: BuildingResponse[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -154,6 +158,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
         this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
         if (this.form) {
           this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null });
+          this.filterLocationLookupsByOffice();
           this.filterReservations();
         }
       }
@@ -961,10 +966,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
-        this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
-        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
-        
+        this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+        this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+        this.allBuildingsByOrg = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+
         if (this.offices.length === 1 && !this.property?.officeId) {
           this.selectedOffice = this.offices[0];
           this.showOfficeDropdown = false;
@@ -986,7 +991,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
           }
         }
 
-        // If property is already loaded, update location fields in form and set selectedOffice
         if (this.property && this.form) {
           const propertyOfficeId = this.property.officeId;
           if (propertyOfficeId) {
@@ -998,18 +1002,56 @@ export class PropertyComponent implements OnInit, OnDestroy {
             areaId: this.property.areaId || null,
             buildingId: this.property.buildingId || null,
           });
-          // Filter reservations after setting office
           this.filterReservations();
         }
+
+        this.filterLocationLookupsByOffice();
       },
       error: () => {
         this.offices = [];
+        this.allRegionsByOrg = [];
+        this.allAreasByOrg = [];
+        this.allBuildingsByOrg = [];
         this.regions = [];
         this.areas = [];
         this.buildings = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups');
       }
     });
+  }
+
+  /** Filter Region, Area, and Building dropdowns by the property's selected office. */
+  filterLocationLookupsByOffice(): void {
+    const officeId = this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? null;
+    const officeNum = officeId != null ? Number(officeId) : null;
+
+    this.regions = officeNum != null
+      ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum)
+      : [];
+    this.areas = officeNum != null
+      ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum)
+      : [];
+    this.buildings = officeNum != null
+      ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum)
+      : [];
+
+    if (!this.form) return;
+    const regionId = this.form.get('regionId')?.value;
+    const areaId = this.form.get('areaId')?.value;
+    const buildingId = this.form.get('buildingId')?.value;
+    const updates: { regionId?: number | null; areaId?: number | null; buildingId?: number | null } = {};
+    if (regionId != null && !this.regions.some(r => r.regionId === regionId)) {
+      updates.regionId = null;
+    }
+    if (areaId != null && !this.areas.some(a => a.areaId === areaId)) {
+      updates.areaId = null;
+    }
+    if (buildingId != null && !this.buildings.some(b => b.buildingId === buildingId)) {
+      updates.buildingId = null;
+    }
+    if (Object.keys(updates).length > 0) {
+      this.form.patchValue(updates, { emitEvent: false });
+    }
   }
 
   loadStates(): void {
@@ -1118,8 +1160,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     } else {
       this.selectedOffice = null;
     }
+    this.filterLocationLookupsByOffice();
     this.filterReservations();
-    // Clear selected reservation when office changes
     this.selectedReservationId = null;
   }
 
@@ -1146,7 +1188,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
     if (value === null || value === undefined || value === '') {
       return defaultValue;
     }
-    return String(value);
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return defaultValue;
+    }
+    return num.toFixed(8).replace(/\.?0+$/, '') || String(num);
   }
 
   private parseCoordinateValue(value: string | number | null | undefined, defaultValue: number): number {

@@ -95,7 +95,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.officeIdChange.emit(officeId ?? null);
         this.applyFilters();
       }
     });

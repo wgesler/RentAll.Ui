@@ -148,9 +148,11 @@ export class ContactsComponent implements OnInit, OnDestroy {
         this.showOfficeDropdown = this.offices.length !== 1;
         this.applyQueryParamState(this.route.snapshot.queryParams);
 
+        let didSetInitialOffice = false;
         if (!this.selectedOffice && this.offices.length === 1) {
           this.selectedOffice = this.offices[0];
           this.selectedOfficeId = this.offices[0].officeId;
+          didSetInitialOffice = true;
         } else if (!this.selectedOffice) {
           const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId !== null) {
@@ -158,11 +160,14 @@ export class ContactsComponent implements OnInit, OnDestroy {
             if (globalOffice) {
               this.selectedOffice = globalOffice;
               this.selectedOfficeId = globalOffice.officeId;
+              didSetInitialOffice = true;
             }
           }
         }
         this.cdr.markForCheck();
-        this.updateUrlWithCurrentState();
+        if (didSetInitialOffice) {
+          this.updateUrlWithCurrentState();
+        }
       });
     });
   }
