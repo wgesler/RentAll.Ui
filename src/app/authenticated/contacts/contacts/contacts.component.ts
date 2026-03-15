@@ -31,7 +31,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   destroy$ = new Subject<void>();
@@ -55,25 +55,15 @@ export class ContactsComponent implements OnInit, OnDestroy {
   //#region Contacts
   ngOnInit(): void {
     this.applyQueryParamState(this.route.snapshot.queryParams);
-    
+
     // Subscribe to query params for tab selection
     this.route.queryParams
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => this.applyQueryParamState(params));
-    
-    // Load offices for shared office selection
-    this.loadOffices();
 
+    this.loadOffices();
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
-        this.cdr.markForCheck();
-        const queryParams: Record<string, string> = { tab: this.selectedTabIndex.toString() };
-        if (this.selectedOfficeId != null) queryParams['officeId'] = this.selectedOfficeId.toString();
-        else queryParams['officeId'] = '';
-        this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge' });
-      }
+      this.syncOfficeFromGlobal(officeId);
     });
   }
 
@@ -99,38 +89,35 @@ export class ContactsComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
+  syncOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 0) return;
+    this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    this.cdr.markForCheck();
+    this.updateUrlWithCurrentState();
+  }
+  
   onOfficeIdChange(officeId: number | null): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
     this.selectedOfficeId = officeId;
-    
-    if (officeId !== null) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    } else {
-      this.selectedOffice = null;
-    }
-    
-    const queryParams: any = { tab: this.selectedTabIndex.toString() };
-    if (officeId !== null) {
-      queryParams.officeId = officeId.toString();
-    } else {
-      queryParams.officeId = null;
-    }
-    
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: queryParams,
-      queryParamsHandling: 'merge'
-    });
+    this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+    this.updateUrlWithCurrentState();
   }
 
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
-    // Update URL query params when tab changes manually (user clicks tab)
-    this.router.navigate([], { 
-      relativeTo: this.route,
-      queryParams: { tab: event.index.toString() },
-      queryParamsHandling: 'merge'
-    });
+    this.updateUrlWithCurrentState();
+  }
+
+  /** Update URL query params to match current tab and office so tab switches and reloads preserve state. */
+  updateUrlWithCurrentState(): void {
+    const queryParams: Record<string, string> = { tab: this.selectedTabIndex.toString() };
+    if (this.selectedOfficeId != null) {
+      queryParams['officeId'] = this.selectedOfficeId.toString();
+    } else {
+      queryParams['officeId'] = '';
+    }
+    this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge' });
   }
 
   onOpenContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }): void {
@@ -158,7 +145,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
-        
         this.showOfficeDropdown = this.offices.length !== 1;
         this.applyQueryParamState(this.route.snapshot.queryParams);
 
@@ -175,6 +161,8 @@ export class ContactsComponent implements OnInit, OnDestroy {
             }
           }
         }
+        this.cdr.markForCheck();
+        this.updateUrlWithCurrentState();
       });
     });
   }
