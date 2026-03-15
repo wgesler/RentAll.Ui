@@ -647,6 +647,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         squareFeet: property.squareFeet,
         monthlyRate: property.monthlyRate,
         dailyRate: property.dailyRate,
+        propertyTypeId: property.propertyTypeId,
         departureFee: property.departureFee,
         petFee: property.petFee,
         maidServiceFee: property.maidServiceFee,

@@ -251,6 +251,7 @@ export interface PropertyListResponse{
   squareFeet: number;
   monthlyRate: number;
   dailyRate: number;
+  propertyTypeId: number;
   departureFee: number;
   petFee: number;
   maidServiceFee: number;
@@ -271,6 +272,8 @@ export interface PropertyListDisplay {
   squareFeet: number;
   monthlyRate: number;
   dailyRate: number;
+  propertyTypeId: number;
+  propertyType: string;
   departureFee: number;
   petFee: number;
   maidServiceFee: number;

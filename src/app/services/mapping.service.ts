@@ -21,7 +21,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { getPropertyStatusLetter } from '../authenticated/properties/models/property-enums';
+import { PropertyType, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -472,11 +472,13 @@ export class MappingService {
         squareFeet: o.squareFeet,
         monthlyRate: o.monthlyRate,
         dailyRate: o.dailyRate,
+        propertyTypeId: o.propertyTypeId,
+        propertyType: (PropertyType[o.propertyTypeId as PropertyType] as string) ?? getPropertyType(o.propertyTypeId),
         departureFee: o.departureFee,
         petFee: o.petFee,
         maidServiceFee: o.maidServiceFee,
         propertyStatusId: o.propertyStatusId,
-        isActive: o.isActive, 
+        isActive: o.isActive,
       };
     });
   }

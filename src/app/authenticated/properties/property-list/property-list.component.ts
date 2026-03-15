@@ -55,6 +55,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'accomodates': { displayAs: 'Acms', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
+    'propertyType': { displayAs: 'Type', maxWidth: '10ch', wrap: false },
     'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
