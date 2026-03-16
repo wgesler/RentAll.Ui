@@ -1,43 +1,74 @@
 @if (!(isLoading$ | async)) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-        <div class="flex items-baseline">
-          <mat-icon mat-list-icon class="mr-5">store</mat-icon>
-          <h2 class="m-0">Offices</h2>
+  @if (embeddedInSettings) {
+    <div class="mat list-layout-tabbed">
+      <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
+        <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4 mt-3">
+          <mat-slide-toggle id="toggle-offices-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">Inactive</mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addOffice()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
         </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addOffice()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
+        <app-data-table
+          [data]="officesDisplay"
+          [columns]="officesDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsCopy]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete Office'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this office?'"
+          [itemsPerPage]="100"
+          (editEvent)="goToOffice($event)"
+          (rowClickEvent)="goToOffice($event)"
+          (copyEvent)="copyOffice($event)"
+          (deleteEvent)="deleteOffice($event)"/>
       </div>
-      <mat-card>
-        <div class="mat">
-          <div class="tableDiv">
-            <app-data-table
-              [data]="officesDisplay"
-              [columns]="officesDisplayedColumns"
-              [hasColumnIndex]="false"
-              [hasFilter]="true"
-              [hasToggleTop]="true"
-              [hasActionsRowClick]="true"
-              [hasActionsEdit]="true"
-              [hasActionsCopy]="true"
-              [hasActionsDelete]="true"
-              [deleteConfirmTitle]="'Delete Office'"
-              [deleteConfirmMessage]="'Are you sure you want to delete this office?'"
-              [itemsPerPage]="100"
-              buttonToggleTextTop="Inactive"
-              (topToggleButtonEvent)="toggleInactive()"
-              (editEvent)="goToOffice($event)"
-              (rowClickEvent)="goToOffice($event)"
-              (copyEvent)="copyOffice($event)"
-              (deleteEvent)="deleteOffice($event)"/>
+    </div>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+          <div class="flex items-baseline">
+            <mat-icon mat-list-icon class="mr-5">store</mat-icon>
+            <h2 class="m-0">Offices</h2>
           </div>
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addOffice()" class="scale-90 text-nowrap">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
         </div>
-      </mat-card>
-    </section>
-  </div>
+        <mat-card>
+          <div class="mat">
+            <div class="tableDiv">
+              <app-data-table
+                [data]="officesDisplay"
+                [columns]="officesDisplayedColumns"
+                [hasColumnIndex]="false"
+                [hasFilter]="true"
+                [hasToggleTop]="true"
+                [hasActionsRowClick]="true"
+                [hasActionsEdit]="true"
+                [hasActionsCopy]="true"
+                [hasActionsDelete]="true"
+                [deleteConfirmTitle]="'Delete Office'"
+                [deleteConfirmMessage]="'Are you sure you want to delete this office?'"
+                [itemsPerPage]="100"
+                buttonToggleTextTop="Inactive"
+                (topToggleButtonEvent)="toggleInactive()"
+                (editEvent)="goToOffice($event)"
+                (rowClickEvent)="goToOffice($event)"
+                (copyEvent)="copyOffice($event)"
+                (deleteEvent)="deleteOffice($event)"/>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
 }
 
 

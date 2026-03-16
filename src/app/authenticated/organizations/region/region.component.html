@@ -19,7 +19,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveRegion()"
+          <button mat-raised-button type="submit" form="regionForm" color="primary" id="save-button" (click)="saveRegion()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -27,7 +27,7 @@
         </div>
       </div>
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveRegion()" class="info-form mb-8 pt-5">
+        <form id="regionForm" [formGroup]="form" (ngSubmit)="saveRegion()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <div class="col-span-4 flex items-center justify-end">
                 <mat-checkbox formControlName="isActive" color="primary">
@@ -37,7 +37,7 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Region Code</mat-label>
-                <input matInput formControlName="regionCode" required (input)="onCodeInput($event)">
+                <input matInput #firstInput formControlName="regionCode" required (input)="onCodeInput($event)">
                 @if (form.get('regionCode')?.hasError('required') && form.get('regionCode')?.touched) {
                   <mat-error>Region Code is required</mat-error>
                 }

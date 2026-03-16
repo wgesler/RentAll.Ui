@@ -4,14 +4,16 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AreaListDisplay, AreaResponse } from '../models/area.model';
+import { OfficeResponse } from '../models/office.model';
 import { AreaService } from '../services/area.service';
 import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
 import { OfficeService } from '../services/office.service';
@@ -33,6 +35,11 @@ export class AreaListComponent implements OnInit, OnDestroy {
   allAreas: AreaListDisplay[] = [];
   areasDisplay: AreaListDisplay[] = [];
 
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
+
   areasDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
@@ -41,9 +48,9 @@ export class AreaListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['areas']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'areas']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
 
   constructor(
     public areaService: AreaService,
@@ -51,15 +58,46 @@ export class AreaListComponent implements OnInit, OnDestroy {
     public router: Router,
     public mappingService: MappingService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private utilityService: UtilityService) {
   }
 
   //#region Area-List
   ngOnInit(): void {
+    this.loadOffices();
     this.getAreas();
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(() => {
-      this.applyFilters();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.applyFilters();
+      }
     });
+  }
+
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+
+        const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        this.selectedOffice = globalId !== null ? (this.offices.find(o => o.officeId === globalId) || null) : null;
+
+        if (this.offices.length === 1 && !this.selectedOffice) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        this.applyFilters();
+      });
+    });
+  }
+
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.applyFilters();
   }
 
   addArea(): void {
@@ -107,11 +145,8 @@ export class AreaListComponent implements OnInit, OnDestroy {
   //#region Filtering Methods
   applyFilters(): void {
     let filtered = this.allAreas;
-    if (this.embeddedInSettings) {
-      const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-      if (officeId !== null) {
-        filtered = filtered.filter(area => Number(area.officeId) === officeId);
-      }
+    if (this.selectedOffice) {
+      filtered = filtered.filter(area => Number(area.officeId) === this.selectedOffice!.officeId);
     }
     this.areasDisplay = this.showInactive
       ? filtered
@@ -135,6 +170,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

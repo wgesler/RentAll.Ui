@@ -18,6 +18,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
+import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertyService } from '../services/property.service';
@@ -138,15 +139,32 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   getProperties(): void {
     this.isServiceError = false;
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    const userId = this.authService.getUser()?.userId || '';
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapProperties(properties);
+        this.allProperties = this.mappingService.mapProperties(properties || []);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
         console.error('Error loading properties:', err);
+      }
+    });
+  }
+
+  goToPropertySelection(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+      return;
+    }
+    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { selection } });
+      },
+      error: () => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
       }
     });
   }

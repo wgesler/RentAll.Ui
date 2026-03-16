@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -28,6 +28,7 @@ import { OfficeService } from '../services/office.service';
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
   routeAgentId: string | null = null;
@@ -73,6 +74,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
+        this.scheduleFocusFirstField();
       } else {
         this.getAgent(this.agentId.toString());
       }
@@ -89,6 +91,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
+        this.scheduleFocusFirstField();
       }
     }
   }
@@ -186,6 +189,20 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+
+  focusFirstField(): void {
+    const el = this.firstInputRef?.nativeElement;
+    if (el?.focus) {
+      el.focus();
+    }
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
   //#endregion
 
   //#region Utility Methods
@@ -202,6 +219,17 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
 
   back(): void {
     this.backEvent.emit();
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveAgent();
+    }
   }
   //#endregion
 }

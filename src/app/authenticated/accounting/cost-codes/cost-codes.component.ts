@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -30,6 +31,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   @Input() source: 'accounting' | 'configuration' = 'accounting'; // Track where component came from
   @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
   @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful
+  @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
   costCodeId: string;
@@ -79,6 +81,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.updateCostCodeValidators();
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+          this.scheduleFocusFirstField();
         } else {
           this.costCodeId = idStr;
           if (this.selectedOffice) {
@@ -96,6 +99,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.updateCostCodeValidators();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        this.scheduleFocusFirstField();
       }
     });
   }
@@ -110,6 +114,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.updateCostCodeValidators();
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+          this.scheduleFocusFirstField();
         } else {
           this.costCodeId = idStr;
           if (this.selectedOffice) {
@@ -126,6 +131,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.updateCostCodeValidators();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        this.scheduleFocusFirstField();
       }
     }
     
@@ -297,6 +303,17 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
+
+  focusFirstField(): void {
+    this.firstInputRef?.focus();
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -341,6 +358,17 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     // Parent components (accounting/configuration) will set isEditingCostCodes = false
     // which will show the cost-codes-list component again
     this.backEvent.emit();
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveCostCode();
+    }
   }
   //#endregion
 }

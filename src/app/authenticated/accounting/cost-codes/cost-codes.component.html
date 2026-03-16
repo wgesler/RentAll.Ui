@@ -19,7 +19,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveCostCode()"
+          <button mat-raised-button type="submit" form="costCodeForm" color="primary" id="save-button" (click)="saveCostCode()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -27,7 +27,7 @@
         </div>
       </div>
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveCostCode()" class="info-form mb-8 pt-5">
+        <form id="costCodeForm" [formGroup]="form" (ngSubmit)="saveCostCode()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center justify-end">
               <mat-checkbox formControlName="isActive" color="primary">
@@ -40,7 +40,7 @@
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Office</mat-label>
-                  <mat-select [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required>
+                  <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required>
                     <mat-option [value]="null">Select Office</mat-option>
                     @for (office of offices; track office.officeId) {
                       <mat-option [value]="office">{{ office.name }}</mat-option>

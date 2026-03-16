@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -42,6 +42,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
 
   constructor(
     public organizationService: OrganizationService,
@@ -65,6 +66,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     if (this.isAddMode) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       this.buildForm();
+      this.scheduleFocusFirstField();
     } else {
       this.buildForm();
       this.getOrganization();
@@ -350,6 +352,20 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  focusFirstField(): void {
+    const el = this.firstInputRef?.nativeElement;
+    if (el?.focus) {
+      el.focus();
+    }
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
+
   //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
@@ -378,6 +394,17 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveOrganization();
+    }
   }
   //#endregion
 }

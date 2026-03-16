@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -27,6 +27,7 @@ import { RegionService } from '../services/region.service';
 export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
   routeRegionId: string | null = null;
@@ -71,6 +72,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       if (this.isAddMode) {
         this.removeLoadItem('region');
         this.buildForm();
+        this.scheduleFocusFirstField();
       } else {
         this.getRegion(this.id.toString());
       }
@@ -87,6 +89,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.removeLoadItem('region');
         this.buildForm();
+        this.scheduleFocusFirstField();
       }
     }
   }
@@ -213,6 +216,20 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     this.formatterService.formatCodeInput(event, this.form.get('regionCode'));
   }
 
+  focusFirstField(): void {
+    const el = this.firstInputRef?.nativeElement;
+    if (el?.focus) {
+      el.focus();
+    }
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -231,6 +248,17 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
 
   back(): void {
     this.backEvent.emit();
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveRegion();
+    }
   }
   //#endregion
 }

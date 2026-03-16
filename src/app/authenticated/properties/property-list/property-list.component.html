@@ -37,6 +37,17 @@
                 </mat-form-field>
               }
             </div>
+            <div class="flex items-center gap-3">
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                id="selection-button"
+                (click)="goToPropertySelection()"
+                class="text-nowrap flex-shrink-0">
+                Selection
+              </button>
+            </div>
           </div>
           <div class="tableDiv">
             <app-data-table

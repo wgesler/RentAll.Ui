@@ -19,7 +19,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOrganization()"
+          <button mat-raised-button type="submit" form="organizationForm" color="primary" id="save-button" (click)="saveOrganization()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
             Save
@@ -28,7 +28,7 @@
       </div>
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveOrganization()" class="info-form mb-8 pt-5">
+        <form id="organizationForm" [formGroup]="form" (ngSubmit)="saveOrganization()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end gap-4" style="padding-right: 5px;">
               <mat-checkbox formControlName="isInternational" color="primary">
                 Is International
@@ -41,7 +41,7 @@
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Name</mat-label>
-                  <input matInput formControlName="name" required>
+                  <input matInput #firstInput formControlName="name" required>
                   @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
                     <mat-error>Name is required</mat-error>
                   }

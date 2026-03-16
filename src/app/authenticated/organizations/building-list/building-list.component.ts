@@ -4,14 +4,17 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { BuildingListDisplay, BuildingResponse } from '../models/building.model';
+import { OfficeResponse } from '../models/office.model';
+import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
 import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
@@ -32,6 +35,12 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   allBuildings: BuildingListDisplay[] = [];
   buildingsDisplay: BuildingListDisplay[] = [];
 
+  offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown: boolean = true;
+
   buildingsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
@@ -40,7 +49,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['buildings']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'buildings']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -48,12 +57,47 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private utilityService: UtilityService) {
   }
 
   //#region Building-List
   ngOnInit(): void {
+    this.loadOffices();
     this.getBuildings();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.applyFilters();
+      }
+    });
+  }
+
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+
+        const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        this.selectedOffice = globalId !== null ? (this.offices.find(o => o.officeId === globalId) || null) : null;
+
+        if (this.offices.length === 1 && !this.selectedOffice) {
+          this.selectedOffice = this.offices[0];
+          this.showOfficeDropdown = false;
+        } else {
+          this.showOfficeDropdown = true;
+        }
+        this.applyFilters();
+      });
+    });
+  }
+
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.applyFilters();
   }
 
   addBuilding(): void {
@@ -100,9 +144,13 @@ export class BuildingListComponent implements OnInit, OnDestroy {
 
   //#region Filter methods
   applyFilters(): void {
+    let filtered = this.allBuildings;
+    if (this.selectedOffice) {
+      filtered = filtered.filter(building => Number(building.officeId) === this.selectedOffice!.officeId);
+    }
     this.buildingsDisplay = this.showInactive
-      ? this.allBuildings
-      : this.allBuildings.filter(building => building.isActive);
+      ? filtered
+      : filtered.filter(building => building.isActive);
   }
 
   toggleInactive(): void {
@@ -122,6 +170,8 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

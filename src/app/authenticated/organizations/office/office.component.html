@@ -19,7 +19,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveOffice()"
+          <button mat-raised-button type="submit" form="officeForm" color="primary" id="save-button" (click)="saveOffice()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || form.status !== 'VALID'">
             <mat-icon>save</mat-icon>
             Save
@@ -27,7 +27,7 @@
         </div>
       </div>
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveOffice()" class="info-form mb-8 pt-5">
+        <form id="officeForm" [formGroup]="form" (ngSubmit)="saveOffice()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end gap-4" style="padding-right: 5px;">
               <mat-checkbox formControlName="isInternational" color="primary">
                 Is International
@@ -48,7 +48,7 @@
                   <div class="col-span-4 flex gap-x-1.5">
                     <mat-form-field appearance="outline" class="flex-[0.5]">
                       <mat-label>Office Code</mat-label>
-                      <input matInput formControlName="officeCode" required (input)="onCodeInput($event)">
+                      <input matInput #firstInput formControlName="officeCode" required (input)="onCodeInput($event)">
                       @if (form.get('officeCode')?.hasError('required') && form.get('officeCode')?.touched) {
                         <mat-error>Office Code is required</mat-error>
                       }

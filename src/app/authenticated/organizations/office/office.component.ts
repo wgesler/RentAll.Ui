@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,6 +29,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
   routeOfficeId: string | null = null;
@@ -82,6 +83,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       if (this.isAddMode) {
         this.removeLoadItem('office');
         this.buildForm();
+        this.scheduleFocusFirstField();
         if (this.copyFrom) {
           setTimeout(() => this.populateFormFromCopy(), 0);
         }
@@ -104,6 +106,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.removeLoadItem('office');
         this.buildForm();
+        this.scheduleFocusFirstField();
         if (this.copyFrom) {
           setTimeout(() => this.populateFormFromCopy(), 0);
         }
@@ -517,6 +520,20 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.formatterService.formatCodeInput(event, this.form.get('officeCode'));
   }
 
+  focusFirstField(): void {
+    const el = this.firstInputRef?.nativeElement;
+    if (el?.focus) {
+      el.focus();
+    }
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
+
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -534,6 +551,17 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   back(): void {
     this.backEvent.emit();
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.status === 'VALID' && !this.isSubmitting) {
+      this.saveOffice();
+    }
   }
 
 //#endregion

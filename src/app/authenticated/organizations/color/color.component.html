@@ -19,7 +19,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveColor()"
+          <button mat-raised-button type="submit" form="colorForm" color="primary" id="save-button" (click)="saveColor()"
             class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -27,11 +27,11 @@
         </div>
       </div>
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveColor()" class="info-form mb-8 pt-5">
+        <form id="colorForm" [formGroup]="form" (ngSubmit)="saveColor()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Reservation Status</mat-label>
-                <mat-select formControlName="reservationStatusId" required>
+                <mat-select #firstInput formControlName="reservationStatusId" required>
                   @for (status of reservationStatuses; track status.value) {
                     <mat-option [value]="status.value">{{ status.label }}</mat-option>
                   }

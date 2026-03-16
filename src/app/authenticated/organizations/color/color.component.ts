@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -24,6 +25,7 @@ import { ColorService } from '../services/color.service';
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
   routeColorId: string | null = null;
@@ -62,6 +64,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       if (this.isAddMode) {
         this.removeLoadItem('color');
         this.buildForm();
+        this.scheduleFocusFirstField();
       } else {
         this.getColor(this.id);
       }
@@ -87,6 +90,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
         if (!this.form) {
           this.buildForm();
         }
+        this.scheduleFocusFirstField();
       }
     }
   }
@@ -183,6 +187,17 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  focusFirstField(): void {
+    this.firstInputRef?.focus();
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
+
   //#region Utility Methods
   removeLoadItem(key: string): void {
     const currentSet = this.itemsToLoad$.value;
@@ -201,6 +216,17 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
   back(): void {
     this.backEvent.emit();
+  }
+
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveColor();
+    }
   }
   //#endregion
 }

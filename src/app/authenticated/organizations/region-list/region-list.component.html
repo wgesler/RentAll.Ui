@@ -1,41 +1,98 @@
 @if (!(isLoading$ | async)) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
-        <div class="flex items-baseline">
-          <mat-icon mat-list-icon class="mr-5">map</mat-icon>
-          <h2 class="m-0">Regions</h2>
+  @if (embeddedInSettings) {
+    <div class="mat list-layout-tabbed">
+      @if (showOfficeDropdown) {
+        <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
+              <mat-option [value]="null">All Offices</mat-option>
+              @for (office of offices; track office.officeId) {
+                <mat-option [value]="office">{{ office.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
-        <button mat-raised-button type="button" color="primary" id="add-button" (click)="addRegion()" class="scale-90 text-nowrap">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
+      }
+      <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
+        <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
+          <mat-slide-toggle id="toggle-regions-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">Inactive</mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addRegion()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
+        </div>
+        <app-data-table
+          [data]="regionsDisplay"
+          [columns]="regionsDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete Region'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this region?'"
+          [itemsPerPage]="100"
+          (editEvent)="goToRegion($event)"
+          (rowClickEvent)="goToRegion($event)"
+          (deleteEvent)="deleteRegion($event)"/>
       </div>
-      <mat-card>
-        <div class="mat">
-          <div class="tableDiv">
-            <app-data-table
-              [data]="regionsDisplay"
-              [columns]="regionsDisplayedColumns"
-              [hasColumnIndex]="false"
-              [hasFilter]="true"
-              [hasToggleTop]="true"
-              [hasActionsRowClick]="true"
-              [hasActionsEdit]="true"
-              [hasActionsDelete]="true"
-              [deleteConfirmTitle]="'Delete Region'"
-              [deleteConfirmMessage]="'Are you sure you want to delete this region?'"
-              [itemsPerPage]="100"
-              buttonToggleTextTop="Inactive"
-              (topToggleButtonEvent)="toggleInactive()"
-              (editEvent)="goToRegion($event)"
-              (rowClickEvent)="goToRegion($event)"
-              (deleteEvent)="deleteRegion($event)"/>
+    </div>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
+          <div class="flex items-baseline">
+            <mat-icon mat-list-icon class="mr-5">map</mat-icon>
+            <h2 class="m-0">Regions</h2>
           </div>
+          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addRegion()" class="scale-90 text-nowrap">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
         </div>
-      </mat-card>
-    </section>
-  </div>
+        @if (showOfficeDropdown) {
+          <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
+            <div class="flex items-center gap-3" style="height: 56px;">
+              <mat-form-field appearance="outline" class="office-dropdown">
+                <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        }
+        <mat-card>
+          <div class="mat">
+            <div class="tableDiv">
+              <app-data-table
+                [data]="regionsDisplay"
+                [columns]="regionsDisplayedColumns"
+                [hasColumnIndex]="false"
+                [hasFilter]="true"
+                [hasToggleTop]="true"
+                [hasActionsRowClick]="true"
+                [hasActionsEdit]="true"
+                [hasActionsDelete]="true"
+                [deleteConfirmTitle]="'Delete Region'"
+                [deleteConfirmMessage]="'Are you sure you want to delete this region?'"
+                [itemsPerPage]="100"
+                buttonToggleTextTop="Inactive"
+                (topToggleButtonEvent)="toggleInactive()"
+                (editEvent)="goToRegion($event)"
+                (rowClickEvent)="goToRegion($event)"
+                (deleteEvent)="deleteRegion($event)"/>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
 }
 
 
