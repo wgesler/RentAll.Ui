@@ -13,6 +13,7 @@ export interface ContactRequest {
   lastName?: string | null;
   officeId: number;
   companyId?: string;
+  properties: string[];
   address1?: string;
   address2?: string;
   city?: string;
@@ -31,9 +32,7 @@ export interface ContactRequest {
   insuranceExpiration?: string | null;
   markup: number;
   isActive: boolean;
-  /** Comma-separated or array of property codes (owners only). Send as comma-separated string to API if required. */
-  propertyCodes?: string[] | string;
-}
+ }
 
 export interface ContactResponse {
   contactId: string;
@@ -50,6 +49,7 @@ export interface ContactResponse {
   officeId: number;
   officeName: string;
   companyId?: string | null;
+  properties: string[];
   address1?: string;
   address2?: string;
   city?: string;
@@ -68,8 +68,6 @@ export interface ContactResponse {
   insuranceExpiration?: string;
   markup: number;
   isActive: boolean;
-  /** Property codes (owners only). API may return comma-separated string. */
-  propertyCodes?: string[] | string;
 }
 
 export interface ContactListDisplay {
@@ -82,12 +80,11 @@ export interface ContactListDisplay {
   entityTypeId?: number;
   ownerTypeId?: number | null;
   companyName?: string | null;
+  propertyCodesDisplay?: string;
   phone?: string | null;
   email: string;
   rating: number;
   ratingStars?: string;
   isActive: boolean;
-  /** Comma-separated display of property codes (owners only). */
-  propertyCodesDisplay?: string;
 }
 

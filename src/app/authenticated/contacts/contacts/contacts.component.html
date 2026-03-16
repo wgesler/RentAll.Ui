@@ -8,18 +8,18 @@
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="contacts-tabs" (selectedTabChange)="onTabChange($event)">
-        <mat-tab label="Tenants">
+        <mat-tab label="Owners">
           @if (showContactForm && formTabIndex === 0) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
-        <mat-tab label="Owners">
+        <mat-tab label="Tenants">
           @if (showContactForm && formTabIndex === 1) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
         <mat-tab label="Companies">

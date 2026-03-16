@@ -280,7 +280,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
     contactRequest.ownerTypeId = entityTypeId === EntityType.Owner ? (formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null) : undefined;
-    contactRequest.propertyCodes = entityTypeId === EntityType.Owner ? ((formValue.propertyCodes || []).length ? (formValue.propertyCodes || []).join(',') : undefined) : undefined;
+    contactRequest.properties = entityTypeId === EntityType.Owner ? (formValue.propertyCodes || []) : [];
     contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
     const isCompany = entityTypeId === EntityType.Company;
     contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
@@ -380,7 +380,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       
       const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
       const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
-      const rawCodes = this.contact.propertyCodes;
+      const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
       const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
@@ -475,16 +475,6 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.insuranceFileDataUrl = null;
       this.insuranceFileContentType = null;
     }
-  }
-
-  loadAllProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
-      next: (list) => {
-        this.allProperties = list || [];
-        this.filterPropertiesByGlobalOffice();
-      },
-      error: () => {}
-    });
   }
 
   filterPropertiesByGlobalOffice(): void {
@@ -587,6 +577,16 @@ export class ContactComponent implements OnInit, OnDestroy {
           this.applyFormValuesFromQueryParams();
         }
       });
+    });
+  }
+
+  loadAllProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (list) => {
+        this.allProperties = list || [];
+        this.filterPropertiesByGlobalOffice();
+      },
+      error: () => {}
     });
   }
   //#endregion

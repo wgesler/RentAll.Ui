@@ -93,7 +93,7 @@ export class MappingService {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
       const displayName = (o.fullName ?? o.displayName ?? '').trim() || combinedName || o.companyName || '';
-      const rawCodes = o.propertyCodes;
+      const rawCodes = (o.properties ?? []) as string[] | string;
       const codesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
       const propertyCodesDisplay = codesArray.length ? codesArray.join(', ') : undefined;
       return {
