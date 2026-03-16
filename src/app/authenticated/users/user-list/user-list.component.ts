@@ -34,6 +34,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  includeOwners: boolean = false;
   allUsers: UserListDisplay[] = [];
   usersDisplay: UserListDisplay[] = [];
   offices: OfficeResponse[] = [];
@@ -178,7 +179,24 @@ export class UserListComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(user => user.organizationName === this.selectedOrganization?.name);
     }
 
+    if (!this.includeOwners) {
+      const ownerGroupId = UserGroups.Owner;
+      filtered = filtered.filter(user => !(user.userGroups || []).some(g =>
+        g === 'Owner' || Number(g) === ownerGroupId
+      ));
+    }
+
     this.usersDisplay = filtered;
+  }
+
+  toggleIncludeOwners(): void {
+    this.includeOwners = !this.includeOwners;
+    this.applyFilters();
+  }
+
+  onIncludeOwnersChange(checked: boolean): void {
+    this.includeOwners = checked;
+    this.applyFilters();
   }
 
   toggleInactive(): void {

@@ -76,6 +76,9 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() buttonTextTop: string = 'Add';
   @Input() buttonColorTop: string = 'accent';
   @Input() buttonToggleTextTop: string = 'Advanced Mode';
+  @Input() hasToggleTop2: boolean = false;
+  @Input() buttonToggleTextTop2: string = '';
+  @Input() isToggle2Checked: boolean = false;
 
   @Input() columnTextSelect: string = 'Select';
   @Input() columnTextObfuscate: string = 'Obfuscate Value';
@@ -129,6 +132,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
+  @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
 
   @Output() selectionSet = new EventEmitter<PurposefulAny>();
 
@@ -273,6 +277,10 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   emitToggleEvent(): void {
     this.topToggleButtonEvent.emit(true);
+  }
+
+  emitToggle2Event(): void {
+    this.topToggle2ButtonEvent.emit(!this.isToggle2Checked);
   }
 
   emitLockEvent(_event: Event, rowItem: PurposefulAny): void {

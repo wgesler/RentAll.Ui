@@ -1,4 +1,4 @@
-@if (hasFilter || hasToggleTop || hasButtonTop) {
+@if (hasFilter || hasToggleTop || hasToggleTop2 || hasButtonTop) {
   <div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4">
     @if (hasFilter) {
       <mat-form-field id="datatable-search-field-{{templateTableId}}"
@@ -17,6 +17,11 @@
       </mat-form-field>
     }
     <div class="flex justify-center lg:justify-end items-center gap-5 flex-wrap mobile-view-full mb-4">
+      @if (hasToggleTop2) {
+        <mat-slide-toggle [checked]="isToggle2Checked" color="primary" (change)="emitToggle2Event()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
+          {{buttonToggleTextTop2}}
+        </mat-slide-toggle>
+      }
       @if (hasToggleTop) {
         <mat-slide-toggle id="toggle-users" [checked]="isToggle" color="primary" (change)="emitToggleEvent()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
           {{buttonToggleTextTop}}
