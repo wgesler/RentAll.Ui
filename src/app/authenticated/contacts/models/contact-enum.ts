@@ -36,3 +36,34 @@ export function getContactTypes(): { value: number, label: string }[] {
     }));
 }
 
+//#region OwnerType
+export enum OwnerType {
+  Individual = 0,
+  Trust = 1,
+  Business = 2,
+  Corporation = 3
+}
+
+export function getOwnerType(ownerTypeId: number | undefined): string {
+  if (ownerTypeId === undefined || ownerTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [OwnerType.Individual]: 'Individual',
+    [OwnerType.Trust]: 'Trust',
+    [OwnerType.Business]: 'Business',
+    [OwnerType.Corporation]: 'Corporation'
+  };
+
+  return typeMap[ownerTypeId] || '';
+}
+
+export function getOwnerTypes(): { value: number; label: string }[] {
+  return Object.keys(OwnerType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: OwnerType[key as keyof typeof OwnerType],
+      label: getOwnerType(OwnerType[key as keyof typeof OwnerType])
+    }));
+}
+//#endregion
+

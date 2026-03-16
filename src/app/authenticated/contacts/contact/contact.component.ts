@@ -17,7 +17,7 @@ import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { EntityType, getContactTypes, getEntityType } from '../models/contact-enum';
+import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
@@ -52,6 +52,8 @@ export class ContactComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   private globalOfficeSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
+  OwnerType = OwnerType; // Expose enum to template
+  availableOwnerTypes: { value: number; label: string }[] = [];
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   w9FileName: string | null = null;
   w9FileDataUrl: string | null = null;
@@ -91,6 +93,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   //#region Contacts
   ngOnInit(): void {
     this.initializeContactTypes();
+    this.availableOwnerTypes = getOwnerTypes();
     this.loadStates();
     this.loadOffices();
 
@@ -120,7 +123,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       } else {
         this.setFormValuesFromQueryParams();
         if (this.entityTypeId != null) {
-          this.form?.patchValue({ contactTypeId: this.entityTypeId });
+          const patch: { contactTypeId: number; ownerTypeId?: number } = { contactTypeId: this.entityTypeId };
+          if (this.entityTypeId === EntityType.Owner) {
+            patch.ownerTypeId = OwnerType.Individual;
+          }
+          this.form?.patchValue(patch, { emitEvent: false });
         }
       }
     } else {
@@ -153,26 +160,27 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
     
     const queryParams = this.route.snapshot.queryParams;
-    
+    const patchOptions = { emitEvent: false };
+
     const officeId = getNumberQueryParam(queryParams, 'officeId');
     if (officeId !== null) {
       const office = this.offices.find(o => o.officeId === officeId);
       if (office) {
-        this.form.patchValue({ officeId: office.officeId });
+        this.form.patchValue({ officeId: office.officeId }, patchOptions);
       }
     } else if (this.isAddMode) {
       const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
       if (globalOfficeId != null) {
         const office = this.offices.find(o => o.officeId === globalOfficeId);
         if (office) {
-          this.form.patchValue({ officeId: office.officeId });
+          this.form.patchValue({ officeId: office.officeId }, patchOptions);
         }
       }
     }
     
     const entityTypeId = getNumberQueryParam(queryParams, 'entityTypeId');
     if (entityTypeId !== null && Object.values(EntityType).includes(entityTypeId)) {
-      this.form.patchValue({ contactTypeId: entityTypeId });
+      this.form.patchValue({ contactTypeId: entityTypeId }, patchOptions);
     }
   }
 
@@ -264,8 +272,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
-    const isOwner = entityTypeId === EntityType.Owner;
-    contactRequest.companyName = isOwner ? undefined : ((formValue.companyName || '').trim() || undefined);
+    contactRequest.ownerTypeId = entityTypeId === EntityType.Owner ? (formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null) : undefined;
+    contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
     const isCompany = entityTypeId === EntityType.Company;
     contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
 
@@ -310,6 +318,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
+      ownerTypeId: new FormControl<number | null>(null),
       firstName: new FormControl(''),
       lastName: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
@@ -334,7 +343,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
     this.formatContractMarkup();
 
-    // Company/Vendor require company name. Tenant is optional. Owner clears company name.
+    // Company/Vendor require company name. Tenant and Owner have optional company name.
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
       const companyNameControl = this.form.get('companyName');
       const displayNameControl = this.form.get('displayName');
@@ -342,9 +351,6 @@ export class ContactComponent implements OnInit, OnDestroy {
         companyNameControl?.setValidators([Validators.required]);
       } else {
         companyNameControl?.clearValidators();
-        if (contactTypeId === EntityType.Owner) {
-          companyNameControl?.setValue('');
-        }
       }
       if (contactTypeId !== EntityType.Company && displayNameControl) {
         displayNameControl.setValue('');
@@ -364,8 +370,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         : Boolean(this.contact.isActive);
       
       const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
-      const isOwner = contactTypeId === EntityType.Owner;
-      const companyName = isOwner ? '' : ((this.contact as any).companyName ?? '');
+      const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
 
       const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
       const w9D = w9DateStr ? new Date(w9DateStr + 'T00:00:00') : null;
@@ -376,6 +381,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.form.patchValue({
         contactCode: this.contact.contactCode,
         contactTypeId: contactTypeId,
+        ownerTypeId: this.contact.ownerTypeId ?? null,
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
         officeId: this.contact.officeId || null,
@@ -395,7 +401,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         isActive: isActiveValue,
         w9Expiration: w9ExpirationDate,
         insuranceExpiration: insuranceExpirationDate
-      });
+      }, { emitEvent: false });
 
       if (!this.isAddMode) {
         this.form.get('contactTypeId')?.disable();

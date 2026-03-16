@@ -55,46 +55,61 @@
 
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
 
-              <!-- Row 1: Office, Contact Type, Company/Vendor Name -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Office</mat-label>
-                @if (isAddMode) {
-                  <mat-select formControlName="officeId">
-                    <mat-option [value]="null">None</mat-option>
-                    @for (office of availableOffices; track office.value) {
-                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
+              <!-- Row 1: Office, Contact Type, Owner Type (when Owner), Company Name, Display Name (when Company) - each 1/4 -->
+              <div class="col-span-4 grid gap-x-1.5" style="grid-template-columns: repeat(4, 1fr); min-width: 0;">
+                <mat-form-field appearance="outline" style="min-width: 0;">
+                  <mat-label>Office</mat-label>
+                  @if (isAddMode) {
+                    <mat-select formControlName="officeId">
+                      <mat-option [value]="null">None</mat-option>
+                      @for (office of availableOffices; track office.value) {
+                        <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                      }
+                    </mat-select>
+                  } @else {
+                    <input matInput [value]="getOfficeName()" readonly disabled class="readonly-field">
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" style="min-width: 0;">
+                  <mat-label>Contact Type</mat-label>
+                  <mat-select formControlName="contactTypeId" required>
+                    <mat-option value="">Select Contact Type</mat-option>
+                    @for (contactType of availableContactTypes; track contactType.value) {
+                      <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
                     }
                   </mat-select>
-                } @else {
-                  <input matInput [value]="getOfficeName()" readonly disabled class="readonly-field">
-                }
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Contact Type</mat-label>
-                <mat-select formControlName="contactTypeId" required>
-                  <mat-option value="">Select Contact Type</mat-option>
-                  @for (contactType of availableContactTypes; track contactType.value) {
-                    <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                  @if (form.get('contactTypeId')?.hasError('required') && form.get('contactTypeId')?.touched) {
+                    <mat-error>Contact Type is required</mat-error>
                   }
-                </mat-select>
-                @if (form.get('contactTypeId')?.hasError('required') && form.get('contactTypeId')?.touched) {
-                  <mat-error>Contact Type is required</mat-error>
-                }
-              </mat-form-field>
-
-              @if (form.get('contactTypeId')?.value !== EntityType.Owner) {
-                <mat-form-field appearance="outline" [class.col-span-2]="form.get('contactTypeId')?.value !== EntityType.Company" class="col-span-1">
-                  <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
-                  <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
                 </mat-form-field>
+
+                @if (form.get('contactTypeId')?.value === EntityType.Owner) {
+                  <mat-form-field appearance="outline" style="min-width: 0;">
+                    <mat-label>Owner Type</mat-label>
+                    <mat-select formControlName="ownerTypeId">
+                      <mat-option [value]="null">Select Owner Type</mat-option>
+                      @for (ownerType of availableOwnerTypes; track ownerType.value) {
+                        <mat-option [value]="ownerType.value">{{ ownerType.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+
+                @if (form.get('contactTypeId')?.value !== EntityType.Owner || (form.get('ownerTypeId')?.value != null && form.get('ownerTypeId')?.value !== OwnerType.Individual)) {
+                  <mat-form-field appearance="outline" style="min-width: 0;">
+                    <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
+                    <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
+                  </mat-form-field>
+                }
+
                 @if (form.get('contactTypeId')?.value === EntityType.Company) {
-                  <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-form-field appearance="outline" style="min-width: 0;">
                     <mat-label>Display Name</mat-label>
                     <input matInput formControlName="displayName" placeholder="Enter display name">
                   </mat-form-field>
                 }
-              }
+              </div>
 
               <!-- Row 2: Code, First Name, Last Name -->
               <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">

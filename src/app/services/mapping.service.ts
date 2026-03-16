@@ -101,6 +101,7 @@ export class MappingService {
         fullName: displayName,
         contactType: getEntityType(o.entityTypeId),
         entityTypeId: o.entityTypeId,
+        ownerTypeId: o.ownerTypeId ?? null,
         companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
