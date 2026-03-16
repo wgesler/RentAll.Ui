@@ -61,10 +61,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   private readonly ownerColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
+    'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
-    'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '40ch' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '20ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
