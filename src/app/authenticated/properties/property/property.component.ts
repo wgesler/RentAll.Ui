@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -13,6 +14,7 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -65,6 +67,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   
   DocumentType = DocumentType;
   EmailType = EmailType;
+  readonly newOwnerOptionValue = '__new_owner__';
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
   form: FormGroup;
@@ -140,11 +143,57 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private propertyLetterService: PropertyLetterService,
     private reservationService: ReservationService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private dialog: MatDialog
   ) {
   }
 
   private globalOfficeSubscription?: Subscription;
+
+  setupOwnerSelectionHandlers(): void {
+    const ownerFields: ('owner1Id' | 'owner2Id' | 'owner3Id')[] = ['owner1Id', 'owner2Id', 'owner3Id'];
+    ownerFields.forEach(ownerField => {
+      this.form.get(ownerField)?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+        if (value === this.newOwnerOptionValue) {
+          const emptyValue = ownerField === 'owner1Id' ? '' : null;
+          this.form.patchValue({ [ownerField]: emptyValue }, { emitEvent: false });
+          this.openNewOwnerDialog(ownerField);
+        }
+      });
+    });
+  }
+
+  openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.entityTypeId = EntityType.Owner;
+    dialogRef.componentInstance.compactDialogMode = true;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+        next: () => {
+          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+            this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+            this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
+          });
+        },
+        error: () => {}
+      });
+    });
+  }
 
   //#region Property
   ngOnInit(): void {
@@ -238,6 +287,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     // Set up alarm and keypadAccess field enable/disable logic
     this.setupConditionalFields();
+    this.setupOwnerSelectionHandlers();
   }
 
   getProperty(): void {

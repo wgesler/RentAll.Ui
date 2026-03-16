@@ -341,7 +341,7 @@
                     </mat-expansion-panel>
                   }
 
-                  @if (form.get('contactTypeId')?.value === EntityType.Owner) {
+                  @if (form.get('contactTypeId')?.value === EntityType.Owner && !compactDialogMode) {
                     <mat-expansion-panel class="mb-4">
                       <mat-expansion-panel-header>
                         <mat-panel-title class="contact-form-title">Agreements</mat-panel-title>
