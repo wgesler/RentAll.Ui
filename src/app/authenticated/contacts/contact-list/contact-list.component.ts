@@ -29,7 +29,6 @@ import { ContactService } from '../services/contact.service';
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
-  @Input() showCompanyColumn: boolean = false;
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
@@ -50,28 +49,15 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   private globalOfficeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
 
-  private readonly baseColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
-    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
-    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone' , maxWidth: '20ch' },
-    'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
-  };
-
-  private readonly columnsWithCompany: ColumnSet = {
+  readonly contactsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
     'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone', maxWidth: '20ch'  },
+    'phone': { displayAs: 'Phone', maxWidth: '20ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
-
-  get contactsDisplayedColumns(): ColumnSet {
-    return this.showCompanyColumn ? this.columnsWithCompany : this.baseColumns;
-  }
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
