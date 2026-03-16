@@ -17,6 +17,8 @@ import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyService } from '../../properties/services/property.service';
+import { PropertyListResponse } from '../../properties/models/property.model';
 import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
@@ -54,6 +56,8 @@ export class ContactComponent implements OnInit, OnDestroy {
   EntityType = EntityType; // Expose enum to template
   OwnerType = OwnerType; // Expose enum to template
   availableOwnerTypes: { value: number; label: string }[] = [];
+  allProperties: PropertyListResponse[] = [];
+  availablePropertyCodes: { value: string; label: string }[] = [];
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   w9FileName: string | null = null;
   w9FileDataUrl: string | null = null;
@@ -87,7 +91,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private mappingService: MappingService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private propertyService: PropertyService
   ) {
   }
   //#region Contacts
@@ -96,11 +101,13 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.availableOwnerTypes = getOwnerTypes();
     this.loadStates();
     this.loadOffices();
+    this.loadAllProperties();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.isAddMode && this.form && this.offices.length > 0) {
         this.form.patchValue({ officeId: officeId ?? null });
       }
+      this.filterPropertiesByGlobalOffice();
     });
 
     // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
@@ -273,6 +280,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
     contactRequest.ownerTypeId = entityTypeId === EntityType.Owner ? (formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null) : undefined;
+    contactRequest.propertyCodes = entityTypeId === EntityType.Owner ? ((formValue.propertyCodes || []).length ? (formValue.propertyCodes || []).join(',') : undefined) : undefined;
     contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
     const isCompany = entityTypeId === EntityType.Company;
     contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
@@ -319,6 +327,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
       contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       ownerTypeId: new FormControl<number | null>(null),
+      propertyCodes: new FormControl<string[]>([]),
       firstName: new FormControl(''),
       lastName: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
@@ -371,6 +380,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       
       const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
       const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
+      const rawCodes = this.contact.propertyCodes;
+      const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
       const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
       const w9D = w9DateStr ? new Date(w9DateStr + 'T00:00:00') : null;
@@ -382,6 +393,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         contactCode: this.contact.contactCode,
         contactTypeId: contactTypeId,
         ownerTypeId: this.contact.ownerTypeId ?? null,
+        propertyCodes: propertyCodesArray,
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
         officeId: this.contact.officeId || null,
@@ -463,6 +475,26 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.insuranceFileDataUrl = null;
       this.insuranceFileContentType = null;
     }
+  }
+
+  loadAllProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (list) => {
+        this.allProperties = list || [];
+        this.filterPropertiesByGlobalOffice();
+      },
+      error: () => {}
+    });
+  }
+
+  filterPropertiesByGlobalOffice(): void {
+    const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+    const list = (this.allProperties || []);
+    const filtered = officeId != null ? list.filter(p => p.officeId === officeId) : list;
+    this.availablePropertyCodes = filtered.map(p => ({
+      value: p.propertyCode || '',
+      label: p.propertyCode || ''
+    })).filter(p => p.value);
   }
 
   initializeContactTypes(): void {

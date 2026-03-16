@@ -31,6 +31,8 @@ export interface ContactRequest {
   insuranceExpiration?: string | null;
   markup: number;
   isActive: boolean;
+  /** Comma-separated or array of property codes (owners only). Send as comma-separated string to API if required. */
+  propertyCodes?: string[] | string;
 }
 
 export interface ContactResponse {
@@ -66,6 +68,8 @@ export interface ContactResponse {
   insuranceExpiration?: string;
   markup: number;
   isActive: boolean;
+  /** Property codes (owners only). API may return comma-separated string. */
+  propertyCodes?: string[] | string;
 }
 
 export interface ContactListDisplay {
@@ -83,5 +87,7 @@ export interface ContactListDisplay {
   rating: number;
   ratingStars?: string;
   isActive: boolean;
+  /** Comma-separated display of property codes (owners only). */
+  propertyCodesDisplay?: string;
 }
 

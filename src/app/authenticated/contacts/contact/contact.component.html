@@ -111,6 +111,17 @@
                 }
               </div>
 
+              @if (form.get('contactTypeId')?.value === EntityType.Owner) {
+                <mat-form-field appearance="outline" class="col-span-4">
+                  <mat-label>Properties</mat-label>
+                  <mat-select formControlName="propertyCodes" multiple>
+                    @for (prop of availablePropertyCodes; track prop.value) {
+                      <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+
               <!-- Row 2: Code, First Name, Last Name -->
               <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
                 @if (!isAddMode) {

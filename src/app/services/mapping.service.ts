@@ -93,6 +93,9 @@ export class MappingService {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
       const displayName = (o.fullName ?? o.displayName ?? '').trim() || combinedName || o.companyName || '';
+      const rawCodes = o.propertyCodes;
+      const codesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
+      const propertyCodesDisplay = codesArray.length ? codesArray.join(', ') : undefined;
       return {
         contactId: o.contactId,
         contactCode: o.contactCode,
@@ -108,7 +111,8 @@ export class MappingService {
         rating: o.rating ?? 0,
         ratingStars: (() => { const r = Math.min(5, Math.max(0, Math.round(o.rating ?? 0))); return '★'.repeat(r) + '☆'.repeat(5 - r); })(),
         isInternational: o.isInternational || false,
-        isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive)
+        isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive),
+        propertyCodesDisplay
       };
     });
   }

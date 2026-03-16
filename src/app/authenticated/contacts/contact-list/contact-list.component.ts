@@ -15,6 +15,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
@@ -49,7 +50,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   private globalOfficeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
 
-  readonly contactsDisplayedColumns: ColumnSet = {
+  private readonly baseColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
@@ -58,6 +59,21 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
+
+  private readonly ownerColumns: ColumnSet = {
+    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
+    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
+    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
+    'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '40ch' },
+    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '20ch' },
+    'email': { displayAs: 'Email', maxWidth: '30ch' },
+    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+  };
+
+  get contactsDisplayedColumns(): ColumnSet {
+    return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
+  }
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
