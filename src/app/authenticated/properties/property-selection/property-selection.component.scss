@@ -5,7 +5,7 @@
   width: 100%;
 }
 
-.reservation-board-selection-wrapper {
+.property-selection-wrapper {
   width: 100%;
   height: 100%;
   flex: 1;
@@ -14,7 +14,7 @@
   box-sizing: border-box;
 }
 
-.reservation-board-selection-card {
+.property-selection-card {
   height: calc(100vh - 144px);
   display: flex;
   flex-direction: column;
@@ -42,5 +42,3 @@ input.no-spinner[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-
-

@@ -4,7 +4,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, filter, finalize, forkJoin, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -17,20 +17,21 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
-import { PropertyStatus } from '../../properties/models/property-enums';
-import { PropertySelectionRequest, PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { PropertyService } from '../../properties/services/property.service';
+import { PropertyStatus } from '../models/property-enums';
+import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
+import { PropertyService } from '../services/property.service';
 
 @Component({
     standalone: true,
-    selector: 'app-reservation-board-selection',
+    selector: 'app-property-selection',
     imports: [CommonModule, MaterialModule, ReactiveFormsModule],
-    templateUrl: './reservation-board-selection.component.html',
-    styleUrl: './reservation-board-selection.component.scss'
+    templateUrl: './property-selection.component.html',
+    styleUrl: './property-selection.component.scss'
 })
-export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
+export class PropertySelectionComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSubmitting: boolean = false;
   isServiceError: boolean = false;
@@ -39,8 +40,14 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
+  allRegionsByOrg: RegionResponse[] = [];
+  allAreasByOrg: AreaResponse[] = [];
+  allBuildingsByOrg: BuildingResponse[] = [];
   propertyStatuses: { value: number; label: string }[] = [];
   preloadedSelection: PropertySelectionResponse | null = null;
+  globalOfficeSubscription?: Subscription;
+  /** Where the user came from: 'reservation-board' | 'property-list'. Used for Back navigation. */
+  returnSource: 'reservation-board' | 'property-list' = 'reservation-board';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -56,19 +63,28 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private regionService: RegionService,
     private areaService: AreaService,
-    private buildingService: BuildingService
+    private buildingService: BuildingService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
   }
 
-  //#region Board-Selection
+  //#region Property-Selection
   ngOnInit(): void {
     this.buildForm();
     this.initializePropertyStatuses();
     this.loadStates();
     this.loadDropDownLookups();
 
-    // If we navigated here from the board, it may have preloaded the selection.
-    const preloaded = (history.state && (history.state.selection as PropertySelectionResponse)) || null;
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().subscribe(() => {
+      this.applyOfficeFilterToLookups();
+    });
+
+    // If we navigated here from the board or property list, it may have preloaded the selection.
+    const state = history.state || {};
+    const source = state['source'] as 'reservation-board' | 'property-list' | undefined;
+    this.returnSource = source === 'property-list' ? 'property-list' : 'reservation-board';
+
+    const preloaded = (state['selection'] as PropertySelectionResponse) || null;
     if (preloaded) {
       this.preloadedSelection = preloaded;
       this.patchFormFromResponse(preloaded);
@@ -143,13 +159,10 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.propertyService.putPropertySelection(request).pipe(
-      take(1),
-      finalize(() => (this.isSubmitting = false))
-    ).subscribe({
+    this.propertyService.putPropertySelection(request).pipe(take(1),finalize(() => (this.isSubmitting = false))).subscribe({
       next: (_response: PropertySelectionResponse) => {
         this.toastr.success('Selection saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        this.backToBoard();
+        this.goBack();
       },
       error: () => {
         this.isServiceError = true;
@@ -193,10 +206,11 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
     }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups'); })).subscribe({
       next: ({ offices, regions, areas, buildings }) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
-        this.regions = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
-        this.areas = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
-        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
-        
+        this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+        this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+        this.allBuildingsByOrg = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        this.applyOfficeFilterToLookups();
+
         // If selection is already loaded, update location fields in form
         if (this.form && this.preloadedSelection) {
           const officeId = this.getCodeToId(this.preloadedSelection.officeCode, this.offices, 'officeCode');
@@ -210,12 +224,28 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.offices = [];
+        this.allRegionsByOrg = [];
+        this.allAreasByOrg = [];
+        this.allBuildingsByOrg = [];
         this.regions = [];
         this.areas = [];
         this.buildings = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lookups');
       }
     });
+  }
+
+  applyOfficeFilterToLookups(): void {
+    const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+    if (officeId == null) {
+      this.regions = [...this.allRegionsByOrg];
+      this.areas = [...this.allAreasByOrg];
+      this.buildings = [...this.allBuildingsByOrg];
+    } else {
+      this.regions = this.allRegionsByOrg.filter(r => r.officeId === officeId);
+      this.areas = this.allAreasByOrg.filter(a => Number(a.officeId) === officeId);
+      this.buildings = this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeId);
+    }
   }
 
   initializePropertyStatuses(): void {
@@ -453,13 +483,13 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
-  backToBoard(): void {
-    this.router.navigateByUrl(RouterUrl.ReservationBoard);
+  goBack(): void {
+    const url = this.returnSource === 'property-list' ? RouterUrl.PropertyList : RouterUrl.ReservationBoard;
+    this.router.navigateByUrl(url);
   }
   //#endregion
 }
-
-

@@ -156,15 +156,15 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   goToPropertySelection(): void {
     const userId = this.authService.getUser()?.userId || '';
     if (!userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
       return;
     }
     this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
       next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { selection } });
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list', selection } });
       },
       error: () => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
       }
     });
   }

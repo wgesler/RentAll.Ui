@@ -727,17 +727,17 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
     const userId = this.authService.getUser()?.userId || '';
     if (!userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board' } });
       return;
     }
 
     this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
       next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { selection } });
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', selection } });
       },
       error: () => {
         // Still allow navigation even if selection load fails
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection);
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board' } });
       }
     });
   }
