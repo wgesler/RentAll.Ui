@@ -537,7 +537,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
-      result = result.replace(/\{\{keypadAccess\}\}/g, this.property.tenantKeyCode || '');
+      result = result.replace(/\{\{keypadAccess\}\}/g, this.property.unitTenantCode || '');
       result = result.replace(/\{\{alarmCode\}\}/g, this.property.alarmCode || '');
 
     }

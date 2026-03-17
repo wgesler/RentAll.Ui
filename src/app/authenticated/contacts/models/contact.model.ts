@@ -32,6 +32,8 @@ export interface ContactRequest {
   insuranceExpiration?: string | null;
   markup: number;
   isActive: boolean;
+  /** Preserve on update when not editing (e.g. compact dialog). */
+  agreements?: unknown[] | null;
  }
 
 export interface ContactResponse {
@@ -68,6 +70,8 @@ export interface ContactResponse {
   insuranceExpiration?: string;
   markup: number;
   isActive: boolean;
+  /** Loaded from API; preserve and send back on update when not editing (e.g. compact dialog). */
+  agreements?: unknown[];
 }
 
 export interface ContactListDisplay {

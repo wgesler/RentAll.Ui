@@ -69,12 +69,14 @@ export interface PropertyRequest {
   smoking: boolean;
   parking: boolean;
   parkingnotes?: string;
-  alarm: boolean;
   alarmCode?: string;
-  keypadAccess: boolean;
-  masterKeyCode?: string;
-  tenantKeyCode?: string;
-  
+  unitMstrCode?: string;
+  unitTenantCode?: string;
+  bldgMstrCode?: string;
+  bldgTenantCode?: string;
+  mailRoomCode?: string;
+  garageCode?: string;
+
   // Kitchen & Bath section
   kitchen: boolean;
   oven: boolean;
@@ -187,11 +189,13 @@ export interface PropertyResponse {
   smoking: boolean;
   parking: boolean;
   parkingNotes?: string;
-  alarm: boolean;
   alarmCode?: string;
-  keypadAccess: boolean;
-  masterKeyCode?: string;
-  tenantKeyCode?: string;
+  unitMstrCode?: string;
+  unitTenantCode?: string;
+  bldgMstrCode?: string;
+  bldgTenantCode?: string;
+  mailRoomCode?: string;
+  garageCode?: string;
   
   // Kitchen & Bath section
   kitchen: boolean;

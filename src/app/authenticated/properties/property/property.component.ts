@@ -34,7 +34,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
+import { CheckinTimes, CheckoutTimes, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
@@ -100,14 +100,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
-  /** Full lists by org (before office filter); used to re-filter when office changes. */
   allRegionsByOrg: RegionResponse[] = [];
   allAreasByOrg: AreaResponse[] = [];
   allBuildingsByOrg: BuildingResponse[] = [];
 
+  globalOfficeSubscription?: Subscription;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private destroy$ = new Subject<void>();
+  destroy$ = new Subject<void>();
   
   // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = {
@@ -116,7 +116,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     location: false,
     features: false,
     kitchen: false,
-    electronics: false,
     outdoor: false,
     trash: false,
     amenities: false,
@@ -146,53 +145,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private dialog: MatDialog
   ) {
-  }
-
-  private globalOfficeSubscription?: Subscription;
-
-  setupOwnerSelectionHandlers(): void {
-    const ownerFields: ('owner1Id' | 'owner2Id' | 'owner3Id')[] = ['owner1Id', 'owner2Id', 'owner3Id'];
-    ownerFields.forEach(ownerField => {
-      this.form.get(ownerField)?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
-        if (value === this.newOwnerOptionValue) {
-          const emptyValue = ownerField === 'owner1Id' ? '' : null;
-          this.form.patchValue({ [ownerField]: emptyValue }, { emitEvent: false });
-          this.openNewOwnerDialog(ownerField);
-        }
-      });
-    });
-  }
-
-  openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.entityTypeId = EntityType.Owner;
-    dialogRef.componentInstance.compactDialogMode = true;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
-      if (!result?.saved || !result.contactId) {
-        return;
-      }
-
-      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-        next: () => {
-          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
-            this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-            this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
-          });
-        },
-        error: () => {}
-      });
-    });
   }
 
   //#region Property
@@ -239,7 +191,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
           location: allExpanded,
           features: allExpanded,
           kitchen: allExpanded,
-          electronics: allExpanded,
           outdoor: allExpanded,
           trash: allExpanded,
           amenities: allExpanded,
@@ -266,6 +217,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
           this.getProperty();
         } else {
+          this.setAddModeDefaults();
           // Check if we're copying from another property
           this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
             if (queryParams['copyFrom']) {
@@ -285,7 +237,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
       }
     });
     
-    // Set up alarm and keypadAccess field enable/disable logic
     this.setupConditionalFields();
     this.setupOwnerSelectionHandlers();
   }
@@ -327,40 +278,18 @@ export class PropertyComponent implements OnInit, OnDestroy {
         // Populate form with all copied values
         if (this.property && this.form) {
           // Enable all conditional fields temporarily so patchValue can update them
-          this.form.get('alarmCode')?.enable({ emitEvent: false });
-          this.form.get('masterKeyCode')?.enable({ emitEvent: false });
-          this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
           this.form.get('parkingNotes')?.enable({ emitEvent: false });
           this.form.get('dogsOkay')?.enable({ emitEvent: false });
           this.form.get('catsOkay')?.enable({ emitEvent: false });
           this.form.get('poundLimit')?.enable({ emitEvent: false });
-          
+
           this.populateForm();
           this.form.get('propertyCode')?.setValue('');
 
           // Now set conditional fields based on copied values
-          const alarmValue = this.form.get('alarm')?.value;
-          const keypadAccessValue = this.form.get('keypadAccess')?.value;
           const parkingValue = this.form.get('parking')?.value;
           const petsAllowedValue = this.form.get('petsAllowed')?.value;
-          
-          if (alarmValue) {
-            this.form.get('alarmCode')?.enable({ emitEvent: false });
-          } else {
-            this.form.get('alarmCode')?.disable({ emitEvent: false });
-            this.form.get('alarmCode')?.setValue('', { emitEvent: false });
-          }
-          
-          if (keypadAccessValue) {
-            this.form.get('masterKeyCode')?.enable({ emitEvent: false });
-            this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
-          } else {
-            this.form.get('masterKeyCode')?.disable({ emitEvent: false });
-            this.form.get('masterKeyCode')?.setValue('', { emitEvent: false });
-            this.form.get('tenantKeyCode')?.disable({ emitEvent: false });
-            this.form.get('tenantKeyCode')?.setValue('', { emitEvent: false });
-          }
-          
+
           if (parkingValue) {
             this.form.get('parkingNotes')?.enable({ emitEvent: false });
           } else {
@@ -452,15 +381,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }
     
     // Handle optional nullable string fields - keep as undefined if empty
-    const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 
-                                   'phone', 'view', 'mailbox', 'amenities', 'alarmCode', 
-                                   'masterKeyCode', 'tenantKeyCode', 'trashRemoval', 'description', 'notes'];
+    const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet',
+                                   'phone', 'view', 'mailbox', 'amenities', 'alarmCode',
+                                   'unitMstrCode', 'unitTenantCode', 'bldgMstrCode', 'bldgTenantCode',
+                                   'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'notes'];
     optionalStringFields.forEach(field => {
       if (propertyRequest[field] === '' || propertyRequest[field] === null) {
         propertyRequest[field] = undefined;
       }
     });
-    
+
     // Handle phone formatting
     if (formValue.phone) {
       propertyRequest.phone = this.formatterService.stripPhoneFormatting(formValue.phone);
@@ -486,7 +416,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
     
     // Map parkingNotes field (note: API expects lowercase 'parkingnotes' in request)
     propertyRequest.parkingnotes = formValue.parkingNotes || '';
-    
+    delete (propertyRequest as unknown as Record<string, unknown>)['parkingNotes'];
+
     // Explicitly set notes field from form
     propertyRequest.notes = formValue.notes || '';
 
@@ -606,18 +537,20 @@ export class PropertyComponent implements OnInit, OnDestroy {
       gym: new FormControl(false),
       security: new FormControl(false),
       elevator: new FormControl(false),
-      keypadAccess: new FormControl(false),
       parking: new FormControl(false),
       parkingNotes: new FormControl({ value: '', disabled: true }),
       
-      // Amenities tab
+      // Amenities tab – code fields (send/receive with API)
       amenities: new FormControl(''),
       description: new FormControl(''),
       notes: new FormControl(''),
-      alarm: new FormControl(false),
-      alarmCode: new FormControl({ value: '', disabled: true }),
-      masterKeyCode: new FormControl({ value: '', disabled: true }),
-      tenantKeyCode: new FormControl({ value: '', disabled: true }),
+      alarmCode: new FormControl(''),
+      unitMstrCode: new FormControl(''),
+      unitTenantCode: new FormControl(''),
+      bldgMstrCode: new FormControl(''),
+      bldgTenantCode: new FormControl(''),
+      mailRoomCode: new FormControl(''),
+      garageCode: new FormControl(''),
       mailbox: new FormControl(''),
       gated: new FormControl(false),
       heating: new FormControl(false),
@@ -639,20 +572,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
       
       isActive: new FormControl(true)
     });
-  }
-
-  private applyOfficeControlState(): void {
-    const officeControl = this.form?.get('officeId');
-    if (!officeControl) {
-      return;
-    }
-
-    // Office selection is locked while editing an existing property.
-    if (this.isAddMode) {
-      officeControl.enable({ emitEvent: false });
-    } else {
-      officeControl.disable({ emitEvent: false });
-    }
   }
 
   populateForm(): void {
@@ -701,8 +620,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
      
       // Handle string fields that might be null/undefined - convert to empty strings
       const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
-                           'trashRemoval', 'amenities', 'alarmCode', 'masterKeyCode', 
-                           'tenantKeyCode', 'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
+                           'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
+                           'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
+                           'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
@@ -753,8 +673,39 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }
   }
 
+  applyOfficeControlState(): void {
+    const officeControl = this.form?.get('officeId');
+    if (!officeControl) {
+      return;
+    }
+
+    // Office selection is locked while editing an existing property.
+    if (this.isAddMode) {
+      officeControl.enable({ emitEvent: false });
+    } else {
+      officeControl.disable({ emitEvent: false });
+    }
+  }
+
+  setAddModeDefaults(): void {
+    if (!this.form) return;
+    this.form.patchValue({
+      checkInTimeId: CheckinTimes.FourPM,
+      checkOutTimeId: CheckoutTimes.ElevenAM,
+      heating: true,
+      ac: true,
+      kitchen: true,
+      oven: true,
+      refrigerator: true,
+      microwave: true,
+      dishwasher: true,
+      tv: true,
+      fastInternet: true
+    }, { emitEvent: false });
+  }
+
   /** Call after loading a saved property. Logs field names (and errors) for any control that is invalid. */
-  private logInvalidFormControlsAfterLoad(): void {
+  logInvalidFormControlsAfterLoad(): void {
     const invalid: { path: string; errors: Record<string, unknown> }[] = [];
     const collectInvalid = (group: FormGroup, path = ''): void => {
       Object.keys(group.controls).forEach(key => {
@@ -780,6 +731,104 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Owner Dialog
+  openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.entityTypeId = EntityType.Owner;
+    dialogRef.componentInstance.compactDialogMode = true;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+
+      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+        next: () => {
+          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+            this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+            this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
+          });
+        },
+        error: () => {}
+      });
+    });
+  }
+
+  /** Open the owner/contact dialog to edit the selected owner. Load contact first so dialog opens with data (no jump). */
+  openEditOwnerDialog(contactId: string, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    if (!contactId || contactId === this.newOwnerOptionValue) return;
+
+    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+      next: (contact) => {
+        const dialogRef = this.dialog.open(ContactComponent, {
+          width: '1200px',
+          maxWidth: '95vw',
+          disableClose: true,
+          data: {
+            preloadedContact: contact,
+            entityTypeId: EntityType.Owner,
+            compactDialogMode: true
+          }
+        });
+
+        dialogRef.componentInstance.closed
+          .pipe(take(1))
+          .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+        dialogRef.afterClosed().pipe(take(1)).subscribe(() => {
+          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+            next: () => {
+              this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+                this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+              });
+            },
+            error: () => {}
+          });
+        });
+      },
+      error: () => {
+        this.toastr.error('Failed to load contact.');
+      }
+    });
+  }
+
+  onOwnerSelectionChange(value: string | null, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    if (value && value !== this.newOwnerOptionValue) {
+      this.openEditOwnerDialog(value, ownerField);
+    }
+  }
+
+  /** Display text for the owner trigger (selected name or placeholder). */
+  getOwnerDisplayName(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): string {
+    const value = this.form?.get(ownerField)?.value;
+    if (value == null || value === '' || value === this.newOwnerOptionValue) {
+      return ownerField === 'owner1Id' ? 'Owner' : ownerField === 'owner2Id' ? 'Owner 2 (Optional)' : 'Owner 3 (Optional)';
+    }
+    const contact = this.ownerContacts.find(c => c.contactId === value);
+    return contact?.fullName ?? value;
+  }
+
+  /** Click on the name part of the owner field: open contact edit dialog; do not open the dropdown. */
+  onOwnerNameClick(event: Event, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const value = this.form?.get(ownerField)?.value;
+    if (value && value !== this.newOwnerOptionValue) {
+      this.openEditOwnerDialog(value, ownerField);
+    }
+  }
+  //#endregion
+ 
   //#region Formatting handlers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
@@ -832,42 +881,20 @@ export class PropertyComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Setup and Initialize 
+  setupOwnerSelectionHandlers(): void {
+    const ownerFields: ('owner1Id' | 'owner2Id' | 'owner3Id')[] = ['owner1Id', 'owner2Id', 'owner3Id'];
+    ownerFields.forEach(ownerField => {
+      this.form.get(ownerField)?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+        if (value === this.newOwnerOptionValue) {
+          const emptyValue = ownerField === 'owner1Id' ? '' : null;
+          this.form.patchValue({ [ownerField]: emptyValue }, { emitEvent: false });
+          this.openNewOwnerDialog(ownerField);
+        }
+      });
+    });
+  }
+
   setupConditionalFields(): void {
-    // Subscribe to alarm checkbox changes to enable/disable alarm code field
-    this.form.get('alarm')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
-      const alarmCodeControl = this.form.get('alarmCode');
-      if (alarmCodeControl) {
-        if (value) {
-          alarmCodeControl.enable();
-        } else {
-          alarmCodeControl.disable();
-          alarmCodeControl.setValue('', { emitEvent: false });
-        }
-      }
-    });
-
-    // Subscribe to keypadAccess checkbox changes to enable/disable key code fields
-    this.form.get('keypadAccess')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
-      const masterKeyCodeControl = this.form.get('masterKeyCode');
-      const tenantKeyCodeControl = this.form.get('tenantKeyCode');
-      if (masterKeyCodeControl) {
-        if (value) {
-          masterKeyCodeControl.enable();
-        } else {
-          masterKeyCodeControl.disable();
-          masterKeyCodeControl.setValue('', { emitEvent: false });
-        }
-      }
-      if (tenantKeyCodeControl) {
-        if (value) {
-          tenantKeyCodeControl.enable();
-        } else {
-          tenantKeyCodeControl.disable();
-          tenantKeyCodeControl.setValue('', { emitEvent: false });
-        }
-      }
-    });
-
     // Subscribe to parking checkbox changes to enable/disable parkingNotes field
     this.form.get('parking')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const parkingNotesControl = this.form.get('parkingNotes');
@@ -919,28 +946,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.syncConditionalFieldState();
   }
 
-  private syncConditionalFieldState(): void {
-    const alarmValue = this.form.get('alarm')?.value;
-    const keypadAccessValue = this.form.get('keypadAccess')?.value;
+  syncConditionalFieldState(): void {
     const parkingValue = this.form.get('parking')?.value;
     const petsAllowedValue = this.form.get('petsAllowed')?.value;
-
-    if (alarmValue) {
-      this.form.get('alarmCode')?.enable({ emitEvent: false });
-    } else {
-      this.form.get('alarmCode')?.disable({ emitEvent: false });
-      this.form.get('alarmCode')?.setValue('', { emitEvent: false });
-    }
-
-    if (keypadAccessValue) {
-      this.form.get('masterKeyCode')?.enable({ emitEvent: false });
-      this.form.get('tenantKeyCode')?.enable({ emitEvent: false });
-    } else {
-      this.form.get('masterKeyCode')?.disable({ emitEvent: false });
-      this.form.get('masterKeyCode')?.setValue('', { emitEvent: false });
-      this.form.get('tenantKeyCode')?.disable({ emitEvent: false });
-      this.form.get('tenantKeyCode')?.setValue('', { emitEvent: false });
-    }
 
     if (parkingValue) {
       this.form.get('parkingNotes')?.enable({ emitEvent: false });

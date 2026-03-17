@@ -1350,14 +1350,19 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   get alarmCodeDisplay(): string {
-    if (!this.property?.alarm) return 'N/A';
-    return this.property.alarmCode || 'Not set';
+    return this.property?.alarmCode || 'N/A';
   }
 
   get keypadAccessCodesDisplay(): string {
-    if (!this.property?.keypadAccess) return 'N/A';
-    const codes = [this.property.masterKeyCode, this.property.tenantKeyCode].filter(Boolean);
-    return codes.length > 0 ? codes.join(' / ') : 'Not set';
+    const codes = [
+      this.property?.unitMstrCode,
+      this.property?.unitTenantCode,
+      this.property?.bldgMstrCode,
+      this.property?.bldgTenantCode,
+      this.property?.mailRoomCode,
+      this.property?.garageCode
+    ].filter(Boolean);
+    return codes.length > 0 ? codes.join(' / ') : 'N/A';
   }
 
   get wirelessNetworkIdDisplay(): string {

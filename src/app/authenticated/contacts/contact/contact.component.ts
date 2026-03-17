@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, OnDestroy, OnInit, Input, Output, EventEmitter, ViewChild } from '@angular/core';
+import { Component, ElementRef, Inject, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, ViewChild } from '@angular/core';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -92,7 +93,8 @@ export class ContactComponent implements OnInit, OnDestroy {
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: { preloadedContact?: ContactResponse; entityTypeId?: number; compactDialogMode?: boolean }
   ) {
   }
   //#region Contacts
@@ -110,21 +112,32 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.filterPropertiesByGlobalOffice();
     });
 
-    // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
-    // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
-    const url = this.router.url;
-    const contactDetailRoute = /\/contacts\/[^/]+$/.test(url);
-    const routeId = contactDetailRoute ? this.route.snapshot.paramMap.get('id') : null;
-    if (routeId != null) {
-      this.isEmbedded = false;
-      this.contactId = routeId;
+    // When opened in dialog with preloaded contact (e.g. from property owner click), use it so the form shows filled immediately (no jump).
+    if (this.dialogData?.preloadedContact) {
+      this.contact = this.dialogData.preloadedContact;
+      this.contactId = this.contact.contactId;
+      this.isAddMode = false;
+      if (this.dialogData.entityTypeId != null) this.entityTypeId = this.dialogData.entityTypeId;
+      if (this.dialogData.compactDialogMode != null) this.compactDialogMode = this.dialogData.compactDialogMode;
     } else {
-      this.contactId = this.id ?? 'new';
+      // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
+      // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
+      const url = this.router.url;
+      const contactDetailRoute = /\/contacts\/[^/]+$/.test(url);
+      const routeId = contactDetailRoute ? this.route.snapshot.paramMap.get('id') : null;
+      if (routeId != null) {
+        this.isEmbedded = false;
+        this.contactId = routeId;
+      } else {
+        this.contactId = this.id ?? 'new';
+      }
+      this.isAddMode = this.contactId === 'new';
     }
-    this.isAddMode = this.contactId === 'new';
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
     this.buildForm();
-    if (this.isAddMode) {
+    if (this.dialogData?.preloadedContact) {
+      this.populateForm();
+    } else if (this.isAddMode) {
       if (this.copyFrom) {
         this.copyFromContact(this.copyFrom);
       } else {
@@ -264,18 +277,19 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: strippedPhone ? strippedPhone : null,
-      notes: this.compactDialogMode ? (null as unknown as string) : (formValue.notes || undefined),
-      markup: this.formatterService.parsePercentageValue(formValue.markup, 25),
+      notes: this.compactDialogMode && this.contact ? (this.contact.notes ?? undefined) : (formValue.notes || undefined),
+      markup: this.compactDialogMode && this.contact != null ? (this.contact.markup ?? this.formatterService.parsePercentageValue(formValue.markup, 25)) : this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
       companyId: this.contact?.companyId ?? undefined,
       displayName: derivedDisplayName,
       isInternational: isInternational,
-      w9Path: this.compactDialogMode ? null : (this.hasNewW9Upload ? undefined : this.w9Path),
-      w9FileDetails: this.compactDialogMode ? null : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
-      w9Expiration: this.compactDialogMode ? null : (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.w9Expiration),
-      insurancePath: this.compactDialogMode ? null : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
-      insuranceFileDetails: this.compactDialogMode ? null : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
-      insuranceExpiration: this.compactDialogMode ? null : (v => !v || !(v instanceof Date) || isNaN(v.getTime()) ? null : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`)(formValue.insuranceExpiration)
+      // In compact dialog we don't show W9/insurance UI; preserve loaded values so we don't delete them
+      w9Path: this.compactDialogMode && this.contact ? (this.w9Path ?? this.contact.w9Path ?? null) : (this.hasNewW9Upload ? undefined : this.w9Path),
+      w9FileDetails: this.compactDialogMode && this.contact ? (this.w9FileDetails ?? this.contact.w9FileDetails ?? null) : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
+      w9Expiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.w9Expiration) ?? this.contact.w9Expiration ?? null) : (this.formatExpirationDate(formValue.w9Expiration)),
+      insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
+      insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
+      insuranceExpiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.formatExpirationDate(formValue.insuranceExpiration))
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -289,6 +303,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
       contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
+    }
+
+    // In compact dialog we don't show Agreements UI; preserve loaded agreements so we don't delete them
+    if (this.compactDialogMode && this.contact && this.contact.agreements != null) {
+      contactRequest.agreements = this.contact.agreements;
     }
 
     const save$ = this.isAddMode
@@ -318,6 +337,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       },
       error: () => {}
     });
+  }
+
+  private formatExpirationDate(value: Date | null | undefined): string | null {
+    if (!value || !(value instanceof Date) || isNaN(value.getTime())) return null;
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
   }
   //#endregion
 
@@ -367,8 +391,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       companyNameControl?.updateValueAndValidity({ emitEvent: false });
     });
 
+    // When not in compact dialog mode, syncing contact's office to global selection is desired (e.g. add contact).
+    // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
+      if (!this.compactDialogMode) {
+        this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
+      }
     });
   }
 

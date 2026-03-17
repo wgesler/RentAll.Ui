@@ -381,3 +381,33 @@ section.content-card {
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
+
+/* Owner select: name (left) opens edit dialog; arrow (right) opens dropdown. */
+.owner-select-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 24px;
+  cursor: pointer;
+
+  .owner-trigger-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .owner-trigger-arrow {
+    flex-shrink: 0;
+    margin-left: 4px;
+    cursor: pointer;
+  }
+}
+
+/* When an owner is selected, hide Material's arrow so only the custom trigger arrow shows (avoids double arrow).
+   When empty, do not hide so the dropdown arrow is visible. */
+:host ::ng-deep .owner-select-field.owner-has-value .mat-mdc-select-arrow-wrapper {
+  display: none;
+}
