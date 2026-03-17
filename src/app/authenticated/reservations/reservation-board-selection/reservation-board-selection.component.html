@@ -143,31 +143,28 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Region</mat-label>
-              <mat-select formControlName="regionId">
-                <mat-option value="">All</mat-option>
+              <mat-label>Regions</mat-label>
+              <mat-select formControlName="regionCodes" multiple placeholder="All">
                 @for (r of regions; track r.regionId) {
-                  <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.name }}</mat-option>
+                  <mat-option [value]="r.regionCode">{{ r.regionCode }} - {{ r.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Area</mat-label>
-              <mat-select formControlName="areaId">
-                <mat-option value="">All</mat-option>
+              <mat-label>Areas</mat-label>
+              <mat-select formControlName="areaCodes" multiple placeholder="All">
                 @for (a of areas; track a.areaId) {
-                  <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.name }}</mat-option>
+                  <mat-option [value]="a.areaCode">{{ a.areaCode }} - {{ a.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Building</mat-label>
-              <mat-select formControlName="buildingId">
-                <mat-option value="">All</mat-option>
+              <mat-label>Buildings</mat-label>
+              <mat-select formControlName="buildingCodes" multiple placeholder="All">
                 @for (b of buildings; track b.buildingId) {
-                  <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.name }}</mat-option>
+                  <mat-option [value]="b.buildingCode">{{ b.buildingCode }} - {{ b.name }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>

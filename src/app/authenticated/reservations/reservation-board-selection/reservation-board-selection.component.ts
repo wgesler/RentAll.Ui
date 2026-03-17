@@ -130,12 +130,11 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       smoking: !!v.smoking,
       highSpeedInternet: !!v.highSpeedInternet,
       propertyStatusId: this.toNumber(v.propertyStatusId, 0),
-      // Convert IDs from dropdowns to codes for API
-      // If "All" or empty is selected, send null
+      // Office: single code from dropdown; Buildings/Regions/Areas: arrays from multi-select
       officeCode: this.getIdToCode(v.officeId, this.offices, 'officeCode'),
-      buildingCode: this.getIdToCode(v.buildingId, this.buildings, 'buildingCode'),
-      regionCode: this.getIdToCode(v.regionId, this.regions, 'regionCode'),
-      areaCode: this.getIdToCode(v.areaId, this.areas, 'areaCode'),
+      buildingCodes: Array.isArray(v.buildingCodes) ? v.buildingCodes : [],
+      regionCodes: Array.isArray(v.regionCodes) ? v.regionCodes : [],
+      areaCodes: Array.isArray(v.areaCodes) ? v.areaCodes : [],
     };
 
     if (!request.userId) {
@@ -199,18 +198,13 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
         this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
         
         // If selection is already loaded, update location fields in form
-        // This handles the case where lookups load after the selection response
         if (this.form && this.preloadedSelection) {
           const officeId = this.getCodeToId(this.preloadedSelection.officeCode, this.offices, 'officeCode');
-          const regionId = this.getCodeToId(this.preloadedSelection.regionCode, this.regions, 'regionCode');
-          const areaId = this.getCodeToId(this.preloadedSelection.areaCode, this.areas, 'areaCode');
-          const buildingId = this.getCodeToId(this.preloadedSelection.buildingCode, this.buildings, 'buildingCode');
-          
           this.form.patchValue({
             officeId: officeId ?? '',
-            regionId: regionId ?? '',
-            areaId: areaId ?? '',
-            buildingId: buildingId ?? '',
+            buildingCodes: this.preloadedSelection.buildingCodes ?? [],
+            regionCodes: this.preloadedSelection.regionCodes ?? [],
+            areaCodes: this.preloadedSelection.areaCodes ?? [],
           });
         }
       },
@@ -261,56 +255,44 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       smoking: new FormControl<boolean>(false),
       highSpeedInternet: new FormControl<boolean>(false),
       officeId: new FormControl<number | ''>(''),
-      regionId: new FormControl<number | ''>(''),
-      areaId: new FormControl<number | ''>(''),
-      buildingId: new FormControl<number | ''>(''),
+      buildingCodes: new FormControl<string[]>([]),
+      regionCodes: new FormControl<string[]>([]),
+      areaCodes: new FormControl<string[]>([]),
     });
   }
 
   patchFormFromResponse(response: PropertySelectionResponse | null): void {
     if (!this.form) return;
 
-    // Convert codes from API to IDs for dropdowns (only if lookups are loaded)
-    const officeId = this.offices.length > 0 
+    const officeId = this.offices.length > 0 && response?.officeCode
       ? (this.getCodeToId(response.officeCode, this.offices, 'officeCode') ?? '')
-      : '';
-    const regionId = this.regions.length > 0
-      ? (this.getCodeToId(response.regionCode, this.regions, 'regionCode') ?? '')
-      : '';
-    const areaId = this.areas.length > 0
-      ? (this.getCodeToId(response.areaCode, this.areas, 'areaCode') ?? '')
-      : '';
-    const buildingId = this.buildings.length > 0
-      ? (this.getCodeToId(response.buildingCode, this.buildings, 'buildingCode') ?? '')
       : '';
 
     this.form.patchValue({
-      fromBeds: response.fromBeds ?? null,
-      toBeds: response.toBeds ?? null,
-      accomodates: response.accomodates ?? null,
-      maxRent: response.maxRent ?? null,
-      propertyCode: response.propertyCode ?? '',
-      city: response.city ?? '',
-      state: response.state ?? '',
+      fromBeds: response?.fromBeds ?? null,
+      toBeds: response?.toBeds ?? null,
+      accomodates: response?.accomodates ?? null,
+      maxRent: response?.maxRent ?? null,
+      propertyCode: response?.propertyCode ?? '',
+      city: response?.city ?? '',
+      state: response?.state ?? '',
 
-      unfurnished: response.unfurnished ?? false,
-      cable: response.cable ?? false,
-      streaming: response.streaming ?? false,
-      pool: response.pool ?? false,
-      jacuzzi: response.jacuzzi ?? false,
-      security: response.security ?? false,
-      parking: response.parking ?? false,
-      pets: response.pets ?? false,
-      smoking: response.smoking ?? false,
-      highSpeedInternet: response.highSpeedInternet ?? false,
+      unfurnished: response?.unfurnished ?? false,
+      cable: response?.cable ?? false,
+      streaming: response?.streaming ?? false,
+      pool: response?.pool ?? false,
+      jacuzzi: response?.jacuzzi ?? false,
+      security: response?.security ?? false,
+      parking: response?.parking ?? false,
+      pets: response?.pets ?? false,
+      smoking: response?.smoking ?? false,
+      highSpeedInternet: response?.highSpeedInternet ?? false,
 
-      propertyStatusId: response.propertyStatusId === 0 ? '' : (response.propertyStatusId ?? ''),
-      // Convert codes from API to IDs for dropdowns
-      // If code is null/empty, set to '' for "All" option
+      propertyStatusId: response?.propertyStatusId === 0 ? '' : (response?.propertyStatusId ?? ''),
       officeId: officeId as number | '',
-      regionId: regionId as number | '',
-      areaId: areaId as number | '',
-      buildingId: buildingId as number | '',
+      buildingCodes: response?.buildingCodes ?? [],
+      regionCodes: response?.regionCodes ?? [],
+      areaCodes: response?.areaCodes ?? [],
     });
   }
 
@@ -337,9 +319,9 @@ export class ReservationBoardSelectionComponent implements OnInit, OnDestroy {
       smoking: false,
       highSpeedInternet: false,
       officeId: '',
-      regionId: '',
-      areaId: '',
-      buildingId: ''
+      buildingCodes: [],
+      regionCodes: [],
+      areaCodes: []
     });
     
     this.form.markAsUntouched();

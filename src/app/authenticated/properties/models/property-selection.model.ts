@@ -19,9 +19,9 @@ export interface PropertySelectionRequest {
   highSpeedInternet: boolean;
   propertyStatusId: number;
   officeCode: string | null;
-  buildingCode: string | null;
-  regionCode: string | null;
-  areaCode: string | null;
+  buildingCodes: string[];
+  regionCodes: string[];
+  areaCodes: string[];
 }
 
 export interface PropertySelectionResponse {
@@ -45,9 +45,9 @@ export interface PropertySelectionResponse {
   highSpeedInternet: boolean;
   propertyStatusId: number;
   officeCode: string | null;
-  buildingCode: string | null;
-  regionCode: string | null;
-  areaCode: string | null;
+  buildingCodes: string[];
+  regionCodes: string[];
+  areaCodes: string[];
 }
 
 
