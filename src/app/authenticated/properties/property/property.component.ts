@@ -41,6 +41,7 @@ import { PropertyInformationComponent } from '../property-information/property-i
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
+import { UserGroups } from '../../users/models/user-enums';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
@@ -95,6 +96,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  /** True if current user is Admin or SuperAdmin; only then can Office be edited in Location. */
+  isOfficeEditableByAdmin = false;
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   regions: RegionResponse[] = [];
@@ -150,6 +153,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Property
   ngOnInit(): void {
+    const user = this.authService.getUser();
+    this.isOfficeEditableByAdmin =
+      this.utilityService.hasRole(user?.userGroups, UserGroups.Admin) ||
+      this.utilityService.hasRole(user?.userGroups, UserGroups.SuperAdmin);
+
     this.loadStates();
     this.loadContacts();
     this.loadLocationLookups();
@@ -715,7 +723,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
     if (!officeControl) {
       return;
     }
-    officeControl.enable({ emitEvent: false });
+    if (this.isOfficeEditableByAdmin) {
+      officeControl.enable({ emitEvent: false });
+    } else {
+      officeControl.disable({ emitEvent: false });
+    }
   }
 
   setAddModeDefaults(): void {
