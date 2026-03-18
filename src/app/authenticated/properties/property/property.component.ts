@@ -715,13 +715,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     if (!officeControl) {
       return;
     }
-
-    // Office selection is locked while editing an existing property.
-    if (this.isAddMode) {
-      officeControl.enable({ emitEvent: false });
-    } else {
-      officeControl.disable({ emitEvent: false });
-    }
+    officeControl.enable({ emitEvent: false });
   }
 
   setAddModeDefaults(): void {

@@ -424,18 +424,14 @@
                 <div class="grid grid-cols-4 gap-x-1.5 gap-y-6 features-content">
                   <mat-form-field appearance="outline" class="col-span-1">
                     <mat-label>Office</mat-label>
-                    @if (isAddMode) {
-                      <mat-select formControlName="officeId" required>
-                        <mat-option [value]="null">Select Office</mat-option>
-                        @for (f of offices; track f.officeId) {
-                          <mat-option [value]="f.officeId">{{ f.name }}</mat-option>
-                        }
-                      </mat-select>
-                      @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
-                        <mat-error>Office is required</mat-error>
+                    <mat-select formControlName="officeId" required (selectionChange)="onOfficeChange()">
+                      <mat-option [value]="null">Select Office</mat-option>
+                      @for (f of offices; track f.officeId) {
+                        <mat-option [value]="f.officeId">{{ f.name }}</mat-option>
                       }
-                    } @else {
-                      <input matInput [value]="property?.officeName || ''" readonly [disabled]="true">
+                    </mat-select>
+                    @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                      <mat-error>Office is required</mat-error>
                     }
                   </mat-form-field>
 
