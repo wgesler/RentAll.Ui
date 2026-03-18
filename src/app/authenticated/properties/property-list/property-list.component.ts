@@ -137,10 +137,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  /** Full org property list so "All Offices" can show every office; applyFilters narrows by working office when set. */
   getProperties(): void {
     this.isServiceError = false;
-    const userId = this.authService.getUser()?.userId || '';
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties) => {
         this.allProperties = this.mappingService.mapProperties(properties || []);
         this.applyFilters();

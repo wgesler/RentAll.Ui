@@ -46,8 +46,10 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   propertyStatuses: { value: number; label: string }[] = [];
   preloadedSelection: PropertySelectionResponse | null = null;
   globalOfficeSubscription?: Subscription;
-  /** Where the user came from: 'reservation-board' | 'property-list'. Used for Back navigation. */
-  returnSource: 'reservation-board' | 'property-list' = 'reservation-board';
+  /** Where the user came from. Used for Back navigation. */
+  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' = 'reservation-board';
+  /** Path to return to for reservation-list (e.g. /auth/rentals vs /auth/reservations). */
+  reservationListReturnPath: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -81,8 +83,13 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     // If we navigated here from the board or property list, it may have preloaded the selection.
     const state = history.state || {};
-    const source = state['source'] as 'reservation-board' | 'property-list' | undefined;
-    this.returnSource = source === 'property-list' ? 'property-list' : 'reservation-board';
+    const source = state['source'] as 'reservation-board' | 'property-list' | 'reservation-list' | undefined;
+    if (source === 'property-list') this.returnSource = 'property-list';
+    else if (source === 'reservation-list') {
+      this.returnSource = 'reservation-list';
+      const path = state['listReturnPath'] as string | undefined;
+      this.reservationListReturnPath = path?.trim() || null;
+    } else this.returnSource = 'reservation-board';
 
     const preloaded = (state['selection'] as PropertySelectionResponse) || null;
     if (preloaded) {
@@ -488,8 +495,16 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    const url = this.returnSource === 'property-list' ? RouterUrl.PropertyList : RouterUrl.ReservationBoard;
-    this.router.navigateByUrl(url);
+    if (this.returnSource === 'property-list') {
+      this.router.navigateByUrl(RouterUrl.PropertyList);
+      return;
+    }
+    if (this.returnSource === 'reservation-list') {
+      const path = this.reservationListReturnPath || RouterUrl.ReservationList;
+      this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+      return;
+    }
+    this.router.navigateByUrl(RouterUrl.ReservationBoard);
   }
   //#endregion
 }

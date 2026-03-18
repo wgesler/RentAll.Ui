@@ -1,18 +1,20 @@
 import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -36,7 +38,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
-  properties: PropertyListResponse[] = [];
+  /** Property IDs from saved Property Selection (same API as reservation board). Null = not loaded yet. */
+  allowedPropertyIds: Set<string> | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
 
@@ -44,6 +47,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   private globalOfficeSubscription?: Subscription;
+  private navigationSubscription?: Subscription;
+  private lastNavigationUrl = '';
+  private destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -72,7 +78,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private propertyService: PropertyService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private authService: AuthService) {
   }
 
   //#region Reservation List
@@ -85,6 +92,19 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.officeIdChange.emit(officeId ?? null);
         this.applyFilters();
       }
+    });
+
+    this.navigationSubscription = this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      takeUntil(this.destroy$)
+    ).subscribe(e => {
+      const url = e.urlAfterRedirects.split('?')[0];
+      const isReservationList = url.endsWith('/reservations') || url.endsWith('/rentals');
+      const fromPropertySelection = this.lastNavigationUrl.includes('/selection');
+      if (isReservationList && fromPropertySelection) {
+        this.reloadAllowedPropertyIds();
+      }
+      this.lastNavigationUrl = url;
     });
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
@@ -148,16 +168,45 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getReservations(): void {
-    // Only call if not already loading/loaded
     const currentSet = this.itemsToLoad$.value;
     if (!currentSet.has('reservations')) {
-      return; // Already loaded or loading
+      return;
     }
 
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
-      next: (response: ReservationListResponse[]) => {
+    const userId = this.authService.getUser()?.userId || '';
+    const finalizeLoad = () => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+
+    if (!userId) {
+      this.reservationService.getReservationList().pipe(take(1), finalize(finalizeLoad)).subscribe({
+        next: (response: ReservationListResponse[]) => {
+          this.isServiceError = false;
+          this.allReservations = this.mappingService.mapReservationList(response);
+          this.allowedPropertyIds = null;
+          this.applyFilters();
+        },
+        error: () => {
+          this.isServiceError = true;
+          this.allReservations = [];
+          this.reservationsDisplay = [];
+          finalizeLoad();
+        }
+      });
+      return;
+    }
+
+    forkJoin({
+      reservations: this.reservationService.getReservationList(),
+      selectedProperties: this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
+        catchError(() => {
+          this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
+          return of([] as PropertyListResponse[]);
+        })
+      )
+    }).pipe(take(1), finalize(finalizeLoad)).subscribe({
+      next: ({ reservations, selectedProperties }) => {
         this.isServiceError = false;
-        this.allReservations = this.mappingService.mapReservationList(response);
+        this.allReservations = this.mappingService.mapReservationList(reservations || []);
+        this.allowedPropertyIds = new Set((selectedProperties || []).map(p => p.propertyId));
         this.applyFilters();
       },
       error: () => {
@@ -165,6 +214,43 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.allReservations = [];
         this.reservationsDisplay = [];
       }
+    });
+  }
+
+  goToPropertySelection(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    const listReturnPath = this.router.url.split('?')[0];
+    if (!userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+        state: { source: 'reservation-list', listReturnPath }
+      });
+      return;
+    }
+    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+          state: { source: 'reservation-list', selection, listReturnPath }
+        });
+      },
+      error: () => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+          state: { source: 'reservation-list', listReturnPath }
+        });
+      }
+    });
+  }
+
+  reloadAllowedPropertyIds(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      return;
+    }
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
+      take(1),
+      catchError(() => of([] as PropertyListResponse[]))
+    ).subscribe(props => {
+      this.allowedPropertyIds = new Set((props || []).map(p => p.propertyId));
+      this.applyFilters();
     });
   }
 
@@ -219,21 +305,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Load Methods
-  loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
-      next: (properties: PropertyListResponse[]) => {
-        this.properties = properties;
-        // Get reservations - ReservationListResponse already includes contactName, so we don't need contacts
-        this.getReservations();
-      },
-      error: () => {
-        this.properties = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-        this.getReservations();
-      }
-    });
-  }
-
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
@@ -303,6 +374,15 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     // Filter by office
     if (this.selectedOffice) {
       filtered = filtered.filter(reservation => reservation.officeId === this.selectedOffice.officeId);
+    }
+
+    // Same property set as Property Selection / reservation board
+    if (this.allowedPropertyIds !== null) {
+      if (this.allowedPropertyIds.size === 0) {
+        filtered = [];
+      } else {
+        filtered = filtered.filter(r => this.allowedPropertyIds!.has(r.propertyId));
+      }
     }
 
     // Filter by date range - show reservations where EITHER arrival OR departure falls within the range
@@ -378,6 +458,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.navigationSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
