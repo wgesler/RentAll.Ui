@@ -76,7 +76,10 @@ export interface PropertyRequest {
   bldgTenantCode?: string;
   mailRoomCode?: string;
   garageCode?: string;
-
+  gateCode?: string | null;
+  trashCode?: string | null;
+  storageCode?: string | null;
+ 
   // Kitchen & Bath section
   kitchen: boolean;
   oven: boolean;
@@ -112,6 +115,15 @@ export interface PropertyRequest {
   // Trash section
   trashPickupId: number;
   trashRemoval?: string;
+  
+  // Maintenance section
+  filterDescription?: string | null;
+  lastFilterChangeDate?: string | null;
+  smokeDetectors?: string | null;
+  lastSmokeChageDate?: string | null;
+  licenseNo?: string | null;
+  licenseDate?: string | null;
+  maintenanceNotes?: string | null;
   
   // Additional Amenities section
   amenities?: string;
@@ -196,7 +208,10 @@ export interface PropertyResponse {
   bldgTenantCode?: string;
   mailRoomCode?: string;
   garageCode?: string;
-  
+  gateCode?: string | null;
+  trashCode?: string | null;
+  storageCode?: string | null;
+
   // Kitchen & Bath section
   kitchen: boolean;
   oven: boolean;
@@ -233,6 +248,15 @@ export interface PropertyResponse {
   trashPickupId: number;
   trashRemoval?: string;
   
+  // Maintenance section
+  filterDescription?: string;
+  lastFilterChangeDate?: string;
+  smokeDetectors?: string;
+  lastSmokeChageDate?: string;
+  licenseNo?: string;
+  licenseDate?: string;
+  maintenanceNotes?: string;
+
   // Additional Amenities section
   amenities?: string;
   description?: string;

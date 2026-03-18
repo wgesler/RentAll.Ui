@@ -15,6 +15,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
+import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -52,6 +53,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   private destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  propertiesFiltered = false;
 
   reservationsDisplayedColumns: ColumnSet = {
     'office': { displayAs: 'Office', maxWidth: '15ch' },
@@ -79,12 +81,17 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
-    private authService: AuthService) {
+    private authService: AuthService,
+    private propertySelectionFilterService: PropertySelectionFilterService) {
   }
 
   //#region Reservation List
   ngOnInit(): void {
     this.loadOffices();
+
+    this.propertySelectionFilterService.propertiesFiltered$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((v) => (this.propertiesFiltered = v));
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {

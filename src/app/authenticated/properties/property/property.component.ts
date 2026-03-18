@@ -119,6 +119,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     outdoor: false,
     trash: false,
     amenities: false,
+    maintenance: false,
     description: false
   };
 
@@ -194,6 +195,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
           outdoor: allExpanded,
           trash: allExpanded,
           amenities: allExpanded,
+          maintenance: allExpanded,
           description: allExpanded
         };
         
@@ -418,6 +420,25 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.parkingnotes = formValue.parkingNotes || '';
     delete (propertyRequest as unknown as Record<string, unknown>)['parkingNotes'];
 
+    const trimOrNull = (v: unknown): string | null => {
+      if (v == null) return null;
+      const s = String(v).trim();
+      return s.length > 0 ? s : null;
+    };
+    const dateIsoOrNull = (v: unknown): string | null =>
+      v instanceof Date && !isNaN(v.getTime()) ? v.toISOString() : null;
+
+    propertyRequest.gateCode = trimOrNull(formValue.gateCode);
+    propertyRequest.trashCode = trimOrNull(formValue.trashCode);
+    propertyRequest.storageCode = trimOrNull(formValue.storageCode);
+    propertyRequest.filterDescription = trimOrNull(formValue.filterDescription);
+    propertyRequest.smokeDetectors = trimOrNull(formValue.smokeDetectors);
+    propertyRequest.licenseNo = trimOrNull(formValue.licenseNo);
+    propertyRequest.maintenanceNotes = trimOrNull(formValue.maintenanceNotes);
+    propertyRequest.lastFilterChangeDate = dateIsoOrNull(formValue.lastFilterChangeDate) ?? null;
+    propertyRequest.lastSmokeChageDate = dateIsoOrNull(formValue.lastSmokeChageDate) ?? null;
+    propertyRequest.licenseDate = dateIsoOrNull(formValue.licenseDate) ?? null;
+
     // Explicitly set notes field from form
     propertyRequest.notes = formValue.notes || '';
 
@@ -551,7 +572,17 @@ export class PropertyComponent implements OnInit, OnDestroy {
       bldgTenantCode: new FormControl(''),
       mailRoomCode: new FormControl(''),
       garageCode: new FormControl(''),
+      gateCode: new FormControl(''),
+      trashCode: new FormControl(''),
+      storageCode: new FormControl(''),
       mailbox: new FormControl(''),
+      filterDescription: new FormControl(''),
+      lastFilterChangeDate: new FormControl<Date | null>(null),
+      smokeDetectors: new FormControl(''),
+      lastSmokeChageDate: new FormControl<Date | null>(null),
+      licenseNo: new FormControl(''),
+      licenseDate: new FormControl<Date | null>(null),
+      maintenanceNotes: new FormControl(''),
       gated: new FormControl(false),
       heating: new FormControl(false),
       ac: new FormControl(false),
@@ -622,10 +653,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
       const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
+                           'gateCode', 'trashCode', 'storageCode',
+                           'filterDescription', 'smokeDetectors', 'licenseNo', 'maintenanceNotes',
                            'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
+
+      formData.lastFilterChangeDate = this.parseMaintenanceDateOrNull(this.property.lastFilterChangeDate);
+      formData.lastSmokeChageDate = this.parseMaintenanceDateOrNull(this.property.lastSmokeChageDate);
+      formData.licenseDate = this.parseMaintenanceDateOrNull(this.property.licenseDate);
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
@@ -1240,6 +1277,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const upperValue = input.value.toUpperCase();
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
+  }
+
+  /** No default dates in UI: empty unless API sends a real calendar date (sentinels like 0001-01-01 → blank). */
+  private parseMaintenanceDateOrNull(iso: string | null | undefined): Date | null {
+    if (iso == null || String(iso).trim() === '') return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    if (y < 1900 || y > 2200) return null;
+    return d;
   }
 
   private formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {

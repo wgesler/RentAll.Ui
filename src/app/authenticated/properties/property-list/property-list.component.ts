@@ -21,6 +21,7 @@ import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-cale
 import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
+import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
 
 @Component({
@@ -50,6 +51,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  /** True when saved property selection has non-default filters. */
+  propertiesFiltered = false;
 
   propertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
@@ -78,12 +81,17 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private utilityService: UtilityService,
     private dialog: MatDialog,
-    private ngZone: NgZone) {
+    private ngZone: NgZone,
+    private propertySelectionFilterService: PropertySelectionFilterService) {
   }
 
   //#region Property-List
   ngOnInit(): void {
     this.loadOffices();
+
+    this.propertySelectionFilterService.propertiesFiltered$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((v) => (this.propertiesFiltered = v));
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {

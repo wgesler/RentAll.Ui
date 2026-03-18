@@ -4,7 +4,21 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, take } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  Subject,
+  Subscription,
+  catchError,
+  debounceTime,
+  filter,
+  finalize,
+  forkJoin,
+  map,
+  of,
+  take,
+  takeUntil
+} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,6 +36,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { PropertyStatus } from '../models/property-enums';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
+import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
 
 @Component({
@@ -53,6 +68,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private readonly destroy$ = new Subject<void>();
+  private formFilterTrackingSetup = false;
 
   constructor(
     private router: Router,
@@ -66,7 +83,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private propertySelectionFilterService: PropertySelectionFilterService
   ) {
   }
 
@@ -80,6 +98,18 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().subscribe(() => {
       this.applyOfficeFilterToLookups();
     });
+
+    this.itemsToLoad$
+      .pipe(
+        map((s) => s.size),
+        filter((n) => n === 0),
+        take(1),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.setupFormFilterTrackingOnce();
+        this.propertySelectionFilterService.setFromResponse(this.buildSyntheticResponseFromForm());
+      });
 
     // If we navigated here from the board or property list, it may have preloaded the selection.
     const state = history.state || {};
@@ -96,6 +126,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     if (preloaded) {
       this.preloadedSelection = preloaded;
       this.patchFormFromResponse(preloaded);
+      this.propertySelectionFilterService.setFromResponse(preloaded);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'selection');
     } else {
       this.loadPropertySelection();
@@ -115,10 +146,12 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       next: (response: PropertySelectionResponse | null) => {
         this.preloadedSelection = response;
         this.patchFormFromResponse(response);
+        this.propertySelectionFilterService.setFromResponse(response);
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
           this.patchFormFromResponse(null);
+          this.propertySelectionFilterService.setFromResponse(null);
         } else {
           this.isServiceError = true;
         }
@@ -126,49 +159,21 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     });
   }
   
-  savePropertySelections (): void {
+  savePropertySelections(): void {
     if (!this.form) return;
 
-    this.isSubmitting = true;
-
-    const userId = this.authService.getUser()?.userId || '';
-    const v = this.form.getRawValue() as any;
-
-    const request: PropertySelectionRequest = {
-      userId,
-      fromBeds: this.toNumber(v.fromBeds, 0),
-      toBeds: this.toNumber(v.toBeds, 0),
-      accomodates: this.toNumber(v.accomodates, 0),
-      maxRent: this.toNumber(v.maxRent, 0),
-      propertyCode: this.toStringOrNull(v.propertyCode),
-      city: this.toStringOrNull(v.city),
-      state: this.toStringOrNull(v.state),
-      unfurnished: !!v.unfurnished,
-      cable: !!v.cable,
-      streaming: !!v.streaming,
-      pool: !!v.pool,
-      jacuzzi: !!v.jacuzzi,
-      security: !!v.security,
-      parking: !!v.parking,
-      pets: !!v.pets,
-      smoking: !!v.smoking,
-      highSpeedInternet: !!v.highSpeedInternet,
-      propertyStatusId: this.toNumber(v.propertyStatusId, 0),
-      // Office: single code from dropdown; Buildings/Regions/Areas: arrays from multi-select
-      officeCode: this.getIdToCode(v.officeId, this.offices, 'officeCode'),
-      buildingCodes: Array.isArray(v.buildingCodes) ? v.buildingCodes : [],
-      regionCodes: Array.isArray(v.regionCodes) ? v.regionCodes : [],
-      areaCodes: Array.isArray(v.areaCodes) ? v.areaCodes : [],
-    };
-
-    if (!request.userId) {
-      this.isSubmitting = false;
+    const request = this.buildRequestFromForm();
+    if (!request) {
       this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
       return;
     }
 
-    this.propertyService.putPropertySelection(request).pipe(take(1),finalize(() => (this.isSubmitting = false))).subscribe({
-      next: (_response: PropertySelectionResponse) => {
+    this.isSubmitting = true;
+
+    this.propertyService.putPropertySelection(request).pipe(take(1), finalize(() => (this.isSubmitting = false))).subscribe({
+      next: (response: PropertySelectionResponse) => {
+        this.preloadedSelection = response;
+        this.propertySelectionFilterService.setFromResponse(response);
         this.toastr.success('Selection saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.goBack();
       },
@@ -334,6 +339,48 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** After selection + lookups load, track form edits for global Selection button highlight. */
+  private setupFormFilterTrackingOnce(): void {
+    if (this.formFilterTrackingSetup || !this.form) return;
+    this.formFilterTrackingSetup = true;
+    this.form.valueChanges.pipe(debounceTime(250), takeUntil(this.destroy$)).subscribe(() => {
+      this.propertySelectionFilterService.setFromResponse(this.buildSyntheticResponseFromForm());
+    });
+  }
+
+  private buildSyntheticResponseFromForm(): PropertySelectionResponse {
+    const req = this.buildRequestFromForm();
+    if (!req) {
+      return {
+        userId: '',
+        fromBeds: 0,
+        toBeds: 0,
+        accomodates: 0,
+        maxRent: 0,
+        propertyCode: null,
+        city: null,
+        state: null,
+        unfurnished: false,
+        cable: false,
+        streaming: false,
+        pool: false,
+        jacuzzi: false,
+        security: false,
+        parking: false,
+        pets: false,
+        smoking: false,
+        highSpeedInternet: false,
+        propertyStatusId: 0,
+        officeCode: null,
+        buildingCodes: [],
+        regionCodes: [],
+        areaCodes: []
+      };
+    }
+    return { ...req } as PropertySelectionResponse;
+  }
+
+  /** Clears all filters, persists defaults to the server, and updates global filter state. */
   resetForm(): void {
     if (!this.form) return;
 
@@ -364,6 +411,57 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     this.form.markAsUntouched();
     this.form.markAsPristine();
+
+    const request = this.buildRequestFromForm();
+    if (!request) {
+      this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.propertyService.putPropertySelection(request).pipe(take(1), finalize(() => (this.isSubmitting = false))).subscribe({
+      next: (response: PropertySelectionResponse) => {
+        this.preloadedSelection = response;
+        this.propertySelectionFilterService.setFromResponse(response);
+        this.toastr.success('Property filters cleared.', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.loadPropertySelection();
+      }
+    });
+  }
+
+  private buildRequestFromForm(): PropertySelectionRequest | null {
+    if (!this.form) return null;
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) return null;
+    const v = this.form.getRawValue() as any;
+    return {
+      userId,
+      fromBeds: this.toNumber(v.fromBeds, 0),
+      toBeds: this.toNumber(v.toBeds, 0),
+      accomodates: this.toNumber(v.accomodates, 0),
+      maxRent: this.toNumber(v.maxRent, 0),
+      propertyCode: this.toStringOrNull(v.propertyCode),
+      city: this.toStringOrNull(v.city),
+      state: this.toStringOrNull(v.state),
+      unfurnished: !!v.unfurnished,
+      cable: !!v.cable,
+      streaming: !!v.streaming,
+      pool: !!v.pool,
+      jacuzzi: !!v.jacuzzi,
+      security: !!v.security,
+      parking: !!v.parking,
+      pets: !!v.pets,
+      smoking: !!v.smoking,
+      highSpeedInternet: !!v.highSpeedInternet,
+      propertyStatusId: this.toNumber(v.propertyStatusId, 0),
+      officeCode: this.getIdToCode(v.officeId, this.offices, 'officeCode'),
+      buildingCodes: Array.isArray(v.buildingCodes) ? v.buildingCodes : [],
+      regionCodes: Array.isArray(v.regionCodes) ? v.regionCodes : [],
+      areaCodes: Array.isArray(v.areaCodes) ? v.areaCodes : []
+    };
   }
   //#endregion
 
@@ -491,11 +589,13 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
-  goBack(): void {
+  private navigateBackFromSelection(): void {
     if (this.returnSource === 'property-list') {
       this.router.navigateByUrl(RouterUrl.PropertyList);
       return;
@@ -510,6 +610,26 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       return;
     }
     this.router.navigateByUrl(RouterUrl.ReservationBoard);
+  }
+
+  goBack(): void {
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (!this.form?.dirty || !userId) {
+      this.navigateBackFromSelection();
+      return;
+    }
+    this.propertyService
+      .getPropertySelection(userId)
+      .pipe(
+        take(1),
+        catchError((err: unknown) =>
+          err instanceof HttpErrorResponse && err.status === 404 ? of(null) : of(this.preloadedSelection)
+        )
+      )
+      .subscribe((s) => {
+        this.propertySelectionFilterService.setFromResponse(s);
+        this.navigateBackFromSelection();
+      });
   }
   //#endregion
 }

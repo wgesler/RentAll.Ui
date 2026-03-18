@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterOutlet } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
@@ -12,6 +12,8 @@ import { OrganizationListService } from './authenticated/organizations/services/
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
 import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
+import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
+import { PropertyService } from './authenticated/properties/services/property.service';
 import { UtilityService } from './services/utility.service';
 
 @Component({
@@ -39,7 +41,9 @@ export class AppComponent implements OnInit, OnDestroy {
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private propertyService: PropertyService,
+    private propertySelectionFilterService: PropertySelectionFilterService
   ) { }
 
   ngOnInit(): void {
@@ -54,12 +58,14 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadContacts();
         this.loadOffices();
         this.loadAccountingOffices();
+        this.loadPropertySelectionFilterState();
       } else {
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
         this.accountingOfficeService.clearAccountingOffices();
         this.costCodesService.clearCostCodes();
+        this.propertySelectionFilterService.clear();
       }
     });
   }
@@ -138,6 +144,26 @@ export class AppComponent implements OnInit, OnDestroy {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
       }
     });
+  }
+
+  loadPropertySelectionFilterState(): void {
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (!userId) {
+      this.propertySelectionFilterService.clear();
+      return;
+    }
+    this.propertyService
+      .getPropertySelection(userId)
+      .pipe(
+        take(1),
+        catchError((err: { status?: number }) => {
+          if (err?.status === 404) {
+            return of(null);
+          }
+          return of(null);
+        })
+      )
+      .subscribe((selection) => this.propertySelectionFilterService.setFromResponse(selection));
   }
 
   initializeOrganizationList(): void {

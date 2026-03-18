@@ -43,6 +43,7 @@
             color="primary"
             id="reset-button"
             (click)="resetForm()"
+            [disabled]="isSubmitting"
             class="scale-90 text-nowrap flex-shrink-0">
             <mat-icon>refresh</mat-icon>
             Reset

@@ -12,7 +12,10 @@
           color="primary"
           id="maintenance-list-selection-button"
           (click)="goToPropertySelection()"
-          class="text-nowrap flex-shrink-0">
+          class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
+          <mat-icon
+            class="!w-[18px] !h-[18px] !text-lg leading-none"
+            [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
           Selection
         </button>
       </div>

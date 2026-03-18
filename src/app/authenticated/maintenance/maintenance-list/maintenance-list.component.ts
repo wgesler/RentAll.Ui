@@ -17,6 +17,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatus } from '../../properties/models/property-enums';
 import { PropertyListDisplay } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
+import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -45,19 +46,24 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
-  private navigationSubscription?: Subscription;
-  private lastNavigationUrl = '';
-  private destroy$ = new Subject<void>();
+  globalOfficeSubscription?: Subscription;
+  navigationSubscription?: Subscription;
+  lastNavigationUrl = '';
+  destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  propertiesFiltered = false;
 
   propertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
     'propertyStatusText': { displayAs: 'Status', wrap: false, maxWidth: '20ch' },
-  };
+    'licenseNo': { displayAs: 'License', wrap: false, maxWidth: '20ch' },
+    'licenseDate': { displayAs: 'Expires', wrap: false, maxWidth: '20ch' },
+    'lastFilterChangeDate': { displayAs: 'Filters Changed', wrap: false, maxWidth: '20ch' },
+    'lastSmokeChangeDate': { displayAs: 'Smoke Changed', wrap: false, maxWidth: '20ch' },
+    };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -67,32 +73,21 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    authService: AuthService,
-    officeService: OfficeService,
-    globalOfficeSelectionService: GlobalOfficeSelectionService,
-    route: ActivatedRoute,
-    utilityService: UtilityService,
-    ngZone: NgZone
+    public authService: AuthService,
+    public officeService: OfficeService,
+    public globalOfficeSelectionService: GlobalOfficeSelectionService,
+    public route: ActivatedRoute,
+    public utilityService: UtilityService,
+    public ngZone: NgZone,
+    public propertySelectionFilterService: PropertySelectionFilterService
   ) {
-    this.authService = authService;
-    this.officeService = officeService;
-    this.globalOfficeSelectionService = globalOfficeSelectionService;
-    this.route = route;
-    this.utilityService = utilityService;
-    this.ngZone = ngZone;
   }
-
-  authService: AuthService;
-  officeService: OfficeService;
-  globalOfficeSelectionService: GlobalOfficeSelectionService;
-  route: ActivatedRoute;
-  utilityService: UtilityService;
-  ngZone: NgZone;
 
   //#region Maintenance-List
   ngOnInit(): void {
     this.loadOffices();
 
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
@@ -101,10 +96,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    this.navigationSubscription = this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      takeUntil(this.destroy$)
-    ).subscribe(e => {
+    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const path = e.urlAfterRedirects.split('?')[0];
       const isMaintenanceList = /\/maintenance$/.test(path);
       const fromSelection = this.lastNavigationUrl.includes('/selection');
@@ -168,10 +160,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
-    ).subscribe({
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
         const mappedProperties = this.mappingService.mapProperties(properties || []);
         this.allProperties = mappedProperties.map(property => ({

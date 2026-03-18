@@ -22,7 +22,7 @@ import { OfficeListDisplay, OfficeResponse } from '../authenticated/organization
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { PropertyType, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
-import { PropertyListDisplay, PropertyListResponse } from '../authenticated/properties/models/property.model';
+import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
@@ -486,6 +486,36 @@ export class MappingService {
         isActive: o.isActive,
       };
     });
+  }
+
+  /**
+   * Maps API property DTO to PropertyResponse (camelCase + new fields may arrive as PascalCase).
+   */
+  mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
+    const o = { ...raw } as Record<string, unknown>;
+    const copyIfMissing = (camel: string, pascal: string) => {
+      if ((o[camel] === undefined || o[camel] === null) && o[pascal] !== undefined && o[pascal] !== null) {
+        o[camel] = o[pascal];
+      }
+    };
+    copyIfMissing('gateCode', 'GateCode');
+    copyIfMissing('trashCode', 'TrashCode');
+    copyIfMissing('storageCode', 'StorageCode');
+    if ((o['storageCode'] === undefined || o['storageCode'] === null) && o['MailCode'] != null) {
+      o['storageCode'] = o['MailCode'];
+    }
+    if ((o['storageCode'] === undefined || o['storageCode'] === null) && o['mailCode'] != null) {
+      o['storageCode'] = o['mailCode'];
+    }
+    copyIfMissing('parkingNotes', 'ParkingNotes');
+    copyIfMissing('filterDescription', 'FilterDescription');
+    copyIfMissing('lastFilterChangeDate', 'LastFilterChangeDate');
+    copyIfMissing('smokeDetectors', 'SmokeDetectors');
+    copyIfMissing('lastSmokeChageDate', 'LastSmokeChageDate');
+    copyIfMissing('licenseNo', 'LicenseNo');
+    copyIfMissing('licenseDate', 'LicenseDate');
+    copyIfMissing('maintenanceNotes', 'MaintenanceNotes');
+    return o as unknown as PropertyResponse;
   }
 
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {

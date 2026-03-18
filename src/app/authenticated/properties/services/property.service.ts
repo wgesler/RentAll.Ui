@@ -1,7 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
@@ -16,7 +18,8 @@ export class PropertyService {
 
   constructor(
       private http: HttpClient,
-      private configService: ConfigService) {
+      private configService: ConfigService,
+      private mappingService: MappingService) {
   }
 
   // GET: Get property list (summary view)
@@ -26,17 +29,23 @@ export class PropertyService {
 
   // GET: Get property by ID
   getPropertyByGuid(propertyId: string): Observable<PropertyResponse> {
-    return this.http.get<PropertyResponse>(this.controller + propertyId);
+    return this.http.get<PropertyResponse>(this.controller + propertyId).pipe(
+      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // POST: Create a new property
   createProperty(property: PropertyRequest): Observable<PropertyResponse> {
-   return this.http.post<PropertyResponse>(this.controller, property);
+    return this.http.post<PropertyResponse>(this.controller, property).pipe(
+      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // PUT: Update entire property
   updateProperty(property: PropertyRequest): Observable<PropertyResponse> {
-    return this.http.put<PropertyResponse>(this.controller, property);
+    return this.http.put<PropertyResponse>(this.controller, property).pipe(
+      map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // DELETE: Delete property

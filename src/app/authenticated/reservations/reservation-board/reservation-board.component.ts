@@ -16,6 +16,7 @@ import { ColorService } from '../../organizations/services/color.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationStatus, ReservationType } from '../models/reservation-enum';
@@ -53,6 +54,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   private destroy$ = new Subject<void>();
+  propertiesFiltered = false;
 
   constructor(
     private propertyService: PropertyService,
@@ -64,7 +66,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private propertySelectionFilterService: PropertySelectionFilterService
   ) { }
 
   //#region Reservation-Board
@@ -78,6 +81,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
     this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$))
       .subscribe(() => this.loadReservations());
+
+    this.propertySelectionFilterService.propertiesFiltered$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((v) => (this.propertiesFiltered = v));
   }
 
   setDefaultDateRange(): void {
