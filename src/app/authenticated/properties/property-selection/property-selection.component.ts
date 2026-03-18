@@ -335,7 +335,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
   resetForm(): void {
     if (!this.form) return;
-    
+
     this.form.reset({
       propertyStatusId: '',
       fromBeds: null,
@@ -360,7 +360,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       regionCodes: [],
       areaCodes: []
     });
-    
+
     this.form.markAsUntouched();
     this.form.markAsPristine();
   }
