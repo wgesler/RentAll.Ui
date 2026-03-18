@@ -49,7 +49,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
 
   propertiesDisplayedColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '25ch', wrap: false },
+    'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '25ch', wrap: false },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},

@@ -458,7 +458,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsSelect)
       columns['select'] = { displayAs: this.columnTextSelect ?? 'Select', sort: false, wrap: false };
     if (this.hasColumnIndex)
-      columns['no'] = { displayAs: 'No.', wrap: false, sort: false };
+      columns['no'] = { displayAs: 'No.', wrap: false, sort: false, maxWidth: '5ch' };
 
     columns = {...columns, ...this.columns};
     

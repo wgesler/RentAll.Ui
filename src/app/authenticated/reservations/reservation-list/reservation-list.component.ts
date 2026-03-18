@@ -48,7 +48,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
 
   reservationsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '20ch' },
+    'office': { displayAs: 'Office', maxWidth: '15ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
