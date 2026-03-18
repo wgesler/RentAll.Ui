@@ -2,9 +2,9 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -16,6 +16,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatus } from '../../properties/models/property-enums';
 import { PropertyListDisplay } from '../../properties/models/property.model';
+import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -45,6 +46,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   private globalOfficeSubscription?: Subscription;
+  private navigationSubscription?: Subscription;
+  private lastNavigationUrl = '';
+  private destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
 
@@ -97,6 +101,19 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
+    this.navigationSubscription = this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      takeUntil(this.destroy$)
+    ).subscribe(e => {
+      const path = e.urlAfterRedirects.split('?')[0];
+      const isMaintenanceList = /\/maintenance$/.test(path);
+      const fromSelection = this.lastNavigationUrl.includes('/selection');
+      if (isMaintenanceList && fromSelection) {
+        this.getProperties();
+      }
+      this.lastNavigationUrl = path;
+    });
+
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -140,11 +157,23 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  /** Properties matching saved Property Selection (GET property/user/{userId}). */
   getProperties(): void {
     this.isServiceError = false;
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.allProperties = [];
+      this.applyFilters();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
+
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
+    ).subscribe({
       next: (properties) => {
-        const mappedProperties = this.mappingService.mapProperties(properties);
+        const mappedProperties = this.mappingService.mapProperties(properties || []);
         this.allProperties = mappedProperties.map(property => ({
           ...property,
           propertyStatusText: getPropertyStatus(property.propertyStatusId)
@@ -153,8 +182,27 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+        this.allProperties = [];
+        this.propertiesDisplay = [];
         console.error('Error loading properties:', err);
+      }
+    });
+  }
+
+  goToPropertySelection(): void {
+    const userId = this.authService.getUser()?.userId || '';
+    if (!userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'maintenance-list' } });
+      return;
+    }
+    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+          state: { source: 'maintenance-list', selection }
+        });
+      },
+      error: () => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'maintenance-list' } });
       }
     });
   }
@@ -248,6 +296,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.navigationSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

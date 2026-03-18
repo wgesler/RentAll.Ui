@@ -47,7 +47,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   preloadedSelection: PropertySelectionResponse | null = null;
   globalOfficeSubscription?: Subscription;
   /** Where the user came from. Used for Back navigation. */
-  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' = 'reservation-board';
+  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   /** Path to return to for reservation-list (e.g. /auth/rentals vs /auth/reservations). */
   reservationListReturnPath: string | null = null;
 
@@ -83,13 +83,14 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     // If we navigated here from the board or property list, it may have preloaded the selection.
     const state = history.state || {};
-    const source = state['source'] as 'reservation-board' | 'property-list' | 'reservation-list' | undefined;
+    const source = state['source'] as 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' | undefined;
     if (source === 'property-list') this.returnSource = 'property-list';
     else if (source === 'reservation-list') {
       this.returnSource = 'reservation-list';
       const path = state['listReturnPath'] as string | undefined;
       this.reservationListReturnPath = path?.trim() || null;
-    } else this.returnSource = 'reservation-board';
+    } else if (source === 'maintenance-list') this.returnSource = 'maintenance-list';
+    else this.returnSource = 'reservation-board';
 
     const preloaded = (state['selection'] as PropertySelectionResponse) || null;
     if (preloaded) {
@@ -502,6 +503,10 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     if (this.returnSource === 'reservation-list') {
       const path = this.reservationListReturnPath || RouterUrl.ReservationList;
       this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+      return;
+    }
+    if (this.returnSource === 'maintenance-list') {
+      this.router.navigateByUrl(RouterUrl.MaintenanceList);
       return;
     }
     this.router.navigateByUrl(RouterUrl.ReservationBoard);
