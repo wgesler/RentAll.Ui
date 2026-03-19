@@ -386,7 +386,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
-      label: this.utilityService.getReservationLabel(r)
+      label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
     }));
   }
 

@@ -35,7 +35,7 @@
             <mat-label>Property Code</mat-label>
             <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
           </mat-form-field>
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Reservation</mat-label>
             <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
               <mat-option [value]="null">Select Reservation</mat-option>
@@ -45,7 +45,7 @@
             </mat-select>
           </mat-form-field>
         } @else {
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
             <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
               <mat-option [value]="null">All Reservations</mat-option>
@@ -121,7 +121,7 @@
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
               </mat-form-field>
-              <mat-form-field appearance="outline" style="width: 300px;">
+              <mat-form-field appearance="outline" class="reservation-dropdown">
                 <mat-label>Reservation</mat-label>
                 <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
                   <mat-option [value]="null">Select Reservation</mat-option>
@@ -131,7 +131,7 @@
                 </mat-select>
               </mat-form-field>
             } @else {
-              <mat-form-field appearance="outline" style="width: 300px;">
+              <mat-form-field appearance="outline" class="reservation-dropdown">
                 <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
                 <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
                   <mat-option [value]="null">All Reservations</mat-option>

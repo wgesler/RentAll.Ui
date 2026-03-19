@@ -19,10 +19,9 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { ReservationStatus, ReservationType } from '../models/reservation-enum';
+import { ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
-import { EntityType } from '../../contacts/models/contact-enum';
 
 
 
@@ -636,7 +635,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
-      const fullName = this.getBoardDisplayName(reservation).toUpperCase();
+      const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
+      const fullName = this.utilityService.getReservationDisplayName(reservation, contact).toUpperCase();
       const reservationDays = Math.floor((departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       if (reservationDays > 0 && this.shouldCenterAcrossReservation(arrival, departure)) {
@@ -679,19 +679,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  getBoardDisplayName(reservation: ReservationListResponse): string {
-    const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
-    const shortCompanyName = contact?.displayName || this.utilityService.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
-    const contacName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
-
-    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact.entityTypeId === EntityType.Company);
-    if (isCorporate) {
-      return [shortCompanyName, reservation.tenantName].filter(Boolean).join(' ');
-    }
-
-    return [shortCompanyName, contacName].filter(Boolean).join(' ');
-
-  }
   //#endregion
 
   //#region Navigation Methods

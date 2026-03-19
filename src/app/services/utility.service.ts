@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { ContactResponse } from '../authenticated/contacts/models/contact.model';
+import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 
 @Injectable({
@@ -101,5 +104,22 @@ export class UtilityService {
     });
 
     return firstMeaningfulWord || '';
+  }
+
+  /** Display name for reservation board: company/contact name (corporate vs individual). */
+  getReservationDisplayName(reservation: ReservationListResponse, contact: ContactResponse | null): string {
+    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
+    const contactName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
+    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact?.entityTypeId === EntityType.Company);
+    if (isCorporate) {
+      return [shortCompanyName, reservation.tenantName].filter(Boolean).join(' ');
+    }
+    return [shortCompanyName, contactName].filter(Boolean).join(' ');
+  }
+
+  /** Label for reservation dropdown: ReservationCode: getReservationDisplayName(). */
+  getReservationDropdownLabel(reservation: ReservationListResponse, contact: ContactResponse | null): string {
+    const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
+    return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
   }
 }

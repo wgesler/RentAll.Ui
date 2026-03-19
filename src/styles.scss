@@ -13,6 +13,14 @@
   --global-page-inner-padding: 15px;
 }
 
+/* Reservation dropdown: wider to accommodate "ReservationCode: displayName" labels */
+.reservation-dropdown.mat-mdc-form-field,
+mat-form-field.reservation-dropdown {
+  min-width: 420px;
+  max-width: 520px;
+  width: 100%;
+}
+
 .mobile-hide {
   @media (max-width: 768px) {
     display: none !important;
@@ -335,12 +343,18 @@ mat-form-field input,
 
 .list-top-controls .office-dropdown,
 .list-top-controls .company-dropdown,
-.list-top-controls .reservation-dropdown,
 .list-top-controls .organization-dropdown,
 .list-top-controls mat-form-field {
   width: 300px;
   min-width: 300px;
   max-width: 300px;
+}
+
+/* Reservation dropdown in list-top-controls: wider for "ReservationCode: displayName" */
+.list-top-controls .reservation-dropdown {
+  min-width: 420px;
+  max-width: 520px;
+  width: 100%;
 }
 
 .list-top-actions {

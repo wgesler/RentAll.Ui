@@ -624,7 +624,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.source === 'documents') {
         this.availableReservations = this.reservations.map(r => ({
           value: r,
-          label: this.utilityService.getReservationLabel(r)
+          label: this.utilityService.getReservationDropdownLabel(r, this.companies.find(c => c.contactId === r.contactId) ?? null)
         }));
         return;
       }
@@ -632,7 +632,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         const propertyReservations = this.reservations.filter(r => r.propertyId === this.propertyId);
         this.availableReservations = propertyReservations.map(r => ({
           value: r,
-          label: this.utilityService.getReservationLabel(r)
+          label: this.utilityService.getReservationDropdownLabel(r, this.companies.find(c => c.contactId === r.contactId) ?? null)
         }));
         return;
       }
@@ -646,7 +646,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           : this.reservations;
         this.availableReservations = companyFilteredReservations.map(r => ({
           value: r,
-          label: this.utilityService.getReservationLabel(r)
+          label: this.utilityService.getReservationDropdownLabel(r, this.companies.find(c => c.contactId === r.contactId) ?? null)
         }));
         return;
       }
@@ -667,7 +667,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       : sourceFilteredReservations;
     this.availableReservations = companyFilteredReservations.map(r => ({
       value: r,
-      label: this.utilityService.getReservationLabel(r)
+      label: this.utilityService.getReservationDropdownLabel(r, this.companies.find(c => c.contactId === r.contactId) ?? null)
     }));
 
     if (this.selectedReservationId && !companyFilteredReservations.some(r => r.reservationId === this.selectedReservationId)) {

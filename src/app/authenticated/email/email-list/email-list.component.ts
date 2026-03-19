@@ -276,7 +276,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       }
       this.availableReservations = allReservations.map(r => ({
         value: r,
-        label: this.utilityService.getReservationLabel(r)
+        label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
       }));
       return;
     }
@@ -294,7 +294,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       : propertyFilteredReservations;
     this.availableReservations = companyFilteredReservations.map(r => ({
       value: r,
-      label: this.utilityService.getReservationLabel(r)
+      label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
     }));
 
     if (this.selectedReservationId && !companyFilteredReservations.some(r => r.reservationId === this.selectedReservationId)) {

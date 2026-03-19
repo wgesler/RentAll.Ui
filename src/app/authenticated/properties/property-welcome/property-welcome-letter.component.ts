@@ -471,7 +471,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
       this.availableReservations = filteredReservations.map(r => ({
         value: r,
-        label: this.utilityService.getReservationLabel(r)
+        label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
       }));
     } else {
       // If reservations haven't loaded yet, clear available reservations

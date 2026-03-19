@@ -49,6 +49,12 @@
     max-width: 300px;
     box-sizing: border-box;
   }
+
+  .reservation-dropdown.mat-mdc-form-field,
+  mat-form-field.reservation-dropdown {
+    min-width: 420px;
+    max-width: 520px;
+  }
 }
 
 .payment-form-box {

@@ -712,7 +712,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
-      label: this.utilityService.getReservationLabel(r)
+      label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
     }));
     
     // Clear selected reservation if it no longer exists in the available list.
@@ -1558,7 +1558,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       .filter(r => reservationIds.includes(r.reservationId))
       .map(r => ({
         value: r,
-        label: this.utilityService.getReservationLabel(r)
+        label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
       }));
     
     // Get the invoice ID from the response (use first invoice that has the credit)
