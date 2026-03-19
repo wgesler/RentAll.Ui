@@ -89,6 +89,26 @@ export class MappingService {
     }));
   }
 
+  /**
+   * Maps API contact DTO to ContactResponse (ensures camelCase for agreement and other fields).
+   */
+  mapContactResponse(raw: Record<string, unknown>): ContactResponse {
+    const o = { ...raw } as Record<string, unknown>;
+    const copyIfMissing = (camel: string, pascal: string): void => {
+      if ((o[camel] === undefined || o[camel] === null) && o[pascal] !== undefined && o[pascal] !== null) {
+        o[camel] = o[pascal];
+      }
+    };
+    copyIfMissing('revenueSplitOwner', 'RevenueSplitOwner');
+    copyIfMissing('revenueSplitOffice', 'RevenueSplitOffice');
+    copyIfMissing('workingCapitalBalance', 'WorkingCapitalBalance');
+    copyIfMissing('linenAndTowelFee', 'LinenAndTowelFee');
+    copyIfMissing('bankName', 'BankName');
+    copyIfMissing('routingNumber', 'RoutingNumber');
+    copyIfMissing('accountNumber', 'AccountNumber');
+    return o as unknown as ContactResponse;
+  }
+
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
@@ -483,6 +503,12 @@ export class MappingService {
         petFee: o.petFee,
         maidServiceFee: o.maidServiceFee,
         propertyStatusId: o.propertyStatusId,
+        maintenanceStatusId: o.maintenanceStatusId ?? 0,
+        lastFilterChangeDate: o.lastFilterChangeDate ?? undefined,
+        lastSmokeChangeDate: o.lastSmokeChangeDate ?? undefined,
+        licenseDate: o.licenseDate ?? undefined,
+        hvacServiced: o.hvacServiced ?? undefined,
+        fireplaceServiced: o.fireplaceServiced ?? undefined,
         isActive: o.isActive,
       };
     });
@@ -511,10 +537,15 @@ export class MappingService {
     copyIfMissing('filterDescription', 'FilterDescription');
     copyIfMissing('lastFilterChangeDate', 'LastFilterChangeDate');
     copyIfMissing('smokeDetectors', 'SmokeDetectors');
-    copyIfMissing('lastSmokeChageDate', 'LastSmokeChageDate');
+    copyIfMissing('lastSmokeChangeDate', 'LastSmokeChangeDate');
     copyIfMissing('licenseNo', 'LicenseNo');
     copyIfMissing('licenseDate', 'LicenseDate');
+    copyIfMissing('maintenanceStatusId', 'MaintenanceStatusId');
     copyIfMissing('maintenanceNotes', 'MaintenanceNotes');
+    copyIfMissing('hvacNotes', 'HvacNotes');
+    copyIfMissing('hvacServiced', 'HvacServiced');
+    copyIfMissing('fireplaceNotes', 'FireplaceNotes');
+    copyIfMissing('fireplaceServiced', 'FireplaceServiced');
     return o as unknown as PropertyResponse;
   }
 

@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -58,11 +59,12 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
-    'propertyStatusText': { displayAs: 'Status', wrap: false, maxWidth: '20ch' },
-    'licenseNo': { displayAs: 'License', wrap: false, maxWidth: '20ch' },
-    'licenseDate': { displayAs: 'Expires', wrap: false, maxWidth: '20ch' },
-    'lastFilterChangeDate': { displayAs: 'Filters Changed', wrap: false, maxWidth: '20ch' },
-    'lastSmokeChangeDate': { displayAs: 'Smoke Changed', wrap: false, maxWidth: '20ch' },
+    'propertyStatusText': { displayAs: 'Status', wrap: false, maxWidth: '15ch' },
+    'licenseDate': { displayAs: 'License Expires', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
+    'lastFilterChangeDate': { displayAs: 'Filters Changed', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
+    'lastSmokeChangeDate': { displayAs: 'Detectors Changed', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
+    'hvacServiced': { displayAs: 'HVAC Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
+    'fireplaceServiced': { displayAs: 'Fireplace Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));
@@ -79,7 +81,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public route: ActivatedRoute,
     public utilityService: UtilityService,
     public ngZone: NgZone,
-    public propertySelectionFilterService: PropertySelectionFilterService
+    public propertySelectionFilterService: PropertySelectionFilterService,
+    private formatterService: FormatterService
   ) {
   }
 
@@ -165,7 +168,12 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         const mappedProperties = this.mappingService.mapProperties(properties || []);
         this.allProperties = mappedProperties.map(property => ({
           ...property,
-          propertyStatusText: getPropertyStatus(property.propertyStatusId)
+          propertyStatusText: getPropertyStatus(property.propertyStatusId),
+          licenseDate: this.formatterService.formatDateString(property.licenseDate ?? undefined),
+          lastFilterChangeDate: this.formatterService.formatDateString(property.lastFilterChangeDate ?? undefined),
+          lastSmokeChangeDate: this.formatterService.formatDateString(property.lastSmokeChangeDate ?? undefined),
+          hvacServiced: this.formatterService.formatDateString(property.hvacServiced ?? undefined),
+          fireplaceServiced: this.formatterService.formatDateString(property.fireplaceServiced ?? undefined)
         }));
         this.applyFilters();
       },

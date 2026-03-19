@@ -24,6 +24,7 @@ import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes } 
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
+import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 
 @Component({
     standalone: true,
@@ -72,9 +73,20 @@ export class ContactComponent implements OnInit, OnDestroy {
   insuranceFileDetails: FileDetails | null = null;
   insurancePath: string | null = null;
   hasNewInsuranceUpload = false;
+  agreementFileName: string | null = null;
+  agreementFileDataUrl: string | null = null;
+  agreementFileContentType: string | null = null;
+  agreementFileDetails: FileDetails | null = null;
+  agreementPath: string | null = null;
+  hasNewAgreementUpload = false;
+
+  w9PdfThumbnailUrl: string | null = null;
+  insurancePdfThumbnailUrl: string | null = null;
+  agreementPdfThumbnailUrl: string | null = null;
 
   @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('agreementFileInput') agreementFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -94,6 +106,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private propertyService: PropertyService,
+    private pdfThumbnailService: PdfThumbnailService,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: { preloadedContact?: ContactResponse; entityTypeId?: number; compactDialogMode?: boolean }
   ) {
   }
@@ -283,13 +296,21 @@ export class ContactComponent implements OnInit, OnDestroy {
       companyId: this.contact?.companyId ?? undefined,
       displayName: derivedDisplayName,
       isInternational: isInternational,
-      // In compact dialog we don't show W9/insurance UI; preserve loaded values so we don't delete them
+      // In compact dialog we don't show agreements section; preserve loaded values so we don't delete them
       w9Path: this.compactDialogMode && this.contact ? (this.w9Path ?? this.contact.w9Path ?? null) : (this.hasNewW9Upload ? undefined : this.w9Path),
       w9FileDetails: this.compactDialogMode && this.contact ? (this.w9FileDetails ?? this.contact.w9FileDetails ?? null) : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
-      w9Expiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.w9Expiration) ?? this.contact.w9Expiration ?? null) : (this.formatExpirationDate(formValue.w9Expiration)),
       insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
       insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
-      insuranceExpiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.formatExpirationDate(formValue.insuranceExpiration))
+      insuranceExpiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.formatExpirationDate(formValue.insuranceExpiration)),
+      agreementPath: this.compactDialogMode && this.contact ? (this.agreementPath ?? this.contact.agreementPath ?? null) : (this.hasNewAgreementUpload ? undefined : this.agreementPath),
+      agreementFileDetails: this.compactDialogMode && this.contact ? (this.agreementFileDetails ?? this.contact.agreementFileDetails ?? null) : (this.hasNewAgreementUpload ? (this.agreementFileDetails ?? null) : undefined),
+      revenueSplitOwner: this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
+      revenueSplitOffice: this.parseAgreementPercentFromForm(formValue.revenueSplitOffice),
+      workingCapitalBalance: this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance),
+      linenAndTowelFee: this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
+      bankName: (formValue.bankName || '').trim() || null,
+      routingNumber: (formValue.routingNumber || '').trim() || null,
+      accountNumber: (formValue.accountNumber || '').trim() || null
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -303,11 +324,6 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
       contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
-    }
-
-    // In compact dialog we don't show Agreements UI; preserve loaded agreements so we don't delete them
-    if (this.compactDialogMode && this.contact && this.contact.agreements != null) {
-      contactRequest.agreements = this.contact.agreements;
     }
 
     const save$ = this.isAddMode
@@ -366,10 +382,16 @@ export class ContactComponent implements OnInit, OnDestroy {
       zip: new FormControl(''),
       notes: new FormControl(''),
       markup: new FormControl('25%'),
+      revenueSplitOwner: new FormControl<string>('0%'),
+      revenueSplitOffice: new FormControl<string>('0%'),
+      workingCapitalBalance: new FormControl<string>('$0.00'),
+      linenAndTowelFee: new FormControl<string>('$0.00'),
+      bankName: new FormControl(''),
+      routingNumber: new FormControl(''),
+      accountNumber: new FormControl(''),
       rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
       isActive: new FormControl(true),
-      w9Expiration: new FormControl<Date | null>(null),
       insuranceExpiration: new FormControl<Date | null>(null)
     });
 
@@ -402,18 +424,12 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   populateForm(): void {
     if (this.contact && this.form) {
-      const isActiveValue = typeof this.contact.isActive === 'number' 
-        ? this.contact.isActive === 1 
-        : Boolean(this.contact.isActive);
-      
+      const isActiveValue = typeof this.contact.isActive === 'number' ? this.contact.isActive === 1 : Boolean(this.contact.isActive);
       const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
       const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
-      const w9DateStr = this.contact.w9Expiration?.split('T')[0] ?? '';
-      const w9D = w9DateStr ? new Date(w9DateStr + 'T00:00:00') : null;
-      const w9ExpirationDate = w9D && !isNaN(w9D.getTime()) ? w9D : null;
       const insDateStr = this.contact.insuranceExpiration?.split('T')[0] ?? '';
       const insD = insDateStr ? new Date(insDateStr + 'T00:00:00') : null;
       const insuranceExpirationDate = insD && !isNaN(insD.getTime()) ? insD : null;
@@ -436,10 +452,16 @@ export class ContactComponent implements OnInit, OnDestroy {
         email: this.contact.email,
         notes: this.contact.notes || '',
         markup: this.formatterService.formatPercentageValue(this.contact.markup, 25),
+        revenueSplitOwner: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOwner),
+        revenueSplitOffice: this.formatAgreementPercentForDisplay(this.contact.revenueSplitOffice),
+        workingCapitalBalance: this.formatAgreementDecimalForDisplay(this.contact.workingCapitalBalance),
+        linenAndTowelFee: this.formatAgreementDecimalForDisplay(this.contact.linenAndTowelFee),
+        bankName: this.contact.bankName ?? '',
+        routingNumber: this.contact.routingNumber ?? '',
+        accountNumber: this.contact.accountNumber ?? '',
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
         isActive: isActiveValue,
-        w9Expiration: w9ExpirationDate,
         insuranceExpiration: insuranceExpirationDate
       }, { emitEvent: false });
 
@@ -447,9 +469,10 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.form.get('contactTypeId')?.disable();
       }
 
-      // Populate W9 and Insurance from response
+      // Populate W9, Insurance and Agreement from response
       this.populateW9FromContact();
       this.populateInsuranceFromContact();
+      this.populateAgreementFromContact();
     }
   }
 
@@ -464,18 +487,21 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.w9FileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
       this.w9FileContentType = fd.contentType;
       this.w9FileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'W9 Form';
+      this.setPdfThumbnail(this.w9FileDataUrl, fd.contentType, u => this.w9PdfThumbnailUrl = u);
     } else if (path) {
       this.w9Path = path;
       this.w9FileDetails = null;
       this.w9FileName = path.replace(/^.*[/\\]/, '') || 'W9 Form';
       this.w9FileDataUrl = null;
       this.w9FileContentType = null;
+      this.w9PdfThumbnailUrl = null;
     } else {
       this.w9Path = null;
       this.w9FileDetails = null;
       this.w9FileName = null;
       this.w9FileDataUrl = null;
       this.w9FileContentType = null;
+      this.w9PdfThumbnailUrl = null;
     }
   }
 
@@ -490,19 +516,129 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.insuranceFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
       this.insuranceFileContentType = fd.contentType;
       this.insuranceFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Insurance Form';
+      this.setPdfThumbnail(this.insuranceFileDataUrl, fd.contentType, u => this.insurancePdfThumbnailUrl = u);
     } else if (path) {
       this.insurancePath = path;
       this.insuranceFileDetails = null;
       this.insuranceFileName = path.replace(/^.*[/\\]/, '') || 'Insurance Form';
       this.insuranceFileDataUrl = null;
       this.insuranceFileContentType = null;
+      this.insurancePdfThumbnailUrl = null;
     } else {
       this.insurancePath = null;
       this.insuranceFileDetails = null;
       this.insuranceFileName = null;
       this.insuranceFileDataUrl = null;
       this.insuranceFileContentType = null;
+      this.insurancePdfThumbnailUrl = null;
     }
+  }
+
+  populateAgreementFromContact(): void {
+    if (!this.contact) return;
+    const fd = this.contact.agreementFileDetails;
+    const path = this.contact.agreementPath;
+    this.hasNewAgreementUpload = false;
+    if (fd?.file && fd?.contentType) {
+      this.agreementFileDetails = fd;
+      this.agreementPath = path ?? null;
+      this.agreementFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
+      this.agreementFileContentType = fd.contentType;
+      this.agreementFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Agreement';
+      this.setPdfThumbnail(this.agreementFileDataUrl, fd.contentType, u => this.agreementPdfThumbnailUrl = u);
+    } else if (path) {
+      this.agreementPath = path;
+      this.agreementFileDetails = null;
+      this.agreementFileName = path.replace(/^.*[/\\]/, '') || 'Agreement';
+      this.agreementFileDataUrl = null;
+      this.agreementFileContentType = null;
+      this.agreementPdfThumbnailUrl = null;
+    } else {
+      this.agreementPath = null;
+      this.agreementFileDetails = null;
+      this.agreementFileName = null;
+      this.agreementFileDataUrl = null;
+      this.agreementFileContentType = null;
+      this.agreementPdfThumbnailUrl = null;
+    }
+  }
+
+  onAgreementFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) {
+      this.agreementFileName = null;
+      this.agreementFileDataUrl = null;
+      this.agreementFileContentType = null;
+      this.agreementFileDetails = null;
+      this.agreementPdfThumbnailUrl = null;
+      return;
+    }
+    const file = input.files[0];
+    this.agreementFileName = file.name;
+    this.agreementFileContentType = file.type;
+    this.agreementPath = null;
+    this.hasNewAgreementUpload = true;
+    this.agreementFileDetails = { contentType: file.type, fileName: file.name, file: '', dataUrl: '' };
+    const reader = new FileReader();
+    reader.onload = (): void => {
+      const dataUrl = reader.result as string;
+      this.agreementFileDataUrl = dataUrl;
+      if (this.agreementFileDetails) {
+        this.agreementFileDetails.dataUrl = dataUrl;
+        const base64String = dataUrl.split(',')[1];
+        this.agreementFileDetails.file = base64String ?? '';
+      }
+      this.setPdfThumbnail(dataUrl, file.type, u => this.agreementPdfThumbnailUrl = u);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeAgreementForm(): void {
+    this.agreementPath = null;
+    this.agreementFileName = null;
+    this.agreementFileDataUrl = null;
+    this.agreementFileContentType = null;
+    this.agreementFileDetails = null;
+    this.agreementPdfThumbnailUrl = null;
+    this.hasNewAgreementUpload = false;
+    if (this.agreementFileInputRef?.nativeElement) {
+      this.agreementFileInputRef.nativeElement.value = '';
+    }
+  }
+
+  private setPdfThumbnail(
+    dataUrl: string | null,
+    contentType: string | null,
+    setter: (url: string | null) => void
+  ): void {
+    if (!dataUrl || !contentType?.toLowerCase().includes('pdf')) {
+      setter(null);
+      return;
+    }
+    setter(null);
+    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => setter(url));
+  }
+
+  /** Open a data URL (e.g. PDF) in a new tab using the browser's PDF viewer. */
+  openFileInNewTab(dataUrl: string | null): void {
+    if (!dataUrl) return;
+    try {
+      const blob = this.dataUrlToBlob(dataUrl);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      window.open(dataUrl, '_blank', 'noopener');
+    }
+  }
+
+  private dataUrlToBlob(dataUrl: string): Blob {
+    const [header, base64] = dataUrl.split(',');
+    const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/pdf';
+    const binary = atob(base64 ?? '');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
   }
 
   filterPropertiesByGlobalOffice(): void {
@@ -627,6 +763,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.w9FileDataUrl = null;
       this.w9FileContentType = null;
       this.w9FileDetails = null;
+      this.w9PdfThumbnailUrl = null;
       return;
     }
     const file = input.files[0];
@@ -644,6 +781,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         const base64String = dataUrl.split(',')[1];
         this.w9FileDetails.file = base64String ?? '';
       }
+      this.setPdfThumbnail(dataUrl, file.type, u => this.w9PdfThumbnailUrl = u);
     };
     reader.readAsDataURL(file);
   }
@@ -654,6 +792,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.w9FileDataUrl = null;
     this.w9FileContentType = null;
     this.w9FileDetails = null;
+    this.w9PdfThumbnailUrl = null;
     this.hasNewW9Upload = false;
     if (this.w9FileInputRef?.nativeElement) {
       this.w9FileInputRef.nativeElement.value = '';
@@ -667,6 +806,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.insuranceFileDataUrl = null;
       this.insuranceFileContentType = null;
       this.insuranceFileDetails = null;
+      this.insurancePdfThumbnailUrl = null;
       return;
     }
     const file = input.files[0];
@@ -684,6 +824,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         const base64String = dataUrl.split(',')[1];
         this.insuranceFileDetails.file = base64String ?? '';
       }
+      this.setPdfThumbnail(dataUrl, file.type, u => this.insurancePdfThumbnailUrl = u);
     };
     reader.readAsDataURL(file);
   }
@@ -694,6 +835,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.insuranceFileDataUrl = null;
     this.insuranceFileContentType = null;
     this.insuranceFileDetails = null;
+    this.insurancePdfThumbnailUrl = null;
     this.hasNewInsuranceUpload = false;
     if (this.insuranceFileInputRef?.nativeElement) {
       this.insuranceFileInputRef.nativeElement.value = '';
@@ -716,6 +858,79 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   formatContractMarkup(): void {
     this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 25);
+  }
+
+  /** Agreement numeric fields: default 0% or 0.00, select-all on focus, number-only input. */
+  formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') return '0%';
+    const n = Number(String(value).replace(/%\s*$/, ''));
+    return isNaN(n) ? '0%' : `${n}%`;
+  }
+
+  formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') return '$0.00';
+    const n = Number(String(value).replace(/[$,]/g, ''));
+    return isNaN(n) ? '$0.00' : this.formatAgreementCurrency(n);
+  }
+
+  private formatAgreementCurrency(n: number): string {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  parseAgreementPercentFromForm(value: string | number | null | undefined): number | null {
+    if (value == null || value === '') return 0;
+    const s = String(value).replace(/%\s*$/, '').trim();
+    const n = Number(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  parseAgreementDecimalFromForm(value: string | number | null | undefined): number | null {
+    if (value == null || value === '') return 0;
+    const s = String(value).replace(/[$,\s]/g, '');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  formatAgreementPercentBlur(controlName: 'revenueSplitOwner' | 'revenueSplitOffice'): void {
+    const c = this.form.get(controlName);
+    const v = c?.value;
+    if (v == null || v === '') {
+      c?.setValue('0%', { emitEvent: false });
+      return;
+    }
+    const s = String(v).replace(/%\s*$/, '').trim();
+    const n = Number(s);
+    c?.setValue(isNaN(n) ? '0%' : `${n}%`, { emitEvent: false });
+  }
+
+  formatAgreementDecimalBlur(controlName: 'workingCapitalBalance' | 'linenAndTowelFee'): void {
+    const c = this.form.get(controlName);
+    const v = c?.value;
+    if (v == null || v === '') {
+      c?.setValue('$0.00', { emitEvent: false });
+      return;
+    }
+    const n = this.parseAgreementDecimalFromForm(v);
+    c?.setValue(n == null ? '$0.00' : this.formatAgreementCurrency(n), { emitEvent: false });
+  }
+
+  selectAllOnFocus(event: FocusEvent): void {
+    (event.target as HTMLInputElement)?.select();
+  }
+
+  /** Allow only digits and optionally one decimal point. */
+  allowNumericOnly(event: KeyboardEvent, allowDecimal: boolean): void {
+    const key = event.key;
+    if (['Backspace', 'Tab', 'End', 'Home', 'ArrowLeft', 'ArrowRight', 'Delete'].includes(key)) return;
+    if (event.ctrlKey || event.metaKey) {
+      if (['a', 'c', 'v', 'x'].includes(key.toLowerCase())) return;
+    }
+    if (key === '.' && allowDecimal) {
+      const el = event.target as HTMLInputElement;
+      if (el?.value?.includes('.')) event.preventDefault();
+      return;
+    }
+    if (!/^\d$/.test(key)) event.preventDefault();
   }
   //#endregion
 

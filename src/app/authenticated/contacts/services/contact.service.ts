@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, map, tap, catchError, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { EntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 
@@ -17,7 +18,8 @@ export class ContactService {
 
   constructor(
       private http: HttpClient,
-      private configService: ConfigService) {
+      private configService: ConfigService,
+      private mappingService: MappingService) {
   }
 
   // Load all contacts; returns observable so callers can refresh the list after save
@@ -90,7 +92,9 @@ export class ContactService {
 
   // GET: Get contact by ID
   getContactByGuid(contactId: string): Observable<ContactResponse> {
-    return this.http.get<ContactResponse>(this.controller + contactId);
+    return this.http.get<ContactResponse>(this.controller + contactId).pipe(
+      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // POST: Create a new contact

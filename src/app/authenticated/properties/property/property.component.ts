@@ -14,6 +14,7 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { MaintenanceStatus, getMaintenanceStatuses } from '../../maintenance/models/maintenance-enums';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -88,6 +89,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
+  maintenanceStatuses: { value: number, label: string }[] = [];
   bedSizeTypes: { value: number, label: string }[] = [];
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
@@ -179,6 +181,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.initializePropertyStyles();
     this.initializePropertyStatuses();
     this.initializePropertyTypes();
+    this.initializeMaintenanceStatuses();
     this.initializeBedSizeTypes();
     this.initializeTimeTypes();
     
@@ -384,6 +387,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.NotProcessed;
+    propertyRequest.maintenanceStatusId = Number(formValue.maintenanceStatusId) ?? MaintenanceStatus.UnProcessed;
     
     // Handle owner2Id - set to undefined if empty string or null
     if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
@@ -442,9 +446,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
     propertyRequest.filterDescription = trimOrNull(formValue.filterDescription);
     propertyRequest.smokeDetectors = trimOrNull(formValue.smokeDetectors);
     propertyRequest.licenseNo = trimOrNull(formValue.licenseNo);
+    propertyRequest.hvacNotes = trimOrNull(formValue.hvacNotes);
+    propertyRequest.hvacServiced = dateIsoOrNull(formValue.hvacServiced) ?? null;
+    propertyRequest.fireplaceNotes = trimOrNull(formValue.fireplaceNotes);
+    propertyRequest.fireplaceServiced = dateIsoOrNull(formValue.fireplaceServiced) ?? null;
     propertyRequest.maintenanceNotes = trimOrNull(formValue.maintenanceNotes);
     propertyRequest.lastFilterChangeDate = dateIsoOrNull(formValue.lastFilterChangeDate) ?? null;
-    propertyRequest.lastSmokeChageDate = dateIsoOrNull(formValue.lastSmokeChageDate) ?? null;
+    propertyRequest.lastSmokeChangeDate = dateIsoOrNull(formValue.lastSmokeChangeDate) ?? null;
     propertyRequest.licenseDate = dateIsoOrNull(formValue.licenseDate) ?? null;
 
     // Explicitly set notes field from form
@@ -587,9 +595,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
       filterDescription: new FormControl(''),
       lastFilterChangeDate: new FormControl<Date | null>(null),
       smokeDetectors: new FormControl(''),
-      lastSmokeChageDate: new FormControl<Date | null>(null),
+      lastSmokeChangeDate: new FormControl<Date | null>(null),
       licenseNo: new FormControl(''),
       licenseDate: new FormControl<Date | null>(null),
+      maintenanceStatusId: new FormControl<number>(MaintenanceStatus.UnProcessed),
+      hvacNotes: new FormControl(''),
+      hvacServiced: new FormControl<Date | null>(null),
+      fireplaceNotes: new FormControl(''),
+      fireplaceServiced: new FormControl<Date | null>(null),
       maintenanceNotes: new FormControl(''),
       gated: new FormControl(false),
       heating: new FormControl(false),
@@ -647,6 +660,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
+      formData.maintenanceStatusId = this.property.maintenanceStatusId != null ? Number(this.property.maintenanceStatusId) : MaintenanceStatus.UnProcessed;
       
       // Handle bedroom IDs
       formData.bedroomId1 = this.property.bedroomId1 ?? 0;
@@ -663,14 +677,17 @@ export class PropertyComponent implements OnInit, OnDestroy {
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
                            'gateCode', 'trashCode', 'storageCode',
                            'filterDescription', 'smokeDetectors', 'licenseNo', 'maintenanceNotes',
+                           'hvacNotes', 'fireplaceNotes',
                            'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
 
       formData.lastFilterChangeDate = this.parseMaintenanceDateOrNull(this.property.lastFilterChangeDate);
-      formData.lastSmokeChageDate = this.parseMaintenanceDateOrNull(this.property.lastSmokeChageDate);
+      formData.lastSmokeChangeDate = this.parseMaintenanceDateOrNull(this.property.lastSmokeChangeDate);
       formData.licenseDate = this.parseMaintenanceDateOrNull(this.property.licenseDate);
+      formData.hvacServiced = this.parseMaintenanceDateOrNull(this.property.hvacServiced);
+      formData.fireplaceServiced = this.parseMaintenanceDateOrNull(this.property.fireplaceServiced);
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
@@ -1026,6 +1043,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   initializePropertyStatuses(): void {
     this.propertyStatuses = getPropertyStatuses();
+  }
+
+  initializeMaintenanceStatuses(): void {
+    this.maintenanceStatuses = getMaintenanceStatuses();
   }
 
   initializePropertyTypes(): void {

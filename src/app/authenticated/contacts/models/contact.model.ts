@@ -26,14 +26,20 @@ export interface ContactRequest {
   isInternational: boolean;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
-  w9Expiration?: string | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
-  markup: number;
+  agreementPath?: string | null;
+  agreementFileDetails?: FileDetails | null;
+  markup?: number | null;
+  revenueSplitOwner?: number | null;
+  revenueSplitOffice?: number | null;
+  workingCapitalBalance?: number | null;
+  linenAndTowelFee?: number | null;
+  bankName?: string | null;
+  routingNumber?: string | null;
+  accountNumber?: string | null;
   isActive: boolean;
-  /** Preserve on update when not editing (e.g. compact dialog). */
-  agreements?: unknown[] | null;
  }
 
 export interface ContactResponse {
@@ -62,16 +68,22 @@ export interface ContactResponse {
   rating: number;
   notes?: string;
   isInternational: boolean;
-  w9Path?: string;
-  w9FileDetails?: FileDetails;
-  w9Expiration?: string;
-  insurancePath?: string;
-  insuranceFileDetails?: FileDetails;
-  insuranceExpiration?: string;
-  markup: number;
+  w9Path?: string | null;
+  w9FileDetails?: FileDetails | null;
+  insurancePath?: string | null;
+  insuranceFileDetails?: FileDetails | null;
+  insuranceExpiration?: string | null;
+  agreementPath?: string | null;
+  agreementFileDetails?: FileDetails | null;
+  markup?: number | null;
+  revenueSplitOwner?: number | null;
+  revenueSplitOffice?: number | null;
+  workingCapitalBalance?: number | null;
+  linenAndTowelFee?: number | null;
+  bankName?: string | null;
+  routingNumber?: string | null;
+  accountNumber?: string | null;
   isActive: boolean;
-  /** Loaded from API; preserve and send back on update when not editing (e.g. compact dialog). */
-  agreements?: unknown[];
 }
 
 export interface ContactListDisplay {

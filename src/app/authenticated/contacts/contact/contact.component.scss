@@ -90,6 +90,24 @@
   }
 }
 
+// Panel content: use same row/column spacing as main form (gap-y-1 gap-x-1.5)
+.contact-form-panel-content {
+  .panel-grid {
+    gap: 0.25rem 0.375rem;
+  }
+  .panel-rows {
+    gap: 0.25rem;
+  }
+}
+
+// Right-align the 5 agreement number fields (Markup, Revenue splits, Working capital, Linen fee)
+::ng-deep .agreement-number-field {
+  .mat-mdc-form-field-input-control,
+  input.mat-mdc-input-element {
+    text-align: right;
+  }
+}
+
 .rating-select-wrap {
   display: flex;
   align-items: center;

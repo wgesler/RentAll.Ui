@@ -19,6 +19,7 @@ export interface PropertyRequest {
   propertyStyleId: number;
   propertyTypeId: number;
   propertyStatusId: number;
+  maintenanceStatusId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;
@@ -120,9 +121,13 @@ export interface PropertyRequest {
   filterDescription?: string | null;
   lastFilterChangeDate?: string | null;
   smokeDetectors?: string | null;
-  lastSmokeChageDate?: string | null;
+  lastSmokeChangeDate?: string | null;
   licenseNo?: string | null;
   licenseDate?: string | null;
+  hvacNotes?: string | null;
+  hvacServiced?: string | null;
+  fireplaceNotes?: string | null;
+  fireplaceServiced?: string | null;
   maintenanceNotes?: string | null;
   
   // Additional Amenities section
@@ -150,6 +155,7 @@ export interface PropertyResponse {
   propertyStyleId: number;
   propertyTypeId: number;
   propertyStatusId: number;
+  maintenanceStatusId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;
@@ -252,9 +258,13 @@ export interface PropertyResponse {
   filterDescription?: string;
   lastFilterChangeDate?: string;
   smokeDetectors?: string;
-  lastSmokeChageDate?: string;
+  lastSmokeChangeDate?: string;
   licenseNo?: string;
   licenseDate?: string;
+  hvacNotes?: string | null;
+  hvacServiced?: string | null;
+  fireplaceNotes?: string | null;
+  fireplaceServiced?: string | null;
   maintenanceNotes?: string;
 
   // Additional Amenities section
@@ -284,6 +294,12 @@ export interface PropertyListResponse{
   petFee: number;
   maidServiceFee: number;
   propertyStatusId: number;
+  maintenanceStatusId: number;
+  lastFilterChangeDate?: string | null;
+  lastSmokeChangeDate?: string | null;
+  licenseDate?: string | null;
+  hvacServiced?: string | null;
+  fireplaceServiced?: string | null;
   isActive: boolean;
 }
 export interface PropertyListDisplay {
@@ -306,5 +322,11 @@ export interface PropertyListDisplay {
   petFee: number;
   maidServiceFee: number;
   propertyStatusId: number;
+  maintenanceStatusId: number;
+  lastFilterChangeDate?: string | null;
+  lastSmokeChangeDate?: string | null;
+  licenseDate?: string | null;
+  hvacServiced?: string | null;
+  fireplaceServiced?: string | null;
   isActive: boolean;
 }
