@@ -14,7 +14,7 @@ import { AccountingOfficeRequest, AccountingOfficeResponse } from '../../organiz
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationResponse } from '../../reservations/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -67,7 +67,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
-  propertyReservations: ReservationResponse[] = [];
+  propertyReservations: ReservationListResponse[] = [];
   ownerContact: ContactResponse | null = null;
   costCodeId: string | null = null;
   focusedCurrencyField: { index: number; field: 'laborCost'; editValue: string } | null = null;
@@ -630,7 +630,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) === 0;
   }
 
-  getReservationLabel(reservation: ReservationResponse): string {
+  getReservationLabel(reservation: ReservationListResponse): string {
     const reservationName = reservation.reservationCode || 'Reservation';
     const tenantName = reservation.tenantName || reservation.contactName || '';
     return `${reservationName}: ${tenantName}`.trim();

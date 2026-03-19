@@ -372,8 +372,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadReservations(): void {
+    if (!this.propertyId) {
+      this.reservations = [];
+      this.availableReservations = [];
+      return;
+    }
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -427,6 +432,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   //#endregion
 
   //#region Form Response Functions
+  compareReservationId(a: string | null, b: string | null): boolean {
+    return String(a ?? '') === String(b ?? '');
+  }
+
   onReservationSelected(reservationId: string | null, skipEmit: boolean = false): void {
     if (!reservationId) {
       this.selectedReservation = null;
@@ -442,6 +451,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
+        this.form.patchValue({ selectedReservationId: reservation.reservationId });
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
         }

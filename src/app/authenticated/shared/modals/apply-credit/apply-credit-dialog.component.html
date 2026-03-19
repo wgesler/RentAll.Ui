@@ -24,7 +24,7 @@
       <!-- Reservation -->
       <mat-form-field appearance="outline">
         <mat-label>Reservation</mat-label>
-        <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange($event.value)" required>
+        <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange($event.value)" [compareWith]="compareReservationById" required>
           <mat-option [value]="null">Select Reservation</mat-option>
           @for (reservation of availableReservations; track reservation.value.reservationId) {
             <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>

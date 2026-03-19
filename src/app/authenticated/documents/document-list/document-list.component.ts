@@ -618,6 +618,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   get isReservationDisabled(): boolean {
     return false;
   }
+
+  compareReservationId(a: string | null, b: string | null): boolean {
+    return String(a ?? '') === String(b ?? '');
+  }
   
   filterReservations(): void {
     if (!this.selectedOfficeId) {

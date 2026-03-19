@@ -21,14 +21,14 @@ export class ReservationService {
     return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
 
+  // GET: Get reservations list for a particular property
+  getReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'property/' + propertyId);
+  }
+
   // GET: Get all reservations (full detail)
   getReservations(): Observable<ReservationResponse[]> {
     return this.http.get<ReservationResponse[]>(this.controller);
-  }
-
-  // GET: Get all reservations for a particular property
-  getReservationsByPropertyId(propertyId: string): Observable<ReservationResponse[]> {
-    return this.http.get<ReservationResponse[]>(this.controller + 'property/' + propertyId);
   }
 
   // GET: Get reservation by ID

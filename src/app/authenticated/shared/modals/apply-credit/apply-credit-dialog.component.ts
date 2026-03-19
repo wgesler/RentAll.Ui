@@ -60,6 +60,13 @@ export class ApplyCreditDialogComponent implements OnInit {
     }
   }
   
+  /** Used by mat-select [compareWith]; arrow so template gets a stable reference. */
+  compareReservationById = (a: ReservationListResponse | null, b: ReservationListResponse | null): boolean => {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    return a.reservationId === b.reservationId;
+  };
+
   onReservationChange(reservation: ReservationListResponse | null): void {
     this.selectedReservation = reservation;
   }

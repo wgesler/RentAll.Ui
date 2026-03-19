@@ -33,7 +33,7 @@ import { BuildingService } from '../../organizations/services/building.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
@@ -163,7 +163,6 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.loadStates();
     this.loadContacts();
     this.loadLocationLookups();
-    this.loadReservations();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && !this.property) {
@@ -229,7 +228,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
         if (!this.isAddMode) {
           this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
           this.getProperty();
+          this.loadReservations();
         } else {
+          this.loadReservations();
           this.setAddModeDefaults();
           // Check if we're copying from another property
           this.route.queryParams.pipe(take(1)).subscribe(queryParams => {

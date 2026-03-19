@@ -1525,7 +1525,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
 
     // Get all reservations for this property
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1),catchError(() => of([] as ReservationResponse[]))
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1), catchError(() => of([] as ReservationListResponse[]))
     ).subscribe(reservations => {
       // Filter out the current reservation if editing
       const otherReservations = reservations.filter(r => 

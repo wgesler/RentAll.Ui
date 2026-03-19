@@ -37,7 +37,7 @@
           <!-- Reservation field for Reservations or Accounting source -->
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
-            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled" [compareWith]="compareReservationId">
               <mat-option [value]="null">{{ source === 'invoice' ? 'All Reservations' : 'Select Reservation' }}</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
@@ -52,7 +52,7 @@
           </mat-form-field>
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Reservation</mat-label>
-            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
               <mat-option [value]="null">Select Reservation</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
@@ -63,7 +63,7 @@
           <!-- Reservation and DocumentType fields for Documents source -->
           <mat-form-field appearance="outline" class="reservation-dropdown">
             <mat-label>Reservation</mat-label>
-            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+            <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
               <mat-option [value]="null">All Reservations</mat-option>
               @for (reservation of availableReservations; track reservation.value.reservationId) {
                 <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
@@ -166,7 +166,7 @@
                   <!-- Reservation field for Reservations or Accounting source -->
                   <mat-form-field appearance="outline" class="reservation-dropdown">
                     <mat-label>{{ source === 'invoice' ? (selectedReservationId ? 'Reservation' : 'All Reservations') : 'Reservation' }}</mat-label>
-                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled">
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [disabled]="isReservationDisabled" [compareWith]="compareReservationId">
                       <mat-option [value]="null">{{ source === 'invoice' ? 'All Reservations' : 'Select Reservation' }}</mat-option>
                       @for (reservation of availableReservations; track reservation.value.reservationId) {
                         <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
@@ -181,7 +181,7 @@
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="reservation-dropdown">
                     <mat-label>Reservation</mat-label>
-                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
                       <mat-option [value]="null">Select Reservation</mat-option>
                       @for (reservation of availableReservations; track reservation.value.reservationId) {
                         <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
@@ -192,7 +192,7 @@
                   <!-- Reservation and DocumentType fields for Documents source -->
                   <mat-form-field appearance="outline" class="reservation-dropdown">
                     <mat-label>Reservation</mat-label>
-                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
+                    <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
                       <mat-option [value]="null">All Reservations</mat-option>
                       @for (reservation of availableReservations; track reservation.value.reservationId) {
                         <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>

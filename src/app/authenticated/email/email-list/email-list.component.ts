@@ -250,6 +250,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
+  compareReservationId(a: string | null, b: string | null): boolean {
+    return String(a ?? '') === String(b ?? '');
+  }
+
   onReservationChange(): void {
     this.reservationIdChange.emit(this.selectedReservationId);
     this.applyFilters();

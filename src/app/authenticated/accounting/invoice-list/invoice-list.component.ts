@@ -1018,6 +1018,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
+  compareReservationById(a: ReservationListResponse | null, b: ReservationListResponse | null): boolean {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    return a.reservationId === b.reservationId;
+  }
+
   onReservationChange(): void {
     // Emit reservation change to parent
     this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);

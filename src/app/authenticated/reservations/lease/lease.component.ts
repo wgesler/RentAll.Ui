@@ -341,6 +341,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.officeIdChange.emit(this.selectedOffice?.officeId || null);
   }
 
+  compareReservationId(a: string | null, b: string | null): boolean {
+    return String(a ?? '') === String(b ?? '');
+  }
+
   onReservationSelected(reservationId: string | null): void {
     if (!reservationId) {
       this.selectedReservation = null;
