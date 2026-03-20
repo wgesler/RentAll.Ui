@@ -1,10 +1,40 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
     <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-      <span class="flex flex-column items-center gap-3 py-4">
-        <mat-icon class="flex-shrink-0">contacts</mat-icon>
-        <span class="flex-shrink-0 text-xl font-medium">Contacts</span>
-      </span>
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">contacts</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Contacts</span>
+        </span>
+        @if (!showContactForm) {
+          <div class="header-title form-titlebar-fields-wrap">
+            @if (showOfficeDropdown) {
+              <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-office">
+                <mat-label>Office</mat-label>
+                <mat-select [ngModel]="selectedOfficeId" (ngModelChange)="onOfficeIdChange($event)" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+          </div>
+        }
+      </div>
+      <div class="flex items-center gap-3 ml-[10px]">
+        @if (!showContactForm) {
+          <mat-slide-toggle color="primary" class="flex-shrink-0" [checked]="showInactive" (change)="toggleShowInactive()">
+            Inactive
+          </mat-slide-toggle>
+          <div class="uniform-gap form-titlebar-actions-wrap">
+            <button mat-raised-button type="button" color="primary" id="add-button" (click)="addContactFromHeader()" class="text-nowrap flex-shrink-0">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          </div>
+        }
+      </div>
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="contacts-tabs" (selectedTabChange)="onTabChange($event)">
@@ -12,28 +42,28 @@
           @if (showContactForm && formTabIndex === 0) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="0" [entityTypeId]="EntityType.Owner" [officeId]="selectedOfficeId" [showInactive]="showInactive" [hideTopControls]="true" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
         <mat-tab label="Tenants">
           @if (showContactForm && formTabIndex === 1) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="1" [entityTypeId]="EntityType.Tenant" [officeId]="selectedOfficeId" [showInactive]="showInactive" [hideTopControls]="true" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
         <mat-tab label="Companies">
           @if (showContactForm && formTabIndex === 2) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="2" [entityTypeId]="EntityType.Company" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="2" [entityTypeId]="EntityType.Company" [officeId]="selectedOfficeId" [showInactive]="showInactive" [hideTopControls]="true" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
         <mat-tab label="Vendors">
           @if (showContactForm && formTabIndex === 3) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [entityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />
           } @else {
-            <app-contact-list [tabIndex]="3" [entityTypeId]="EntityType.Vendor" [officeId]="selectedOfficeId" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
+            <app-contact-list [tabIndex]="3" [entityTypeId]="EntityType.Vendor" [officeId]="selectedOfficeId" [showInactive]="showInactive" [hideTopControls]="true" (officeIdChange)="onOfficeIdChange($event)" (openContact)="onOpenContact($event)" />
           }
         </mat-tab>
       </mat-tab-group>

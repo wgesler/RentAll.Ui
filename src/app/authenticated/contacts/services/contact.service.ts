@@ -22,7 +22,6 @@ export class ContactService {
       private mappingService: MappingService) {
   }
 
-  // Load all contacts; returns observable so callers can refresh the list after save
   loadAllContacts(): Observable<ContactResponse[]> {
     const url = this.controller;
     return this.http.get<ContactResponse[]>(url).pipe(
@@ -39,75 +38,61 @@ export class ContactService {
     );
   }
 
-  // Check if contacts have been loaded
   areContactsLoaded(): Observable<boolean> {
     return this.contactsLoaded$.asObservable();
   }
 
-  // Clear all contacts (e.g., on logout)
   clearContacts(): void {
     this.allContacts$.next([]);
     this.contactsLoaded$.next(false);
   }
 
-  // Get all contacts as observable (returns BehaviorSubject - components should filter for non-empty)
   getAllContacts(): Observable<ContactResponse[]> {
     return this.allContacts$;
   }
 
-  // Get all contacts value synchronously (returns current value)
   getAllContactsValue(): ContactResponse[] {
     return this.allContacts$.value;
   }
 
-  // Get company contacts (filtered by EntityType.Company)
   getAllCompanyContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Company)));
   }
 
-  // Get owner contacts (filtered by EntityType.Owner)
   getAllOwnerContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Owner)));
   }
 
-  // Get tenant contacts (filtered by EntityType.Tenant)
   getAllTenantContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Tenant)));
   }
 
-    // Get vendor contacts (filtered by EntityType.Tenant)
   getAllVendorContacts(): Observable<ContactResponse[]> {
     return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Vendor)));
   }
 
-  // GET: Get all contacts
   getContacts(): Observable<ContactResponse[]> {
     return this.http.get<ContactResponse[]>(this.controller);
   }
 
-  // GET: Get contacts by type
   getContactsByType(contactTypeId: number): Observable<ContactResponse[]> {
     return this.http.get<ContactResponse[]>(this.controller + 'type/' + contactTypeId);
   }
 
-  // GET: Get contact by ID
   getContactByGuid(contactId: string): Observable<ContactResponse> {
     return this.http.get<ContactResponse>(this.controller + contactId).pipe(
       map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
     );
   }
 
-  // POST: Create a new contact
   createContact(contact: ContactRequest): Observable<ContactResponse> {
     return this.http.post<ContactResponse>(this.controller, contact);
   }
 
-  // PUT: Update entire contact
   updateContact(contact: ContactRequest): Observable<ContactResponse> {
     return this.http.put<ContactResponse>(this.controller, contact);
   }
 
-  // DELETE: Delete contact
   deleteContact(contactId: string): Observable<void> {
     return this.http.delete<void>(this.controller + contactId);
   }

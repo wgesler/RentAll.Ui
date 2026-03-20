@@ -25,9 +25,9 @@
 
 <ng-template #contactsTable>
   <div class="mat list-layout-standard">
-    @if (showOfficeDropdown) {
-      <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-        <div class="flex items-center gap-3" style="height: 56px;">
+    @if (showOfficeDropdown && !hideTopControls) {
+      <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap row-height-56">
+        <div class="flex items-center gap-3 row-height-56">
           <mat-form-field appearance="outline" class="office-dropdown">
             <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
             <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
@@ -46,8 +46,8 @@
         [columns]="contactsDisplayedColumns"
         [hasColumnIndex]="false"
         [hasFilter]="true"
-        [hasToggleTop]="true"
-        [hasButtonTop]="true"
+        [hasToggleTop]="!hideTopControls"
+        [hasButtonTop]="!hideTopControls"
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsCopy]="true"

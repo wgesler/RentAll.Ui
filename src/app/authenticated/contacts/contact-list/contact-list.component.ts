@@ -1,5 +1,4 @@
 import { CommonModule } from "@angular/common";
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -30,13 +29,14 @@ import { ContactService } from '../services/contact.service';
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
+  @Input() showInactive: boolean = false;
+  @Input() hideTopControls: boolean = false;
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
 
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
-  showInactive: boolean = false;
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
 
@@ -174,21 +174,19 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   applyFilters(): void {
     let filtered = this.allContacts;
     
-    // Filter by entityTypeId if provided
-    // Filter by type (Tenant / Owner / Company / Vendor)
+    if (!this.showInactive) {
+      filtered = filtered.filter(contact => contact.isActive === true);
+    }
+
     if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
       filtered = filtered.filter(contact => contact.entityTypeId === this.entityTypeId);
     }
 
-    // Filter by office (parent passes global office or manual selection; null = All Offices)
     if (this.selectedOffice) {
       filtered = filtered.filter(contact => contact.officeId === this.selectedOffice.officeId);
     }
-    
-    // Filter by active status
-    this.contactsDisplay = this.showInactive
-      ? filtered
-      : filtered.filter(contact => contact.isActive === true);
+
+    this.contactsDisplay = filtered;
   }
   
   ngOnChanges(changes: SimpleChanges): void {
@@ -212,6 +210,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+
+    if (changes['showInactive'] && !changes['showInactive'].firstChange) {
+      this.applyFilters();
+    }
+
   }
  
   onOfficeChange(): void {
@@ -225,7 +228,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Data Load Methods
+  //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
@@ -261,7 +264,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#endregion
 
-  //#region Utility methods
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();

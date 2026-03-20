@@ -1,9 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, Inject, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -361,7 +360,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Form methods
+  //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
@@ -755,7 +754,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region w9/insurance Sections
+  //#region W9 and Insurance Methods
   onW9FileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) {
@@ -843,7 +842,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Contract negotiation helpers
+  //#region Contract Negotiation Helpers
   onContractMarkupInput(event: Event): void {
     this.formatterService.formatPercentageInput(event, this.form.get('markup'));
   }
@@ -934,7 +933,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Phone helpers
+  //#region Phone Helpers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -944,7 +943,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility methods
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

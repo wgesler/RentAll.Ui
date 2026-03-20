@@ -1,4 +1,3 @@
-// Reduce font size in form fields
 ::ng-deep .mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
     .mat-mdc-form-field-input-control {
@@ -9,7 +8,6 @@
   }
 }
 
-// Alternative approach - target all inputs in form fields
 ::ng-deep mat-form-field {
   input.mat-mdc-input-element,
   textarea.mat-mdc-input-element,
@@ -18,40 +16,39 @@
   }
 }
 
-// Make form fields narrower with reduced padding and height
 ::ng-deep .mat-mdc-form-field {
   width: 100%;
   
   .mat-mdc-text-field-wrapper {
-    padding: 0 8px !important; // Reduce horizontal padding
-    min-height: 48px !important; // Moderate height reduction
+    padding: 0 8px !important;
+    min-height: 48px !important;
     
     .mat-mdc-form-field-flex {
       padding: 0 !important;
-      min-height: 48px !important; // Moderate flex container height
+      min-height: 48px !important;
     }
     
     .mat-mdc-form-field-input-control {
-      padding: 0 4px !important; // Reduce input padding
+      padding: 0 4px !important;
       
       input, textarea, .mat-mdc-select-value {
-        padding: 10px 0 !important; // Moderate vertical padding
-        line-height: 1.4 !important; // Moderate line height
+        padding: 10px 0 !important;
+        line-height: 1.4 !important;
       }
     }
   }
   
   .mat-mdc-form-field-subscript-wrapper {
-    padding: 0 8px !important; // Reduce error message padding
-    margin-top: 4px !important; // Moderate space above error message
-    min-height: 20px !important; // Ensure consistent height for error messages
+    padding: 0 8px !important;
+    margin-top: 4px !important;
+    min-height: 20px !important;
     display: flex !important;
-    align-items: center !important; // Center error text vertically
+    align-items: center !important;
   }
   
   .mat-mdc-form-field-infix {
-    min-height: 48px !important; // Moderate infix height
-    padding: 10px 0 !important; // Moderate vertical padding
+    min-height: 48px !important;
+    padding: 10px 0 !important;
   }
 }
 
@@ -74,7 +71,50 @@
   cursor: not-allowed;
 }
 
-// Remove Material's disabled form field wrapper background
+.rating-controls-row {
+  padding-right: 5px;
+}
+
+.form-grid-four-equal {
+  grid-template-columns: repeat(4, 1fr);
+  min-width: 0;
+}
+
+.field-min-0 {
+  min-width: 0;
+}
+
+.name-row-min-0 {
+  min-width: 0;
+}
+
+.code-field-fixed-20 {
+  flex: 0 0 20%;
+  min-width: 0;
+  max-width: 20%;
+}
+
+.name-flex-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.btn-full-width {
+  width: 100%;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.field-max-240 {
+  max-width: 240px;
+}
+
+.panel-grid-min-0 {
+  min-width: 0;
+}
+
 ::ng-deep mat-form-field {
   &.mat-form-field-disabled,
   .mat-mdc-text-field-wrapper.mdc-text-field--disabled {
@@ -90,7 +130,6 @@
   }
 }
 
-// Panel content: use same row/column spacing as main form (gap-y-1 gap-x-1.5)
 .contact-form-panel-content {
   .panel-grid {
     gap: 0.25rem 0.375rem;
@@ -100,7 +139,6 @@
   }
 }
 
-// Right-align the 5 agreement number fields (Markup, Revenue splits, Working capital, Linen fee)
 ::ng-deep .agreement-number-field {
   .mat-mdc-form-field-input-control,
   input.mat-mdc-input-element {

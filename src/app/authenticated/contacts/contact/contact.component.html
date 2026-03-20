@@ -29,7 +29,7 @@
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveContact()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end items-center gap-4" style="padding-right: 5px;">
+            <div class="mb-4 flex justify-end items-center gap-4 rating-controls-row">
               <div class="rating-select-wrap">
                 <span class="rating-label">Rating</span>
                 <div class="rating-stars">
@@ -56,8 +56,8 @@
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
 
               <!-- Row 1: Office, Contact Type, Owner Type (when Owner), Company Name, Display Name (when Company) - each 1/4 -->
-              <div class="col-span-4 grid gap-x-1.5" style="grid-template-columns: repeat(4, 1fr); min-width: 0;">
-                <mat-form-field appearance="outline" style="min-width: 0;">
+              <div class="col-span-4 grid gap-x-1.5 form-grid-four-equal">
+                <mat-form-field appearance="outline" class="field-min-0">
                   <mat-label>Office</mat-label>
                   @if (isAddMode) {
                     <mat-select formControlName="officeId">
@@ -71,7 +71,7 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" style="min-width: 0;">
+                <mat-form-field appearance="outline" class="field-min-0">
                   <mat-label>Contact Type</mat-label>
                   <mat-select formControlName="contactTypeId" required>
                     <mat-option value="">Select Contact Type</mat-option>
@@ -85,7 +85,7 @@
                 </mat-form-field>
 
                 @if (form.get('contactTypeId')?.value === EntityType.Owner) {
-                  <mat-form-field appearance="outline" style="min-width: 0;">
+                  <mat-form-field appearance="outline" class="field-min-0">
                     <mat-label>Owner Type</mat-label>
                     <mat-select formControlName="ownerTypeId">
                       <mat-option [value]="null">Select Owner Type</mat-option>
@@ -97,14 +97,14 @@
                 }
 
                 @if (form.get('contactTypeId')?.value !== EntityType.Owner || (form.get('ownerTypeId')?.value != null && form.get('ownerTypeId')?.value !== OwnerType.Individual)) {
-                  <mat-form-field appearance="outline" style="min-width: 0;">
+                  <mat-form-field appearance="outline" class="field-min-0">
                     <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
                     <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
                   </mat-form-field>
                 }
 
                 @if (form.get('contactTypeId')?.value === EntityType.Company) {
-                  <mat-form-field appearance="outline" style="min-width: 0;">
+                  <mat-form-field appearance="outline" class="field-min-0">
                     <mat-label>Display Name</mat-label>
                     <input matInput formControlName="displayName" placeholder="Enter display name">
                   </mat-form-field>
@@ -123,20 +123,20 @@
               }
 
               <!-- Row 2: Code, First Name, Last Name -->
-              <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
+              <div class="col-span-4 flex items-center gap-x-1.5 name-row-min-0">
                 @if (!isAddMode) {
-                  <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                  <mat-form-field appearance="outline" class="code-field-fixed-20">
                     <mat-label>Code</mat-label>
                     <input matInput [value]="contact?.contactCode || ''" readonly disabled>
                   </mat-form-field>
                 }
                 
-                <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
+                <mat-form-field appearance="outline" class="name-flex-field">
                   <mat-label>First Name</mat-label>
                   <input matInput formControlName="firstName">
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" style="flex: 1 1 0; min-width: 0;">
+                <mat-form-field appearance="outline" class="name-flex-field">
                   <mat-label>Last Name</mat-label>
                   <input matInput formControlName="lastName">
                 </mat-form-field>
@@ -233,7 +233,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -251,7 +251,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -265,7 +265,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="w9FileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeW9Form()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -275,7 +275,7 @@
                                   Upload
                                 </button>
                               }
-                              <input #w9FileInput type="file" (change)="onW9FileSelected($event)" style="display: none;" />
+                              <input #w9FileInput type="file" (change)="onW9FileSelected($event)" class="file-input-hidden" />
                             </div>
                           </div>
                           <!-- Insurance Form column -->
@@ -289,7 +289,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -307,7 +307,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -321,7 +321,7 @@
                                     <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="insuranceFileInput.click()">
                                       Upload
                                     </button>
-                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" style="width: 100%;">
+                                    <button type="button" color="accent" mat-raised-button (click)="removeInsuranceForm()" class="btn-full-width">
                                       Delete
                                     </button>
                                   </div>
@@ -331,9 +331,9 @@
                                   Upload
                                 </button>
                               }
-                              <input #insuranceFileInput type="file" (change)="onInsuranceFileSelected($event)" style="display: none;" />
+                              <input #insuranceFileInput type="file" (change)="onInsuranceFileSelected($event)" class="file-input-hidden" />
                             </div>
-                            <mat-form-field appearance="outline" class="block w-full" style="max-width: 240px;">
+                            <mat-form-field appearance="outline" class="block w-full field-max-240">
                               <mat-label>Insurance Expiration</mat-label>
                               <input matInput [matDatepicker]="insuranceExpirationPicker" formControlName="insuranceExpiration" />
                               <mat-datepicker-toggle matIconSuffix [for]="insuranceExpirationPicker"></mat-datepicker-toggle>
@@ -359,7 +359,7 @@
                                 <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementFileInput.click()">
                                   Upload
                                 </button>
-                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" style="width: 100%;">
+                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" class="btn-full-width">
                                   Delete
                                 </button>
                               </div>
@@ -377,7 +377,7 @@
                                 <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementFileInput.click()">
                                   Upload
                                 </button>
-                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" style="width: 100%;">
+                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" class="btn-full-width">
                                   Delete
                                 </button>
                               </div>
@@ -391,7 +391,7 @@
                                 <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementFileInput.click()">
                                   Upload
                                 </button>
-                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" style="width: 100%;">
+                                <button type="button" color="accent" mat-raised-button (click)="removeAgreementForm()" class="btn-full-width">
                                   Delete
                                 </button>
                               </div>
@@ -401,10 +401,10 @@
                               Upload Agreement
                             </button>
                           }
-                          <input #agreementFileInput type="file" (change)="onAgreementFileSelected($event)" style="display: none;" />
+                          <input #agreementFileInput type="file" (change)="onAgreementFileSelected($event)" class="file-input-hidden" />
                         </div>
                         <div class="flex flex-col panel-rows mb-4">
-                          <div class="panel-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5" style="min-width: 0;">
+                          <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                             <mat-form-field appearance="outline" class="min-w-0 agreement-number-field">
                               <mat-label>Markup</mat-label>
                               <input
@@ -467,7 +467,7 @@
                               />
                             </mat-form-field>
                           </div>
-                          <div class="panel-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style="min-width: 0;">
+                          <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                             <mat-form-field appearance="outline" class="min-w-0">
                               <mat-label>Bank name</mat-label>
                               <input matInput formControlName="bankName" />
