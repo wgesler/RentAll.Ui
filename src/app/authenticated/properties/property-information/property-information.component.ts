@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -32,7 +31,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyLetterResponse | null = null;
   @Input() officeId: number | null = null;
-  @Input() propertyCode: string | null = null; // Input to accept propertyCode from parent
+  @Input() propertyCode: string | null = null;
+  @Input() hideOfficeAndPropertyCode: boolean = false;
   isServiceError: boolean = false;
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -69,13 +69,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.loadOffices();
     
     if (!this.propertyId) {
-      // If we have copied property information data, populate the form with it
       if (this.copiedPropertyInformation) {
         this.populateFormFromCopiedData();
-        // Clear loading items since we're not loading from API
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
-        // Still load organization settings for defaults
         this.loadOrganizationSettings();
         return;
       }
@@ -85,24 +82,19 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       return;
     }
     
-    // Load all data in parallel (no dependencies)
     this.loadOrganizationSettings();
     this.loadPropertyData();
     this.getPropertyLetter();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // If propertyId changes from null to a value (property was saved), update the component
     if (changes['propertyId'] && this.propertyId && !changes['propertyId'].firstChange) {
-      // Property was just saved, now we can load/save property letter
       this.loadPropertyData();
       this.getPropertyLetter();
     }
     
-    // If copiedPropertyInformation is set and we don't have propertyId yet, populate form
     if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.propertyId) {
       this.populateFormFromCopiedData();
-      // Clear loading items since we're not loading from API
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       if (!this.organization) {
@@ -110,7 +102,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       }
     }
     
-    // Handle officeId changes - update selectedOffice when officeId input changes
     if (changes['officeId'] && this.offices.length > 0) {
       const newOfficeId = changes['officeId'].currentValue;
       if (newOfficeId) {
@@ -122,7 +113,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   onOfficeChange(): void {
-    // Office dropdown is for display/filtering only in property-information
   }
 
   getPropertyLetter(): void {
@@ -159,7 +149,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
           this.populateDefaultsFromProperty();
         }
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.populateDefaultsFromProperty();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       }
@@ -167,10 +157,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
     
   savePropertyLetter(): void {
-    // Get propertyId from route if not provided as input (for add mode after property is saved)
     if (!this.propertyId) {
-      // Try to get propertyId from parent component or route
-      // For now, show error if propertyId is not available
       this.toastr.error('Property must be saved first before saving property letter information.', CommonMessage.Error);
       return;
     }
@@ -201,29 +188,22 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: formValue.additionalNotes || undefined
     };
 
-    // Check if property letter already exists to determine create vs update
     this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1)).subscribe({
       next: () => {
-        // Property letter exists, update it
         this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter updated successfully', CommonMessage.Success);
-            // Clear copied data after successful save
             this.copiedPropertyInformation = null;
-            // Trigger welcome letter reload event
             this.welcomeLetterReloadService.triggerReload();
           },
-          error: (_err: HttpErrorResponse) => {}
+          error: () => {}
         });
       },
       error: () => {
-        // Property letter doesn't exist, create it
         this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter created successfully', CommonMessage.Success);
-            // Clear copied data after successful save
             this.copiedPropertyInformation = null;
-            // Trigger welcome letter reload event
             this.welcomeLetterReloadService.triggerReload();
           },
           error: () => {}
@@ -260,7 +240,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
           this.showOfficeDropdown = true;
         }
         
-        // Set selectedOffice from officeId input if provided, otherwise from property
         if (this.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         } else if (this.property?.officeId) {
@@ -288,7 +267,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       }
     });
   }
-  //#endregion 
+  //#endregion
 
   //#region Form Methods
   buildForm(): FormGroup {
@@ -311,9 +290,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: new FormControl('')
     });
   }
-  //#endregion
-
-  //#region Populate Functions
+ 
   populateFormFromCopiedData(): void {
     if (!this.copiedPropertyInformation) {
       return;

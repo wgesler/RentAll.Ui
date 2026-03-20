@@ -57,6 +57,19 @@
         }
       </div>
       }
+      @if (hideFilters && showReservationFilterWhenHidden && (source === 'property' || source === 'reservation')) {
+      <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+        <mat-form-field appearance="outline" class="reservation-dropdown">
+          <mat-label>Reservation</mat-label>
+          <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
+            <mat-option [value]="null">Select Reservation</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      }
       <mat-card class="full-height-card">
         <div class="mat list-layout-tabbed">
           <div class="tableDiv">

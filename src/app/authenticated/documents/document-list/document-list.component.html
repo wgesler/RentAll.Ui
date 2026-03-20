@@ -6,7 +6,7 @@
       <!-- Office and conditional field dropdown row -->
       <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
         @if (showOfficeDropdown) {
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-form-field appearance="outline" class="field-width-300">
             <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
             <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled" placeholder="All Offices">
               <mat-option [value]="null">All Offices</mat-option>
@@ -18,13 +18,13 @@
         }
         @if (source === 'reservation' || source === 'invoice') {
           @if (source === 'reservation') {
-            <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+            <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
               <mat-label>Property Code</mat-label>
               <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
             </mat-form-field>
           }
           @if (source === 'invoice') {
-            <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-form-field appearance="outline" class="field-width-300">
               <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
               <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                 <mat-option [value]="null">All Companies</mat-option>
@@ -46,7 +46,7 @@
           </mat-form-field>
         } @else if (source === 'property') {
           <!-- Property Code and Reservation fields for Properties source -->
-          <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+          <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
             <mat-label>Property Code</mat-label>
             <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
           </mat-form-field>
@@ -70,7 +70,7 @@
               }
             </mat-select>
           </mat-form-field>
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-form-field appearance="outline" class="field-width-300">
             <mat-label>Document Type</mat-label>
             <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
               <mat-option [value]="null">All Document Types</mat-option>
@@ -81,7 +81,7 @@
           </mat-form-field>
         } @else if (source === 'maintenance') {
           <!-- Document Type (Inspection / Inventory) for Maintenance Documents tab -->
-          <mat-form-field appearance="outline" style="width: 300px;">
+          <mat-form-field appearance="outline" class="field-width-300">
             <mat-label>Document Type</mat-label>
             <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
               <mat-option [value]="null">Document Types</mat-option>
@@ -91,6 +91,19 @@
             </mat-select>
           </mat-form-field>
         }
+      </div>
+      }
+      @if (hideFilters && showReservationFilterOnly && source === 'property') {
+      <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+        <mat-form-field appearance="outline" class="reservation-dropdown">
+          <mat-label>Reservation</mat-label>
+          <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId">
+            <mat-option [value]="null">Select Reservation</mat-option>
+            @for (reservation of availableReservations; track reservation.value.reservationId) {
+              <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       </div>
       }
       <mat-card class="full-height-card">
@@ -132,10 +145,10 @@
           <div class="mat list-layout-standard">
             @if (!hideFilters) {
             <!-- Office and conditional field dropdown row -->
-            <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-              <div class="flex items-center gap-3" style="height: 56px;">
+            <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap row-height-56">
+              <div class="flex items-center gap-3 row-height-56">
                 @if (showOfficeDropdown) {
-                  <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-form-field appearance="outline" class="field-width-300">
                     <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
                     <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [disabled]="isOfficeDisabled" placeholder="All Offices">
                       <mat-option [value]="null">All Offices</mat-option>
@@ -147,13 +160,13 @@
                 }
                 @if (source === 'reservation' || source === 'invoice') {
                   @if (source === 'reservation') {
-                    <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+                    <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
                       <mat-label>Property Code</mat-label>
                       <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                     </mat-form-field>
                   }
                   @if (source === 'invoice') {
-                    <mat-form-field appearance="outline" style="width: 300px;">
+                    <mat-form-field appearance="outline" class="field-width-300">
                       <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
                       <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                         <mat-option [value]="null">All Companies</mat-option>
@@ -175,7 +188,7 @@
                   </mat-form-field>
                 } @else if (source === 'property') {
                   <!-- Property Code and Reservation fields for Properties source -->
-                  <mat-form-field appearance="outline" class="flex-shrink-0" style="width: 18ch; min-width: 18ch; max-width: 18ch;">
+                  <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
                     <mat-label>Property Code</mat-label>
                     <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                   </mat-form-field>
@@ -199,7 +212,7 @@
                       }
                     </mat-select>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-form-field appearance="outline" class="field-width-300">
                     <mat-label>Document Type</mat-label>
                     <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
                       <mat-option [value]="null">All Document Types</mat-option>
@@ -210,7 +223,7 @@
                   </mat-form-field>
                 } @else if (source === 'maintenance') {
                   <!-- Document Type (Inspection / Inventory) for Maintenance Documents tab -->
-                  <mat-form-field appearance="outline" style="width: 300px;">
+                  <mat-form-field appearance="outline" class="field-width-300">
                     <mat-label>Document Type</mat-label>
                     <mat-select [(ngModel)]="selectedDocumentTypeId" (selectionChange)="onDocumentTypeChange()">
                       <mat-option [value]="null">Document Types</mat-option>

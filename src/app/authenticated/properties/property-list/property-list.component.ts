@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -17,7 +17,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
+import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
@@ -49,6 +49,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private navigationSubscription?: Subscription;
   private lastNavigationUrl = '';
   private destroy$ = new Subject<void>();
+  private officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   /** True when saved property selection has non-default filters. */
@@ -67,7 +68,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -93,7 +94,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       .pipe(takeUntil(this.destroy$))
       .subscribe((v) => (this.propertiesFiltered = v));
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+      if (!this.officeScopeResolved) {
+        this.officeScopeResolved = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+      }
       if (this.offices.length > 0) {
         this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
         this.officeIdChange.emit(officeId ?? null);
@@ -140,6 +145,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
       });
+
+      if (!this.officeScopeResolved) {
+        this.officeScopeResolved = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+      }
     });
   }
 
@@ -246,11 +256,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.toastr.success('Property deleted successfully', CommonMessage.Success);
         this.getProperties();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
-      }
+      error: () => {}
     });
   }
   //#endregion
@@ -283,12 +289,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   applyFilters(): void {
     let filtered = this.allProperties;
 
-    // Filter by active/inactive
     if (!this.showInactive) {
       filtered = filtered.filter(property => property.isActive);
     }
 
-    // Filter by office
     if (this.selectedOffice) {
       filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
     }

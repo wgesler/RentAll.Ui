@@ -21,6 +21,246 @@ mat-form-field.reservation-dropdown {
   width: 100%;
 }
 
+/* ==========================================================================
+   Global form field styles: spacing, sizing, fonts, vertical centering.
+   Applies to all mat-form-field across the app.
+   ========================================================================== */
+.mat-mdc-form-field {
+  width: 100%;
+  margin-right: 6px !important;  /* double horizontal gap (grid gap 6px + this = 12px) */
+  margin-bottom: 4px !important; /* double vertical gap (4px + this = 8px between rows) */
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 42px !important;
+    padding: 4px 18px !important; /* +10px left/right vs original 8px */
+
+    .mat-mdc-form-field-flex {
+      min-height: 42px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: 42px !important;
+      padding: 5px 0 !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-input-control {
+      display: flex !important;
+      align-items: center !important;
+      padding-left: 0 !important;
+      padding-right: 11px !important;
+
+      input,
+      textarea,
+      .mat-mdc-select-value,
+      .mat-mdc-select-value-text {
+        font-size: 13px !important;
+        line-height: 1.3 !important;
+      }
+
+      input,
+      textarea {
+        padding: 3px 8px 3px 0 !important; /* no left: align with dropdown text */
+      }
+
+      /* Placeholder same size as value (empty field “hint” looked larger than entered text) */
+      input.mat-mdc-input-element::placeholder,
+      textarea.mat-mdc-input-element::placeholder {
+        font-size: 13px !important;
+        line-height: 1.3 !important;
+      }
+
+      .mat-mdc-select-value,
+      .mat-mdc-select-value-text {
+        padding: 3px 8px 3px 0 !important;
+      }
+
+      /* Dropdown: same left edge as input (no extra left padding) */
+      mat-select,
+      .mat-mdc-select {
+        padding-left: 0 !important;
+        width: 100% !important;
+      }
+      .mat-mdc-select-trigger {
+        min-height: 1.5em !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 !important;
+      }
+      .mat-mdc-select-value {
+        padding: 3px 8px 3px 0 !important;
+        font-size: 13px !important;
+        line-height: 1.3 !important;
+      }
+      .mat-mdc-select-value-text {
+        font-size: 13px !important;
+        line-height: 1.3 !important;
+      }
+      .mat-mdc-select-arrow-wrapper {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+      }
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      min-height: 18px !important;
+      margin-top: 2px !important;
+      padding: 0 6px !important;
+    }
+  }
+
+  /* Outline label: same font size as input value (empty field label looked larger than value text) */
+  .mat-mdc-form-field-label,
+  .mdc-floating-label,
+  .mat-mdc-form-field .mdc-floating-label--float-above {
+    font-size: 13px !important;
+  }
+}
+
+/* ==========================================================================
+   Header-title: form fields in page title bars (e.g. Edit Property).
+   Same height/structure as main form so hint and value center correctly.
+   Subscript hidden to save space. Shrink can be applied later.
+   ========================================================================== */
+.header-title {
+  .mat-mdc-form-field {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    margin-bottom: 0 !important;
+    /* Title-bar edit fields: compact height (about half of standard form fields). */
+    .mat-mdc-text-field-wrapper {
+      min-height: 21px !important;
+      padding: 2px 18px !important;
+    }
+
+    .mat-mdc-form-field-flex {
+      min-height: 21px !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: 21px !important;
+      padding: 2px 0 !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+
+    /* Title-bar select alignment at compact height. */
+    .mat-mdc-select-trigger {
+      min-height: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-select-value {
+      padding: 0 8px 0 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    .mat-mdc-select-min-line {
+      font-size: 13px !important;
+      line-height: 1.2 !important;
+    }
+
+    .mat-mdc-select-arrow-wrapper {
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    /* Match title-bar input text size to title-bar select text size. */
+    input.mat-mdc-input-element,
+    input.mat-mdc-input-element::placeholder {
+      font-size: 13px !important;
+      line-height: 1.2 !important;
+    }
+
+  }
+}
+
+/* Shared form title-bar layout fields/actions (reusable across edit pages). */
+.form-titlebar-fields-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 2.5rem;
+  padding: 4px;
+}
+
+.form-titlebar-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 4px;
+}
+
+.titlebar-field-office {
+  width: 200px;
+}
+
+.titlebar-field-property-code {
+  width: 14ch;
+  min-width: 14ch;
+}
+
+.header-title .titlebar-field-property-code.titlebar-default-code {
+  input.mat-mdc-input-element {
+    color: var(--mdc-theme-error, #f44336) !important;
+  }
+}
+
+.header-title .titlebar-field-property-code {
+  input.mat-mdc-input-element {
+    transform: translateY(2px);
+  }
+}
+
+/* Slightly taller Office/Property Code fields to match Reservation visual height. */
+.header-title .titlebar-field-office.mat-mdc-form-field,
+.header-title .titlebar-field-property-code.mat-mdc-form-field {
+  .mat-mdc-text-field-wrapper {
+    min-height: 24px !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+
+  .mat-mdc-form-field-flex,
+  .mat-mdc-form-field-infix {
+    min-height: 24px !important;
+  }
+}
+
+.titlebar-field-reservation {
+  width: 400px;
+}
+
+/* Shared field sizing utilities for large edit forms. */
+.field-min-15ch {
+  min-width: 15ch;
+}
+
+.field-width-220 {
+  width: 220px;
+  min-width: 220px;
+  max-width: 100%;
+}
+
+.owner-select-field-primary {
+  flex: 1.2;
+  min-width: 180px;
+}
+
+.owner-select-field-secondary {
+  flex: 1.3;
+  min-width: 200px;
+}
+
 .mobile-hide {
   @media (max-width: 768px) {
     display: none !important;
@@ -318,6 +558,11 @@ mat-form-field input,
 // Global expansion panel content spacing baseline
 .mat-expansion-panel .mat-expansion-panel-body {
   padding: 16px !important;
+}
+
+/* Uniform gap: zero child margins so flex gap is the only spacing between items */
+.uniform-gap > * {
+  margin: 0 !important;
 }
 
 /* Global list top-controls sizing/shape baseline */

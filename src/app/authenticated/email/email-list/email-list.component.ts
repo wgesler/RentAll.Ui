@@ -39,6 +39,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() companyId: string | null = null;
   @Input() reservationId: string | null = null;
   @Input() emailTypeId?: number;
+  @Input() activeOnly: boolean = false;
+  @Input() showReservationFilterWhenHidden: boolean = false;
+  @Input() reservations: ReservationListResponse[] = []; // Shared reservations list from parent (or loaded internally)
   @Output() organizationIdChange = new EventEmitter<string | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
@@ -51,8 +54,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-
-  reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservationId: string | null = null;
 
@@ -112,12 +113,28 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
     this.loadCompanies();
-    // Always load reservations so reservationId can be translated to reservationCode in table rows.
-    this.loadReservations();
+    // Use reservations passed from parent if available, otherwise load them
+    if (this.reservations && this.reservations.length > 0) {
+      // Use passed reservations - already set via @Input
+      this.applyReservationCodes();
+      this.filterReservations();
+    } else {
+      // Always load reservations so reservationId can be translated to reservationCode in table rows.
+      this.loadReservations();
+    }
     this.loadEmails();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    // Handle reservations input changes from parent
+    if (changes['reservations'] && !changes['reservations'].firstChange) {
+      if (this.reservations && this.reservations.length > 0) {
+        this.applyReservationCodes();
+        this.filterReservations();
+        this.applyFilters();
+      }
+    }
+    
     if (changes['officeId']) {
       this.selectedOfficeId = changes['officeId'].currentValue;
       this.filterCompanies();
@@ -141,6 +158,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
         this.selectedCompanyContact = null;
       }
       this.filterReservations();
+      this.applyFilters();
+    }
+
+    if (changes['activeOnly'] && !changes['activeOnly'].firstChange) {
       this.applyFilters();
     }
   }
@@ -366,6 +387,15 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.emailTypeId !== null && this.emailTypeId !== undefined) {
       filtered = filtered.filter(email => email.emailTypeId === this.emailTypeId);
+    }
+
+    if (this.activeOnly && this.reservations && this.reservations.length > 0) {
+      const activeReservationIds = new Set(
+        this.reservations
+          .filter(r => r.isActive)
+          .map(r => r.reservationId)
+      );
+      filtered = filtered.filter(email => !email.reservationId || activeReservationIds.has(email.reservationId));
     }
 
     this.emails = filtered;

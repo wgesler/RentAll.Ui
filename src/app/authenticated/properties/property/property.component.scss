@@ -12,65 +12,24 @@
   }
 }
 
-// Reduce font size in form fields
-::ng-deep .mat-mdc-form-field {
-  .mat-mdc-text-field-wrapper {
-    .mat-mdc-form-field-input-control {
-      input, textarea, .mat-mdc-select-value {
-        font-size: 14px;
-      }
-    }
-  }
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
 }
 
-// Alternative approach - target all inputs in form fields
-::ng-deep mat-form-field {
-  input.mat-mdc-input-element,
-  textarea.mat-mdc-input-element,
-  .mat-mdc-select-value {
-    font-size: 14px;
-  }
+.titlebar-reservation-slot {
+  width: 400px;
+  min-width: 400px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-// Make form fields narrower with reduced padding and height
-::ng-deep .mat-mdc-form-field {
-  width: 100%;
-  
-  .mat-mdc-text-field-wrapper {
-    padding: 0 8px !important; // Reduce horizontal padding
-    min-height: 48px !important; // Moderate height reduction
-    
-    .mat-mdc-form-field-flex {
-      padding: 0 !important;
-      min-height: 48px !important; // Moderate flex container height
-    }
-    
-    .mat-mdc-form-field-input-control {
-      padding: 0 4px !important; // Reduce input padding
-      
-      input, textarea {
-        padding: 10px 0 !important; // Moderate vertical padding
-        line-height: 1.4 !important; // Moderate line height
-      }
-      
-      .mat-mdc-select-value {
-        padding: 10px 0 !important; // Match input vertical padding
-        line-height: 1.4 !important; // Match input line height
-      }
-    }
-  }
-  
-  .mat-mdc-form-field-subscript-wrapper {
-    padding: 0 8px !important; // Reduce error message padding
-    margin-top: 4px !important; // Moderate space above error message
-    min-height: 20px !important; // Ensure consistent height for error messages
-    display: flex !important;
-    align-items: center !important; // Center error text vertically
-  }
-  
-  .mat-mdc-form-field-infix {
-    min-height: 48px !important; // Moderate infix height
-    padding: 10px 0 !important; // Moderate vertical padding
+/* Stacked rows: same vertical gap as .basic-combined .basic-row (16px) */
+.property-form-section-rows {
+  > *:not(:last-child) {
+    margin-bottom: 16px;
   }
 }
 
@@ -138,6 +97,237 @@
           }
         }
       }
+    }
+  }
+
+  /*
+   * First kitchen row — 9 slices: Kitchen/Oven/Refrigerator/Microwave/Dishwasher = 1 each;
+   * Washer/Dryer In Unit & Washer/Dryer In Bldg = 2 each (5×1 + 2 + 2 = 9).
+   */
+  .kitchen-bath-appliances-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 2fr) minmax(0, 2fr);
+    gap: 8px 12px;
+    align-items: center;
+    width: 100%;
+
+    mat-checkbox {
+      min-width: 0;
+    }
+  }
+
+  /*
+   * Second row — 9 slices: Bathtub, TV, Cable, Streaming, Fast Internet = 1 each;
+   * WiFi SSID & WiFi Password = 2 each (5×1 + 2 + 2 = 9).
+   */
+  .kitchen-electronics-second-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 2fr) minmax(0, 2fr);
+    gap: 8px 12px;
+    align-items: center;
+    width: 100%;
+
+    mat-form-field {
+      min-width: 0;
+    }
+
+    mat-checkbox {
+      min-width: 0;
+    }
+  }
+
+  /* Line 1: 8 equal columns — 6 checkboxes + Alarm Code + Mail Code */
+  /*
+   * Line 1 — 9 parts: 6 checkboxes = 1 each; Alarm Code & Mail Code = 1.5 each (6×1 + 1.5 + 1.5 = 9).
+   */
+  .features-security-first-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.5fr) minmax(0, 1.5fr);
+    gap: 8px 12px;
+    align-items: center;
+    justify-items: stretch;
+    width: 100%;
+
+    > mat-checkbox {
+      min-width: 0;
+      display: flex;
+      width: 100%;
+
+      ::ng-deep .mdc-form-field {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 100%;
+      }
+    }
+
+    > mat-form-field {
+      min-width: 0;
+      width: 100%;
+    }
+  }
+
+  /* Line 2: remaining 7 codes, equal columns */
+  .features-code-fields-row {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px 10px;
+    align-items: start;
+    width: 100%;
+
+    mat-form-field {
+      min-width: 0;
+    }
+  }
+
+  /* Outdoor spaces — 9 equal columns, one line */
+  .outdoor-spaces-one-row {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 8px 10px;
+    align-items: center;
+    width: 100%;
+
+    mat-checkbox {
+      min-width: 0;
+    }
+  }
+}
+
+// Combined Basic section: layout only (grid rows, narrow fields). Form styling is global in styles.scss.
+.basic-combined {
+  .basic-row {
+    margin-bottom: 16px; /* doubled from 8px */
+    width: 100%;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  /* First row: 30 columns — 4+4+3+3+2+2+4+4+4 */
+  .basic-row-first {
+    display: grid;
+    grid-template-columns: repeat(30, minmax(0, 1fr));
+    gap: 4px 6px;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+      margin-right: 0 !important;
+      margin-bottom: 0 !important;
+    }
+    ::ng-deep .mat-mdc-text-field-wrapper {
+      min-height: 48px !important;
+    }
+    ::ng-deep .mat-mdc-form-field-flex,
+    ::ng-deep .mat-mdc-form-field-infix {
+      min-height: 48px !important;
+    }
+  }
+  .basic-compact {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .basic-narrow {
+    width: 10ch;
+    min-width: 10ch;
+    max-width: 10ch;
+  }
+
+  /* Avail-From / Avail-Until: label left, calendar icon right (suffix) */
+  .date-field-with-suffix-icon {
+    ::ng-deep .mat-mdc-form-field-icon-suffix {
+      padding: 0 4px 0 0;
+    }
+    ::ng-deep button[mat-icon-button][matSuffix] {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      .mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        color: rgba(0, 0, 0, 0.54);
+      }
+    }
+  }
+
+  /* 24-col row: A1/A2 = 6, City = 5, Suite/State = 2, Zip = 3 */
+  .address-line-grid {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    gap: 4px 6px;
+  }
+
+  /* Phone row: 8 “slices” — Phone & Mailbox = 1; Neighborhood, Cross, View = 2 */
+  .phone-line-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+    gap: 4px 6px;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+    }
+  }
+
+  /* Fees — 5 equal columns */
+  .rates-line-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px 6px;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+    }
+  }
+
+  /* Office row: 10 “slices” — Office, Region, Area, Building = 2; Lat, Long = 1 */
+  .office-line-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px 6px;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+    }
+
+  }
+
+  /* Beds row: 18 “slices” — Beds/Bath/Accom/SqFt = 1 each; Bed1–4 + Sofabed = 2 each (4×1 + 5×2 = 14; scaled to full row width) */
+  .beds-line-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) repeat(5, minmax(0, 2fr));
+    gap: 4px 6px;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+    }
+  }
+
+  .address-zip-field {
+    min-width: 6ch;
+  }
+
+  /* All address fields on one line */
+  .address-single-line {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: flex-start;
+
+    > mat-form-field {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .address-suite {
+      flex: 0.5 1 0;
+      max-width: 8ch;
+    }
+    .address-state {
+      flex: 0.6 1 0;
+      max-width: 6ch;
     }
   }
 }
@@ -292,6 +482,9 @@
   width: 100%;
   
   .mat-mdc-tab-header {
+    margin-top: 8px;
+    margin-bottom: 12px;
+
     .mdc-tab {
       flex: 1;
       min-width: 0;
@@ -310,6 +503,15 @@
   .mat-mdc-tab-body-content {
     width: 100%;
     overflow: visible;
+  }
+
+  app-property-information,
+  app-property-welcome-letter,
+  app-email-list,
+  app-document-list {
+    display: block;
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -349,27 +551,6 @@ section.content-card {
     max-width: 100%;
     box-sizing: border-box;
     overflow-x: hidden; // Prevent horizontal overflow from affecting width
-  }
-}
-
-/* Keep all entry controls visually consistent (same as Trash Pickup). */
-:host ::ng-deep .info-form .mat-mdc-form-field {
-  .mat-mdc-text-field-wrapper,
-  .mat-mdc-form-field-flex,
-  .mat-mdc-form-field-infix {
-    min-height: 48px !important;
-  }
-
-  .mat-mdc-form-field-infix {
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-  }
-
-  input.mat-mdc-input-element,
-  .mat-mdc-select-value-text,
-  .mat-mdc-select-value {
-    font-size: 14px !important;
-    line-height: 1.4 !important;
   }
 }
 

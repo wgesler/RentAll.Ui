@@ -5,8 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, of, take } from 'rxjs';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, of, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
@@ -19,7 +18,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
-import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
@@ -54,11 +53,14 @@ import { EntityType } from '../../contacts/models/contact-enum';
 })
 export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string;
-  @Input() externalReservationId: string | null = null; // Input to accept reservationId from parent
-  @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() propertyCode: string | null = null; // Input to accept propertyCode from parent
+  @Input() externalReservationId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Input() propertyCode: string | null = null;
+  @Input() hideOfficePropertyReservation: boolean = false;
+  @Input() showReservationOnly: boolean = false;
+  @Input() reservations: ReservationListResponse[] = [];
   @Output() reservationSelected = new EventEmitter<string | null>();
-  @Output() officeIdChange = new EventEmitter<number | null>(); // Output to emit officeId changes to parent
+  @Output() officeIdChange = new EventEmitter<number | null>();
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -67,7 +69,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   propertyLetter: PropertyLetterResponse | null = null;
   emailHtml: EmailHtmlResponse | null = null;
   organization: OrganizationResponse | null = null;
-  reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservation: ReservationResponse | null = null;
   contacts: ContactResponse[] = [];
@@ -120,17 +121,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Welcome Letter
   ngOnInit(): void {
-    // Always load offices, even in Add mode (when propertyId is null)
     this.loadOffices();
     this.loadEmailHtml();
-    this.loadUser();
     
     if (!this.propertyId) {
-      // In Add mode, still load organization and contacts for defaults
-      this.loadOrganization();
+       this.loadOrganization();
       this.loadContacts();
-      const currentSet = this.itemsToLoad$.value;
-      // Remove items that won't be loaded in Add mode
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter');
@@ -142,36 +138,39 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.loadOrganization();
     this.loadContacts();
     this.loadBuildings();
-    this.loadReservations();
+    if (this.reservations && this.reservations.length > 0) {
+      this.filterReservations();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+    } else {
+      this.loadReservations();
+    }
     this.loadPropertyLetterInformation();
     this.loadProperty();
     this.getWelcomeLetter();
     
     
-    // Subscribe to welcome letter reload events
     this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
       this.reloadWelcomeLetter();
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Handle external reservationId changes from Documents tab
+    if (changes['reservations'] && !changes['reservations'].firstChange) {
+      if (this.reservations && this.reservations.length > 0) {
+        this.filterReservations();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      }
+    }
+    
     if (changes['externalReservationId']) {
       const newReservationId = changes['externalReservationId'].currentValue;
       const previousReservationId = changes['externalReservationId'].previousValue;
       
-      // Only update if the value actually changed
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
-        // Update the form control and trigger selection logic
         if (newReservationId) {
-          // Set the form control value without triggering the selection change event
-          // to avoid circular updates
           this.form.get('selectedReservationId')?.setValue(newReservationId, { emitEvent: false });
-          // Call onReservationSelected to load the full reservation details
-          // Pass skipEmit=true to prevent emitting back to Documents (avoid circular update)
           this.onReservationSelected(newReservationId, true);
         } else {
-          // Clear the selection
           this.form.get('selectedReservationId')?.setValue(null, { emitEvent: false });
           this.selectedReservation = null;
           this.generatePreviewIframe();
@@ -179,14 +178,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       }
     }
     
-    // When officeId changes from parent, set the selected office (don't emit back)
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
       
-      // Only update if the value actually changed
       if (newOfficeId !== previousOfficeId) {
-        // If offices are already loaded, update immediately
         if (this.offices.length > 0) {
           if (newOfficeId !== null && newOfficeId !== undefined) {
             this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
@@ -200,17 +196,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
             this.filterReservations();
           }
         }
-        // If offices aren't loaded yet, loadOffices() will handle initialization when offices arrive
-        // The officeId is already set, so loadOffices() will pick it up
       }
     }
     
-    // Handle propertyCode changes from parent - regenerate preview if reservation is selected
     if (changes['propertyCode']) {
       const newPropertyCode = changes['propertyCode'].currentValue;
       const previousPropertyCode = changes['propertyCode'].previousValue;
       
-      // Only update if the value actually changed and we have a reservation selected
       if (newPropertyCode !== previousPropertyCode && this.selectedReservation) {
         this.generatePreviewIframe();
       }
@@ -252,7 +244,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     this.isSubmitting = true;
 
-    // Generate HTML with styles for PDF
     const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
       this.previewIframeHtml,
       this.previewIframeStyles
@@ -271,12 +262,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     };
 
     this.documentService.generate(generateDto).pipe(take(1)).subscribe({
-      next: (documentResponse: DocumentResponse) => {
+      next: () => {
         this.toastr.success('Document generated successfully', 'Success');
         this.isSubmitting = false;
         this.generatePreviewIframe();
-        
-        // Trigger document list reload
         this.documentReloadService.triggerReload();
       },
       error: () => {
@@ -316,11 +305,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
-        // Set selected office based on property's officeId
         if (response.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
           this.filterReservations();
-          // Generate preview if reservation is already selected
           if (this.selectedOffice && this.selectedReservation) {
             this.generatePreviewIframe();
           }
@@ -426,12 +413,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     });
   }
 
-  loadUser(): void {
-    
-  }
   //#endregion
 
-  //#region Form Response Functions
+  //#region Form Response Methods
   compareReservationId(a: string | null, b: string | null): boolean {
     return String(a ?? '') === String(b ?? '');
   }
@@ -440,14 +424,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     if (!reservationId) {
       this.selectedReservation = null;
       this.generatePreviewIframe();
-      // Emit null to clear reservation in Documents tab (unless this is an external update)
       if (!skipEmit) {
         this.reservationSelected.emit(null);
       }
       return;
     }
     
-    // Load full reservation details when selected from dropdown
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
@@ -456,7 +438,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
         }
         this.generatePreviewIframe();
-        // Emit reservationId to update Documents tab (unless this is an external update)
         if (!skipEmit) {
           this.reservationSelected.emit(reservationId);
         }
@@ -468,15 +449,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   filterReservations(): void {
     if (!this.selectedOffice) {
       this.availableReservations = [];
-      // Disable the reservation dropdown when no office is selected
       this.form.get('selectedReservationId')?.disable();
       return;
     }
     
-    // Enable the reservation dropdown when an office is selected
     this.form.get('selectedReservationId')?.enable();
     
-    // Filter reservations by the selected office
     if (this.reservations && this.reservations.length > 0) {
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
       this.availableReservations = filteredReservations.map(r => ({
@@ -484,7 +462,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
       }));
     } else {
-      // If reservations haven't loaded yet, clear available reservations
       this.availableReservations = [];
     }
   }
@@ -501,23 +478,18 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       return;
     }
     
-    // Find and set the selected office
     this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    
-    // Filter reservations by the selected office
     this.filterReservations();
     
-    // Clear selected reservation when office changes
     this.selectedReservation = null;
     this.form.patchValue({ selectedReservationId: null });
     this.generatePreviewIframe();
     
-    // Emit office change to parent
     this.officeIdChange.emit(this.selectedOffice?.officeId || null);
   }
   //#endregion
   
-  //#region Form Replacement Functions
+  //#region Form Replacement Methods
   replacePlaceholders(html: string): string {
     let result = html;
 
@@ -525,7 +497,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
     }
 
-    // Replace reservation placeholders
     if (this.selectedReservation) {
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
@@ -534,7 +505,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
     }
 
-    // Replace property placeholders
     if (this.property) {
       result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
@@ -552,7 +522,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     }
 
-    // Replace property letter placeholders
     if (this.propertyLetter) {
       result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyLetter.arrivalInstructions || '');
       result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyLetter.mailboxInstructions || '');
@@ -569,28 +538,23 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
     }
 
-    // Replace organization placeholders
     if (this.selectedOffice) {
       const maintenanceEmail = this.selectedOffice.maintenanceEmail || '';
       const afterHoursPhone = this.selectedOffice.afterHoursPhone || '';
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
       
-      // Get office logo - construct dataUrl if needed
       let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
       if (!officeLogoDataUrl && this.selectedOffice?.fileDetails?.file) {
         const fileDetails = this.selectedOffice.fileDetails;
         const contentType = fileDetails.contentType || 'image/png';
-        // Check if file already includes data URL prefix
         if (fileDetails.file.startsWith('data:')) {
           officeLogoDataUrl = fileDetails.file;
         } else {
-          // Construct dataUrl from base64 string
           officeLogoDataUrl = `data:${contentType};base64,${fileDetails.file}`;
         }
       }
       
-      // Fallback to organization logo if office logo is not available
       if (!officeLogoDataUrl && this.organization?.fileDetails?.dataUrl) {
         officeLogoDataUrl = this.organization.fileDetails.dataUrl;
       }
@@ -599,12 +563,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
     } else if (this.propertyLetter) {
-      // Fallback to property letter if organization not loaded
       result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyLetter.emergencyContact || '');
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyLetter.emergencyContactNumber) || '');
     }
 
-    // Replace organization logo placeholder
     if (this.organization) {
       const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
       if (orgLogoDataUrl) {
@@ -612,13 +574,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       }
     }
     
-    // Remove img tags that contain logo placeholders if no logo is available
     if (!this.selectedOffice?.fileDetails?.dataUrl && !this.selectedOffice?.fileDetails?.file && !this.organization?.fileDetails?.dataUrl) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
 
-    // Replace any remaining placeholders with empty string
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
@@ -694,24 +654,20 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Html Processing
   generatePreviewIframe(): void {
-    // Only generate preview if both office and reservation are selected
     if (!this.selectedOffice || !this.selectedReservation) {
       this.previewIframeHtml = '';
       this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
       return;
     }
 
-    // Load HTML files and process them
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
-        // Always include welcome letter
         const selectedDocuments: string[] = [];
 
         if (htmlFiles.welcomeLetter) {
           selectedDocuments.push(htmlFiles.welcomeLetter);
         }
 
-        // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
       this.previewIframeHtml = '';
       this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
@@ -719,45 +675,36 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
         try {
-          // If only one document selected, use it as-is
           if (selectedDocuments.length === 1) {
-            let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+            const processedHtml = this.replacePlaceholders(selectedDocuments[0]);
             this.processAndSetHtml(processedHtml);
             return;
           }
 
-          // Multiple documents: process first as base, strip and concatenate the rest
-          // Process first document as base (full HTML)
           let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
           
-          // Extract and merge styles from all documents before stripping
           const allExtractedStyles: string[] = [];
           const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
           
-          // Extract styles from first document
           let match;
           styleRegex.lastIndex = 0;
           while ((match = styleRegex.exec(combinedHtml)) !== null) {
             if (match[1]) {
               let styleContent = match[1].trim();
-              // Override gray text colors to black
               styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
               styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
               allExtractedStyles.push(styleContent);
             }
           }
           
-          // Process and strip remaining documents, extracting their styles first
           for (let i = 1; i < selectedDocuments.length; i++) {
             if (selectedDocuments[i]) {
               const processed = this.replacePlaceholders(selectedDocuments[i]);
               
-              // Extract styles from this document before stripping
               styleRegex.lastIndex = 0;
               while ((match = styleRegex.exec(processed)) !== null) {
                 if (match[1]) {
                   let styleContent = match[1].trim();
-                  // Override gray text colors to black
                   styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
                   styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
                   allExtractedStyles.push(styleContent);
@@ -769,17 +716,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
             }
           }
           
-          // Remove existing style tags from combinedHtml (they'll be re-injected)
           combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
           
-          // Combine all extracted styles and inject them into the combined HTML
           if (allExtractedStyles.length > 0) {
             const combinedStyles = allExtractedStyles.join('\n\n');
-            // Insert styles into the head section if it exists, otherwise create one
             if (combinedHtml.includes('<head>')) {
               combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
             } else {
-              // If no head exists, add one before the body or at the start
               if (combinedHtml.includes('<body>')) {
                 combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
               } else {
@@ -789,7 +732,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           }
 
           this.processAndSetHtml(combinedHtml);
-        } catch (error) {
+        } catch {
           this.previewIframeHtml = '';
           this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
         }
@@ -806,7 +749,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.previewIframeHtml = result.processedHtml;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.previewIframeStyles = result.extractedStyles;
-    this.iframeKey++; // Force iframe refresh
+    this.iframeKey++;
   }
 
   stripAndReplace(html: string): string {
@@ -815,13 +758,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   loadHtmlFiles(): Observable<{ welcomeLetter: string; inspectionChecklist: string }> {
     if (this.debuggingHtml) {
-      // Load HTML from assets for faster testing
-      return forkJoin({
-        welcomeLetter: this.http.get('assets/welcome-letter.html', { responseType: 'text' }),
-        inspectionChecklist: of('')
-      });
+      return this.http.get('assets/welcome-letter.html', { responseType: 'text' }).pipe(
+        map(welcomeLetter => ({
+          welcomeLetter,
+          inspectionChecklist: ''
+        }))
+      );
     } else {
-      // Read HTML from propertyHtml parameters - always include welcome letter
       return of({
         welcomeLetter: this.propertyHtml?.welcomeLetter || '',
         inspectionChecklist: ''
@@ -830,7 +773,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
   //#endregion
 
-  // #region Abstract BaseDocumentComponent
+  //#region Abstract BaseDocumentComponent
   protected getDocumentConfig(): DocumentConfig {
     return {
       previewIframeHtml: this.previewIframeHtml,
@@ -922,7 +865,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
   //#endregion
 
-  //#region Utility Functions
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

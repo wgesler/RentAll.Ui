@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,7 +32,7 @@ import { BuildingService } from '../../organizations/services/building.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
-import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
@@ -65,23 +64,27 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 export class PropertyComponent implements OnInit, OnDestroy {
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
+  @ViewChild('propertyWelcomeLetter') propertyWelcomeLetterComponent?: PropertyWelcomeLetterComponent;
   @ViewChild(PropertyInformationComponent) propertyInformationComponent?: PropertyInformationComponent;
   
   DocumentType = DocumentType;
   EmailType = EmailType;
   readonly newOwnerOptionValue = '__new_owner__';
+  readonly propertyCodeDefaultPrompt = 'Enter Code';
+  isAdmin = false;
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
+  listIsActiveFilter: boolean = true;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  copiedPropertyInformation: PropertyLetterResponse | null = null; // Store copied property information data
   
   propertyId: string;
   property: PropertyResponse;
   propertyInformation: PropertyLetterResponse | null = null; 
   selectedReservationId: string | null = null;
-
+  copiedPropertyInformation: PropertyLetterResponse | null = null; // Store copied property information data
+ 
   states: string[] = [];
   contacts: ContactResponse[] = [];
   contactsSubscription?: Subscription;
@@ -98,10 +101,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
-  /** True if current user is Admin or SuperAdmin; only then can Office be edited in Location. */
-  isOfficeEditableByAdmin = false;
+ 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
+ 
   regions: RegionResponse[] = [];
   areas: AreaResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -110,23 +113,12 @@ export class PropertyComponent implements OnInit, OnDestroy {
   allBuildingsByOrg: BuildingResponse[] = [];
 
   globalOfficeSubscription?: Subscription;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['locationLookups', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   
   // Accordion expansion states - will be initialized based on isAddMode
-  expandedSections = {
-    basic: false,
-    address: false,
-    location: false,
-    features: false,
-    kitchen: false,
-    outdoor: false,
-    trash: false,
-    amenities: false,
-    maintenance: false,
-    description: false
-  };
+  expandedSections = { basic: false, features: false, trash: false, maintenance: false, description: false };
 
   constructor(
     public propertyService: PropertyService,
@@ -156,13 +148,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
   //#region Property
   ngOnInit(): void {
     const user = this.authService.getUser();
-    this.isOfficeEditableByAdmin =
+    this.isAdmin =
       this.utilityService.hasRole(user?.userGroups, UserGroups.Admin) ||
       this.utilityService.hasRole(user?.userGroups, UserGroups.SuperAdmin);
 
     this.loadStates();
     this.loadContacts();
-    this.loadLocationLookups();
+    this.loadOffices();
+    this.loadRegions();
+    this.loadAreas();
+    this.loadBuildings();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && !this.property) {
@@ -192,22 +187,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       if (paramMap.has('id')) {
         this.propertyId = paramMap.get('id');
         this.isAddMode = this.propertyId === 'new';
-        const openBasicSection = this.route.snapshot.queryParamMap.get('section') === 'basic';
         
-        // Set panel expansion state based on mode
-        const allExpanded = this.isAddMode;
-        this.expandedSections = {
-          basic: allExpanded || (!this.isAddMode && openBasicSection),
-          address: allExpanded,
-          location: allExpanded,
-          features: allExpanded,
-          kitchen: allExpanded,
-          outdoor: allExpanded,
-          trash: allExpanded,
-          amenities: allExpanded,
-          maintenance: allExpanded,
-          description: allExpanded
-        };
+        // All accordions expanded when property form is opened (add or edit)
+        this.expandedSections = { basic: true, features: true, trash: true, maintenance: true, description: true };
         
         // Update form validators based on mode
         const owner1Control = this.form.get('owner1Id');
@@ -215,7 +197,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
         if (this.isAddMode) {
           owner1Control?.setValidators([Validators.required]);
-          codeControl?.setValidators([Validators.required]);
+          codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
         } else {
           owner1Control?.clearValidators();
           codeControl?.clearValidators();
@@ -260,6 +242,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       next: (response: PropertyResponse) => {
         this.property = response;
         this.populateForm();
+        this.filterLocationLookupsByOffice();
       },
       error: () => {
         this.isServiceError = true;
@@ -272,12 +255,18 @@ export class PropertyComponent implements OnInit, OnDestroy {
     // Wait for contacts and location lookups to be loaded before copying
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     const contactsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('contacts')), filter(loaded => loaded === true), take(1));
-    const locationLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('locationLookups')), filter(loaded => loaded === true), take(1));
+    const officesLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('offices')), filter(loaded => loaded === true), take(1));
+    const regionsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('regions')), filter(loaded => loaded === true), take(1));
+    const areasLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('areas')), filter(loaded => loaded === true), take(1));
+    const buildingsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('buildings')), filter(loaded => loaded === true), take(1));
     
-    // Wait for both to complete, then load the property and property letter to copy
+    // Wait for lookups to complete, then load the property and property letter to copy
     forkJoin({
       contacts: contactsLoaded$,
-      location: locationLoaded$
+      offices: officesLoaded$,
+      regions: regionsLoaded$,
+      areas: areasLoaded$,
+      buildings: buildingsLoaded$
     }).pipe(take(1),
       switchMap(() => forkJoin({
         property: this.propertyService.getPropertyByGuid(sourcePropertyId).pipe(take(1)),
@@ -298,7 +287,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.form.get('poundLimit')?.enable({ emitEvent: false });
 
           this.populateForm();
-          this.form.get('propertyCode')?.setValue('');
+          this.form.get('propertyCode')?.setValue(this.propertyCodeDefaultPrompt);
 
           // Now set conditional fields based on copied values
           const parkingValue = this.form.get('parking')?.value;
@@ -356,7 +345,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
 
     // Exclude enum/display-only controls from request
-    const { propertyStyle, propertyType, propertyStatus, ...restFormValue } = formValue;
+    const { ...restFormValue } = formValue;
     const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
     
     // Transform fields that need special handling
@@ -499,7 +488,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   //#endregion
   
-  //#region Form methods
+  //#region Form Methods
   buildForm(): void {
     const contactValidators = [];
     const codeValidators = this.isAddMode ? [Validators.required] : [];
@@ -615,8 +604,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
       catsOkay: new FormControl({ value: false, disabled: true }),
       poundLimit: new FormControl({ value: '', disabled: true }),
 
-      // Location section
+      // Location section (officeId also used in title bar)
       officeId: new FormControl<number | null>(null, [Validators.required]),
+      reservationId: new FormControl<string | null>(null), // title bar + tabs; synced with selectedReservationId
       regionId: new FormControl<number | null>(null),
       areaId: new FormControl<number | null>(null),
       buildingId: new FormControl<number | null>(null),
@@ -725,6 +715,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
         }
       }
       
+      // Remove reservationId from formData (it's not a property field, only used in title bar)
+      delete formData.reservationId;
+      
+      // Reset reservationId to null BEFORE patching to ensure clean state
+      this.form.get('reservationId')?.setValue(null, { emitEvent: false });
+      this.selectedReservationId = null;
+      
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
       this.syncConditionalFieldState();
@@ -741,7 +738,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     if (!officeControl) {
       return;
     }
-    if (this.isOfficeEditableByAdmin) {
+    if (this.isAdmin) {
       officeControl.enable({ emitEvent: false });
     } else {
       officeControl.disable({ emitEvent: false });
@@ -751,6 +748,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   setAddModeDefaults(): void {
     if (!this.form) return;
     this.form.patchValue({
+      propertyCode: this.propertyCodeDefaultPrompt,
       checkInTimeId: CheckinTimes.FourPM,
       checkOutTimeId: CheckoutTimes.ElevenAM,
       heating: true,
@@ -825,8 +823,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Open the owner/contact dialog to edit the selected owner. Load contact first so dialog opens with data (no jump). */
-  openEditOwnerDialog(contactId: string, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+  openEditOwnerDialog(contactId: string): void {
     if (!contactId || contactId === this.newOwnerOptionValue) return;
 
     this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
@@ -863,34 +860,32 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
   }
 
-  onOwnerSelectionChange(value: string | null, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+  onOwnerSelectionChange(value: string | null): void {
     if (value && value !== this.newOwnerOptionValue) {
-      this.openEditOwnerDialog(value, ownerField);
+      this.openEditOwnerDialog(value);
     }
   }
 
-  /** Display text for the owner trigger (selected name or placeholder). */
   getOwnerDisplayName(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): string {
     const value = this.form?.get(ownerField)?.value;
     if (value == null || value === '' || value === this.newOwnerOptionValue) {
       return ownerField === 'owner1Id' ? 'Owner' : ownerField === 'owner2Id' ? 'Owner 2 (Optional)' : 'Owner 3 (Optional)';
     }
-    const contact = this.ownerContacts.find(c => c.contactId === value);
+    const contact = this.contacts.find(c => c.contactId === value);
     return contact?.fullName ?? value;
   }
 
-  /** Click on the name part of the owner field: open contact edit dialog; do not open the dropdown. */
   onOwnerNameClick(event: Event, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
     event.preventDefault();
     event.stopPropagation();
     const value = this.form?.get(ownerField)?.value;
     if (value && value !== this.newOwnerOptionValue) {
-      this.openEditOwnerDialog(value, ownerField);
+      this.openEditOwnerDialog(value);
     }
   }
   //#endregion
  
-  //#region Formatting handlers
+  //#region Formatting Handlers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
@@ -911,37 +906,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     input.select();
   }
-
-  toNumberOrNull(value: any): number | null {
-    if (value === null || value === undefined || value === '') return null;
-    const parsed = Number(value);
-    return isNaN(parsed) ? null : parsed;
-  }
-
-  getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
-    if (id === null || id === undefined || id === '' || id === 0) {
-      return null;
-    }
-    const numericId = typeof id === 'number' ? id : Number(id);
-    if (!Number.isFinite(numericId) || numericId === 0) {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[idField] === numericId);
-    return item?.[codeField] || null;
-  }
-
-  getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
-    if (!code || code.trim() === '') {
-      return null;
-    }
-    const idField = codeField.replace('Code', 'Id');
-    const item = list.find(item => item[codeField] === code);
-    return item?.[idField] || null;
-  }
   //#endregion
 
-  //#region Setup and Initialize 
+  //#region Setup and Initialize
   setupOwnerSelectionHandlers(): void {
     const ownerFields: ('owner1Id' | 'owner2Id' | 'owner3Id')[] = ['owner1Id', 'owner2Id', 'owner3Id'];
     ownerFields.forEach(ownerField => {
@@ -1073,45 +1040,42 @@ export class PropertyComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadLocationLookups(): void {
+  loadOffices(): void {
     const orgId = (this.authService.getUser()?.organizationId || '').trim();
     if (!orgId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups');
+      this.offices = [];
+      this.availableOffices = [];
+      this.selectedOffice = null;
+      this.showOfficeDropdown = true;
+      this.form?.patchValue({ officeId: null }, { emitEvent: false });
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
 
-    forkJoin({
-      offices: this.officeService.getOffices(orgId).pipe(take(1)),
-      regions: this.regionService.getRegions().pipe(take(1)),
-      areas: this.areaService.getAreas().pipe(take(1)),
-      buildings: this.buildingService.getBuildings().pipe(take(1)),
-    }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups'); })).subscribe({
-      next: ({ offices, regions, areas, buildings }) => {
+    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: (offices) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
-        this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
-        this.allBuildingsByOrg = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
 
-        if (this.offices.length === 1 && !this.property?.officeId) {
+        if (!this.property && this.form) {
+          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          const globalOffice = globalOfficeId != null
+            ? this.offices.find(o => o.officeId === globalOfficeId) || null
+            : null;
+
+          // Add mode defaults:
+          // - Specific global office -> preselect it
+          // - Global "All Offices" (null) -> keep null so user must pick a specific office
+          this.selectedOffice = globalOffice;
+          this.showOfficeDropdown = true;
+          this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null }, { emitEvent: false });
+          this.filterReservations();
+        } else if (this.offices.length === 1 && !this.property?.officeId) {
           this.selectedOffice = this.offices[0];
           this.showOfficeDropdown = false;
-          if (this.form) {
-            this.form.patchValue({ officeId: this.selectedOffice.officeId });
-          }
+          this.form?.patchValue({ officeId: this.selectedOffice.officeId }, { emitEvent: false });
         } else {
           this.showOfficeDropdown = true;
-          if (!this.property && this.form) {
-            const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-            if (globalOfficeId != null) {
-              const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-              if (globalOffice) {
-                this.selectedOffice = globalOffice;
-                this.form.patchValue({ officeId: globalOffice.officeId });
-                this.filterReservations();
-              }
-            }
-          }
         }
 
         if (this.property && this.form) {
@@ -1124,7 +1088,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
             regionId: this.property.regionId || null,
             areaId: this.property.areaId || null,
             buildingId: this.property.buildingId || null,
-          });
+          }, { emitEvent: false });
           this.filterReservations();
         }
 
@@ -1132,31 +1096,84 @@ export class PropertyComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.offices = [];
-        this.allRegionsByOrg = [];
-        this.allAreasByOrg = [];
-        this.allBuildingsByOrg = [];
-        this.regions = [];
-        this.areas = [];
-        this.buildings = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'locationLookups');
+        this.availableOffices = [];
+        this.selectedOffice = null;
+        this.showOfficeDropdown = true;
+        this.form?.patchValue({ officeId: null }, { emitEvent: false });
       }
     });
   }
 
-  /** Filter Region, Area, and Building dropdowns by the property's selected office. */
+  loadRegions(): void {
+    const orgId = (this.authService.getUser()?.organizationId || '').trim();
+    if (!orgId) {
+      this.allRegionsByOrg = [];
+      this.regions = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions');
+      return;
+    }
+
+    this.regionService.getRegions().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
+      next: (regions) => {
+        this.allRegionsByOrg = (regions || []).filter(r => r.organizationId === orgId && r.isActive);
+        this.filterLocationLookupsByOffice();
+      },
+      error: () => {
+        this.allRegionsByOrg = [];
+        this.regions = [];
+      }
+    });
+  }
+
+  loadAreas(): void {
+    const orgId = (this.authService.getUser()?.organizationId || '').trim();
+    if (!orgId) {
+      this.allAreasByOrg = [];
+      this.areas = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas');
+      return;
+    }
+
+    this.areaService.getAreas().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
+      next: (areas) => {
+        this.allAreasByOrg = (areas || []).filter(a => a.organizationId === orgId && a.isActive);
+        this.filterLocationLookupsByOffice();
+      },
+      error: () => {
+        this.allAreasByOrg = [];
+        this.areas = [];
+      }
+    });
+  }
+
+  loadBuildings(): void {
+    const orgId = (this.authService.getUser()?.organizationId || '').trim();
+    if (!orgId) {
+      this.allBuildingsByOrg = [];
+      this.buildings = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
+      return;
+    }
+
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+      next: (buildings) => {
+        this.allBuildingsByOrg = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        this.filterLocationLookupsByOffice();
+      },
+      error: () => {
+        this.allBuildingsByOrg = [];
+        this.buildings = [];
+      }
+    });
+  }
+
   filterLocationLookupsByOffice(): void {
     const officeId = this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? null;
     const officeNum = officeId != null ? Number(officeId) : null;
 
-    this.regions = officeNum != null
-      ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum)
-      : [];
-    this.areas = officeNum != null
-      ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum)
-      : [];
-    this.buildings = officeNum != null
-      ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum)
-      : [];
+    this.regions = officeNum != null ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum) : [];
+    this.areas = officeNum != null ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum) : [];
+    this.buildings = officeNum != null ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum) : [];
 
     if (!this.form) return;
     const regionId = this.form.get('regionId')?.value;
@@ -1188,14 +1205,22 @@ export class PropertyComponent implements OnInit, OnDestroy {
       next: (states) => {
         this.states = [...states];
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         // States are handled globally, just log silently or handle gracefully
       }
     });
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+    if (this.isAddMode || !this.propertyId) {
+      // In add mode, no reservations to load
+      this.reservations = [];
+      this.availableReservations = [];
+      return;
+    }
+    
+    // In edit mode, load reservations for this property only
+    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1)).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -1218,6 +1243,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   
   onTabChange(event: any): void {
+    this.selectedTabIndex = event.index;
     if (event.index === 3 && this.propertyEmailList) {
       this.propertyEmailList.reload();
     }
@@ -1228,6 +1254,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   
   onWelcomeLetterReservationSelected(reservationId: string | null): void {
      this.selectedReservationId = reservationId;
+     this.form?.patchValue({ reservationId }, { emitEvent: false });
   }
 
   onWelcomeLetterOfficeIdChange(officeId: number | null): void {
@@ -1240,10 +1267,12 @@ export class PropertyComponent implements OnInit, OnDestroy {
   
   onDocumentsReservationSelected(reservationId: string | null): void {
     this.selectedReservationId = reservationId;
+    this.form?.patchValue({ reservationId }, { emitEvent: false });
   }
 
   onEmailReservationSelected(reservationId: string | null): void {
     this.selectedReservationId = reservationId;
+    this.form?.patchValue({ reservationId }, { emitEvent: false });
   }
 
   onDocumentOfficeIdChange(officeId: number | null): void {
@@ -1260,6 +1289,107 @@ export class PropertyComponent implements OnInit, OnDestroy {
       this.onOfficeChange();
     }
   }
+
+  get sharedOfficeId(): number | null {
+    return this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
+  }
+
+  get sharedPropertyCode(): string | null {
+    const formCode = this.form?.get('propertyCode')?.value;
+    if (typeof formCode === 'string') {
+      const normalized = formCode.trim();
+      return normalized === '' ? null : normalized;
+    }
+    return this.property?.propertyCode ?? null;
+  }
+
+  get sharedReservationId(): string | null {
+    const value = this.form?.get('reservationId')?.value ?? this.selectedReservationId;
+    return value == null ? null : String(value);
+  }
+
+  get sharedOfficeName(): string {
+    if (this.selectedOffice?.name) {
+      return this.selectedOffice.name;
+    }
+    const officeId = this.sharedOfficeId;
+    if (officeId != null) {
+      const office = this.offices.find(o => o.officeId === officeId);
+      if (office?.name) {
+        return office.name;
+      }
+    }
+    return this.property?.officeName || '';
+  }
+
+  get showContextualSave(): boolean {
+    return this.selectedTabIndex <= 2;
+  }
+
+  get contextualSaveLabel(): string {
+    switch (this.selectedTabIndex) {
+      case 1:
+        return 'Save Information';
+      case 2:
+        return 'Save Welcome Letter';
+      case 0:
+      default:
+        return 'Save Property';
+    }
+  }
+
+  get contextualIsActiveValue(): boolean {
+    if (this.selectedTabIndex <= 2) {
+      return !!this.form?.get('isActive')?.value;
+    }
+    return this.listIsActiveFilter;
+  }
+
+  get contextualSaveDisabled(): boolean {
+    switch (this.selectedTabIndex) {
+      case 1:
+        return this.isAddMode
+          || !this.propertyInformationComponent
+          || this.propertyInformationComponent.isSubmitting
+          || !this.propertyInformationComponent.form?.valid;
+      case 2:
+        return this.isAddMode
+          || !this.propertyWelcomeLetterComponent
+          || this.propertyWelcomeLetterComponent.isSubmitting;
+      case 0:
+      default:
+        return this.isSubmitting || !this.form;
+    }
+  }
+
+  onContextualSave(): void {
+    switch (this.selectedTabIndex) {
+      case 1:
+        this.propertyInformationComponent?.savePropertyLetter();
+        break;
+      case 2:
+        this.propertyWelcomeLetterComponent?.saveWelcomeLetter();
+        break;
+      case 0:
+      default:
+        this.saveProperty();
+        break;
+    }
+  }
+
+  onContextualIsActiveChange(checked: boolean): void {
+    if (this.selectedTabIndex <= 2) {
+      this.form?.patchValue({ isActive: checked });
+      return;
+    }
+
+    this.listIsActiveFilter = checked;
+    if (this.selectedTabIndex === 3) {
+      this.propertyEmailList?.applyFilters();
+    } else if (this.selectedTabIndex === 4) {
+      this.propertyDocumentList?.applyFilters();
+    }
+  }
   
   filterReservations(): void {
     const officeId = this.form?.get('officeId')?.value;
@@ -1271,7 +1401,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const filteredReservations = this.reservations.filter(r => r.officeId === officeId);
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
-      label: this.utilityService.getReservationLabel(r)
+      label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
     }));
   }
 
@@ -1285,19 +1415,41 @@ export class PropertyComponent implements OnInit, OnDestroy {
     }
     this.filterLocationLookupsByOffice();
     this.filterReservations();
+    this.form.get('reservationId')?.setValue(null, { emitEvent: false });
     this.selectedReservationId = null;
+
+    // In Add mode, enforce owner-office consistency by clearing owner selections
+    // whenever office changes.
+    if (this.isAddMode) {
+      this.form.patchValue({
+        owner1Id: '',
+        owner2Id: null,
+        owner3Id: null
+      }, { emitEvent: false });
+    }
   }
 
-  /** Owners filtered by the form's selected office for the Owner dropdowns. */
   get ownerContacts(): ContactResponse[] {
     const officeId = this.form?.get('officeId')?.value;
-    if (!officeId) return this.contacts;
+    if (!officeId) return [];
     return this.contacts.filter(c => Number(c.officeId) === Number(officeId));
+  }
+
+  compareReservationId(a: string | null | undefined, b: string | null | undefined): boolean {
+    if ((a == null || a === undefined) && (b == null || b === undefined)) return true;
+    if (a == null || a === undefined || b == null || b === undefined) return false;
+    return String(a) === String(b);
   }
 
   onReservationChange(): void {
     const reservationId = this.form.get('reservationId')?.value;
-    this.selectedReservationId = reservationId;
+    // Normalize null/undefined to null for consistency
+    const normalizedId = reservationId == null ? null : reservationId;
+    this.selectedReservationId = normalizedId;
+    // Ensure form value is also normalized (in case it was undefined)
+    if (reservationId !== normalizedId) {
+      this.form.get('reservationId')?.setValue(normalizedId, { emitEvent: false });
+    }
   }
 
   onCodeInput(event: Event): void {
@@ -1306,6 +1458,25 @@ export class PropertyComponent implements OnInit, OnDestroy {
     this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
     input.value = upperValue;
   }
+
+  onPropertyCodeFocus(event: FocusEvent): void {
+    if (!this.isAddMode) {
+      return;
+    }
+    const input = event.target as HTMLInputElement | null;
+    const currentValue = String(this.form?.get('propertyCode')?.value ?? '').trim();
+    if (input && currentValue.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()) {
+      input.select();
+    }
+  }
+
+  private propertyCodeEntryValidator = (control: AbstractControl): ValidationErrors | null => {
+    const value = String(control.value ?? '').trim();
+    if (!value) return null;
+    return value.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()
+      ? { defaultCode: true }
+      : null;
+  };
 
   /** No default dates in UI: empty unless API sends a real calendar date (sentinels like 0001-01-01 → blank). */
   private parseMaintenanceDateOrNull(iso: string | null | undefined): Date | null {
@@ -1337,7 +1508,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-   //#region Utility Methods
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

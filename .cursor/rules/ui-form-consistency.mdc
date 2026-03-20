@@ -1,0 +1,121 @@
+---
+description: UI form and title-bar consistency standards
+alwaysApply: true
+---
+
+# UI Form Consistency (Angular)
+
+- ALL components must use global style systems for formatting (size, spacing, font, colors).
+- Use only these two global form style sets unless explicitly approved otherwise:
+  - Standard page form styles
+  - Title-bar form styles
+- This applies to all form-adjacent UI elements:
+  - Edit/input boxes
+  - Checkboxes
+  - Dropdown/select menus
+  - Accordion/expansion sections
+- Keep form sizing, spacing, and typography in global styles (`src/styles.scss`) using reusable classes.
+- Avoid inline `style=""` in templates for form controls/title bars; use named classes instead.
+- Treat parent page as source of truth for shared header fields (`Office`, `Property Code`, `Reservation`) and pass values down via inputs.
+- Do not duplicate shared header fields inside child tabs unless explicitly requested.
+- Prevent layout "jumping" across tabs: keep title-bar dimensions and action alignment stable when controls appear/disappear.
+- Colors must be global and theme-driven (no local hardcoded component colors for standard UI patterns).
+- `primary` and `accent` color usage must come from shared/global theme configuration.
+
+# Save and Tab Behavior
+
+- Use contextual Save from the parent title bar when tabs represent different save targets.
+- Keep Save label simple (`Save`) unless user explicitly asks for contextual wording.
+- Remove duplicate in-tab save buttons when parent contextual save is active.
+
+# Component Member Style
+
+- For new variables and methods inside components, do NOT add explicit `public`/`private` modifiers.
+- Let class members use default visibility unless there is an explicit exception requested.
+- Constructor-injected dependencies SHOULD use access modifiers (`public`/`private`) directly in the constructor signature to avoid redundant define/assign boilerplate.
+
+# File Organization and Regions
+
+- Use `//#region` / `//#endregion` blocks consistently across component files.
+- First region should be the component's main functional region (example: `//#region Email-List`).
+- Place lifecycle and primary action methods in that first region:
+  - `ngOnInit`, `ngOnChanges`
+  - core `get/add/update/save` methods
+- Keep a dedicated `//#region Data Loading Methods` for external API/data-loading methods (examples: `loadProperties`, `loadOffices`, `loadReservations`).
+- Keep a dedicated `//#region Form Methods` for form construction and form-population logic:
+  - `buildForm`, `populateForm`
+  - helper/support functions used for form building and form value mapping
+- Keep `//#region Utility Methods` at the bottom of the component file.
+  - Place `ngOnDestroy` and `back` methods there.
+
+# RxJS Chain Formatting
+
+- Prefer single-line RxJS chain starters before `subscribe`, e.g.:
+  - `this.reservationService.getReservationList().pipe(take(1)).subscribe({`
+  - `this.serviceCall().pipe(take(1), finalize(() => { ... })).subscribe({`
+- Under `subscribe({ ... })`, keep the body focused on:
+  - `next: ...`
+  - `error: ...`
+
+# Comment Style
+
+- Keep comments minimal and high-value only.
+- Do NOT add routine/boilerplate comments around standard code (including `@Input`/`@Output`, simple assignments, obvious conditionals).
+- Do NOT add change-tracking comments while editing (no "updated/removed/fixed" inline notes).
+- Add comments only when logic is genuinely complex or non-obvious.
+
+# Shared Data and Loading Pattern
+
+- Global reference data (examples: states, offices, contacts) should be loaded once at app/session bootstrap and reused.
+- Components should subscribe to shared/global data providers/stores rather than re-fetching duplicate reference data per component.
+- Components should use the `utilityService` load-item gating pattern for loading state consistency:
+  - `itemsToLoad$` as `BehaviorSubject<Set<string>>`
+  - `isLoading$` derived from set size
+  - add/remove load items through utility helpers
+- Use subscription lifecycle cleanup consistently (`destroy$` + `takeUntil(...)` and `ngOnDestroy` completion/unsubscribe).
+- Prefer this standard component loading shell when applicable:
+  - `globalOfficeSubscription?: Subscription`
+  - `itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set([...]))`
+  - `isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0))`
+  - `destroy$ = new Subject<void>()`
+- Assume default property retrieval is org/user-scoped by API access control:
+  - For users with access to multiple offices, default `getProperties` returns all properties they are allowed to access across those offices.
+  - Office authorization filtering is enforced by the API.
+  - UI should treat office selection primarily as client-side filtering of already-authorized data unless a specific server-side filtered endpoint is explicitly required.
+- Avoid initial list "flash" from unfiltered-to-filtered data:
+  - In list components that depend on global office scope, do not render final list content until office scope is resolved.
+  - Gate loading with `itemsToLoad$` (for example, an `officeScope` load item) so users do not see a transient larger list first.
+- Prefer separate loader methods over large multi-domain `forkJoin` loaders for component initialization.
+  - Use dedicated methods like `loadOffices()`, `loadRegions()`, `loadAreas()`, `loadBuildings()`, etc.
+  - Give each loader its own load-item key in `itemsToLoad$`.
+  - Remove each key in that loader's `finalize(...)`.
+  - Gate page render (`isLoading$`) until all required keys are cleared.
+  - Keep each loader focused and independently debuggable.
+
+# Formatting Standard
+
+- Components should use `formatterService` for formatting concerns (not inline/manual formatting logic).
+- Apply `formatterService` consistently for:
+  - names/display strings
+  - decimals/currency/number precision
+  - boolean display text
+  - phone/date-like presentation formatting
+
+# Add/Edit Defaults
+
+- In Add mode, use clear prompt defaults for required fields when requested (e.g., `Enter Code`) and enforce replacement via validation.
+- For office selection in Add mode: if global office is specific, preselect it; if global office is "All Offices"/null, require explicit office selection.
+- Keep owner choices office-consistent: owner dropdown options are filtered by selected office.
+
+# Practical Example
+
+```html
+<!-- ✅ GOOD -->
+<div class="header-title form-titlebar-fields-wrap">
+  <mat-form-field class="titlebar-field-office"></mat-form-field>
+  <mat-form-field class="titlebar-field-property-code"></mat-form-field>
+</div>
+
+<!-- ❌ BAD -->
+<div style="display:flex; gap:8px;">
+```

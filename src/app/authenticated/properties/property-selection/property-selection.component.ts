@@ -184,7 +184,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Data Load Methods
+  //#region Data Loading Methods
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -518,24 +518,18 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     return s.length > 0 ? s : null;
   }
 
-  // Converts value to number with default (for NOT NULL number fields)
-  // Always returns a number, never null or undefined
-   toNumber(value: unknown, defaultValue: number = 0): number {
+  toNumber(value: unknown, defaultValue: number = 0): number {
     if (value === null || value === undefined || value === '') return defaultValue;
     const n = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(n) ? n : defaultValue;
   }
 
-  // Converts dropdown value to number (handles empty string '' from "All" option)
-  // Dropdowns use '' for "All" which should convert to 0 (not filtering)
   toNumberFromDropdown(value: unknown, defaultValue: number = 0): number {
     if (value === null || value === undefined || value === '') return defaultValue;
     const n = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(n) ? n : defaultValue;
   }
 
-  // Convert ID from dropdown to Code for API
-  // Returns null if ID is null/empty/0 (meaning "All" or not selected)
   getIdToCode(id: number | null | string | '', list: any[], codeField: string): string | null {
     if (id === null || id === undefined || id === '' || id === 0) {
       return null;
@@ -549,8 +543,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     return item?.[codeField] || null;
   }
 
-  // Convert Code from API to ID for dropdown
-  // Returns null if code is null/empty (meaning not set)
   getCodeToId(code: string | null | undefined, list: any[], codeField: string): number | null {
     if (!code || code.trim() === '') {
       return null;

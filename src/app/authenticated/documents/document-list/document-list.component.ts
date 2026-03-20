@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -39,22 +39,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() documentTypeId?: number;
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
-  @Input() source: 'property' | 'reservation' | 'invoice' | 'documents' | 'maintenance' | null = null; // Source component where document-list is embedded
-  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
-  @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() companyId: string | null = null; // Input to accept companyId from parent
-  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
-  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
-  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
+  @Input() source: 'property' | 'reservation' | 'invoice' | 'documents' | 'maintenance' | null = null;
+  @Input() organizationId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Input() companyId: string | null = null;
+  @Input() reservationId: string | null = null;
+  @Input() activeOnly: boolean = false;
+  @Input() showReservationFilterOnly: boolean = false;
+  @Input() reservations: ReservationListResponse[] = [];
+  @Output() organizationIdChange = new EventEmitter<string | null>();
+  @Output() officeIdChange = new EventEmitter<number | null>();
+  @Output() companyIdChange = new EventEmitter<string | null>();
+  @Output() reservationIdChange = new EventEmitter<string | null>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
   
-  // Office selection for filtering
   showOfficeDropdown: boolean = true;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -62,25 +64,20 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   private globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   
-  // Reservation selection for filtering (when coming from reservation or invoice)
   selectedReservationId: string | null = null;
-  reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
 
   selectedCompany: ContactResponse | null = null;
   companies: ContactResponse[] = [];
   availableCompanies: { value: ContactResponse, label: string }[] = [];
   
-  // Property selection for filtering (when coming from property)
   selectedPropertyId: string | null = null;
   properties: PropertyListDisplay[] = [];
   availableProperties: { value: PropertyListDisplay, label: string }[] = [];
   
-  // DocumentType selection for filtering (when coming from documents)
   selectedDocumentTypeId: number | null = null;
   documentTypes: { value: number, label: string }[] = [];
 
-  // Column sets for different modes
   sidebarColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
@@ -121,7 +118,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
      if(this.isInAddReservationMode())
       return;
     
-    // If source is not provided, default to 'documents' (standalone page)
     if (!this.source) {
       this.source = 'documents';
     }
@@ -138,7 +134,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedPropertyId = this.propertyId;
     }
     
-    // Add 'documents' to loading set before loading
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
     this.loadOffices();
 
@@ -163,9 +158,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    // Load data based on source
     if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
-      this.loadReservations();
+      if (this.source === 'property' && this.reservations && this.reservations.length > 0) {
+        this.filterReservations();
+      } else {
+        this.loadReservations();
+      }
     }
 
     if (this.source === 'invoice') {
@@ -199,21 +197,17 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Check if we're in add-reservation mode first
     if (this.isInAddReservationMode()) {
       return;
     }
     
-    // Handle officeId changes for client-side filtering and reload data based on source
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
       
-      // Update selectedOfficeId if it changed
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         this.selectedOfficeId = newOfficeId;
         
-        // Reload data when office changes to update dropdown lists based on source
         if (this.source === 'invoice' || this.source === 'reservation') {
           this.loadReservations();
         } else if (this.source === 'property') {
@@ -224,17 +218,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
     
-    // Handle reservationId changes - reapply filters when reservationId changes
+    if (changes['reservations'] && !changes['reservations'].firstChange) {
+      if (this.reservations && this.reservations.length > 0) {
+        this.filterReservations();
+      }
+    }
+    
     if (changes['reservationId']) {
       const newReservationId = changes['reservationId'].currentValue;
       const previousReservationId = changes['reservationId'].previousValue;
       
-      // Update selectedReservationId if it changed
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
         this.selectedReservationId = newReservationId;
-        // Reload reservations when reservationId changes (to sync with parent)
-        // When coming from Invoice source, always reload to show all reservations filtered by office
-        if (this.source === 'invoice' || this.propertyId || newReservationId) {
+        if ((this.source === 'invoice' || this.propertyId || newReservationId) && !(this.source === 'property' && this.reservations && this.reservations.length > 0)) {
           this.loadReservations();
         }
         this.applyFilters();
@@ -255,33 +251,31 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         this.applyFilters();
       }
     }
+
+    if (changes['activeOnly'] && !changes['activeOnly'].firstChange) {
+      this.applyFilters();
+    }
     
-    // Handle propertyId changes - load reservations when propertyId is provided
     if (changes['propertyId']) {
       const newPropertyId = changes['propertyId'].currentValue;
       const previousPropertyId = changes['propertyId'].previousValue;
       
-      // Load reservations if propertyId is provided
       if (newPropertyId && (!previousPropertyId || newPropertyId !== previousPropertyId)) {
         this.loadReservations();
       }
     }
     
-    // Determine if we're in filtered mode (both propertyId and documentTypeId provided)
     const currentHasPropertyId = this.propertyId && this.propertyId !== '';
     const previousHasPropertyId = changes['propertyId']?.previousValue && changes['propertyId'].previousValue !== '';
     const wasFiltered = previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
     const isFiltered = currentHasPropertyId && this.documentTypeId !== undefined;
     
-    // Determine if we're in type-only filtered mode (only documentTypeId provided)
     const wasTypeOnlyFiltered = !previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
     const isTypeOnlyFiltered = !currentHasPropertyId && this.documentTypeId !== undefined;
     
-    // Determine if we're in unfiltered mode (neither provided)
     const wasUnfiltered = !previousHasPropertyId && changes['documentTypeId']?.previousValue === undefined;
     const isUnfiltered = !currentHasPropertyId && this.documentTypeId === undefined;
     
-    // Reload if switching between filtered/unfiltered/type-only modes or if inputs changed within same mode
     const propertyIdChanged = changes['propertyId'] && 
       (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const documentTypeIdChanged = changes['documentTypeId'] && 
@@ -290,11 +284,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     const modeChanged = (wasFiltered !== isFiltered) || (wasUnfiltered !== isUnfiltered) || (wasTypeOnlyFiltered !== isTypeOnlyFiltered);
     
     if (propertyIdChanged || documentTypeIdChanged || modeChanged) {
-      // Clear existing documents before loading new ones
       this.allDocuments = [];
       this.documentsDisplay = [];
       
-      // Reset loading state
       this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
       this.getDocuments();
     }
@@ -309,80 +301,85 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getDocuments(): void {
-    // Clear documents first to prevent stale data
     this.allDocuments = [];
     this.documentsDisplay = [];
     
     const hasPropertyId = this.propertyId && this.propertyId !== '';
     const isFiltered = hasPropertyId && this.documentTypeId !== undefined;
     const isUnfiltered = !hasPropertyId && this.documentTypeId === undefined;
-    const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined; // Filter by documentTypeId only
+    const isTypeOnlyFiltered = !hasPropertyId && this.documentTypeId !== undefined;
     const isMaintenanceDocuments = this.source === 'maintenance' && hasPropertyId;
     const isInAddReservationMode = !isFiltered && !isUnfiltered && !isTypeOnlyFiltered && !isMaintenanceDocuments;
     
-    // If we're in add-reservation mode, stop spinner and return immediately
     if (isInAddReservationMode) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents');
       return;
     }
     
     if (isMaintenanceDocuments) {
-      // MAINTENANCE DOCUMENTS: Inspection + Inventory + Work Order for this property (Office and Property columns shown)
-      forkJoin({
-        inspection: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inspection),
-        inventory: this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory),
-        workOrder: this.documentService.getByPropertyType(this.propertyId!, DocumentType.WorkOrder)
-      }).pipe(
-        take(1),
-        finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'))
-      ).subscribe({
-        next: ({ inspection, inventory, workOrder }) => {
-          const combined = [...(inspection ?? []), ...(inventory ?? []), ...(workOrder ?? [])];
-          this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(combined));
-          this.applyFilters();
-        },
-        error: () => {
-          this.isServiceError = true;
-        }
-      });
+      this.loadMaintenanceDocuments();
     } else if (isFiltered) {
-      // FILTERED MODE: Get documents for specific property and type (used in tabs)
       this.documentService.getByPropertyType(this.propertyId, this.documentTypeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
           next: (documents) => {
-            // Double-check filter: ensure they match the requested documentTypeId
             const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
             this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
-            this.applyFilters(); // Apply office filter if needed
+            this.applyFilters();
           },
           error: () => {
             this.isServiceError = true;
           }
         });
     } else if (isTypeOnlyFiltered) {
-      // TYPE-ONLY FILTERED MODE: Get all documents and filter by documentTypeId client-side (used in Accounting tab)
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
         next: (documents) => {
-          // Filter documents by documentTypeId
           const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
           this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
-          this.applyFilters(); // Apply office filter if needed
+          this.applyFilters();
         },
         error: () => {
           this.isServiceError = true;
         }
       });
     } else if (isUnfiltered) {
-      // UNFILTERED MODE: Get ALL documents (used in sidebar navigation)
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
         next: (documents) => {
           this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(documents));
-          this.applyFilters(); // Apply office filter if needed
+          this.applyFilters();
         },
         error: () => {
           this.isServiceError = true;
         }
       });
     }
+  }
+
+  loadMaintenanceDocuments(): void {
+    this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inspection).pipe(take(1)).subscribe({
+      next: (inspectionDocs) => {
+        this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory).pipe(take(1)).subscribe({
+          next: (inventoryDocs) => {
+            this.documentService.getByPropertyType(this.propertyId!, DocumentType.WorkOrder).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
+              next: (workOrderDocs) => {
+                const combined = [...(inspectionDocs ?? []), ...(inventoryDocs ?? []), ...(workOrderDocs ?? [])];
+                this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(combined));
+                this.applyFilters();
+              },
+              error: () => {
+                this.isServiceError = true;
+              }
+            });
+          },
+          error: () => {
+            this.isServiceError = true;
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents');
+          }
+        });
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents');
+      }
+    });
   }
 
   deleteDocument(document: DocumentListDisplay): void {
@@ -402,16 +399,13 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Document Buttons
   viewDocument(event: DocumentListDisplay): void {
-    // Build query parameters to track where we came from
     const queryParams: any = {};
     
-    // If we're in filtered mode (tab), pass the context so we can return to the tab
     if (this.propertyId && this.documentTypeId !== undefined) {
       queryParams.returnTo = 'tab';
       queryParams.propertyId = this.propertyId;
       queryParams.documentTypeId = this.documentTypeId;
       
-      // Determine if it's a reservation or property tab based on documentTypeId
       if (this.documentTypeId === 2) { // ReservationLease
         queryParams.reservationId = event.reservationId || null;
       }
@@ -419,7 +413,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams.returnTo = 'maintenance';
       queryParams.propertyId = this.propertyId;
     } else {
-      // Coming from sidebar, no return context needed
       queryParams.returnTo = 'sidebar';
     }
     
@@ -427,10 +420,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   downloadDocument(doc: DocumentListDisplay): void {
-    // First get the document to access FileDetails
     this.documentService.getDocumentByGuid(doc.documentId).pipe(take(1)).subscribe({
       next: (documentResponse: DocumentResponse) => {
-        // Use FileDetails.dataUrl if available
         if (documentResponse.fileDetails?.dataUrl) {
           const link = window.document.createElement('a');
           link.href = documentResponse.fileDetails.dataUrl;
@@ -438,7 +429,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           link.click();
           this.toastr.success('Document downloaded successfully', CommonMessage.Success);
         } else if (documentResponse.fileDetails?.file && documentResponse.fileDetails?.contentType) {
-          // Convert base64 to blob and download
           const byteCharacters = atob(documentResponse.fileDetails.file);
           const byteNumbers = new Array(byteCharacters.length);
           for (let i = 0; i < byteCharacters.length; i++) {
@@ -454,7 +444,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           window.URL.revokeObjectURL(url);
           this.toastr.success('Document downloaded successfully', CommonMessage.Success);
         } else {
-          // Fallback to download endpoint
           this.documentService.downloadDocument(doc.documentId).pipe(take(1)).subscribe({
             next: (blob: Blob) => {
               const url = window.URL.createObjectURL(blob);
@@ -487,7 +476,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Data Load Methods
+  //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription?.unsubscribe();
@@ -505,7 +494,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             this.selectedOfficeId = null;
           }
           
-          // For Accounting Documents (source='invoice'), keep default as All Offices.
           if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'invoice') {
             this.selectedOfficeId = this.offices[0].officeId;
             this.showOfficeDropdown = false;
@@ -557,26 +545,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationList().pipe(take(1)).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
-        // When coming from Invoice source, show all reservations filtered by office (same as invoice-list)
-        if (this.source === 'invoice') {
-          // Show all reservations filtered by office when coming from Invoice/Accounting
-          this.filterReservations();
-          if (this.reservationId) {
-            this.selectedReservationId = this.reservationId;
-          }
-        } else if (this.propertyId) {
-          // When coming from Property component, always show all reservations filtered by office
-          this.filterReservations();
-          if (this.reservationId) {
-            this.selectedReservationId = this.reservationId;
-          }
-        } else if (this.reservationId) {
-          // When coming from Reservation component, show office reservations and preselect current reservation
-          this.filterReservations();
+        this.filterReservations();
+        if (this.reservationId) {
           this.selectedReservationId = this.reservationId;
-        } else {
-          // Show all reservations filtered by office if office is selected
-          this.filterReservations();
         }
         this.allDocuments = this.enrichReservationCodes(this.allDocuments);
         this.applyFilters();
@@ -602,15 +573,32 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
+
+  loadProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (properties) => {
+        this.properties = this.mappingService.mapProperties(properties) || [];
+        this.filterProperties();
+        if (this.propertyId && this.selectedOfficeId) {
+          const matchingProperty = this.availableProperties.find(p => p.value.propertyId === this.propertyId);
+          if (matchingProperty) {
+            this.selectedPropertyId = this.propertyId;
+          }
+        }
+      },
+      error: () => {
+        this.properties = [];
+        this.availableProperties = [];
+      }
+    });
+  }
   //#endregion
 
   //#region Filter Helpers
   get isOfficeDisabled(): boolean {
-    // When coming from Invoice, Documents, or Maintenance, keep Office enabled
     if (this.source === 'invoice' || this.source === 'documents' || this.source === 'maintenance') {
       return false;
     }
-    // Disable when reservationId or propertyId is provided (coming from Reservation or Property)
     return (this.reservationId !== null && this.reservationId !== undefined && this.reservationId !== '') ||
            (this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '');
   }
@@ -707,33 +695,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.documentTypes = getDocumentTypes();
   }
 
-  /** Document types for maintenance tab. */
   initializeDocumentTypesForMaintenance(): void {
     this.documentTypes = [
       { value: DocumentType.Inspection, label: 'Inspection' },
       { value: DocumentType.Inventory, label: 'Inventory' },
       { value: DocumentType.WorkOrder, label: 'Work Order' }
     ];
-  }
-
-  loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
-      next: (properties) => {
-        this.properties = this.mappingService.mapProperties(properties) || [];
-        this.filterProperties();
-        // If propertyId was provided, ensure it's selected after filtering
-        if (this.propertyId && this.selectedOfficeId) {
-          const matchingProperty = this.availableProperties.find(p => p.value.propertyId === this.propertyId);
-          if (matchingProperty) {
-            this.selectedPropertyId = this.propertyId;
-          }
-        }
-      },
-      error: () => {
-        this.properties = [];
-        this.availableProperties = [];
-      }
-    });
   }
 
   filterProperties(): void {
@@ -788,53 +755,51 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedReservationId = null;
       this.reservationIdChange.emit(this.selectedReservationId);
     }
-    // Apply filters to update displayed documents
     this.applyFilters();
   }
 
   applyFilters(): void {
-    // Start with all documents
     let filtered = [...this.allDocuments];
     
-    // Filter by officeId if selected
     if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
       filtered = filtered.filter(doc => doc.officeId === this.selectedOfficeId);
     }
     
-    // Filter based on source
     if (this.source === 'reservation' || this.source === 'invoice') {
-      // Filter by reservationId if provided (from input) or selected (from dropdown)
       const reservationIdToFilter = this.selectedReservationId || this.reservationId;
       if (reservationIdToFilter !== null && reservationIdToFilter !== undefined && reservationIdToFilter !== '') {
         filtered = filtered.filter(doc => doc.reservationId === reservationIdToFilter);
       }
     } else if (this.source === 'property') {
-      // Filter to current property in Property tab context.
       if (this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
         filtered = filtered.filter(doc => doc.propertyId === this.propertyId);
       }
-      // Optional reservation filter from dropdown.
       if (this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
         filtered = filtered.filter(doc => doc.reservationId === this.selectedReservationId);
       }
     } else if (this.source === 'documents') {
-      // Filter by reservationId if selected
       if (this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
         filtered = filtered.filter(doc => doc.reservationId === this.selectedReservationId);
       }
-      // Filter by documentTypeId if selected
       if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
         filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
       }
     } else if (this.source === 'maintenance') {
-      // Filter to current property (data is already property-scoped; office filter still applies)
       if (this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
         filtered = filtered.filter(doc => doc.propertyId === this.propertyId);
       }
-      // Filter by documentTypeId if selected (Inspection or Inventory)
       if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
         filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
       }
+    }
+
+    if (this.activeOnly && this.reservations && this.reservations.length > 0) {
+      const activeReservationIds = new Set(
+        this.reservations
+          .filter(r => r.isActive)
+          .map(r => r.reservationId)
+      );
+      filtered = filtered.filter(doc => !doc.reservationId || activeReservationIds.has(doc.reservationId));
     }
     
     this.documentsDisplay = filtered;
