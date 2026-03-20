@@ -2,64 +2,65 @@
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">people</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Users</span>
-        </span>
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">people</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Users</span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            @if (isSuperAdminUser) {
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Organization</mat-label>
+                <mat-select [(ngModel)]="selectedOrganization" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Organizations</mat-option>
+                  @for (organization of organizations; track organization.organizationId) {
+                    <mat-option [value]="organization">{{ organization.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else if (showOfficeDropdown) {
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Office</mat-label>
+                <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+          </div>
+        </div>
+        <div class="form-titlebar-actions-wrap">
+          <mat-slide-toggle color="primary" [checked]="includeOwners" (change)="onIncludeOwnersChange($event.checked)">
+            Include Owners
+          </mat-slide-toggle>
+          <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addUser()">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+        </div>
       </div>
       <mat-card>
         <div class="mat list-layout-standard">
-          <!-- Office dropdown row - just above data table -->
-          <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-            <div class="flex items-center gap-3" style="height: 56px;">
-              @if (isSuperAdminUser) {
-                <mat-form-field appearance="outline" class="office-dropdown">
-                  <mat-label>{{ selectedOrganization ? 'Organization' : 'All Organizations' }}</mat-label>
-                  <mat-select [(ngModel)]="selectedOrganization" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Organizations">
-                    <mat-option [value]="null">All Organizations</mat-option>
-                    @for (organization of organizations; track organization.organizationId) {
-                      <mat-option [value]="organization">{{ organization.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
-              @if (showOfficeDropdown && !isSuperAdminUser) {
-                <mat-form-field appearance="outline" class="office-dropdown">
-                  <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices">
-                    <mat-option [value]="null">All Offices</mat-option>
-                    @for (office of offices; track office.officeId) {
-                      <mat-option [value]="office">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
-            </div>
-          </div>
           <div class="tableDiv">
             <app-data-table
               [data]="usersDisplay"
               [columns]="usersDisplayedColumns"
               [hasColumnIndex]="false"
               [hasFilter]="true"
-              [hasToggleTop]="true"
-              [hasToggleTop2]="true"
-              [buttonToggleTextTop2]="'Include Owners'"
-              [isToggle2Checked]="includeOwners"
-              [hasButtonTop]="true"
+              [hasToggleTop]="false"
+              [hasToggleTop2]="false"
+              [hasButtonTop]="false"
               [hasActionsRowClick]="true"
               [hasActionsEdit]="true"
               [hasActionsDelete]="true"
               [deleteConfirmTitle]="'Delete User'"
               [deleteConfirmMessage]="'Are you sure you want to delete this user?'"
               [itemsPerPage]="100"
-              [buttonToggleTextTop]="'Inactive'"
-              [buttonTextTop]="'Add'"
-              [buttonIconTop]="'add'"
-              [buttonColorTop]="'primary'"
-              (topToggleButtonEvent)="toggleInactive()"
-              (topToggle2ButtonEvent)="onIncludeOwnersChange($event)"
-              (topButtonEvent)="addUser()"
               (editEvent)="goToUser($event)"
               (rowClickEvent)="goToUser($event)"
               (deleteEvent)="deleteUser($event)"/>

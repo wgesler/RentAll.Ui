@@ -11,14 +11,24 @@
 
 :root {
   --global-page-inner-padding: 15px;
+  --global-form-field-gap-x: 6px;
+  --global-form-field-gap-y: 4px;
+  --global-form-row-gap: 8px;
+}
+
+/* Prevent horizontal layout shift when page scrollbar appears/disappears. */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: auto;
 }
 
 /* Reservation dropdown: wider to accommodate "ReservationCode: displayName" labels */
 .reservation-dropdown.mat-mdc-form-field,
 mat-form-field.reservation-dropdown {
-  min-width: 420px;
-  max-width: 520px;
-  width: 100%;
+  width: 460px;
+  min-width: 460px;
+  max-width: 460px;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -27,8 +37,8 @@ mat-form-field.reservation-dropdown {
    ========================================================================== */
 .mat-mdc-form-field {
   width: 100%;
-  margin-right: 6px !important;  /* double horizontal gap (grid gap 6px + this = 12px) */
-  margin-bottom: 4px !important; /* double vertical gap (4px + this = 8px between rows) */
+  margin-right: var(--global-form-field-gap-x) !important;
+  margin-bottom: var(--global-form-field-gap-y) !important;
 
   .mat-mdc-text-field-wrapper {
     min-height: 42px !important;
@@ -120,6 +130,51 @@ mat-form-field.reservation-dropdown {
   }
 }
 
+/* Global form spacing utilities (property.component baseline). */
+.form-standard-grid {
+  column-gap: var(--global-form-field-gap-x) !important;
+  row-gap: var(--global-form-row-gap) !important;
+}
+
+.form-standard-row {
+  gap: var(--global-form-field-gap-x) !important;
+  margin-bottom: 16px !important;
+}
+
+/* Global vertical rhythm utilities for form pages/sections. */
+.form-standard-top-padding {
+  padding-top: 2.5rem !important;
+}
+
+.form-standard-section-gap {
+  margin-top: 1.75rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.form-standard-section-heading-gap {
+  margin-bottom: 1rem !important;
+}
+
+/* Global utility: render date fields at half-width of their container. */
+.form-date-field-half {
+  width: 50% !important;
+  min-width: 50% !important;
+  max-width: 50% !important;
+}
+
+/* Global datepicker icon sizing so date fields match standard field height. */
+.mat-mdc-form-field .mat-datepicker-toggle .mat-mdc-icon-button {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+}
+
+.mat-mdc-form-field .mat-datepicker-toggle .mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
 /* ==========================================================================
    Header-title: form fields in page title bars (e.g. Edit Property).
    Same height/structure as main form so hint and value center correctly.
@@ -202,6 +257,16 @@ mat-form-field.reservation-dropdown {
 
 .titlebar-field-office {
   width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  flex-shrink: 0;
+}
+
+.titlebar-field-company {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  flex-shrink: 0;
 }
 
 .titlebar-field-property-code {
@@ -215,29 +280,65 @@ mat-form-field.reservation-dropdown {
   }
 }
 
-.header-title .titlebar-field-property-code {
-  input.mat-mdc-input-element {
-    transform: translateY(2px);
-  }
-}
-
-/* Slightly taller Office/Property Code fields to match Reservation visual height. */
+/* Keep Office / Property Code / Reservation at identical vertical height. */
 .header-title .titlebar-field-office.mat-mdc-form-field,
-.header-title .titlebar-field-property-code.mat-mdc-form-field {
+.header-title .titlebar-field-company.mat-mdc-form-field,
+.header-title .titlebar-field-property-code.mat-mdc-form-field,
+.header-title .titlebar-field-reservation.mat-mdc-form-field,
+.header-title .titlebar-field-document-type.mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
-    min-height: 24px !important;
-    padding-top: 3px !important;
-    padding-bottom: 3px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
   }
 
   .mat-mdc-form-field-flex,
   .mat-mdc-form-field-infix {
-    min-height: 24px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .mat-mdc-select-trigger,
+  input.mat-mdc-input-element {
+    height: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
   }
 }
 
 .titlebar-field-reservation {
-  width: 400px;
+  width: 460px;
+  min-width: 460px;
+  max-width: 460px;
+  flex-shrink: 0;
+}
+
+.titlebar-field-document-type {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  flex-shrink: 0;
+}
+
+/* Apply the same shared widths to legacy list field classes. */
+.office-dropdown.mat-mdc-form-field,
+mat-form-field.office-dropdown {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  flex-shrink: 0;
+}
+
+.company-dropdown.mat-mdc-form-field,
+mat-form-field.company-dropdown {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  flex-shrink: 0;
 }
 
 /* Shared field sizing utilities for large edit forms. */
@@ -364,6 +465,15 @@ mat-form-field.reservation-dropdown {
     padding-right: var(--global-page-inner-padding);
     padding-bottom: var(--global-page-inner-padding);
     box-sizing: border-box;
+  }
+
+  /* Match Edit Property row rhythm: remove reserved subscript space under fields. */
+  .info-form .mat-mdc-form-field-subscript-wrapper,
+  .info-form .mat-mdc-form-field-bottom-align::before {
+    min-height: 0 !important;
+    height: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   // Global list/table spacing baseline (matches user-list page)
@@ -586,8 +696,6 @@ mat-form-field input,
   margin-top: 0.75rem;
 }
 
-.list-top-controls .office-dropdown,
-.list-top-controls .company-dropdown,
 .list-top-controls .organization-dropdown,
 .list-top-controls mat-form-field {
   width: 300px;
@@ -595,11 +703,23 @@ mat-form-field input,
   max-width: 300px;
 }
 
+.list-top-controls .office-dropdown {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+}
+
+.list-top-controls .company-dropdown {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+}
+
 /* Reservation dropdown in list-top-controls: wider for "ReservationCode: displayName" */
 .list-top-controls .reservation-dropdown {
-  min-width: 420px;
-  max-width: 520px;
-  width: 100%;
+  width: 460px;
+  min-width: 460px;
+  max-width: 460px;
 }
 
 .list-top-actions {

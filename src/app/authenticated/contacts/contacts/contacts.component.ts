@@ -91,16 +91,14 @@ export class ContactsComponent implements OnInit, OnDestroy {
   //#region Form Response Methods
   syncOfficeFromGlobal(officeId: number | null): void {
     if (this.offices.length === 0) return;
-    this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    this.resolveOfficeScope(officeId);
     this.cdr.markForCheck();
     this.updateUrlWithCurrentState();
   }
   
   onOfficeIdChange(officeId: number | null): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
-    this.selectedOfficeId = officeId;
-    this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+    this.resolveOfficeScope(officeId);
     this.updateUrlWithCurrentState();
   }
 
@@ -176,16 +174,14 @@ export class ContactsComponent implements OnInit, OnDestroy {
 
         let didSetInitialOffice = false;
         if (!this.selectedOffice && this.offices.length === 1) {
-          this.selectedOffice = this.offices[0];
-          this.selectedOfficeId = this.offices[0].officeId;
+          this.resolveOfficeScope(this.offices[0].officeId);
           didSetInitialOffice = true;
         } else if (!this.selectedOffice) {
           const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId !== null) {
             const globalOffice = this.offices.find(office => office.officeId === globalOfficeId) || null;
             if (globalOffice) {
-              this.selectedOffice = globalOffice;
-              this.selectedOfficeId = globalOffice.officeId;
+              this.resolveOfficeScope(globalOffice.officeId);
               didSetInitialOffice = true;
             }
           }
@@ -200,6 +196,11 @@ export class ContactsComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

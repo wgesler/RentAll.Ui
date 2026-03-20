@@ -30,7 +30,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() showInactive: boolean = false;
-  @Input() hideTopControls: boolean = false;
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
@@ -45,9 +44,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  officeScopeResolved: boolean = false;
 
   routerSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
 
   private readonly baseColumns: ColumnSet = {
@@ -74,7 +74,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
   }
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -95,17 +95,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.applyFilters();
-      }
-    });
-
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        if (this.selectedOffice) {
-          this.applyFilters();
-        }
+        this.resolveOfficeScope(officeId);
       }
     });
     
@@ -172,6 +162,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allContacts;
     
     if (!this.showInactive) {
@@ -205,8 +199,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOffice = newOfficeId != null ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          this.applyFilters();
+          this.resolveOfficeScope(newOfficeId);
         }
       }
     }
@@ -253,11 +246,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           this.showOfficeDropdown = true;
         }
 
-        // Use only parent's officeId (global or manual selection). Null = All Offices.
-        this.selectedOffice = (this.officeId != null && this.offices.length > 0)
-          ? this.offices.find(o => o.officeId === this.officeId) || null
-          : null;
-        this.applyFilters();
+        const preferredOfficeId = this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        this.resolveOfficeScope(preferredOfficeId);
       });
     });
   }
@@ -265,6 +255,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();

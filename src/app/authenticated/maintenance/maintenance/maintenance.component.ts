@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, filter, finalize, map, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -24,6 +25,7 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
   selector: 'app-maintenance',
   imports: [
     CommonModule,
+    FormsModule,
     MaterialModule,
     ChecklistComponent,
     WorkOrderListComponent,
@@ -36,6 +38,9 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
   styleUrl: './maintenance.component.scss'
 })
 export class MaintenanceComponent implements OnInit {
+  @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
+  @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
+  @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
   property: PropertyResponse | null = null;
   maintenanceRecord: MaintenanceResponse | null = null;
   templateMode = false;
@@ -226,6 +231,12 @@ export class MaintenanceComponent implements OnInit {
     this.selectedReceiptId = null;
   }
 
+  onMaintenanceReceiptsInactiveChange(showInactive: boolean): void {
+    if (!this.maintenanceReceiptsList) return;
+    this.maintenanceReceiptsList.showInactive = showInactive;
+    this.maintenanceReceiptsList.applyFilters();
+  }
+
   onWorkOrderSelect(workOrderId: string | null): void {
     this.showWorkOrderDetail = true;
     this.selectedWorkOrderId = workOrderId;
@@ -240,6 +251,12 @@ export class MaintenanceComponent implements OnInit {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.refreshReceiptsTrigger++;
+  }
+
+  onMaintenanceWorkOrderInactiveChange(showInactive: boolean): void {
+    if (!this.maintenanceWorkOrderList) return;
+    this.maintenanceWorkOrderList.showInactive = showInactive;
+    this.maintenanceWorkOrderList.applyFilters();
   }
 
   back(): void {

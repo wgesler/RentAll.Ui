@@ -32,6 +32,16 @@ export class UtilityService {
     }
   }
 
+  resolveSelectedOfficeById<T extends { officeId: number }>(offices: T[], officeId: number | null): T | null {
+    if (!offices?.length) {
+      return null;
+    }
+    if (officeId !== null) {
+      return offices.find(office => office.officeId === officeId) || null;
+    }
+    return offices.length === 1 ? offices[0] : null;
+  }
+
   // Gets formatted reservation label for display in dropdowns and lists
   getReservationLabel(reservation: ReservationListResponse): string {
     const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);

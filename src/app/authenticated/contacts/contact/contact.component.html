@@ -61,7 +61,7 @@
                   <mat-label>Office</mat-label>
                   @if (isAddMode) {
                     <mat-select formControlName="officeId">
-                      <mat-option [value]="null">None</mat-option>
+                      <mat-option [value]="null">Select Office</mat-option>
                       @for (office of availableOffices; track office.value) {
                         <mat-option [value]="office.value">{{ office.name }}</mat-option>
                       }

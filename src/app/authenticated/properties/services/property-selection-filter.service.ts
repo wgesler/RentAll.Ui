@@ -50,19 +50,37 @@ function hasText(v: string | null | undefined): boolean {
 @Injectable({ providedIn: 'root' })
 export class PropertySelectionFilterService {
   private readonly _propertiesFiltered = new BehaviorSubject<boolean>(false);
+  private readonly _dateRange = new BehaviorSubject<{ startDate: Date | null; endDate: Date | null }>({ startDate: null, endDate: null });
+  private selectionFiltersApplied = false;
+  private dateRangeApplied = false;
 
   /** Emits whether the user's saved property selection applies any non-default filters. */
   readonly propertiesFiltered$: Observable<boolean> = this._propertiesFiltered.asObservable();
+  readonly dateRange$: Observable<{ startDate: Date | null; endDate: Date | null }> = this._dateRange.asObservable();
 
   get propertiesFiltered(): boolean {
     return this._propertiesFiltered.value;
   }
 
   setFromResponse(response: PropertySelectionResponse | null | undefined): void {
-    this._propertiesFiltered.next(isPropertySelectionFiltered(response));
+    this.selectionFiltersApplied = isPropertySelectionFiltered(response);
+    this._propertiesFiltered.next(this.selectionFiltersApplied || this.dateRangeApplied);
+  }
+
+  getDateRangeValue(): { startDate: Date | null; endDate: Date | null } {
+    return this._dateRange.value;
+  }
+
+  setDateRange(startDate: Date | null, endDate: Date | null): void {
+    this.dateRangeApplied = !!startDate || !!endDate;
+    this._dateRange.next({ startDate, endDate });
+    this._propertiesFiltered.next(this.selectionFiltersApplied || this.dateRangeApplied);
   }
 
   clear(): void {
+    this.selectionFiltersApplied = false;
+    this.dateRangeApplied = false;
+    this._dateRange.next({ startDate: null, endDate: null });
     this._propertiesFiltered.next(false);
   }
 }

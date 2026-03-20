@@ -56,3 +56,29 @@ mat-card {
   box-sizing: border-box;
 }
 
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+/* Keep Accounting top-bar fields locked in place between tab switches. */
+:host ::ng-deep .property-titlebar > .flex.items-center.flex-wrap {
+  min-width: 0;
+  flex-wrap: nowrap !important;
+}
+
+:host ::ng-deep .property-titlebar .header-title.form-titlebar-fields-wrap {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+:host ::ng-deep .property-titlebar .header-title.form-titlebar-fields-wrap > .titlebar-field-office {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  flex: 0 0 200px !important;
+}
+

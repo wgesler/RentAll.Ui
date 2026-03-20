@@ -45,7 +45,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
 
   reservations: ReservationListResponse[] = [];
@@ -100,8 +100,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.form.get('officeId')?.setValue(officeId ?? null, { emitEvent: false });
+        this.resolveOfficeScope(officeId);
+        this.form.get('officeId')?.setValue(this.selectedOffice?.officeId ?? null, { emitEvent: false });
         this.updateAvailableReservations();
         this.filterCostCodes();
       }
@@ -153,9 +153,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
       const parsedOfficeId = parseInt(officeIdParam, 10);
       if (parsedOfficeId) {
-        this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
+        this.resolveOfficeScope(parsedOfficeId);
         if (this.selectedOffice && this.form) {
-          this.form.get('officeId')?.setValue(parsedOfficeId, { emitEvent: false });
+          this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
           this.updateAvailableReservations();
           this.filterCostCodes();
           if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
@@ -170,9 +170,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     } else if (this.isAddMode && this.offices.length > 0 && this.form) {
       const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
       if (globalOfficeId != null) {
-        this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+        this.resolveOfficeScope(globalOfficeId);
         if (this.selectedOffice) {
-          this.form.get('officeId')?.setValue(globalOfficeId, { emitEvent: false });
+          this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
           this.updateAvailableReservations();
           this.filterCostCodes();
         }
@@ -895,7 +895,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     // Subscribe to officeId changes - just set selectedOffice and trigger updates
     this.form.get('officeId')?.valueChanges.subscribe(officeId => {
       this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
-      this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
+      this.resolveOfficeScope(officeId);
       this.updateAvailableReservations();
       this.filterCostCodes();
       
@@ -911,6 +911,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.form.get('reservationId')?.setValue(null, { emitEvent: false });
       }
     });
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
   setupReservationIdHandler(): void {

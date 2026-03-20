@@ -53,7 +53,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   EntityType = EntityType; // Expose enum to template
   OwnerType = OwnerType; // Expose enum to template
   availableOwnerTypes: { value: number; label: string }[] = [];

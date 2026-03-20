@@ -45,11 +45,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   private navigationSubscription?: Subscription;
   private lastNavigationUrl = '';
   private destroy$ = new Subject<void>();
-  private officeScopeResolved = false;
+  officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   /** True when saved property selection has non-default filters. */
@@ -95,14 +95,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       .subscribe((v) => (this.propertiesFiltered = v));
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (!this.officeScopeResolved) {
-        this.officeScopeResolved = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-      }
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.officeIdChange.emit(officeId ?? null);
-        this.applyFilters();
+        this.resolveOfficeScope(officeId, true);
       }
     });
 
@@ -121,10 +115,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        if (this.selectedOffice) {
-          this.applyFilters();
-        }
+        this.resolveOfficeScope(this.officeId, false);
       }
       
       this.route.queryParams.subscribe(params => {
@@ -133,23 +124,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         if (officeIdParam) {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-              this.applyFilters();
-            }
+            this.resolveOfficeScope(parsedOfficeId, true);
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.applyFilters();
+            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
           }
         }
       });
-
-      if (!this.officeScopeResolved) {
-        this.officeScopeResolved = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-      }
     });
   }
 
@@ -160,12 +142,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          if (this.selectedOffice) {
-            this.applyFilters();
-          } else {
-            this.applyFilters();
-          }
+          this.resolveOfficeScope(newOfficeId, false);
         }
       }
     }
@@ -287,6 +264,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allProperties;
 
     if (!this.showInactive) {
@@ -341,16 +322,21 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   onOfficeChange(): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    if (this.selectedOffice) {
-      this.officeIdChange.emit(this.selectedOffice.officeId);
-    } else {
-      this.officeIdChange.emit(null);
-    }
-    this.applyFilters();
+    this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
   }
   //#endregion
 
   //#region Utility Methods
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+    }
+    this.applyFilters();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

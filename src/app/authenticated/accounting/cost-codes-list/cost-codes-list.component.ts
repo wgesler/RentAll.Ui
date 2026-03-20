@@ -44,9 +44,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  officeScopeResolved: boolean = false;
   isEditingCostCodes: boolean = false;
   costCodesId: string | number | null = null;
   costCodesOfficeId: number | null = null;
@@ -66,7 +67,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -87,9 +88,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
-        this.filterCostCodes();
+        this.resolveOfficeScope(officeId, true);
       }
     });
   }
@@ -99,9 +98,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       if (this.offices.length > 0) {
-        this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-        // Filter cost codes - show all if no office selected, or filter by office if selected
-        this.filterCostCodes();
+        this.resolveOfficeScope(newOfficeId, false);
       } else {
         // Offices not loaded yet, wait for them to load in loadOffices()
         // The loadOffices() method will handle setting selectedOffice from officeId input
@@ -222,28 +219,15 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         
         // Set selectedOffice from parent input.
-        if (this.officeId !== null && this.officeId !== undefined) {
-          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        } else if (this.embeddedInSettings && this.offices.length > 0) {
-          // In Settings, Cost Codes are filtered by office: default to working office
-          const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-          this.selectedOffice = globalId !== null
-            ? (this.offices.find(o => o.officeId === globalId) || null)
-            : null;
-        }
-        
         // Auto-select if only one office available (unless officeId input/query param is provided)
-        if (this.offices.length === 1 && !this.selectedOffice) {
-          this.selectedOffice = this.offices[0];
+        if (this.offices.length === 1) {
           this.showOfficeDropdown = false;
         } else {
           this.showOfficeDropdown = true;
         }
-        
-        // Filter cost codes - show all if no office selected, or filter by office if selected
-        // This will work even if cost codes aren't loaded yet (will get empty array)
-        // When cost codes load, they will trigger filtering again via loadCostCodes subscription
-        this.filterCostCodes();
+
+        const preferredOfficeId = this.officeId ?? (this.embeddedInSettings ? this.globalOfficeSelectionService.getSelectedOfficeIdValue() : null);
+        this.resolveOfficeScope(preferredOfficeId, this.officeId === null || this.officeId === undefined);
       });
     });
   }
@@ -270,6 +254,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allCostCodes;
     // Filter by inactive if needed
     // Use the @Input() showInactiveInput value if provided; otherwise use internal property
@@ -326,6 +314,16 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.globalOfficeSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+    }
+    this.filterCostCodes();
   }
   //#endregion
 }

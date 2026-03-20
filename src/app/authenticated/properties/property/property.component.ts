@@ -157,7 +157,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && !this.property) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.resolveOfficeScope(officeId);
         if (this.form) {
           this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null });
           this.filterLocationLookupsByOffice();
@@ -1403,12 +1403,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   onOfficeChange(): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(this.form.get('officeId')?.value ?? null);
-    const officeId = this.form.get('officeId')?.value;
-    if (officeId) {
-      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    } else {
-      this.selectedOffice = null;
-    }
+    this.resolveOfficeScope(this.form.get('officeId')?.value ?? null);
     this.filterLocationLookupsByOffice();
     this.filterReservations();
     this.form.get('reservationId')?.setValue(null, { emitEvent: false });
@@ -1505,6 +1500,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

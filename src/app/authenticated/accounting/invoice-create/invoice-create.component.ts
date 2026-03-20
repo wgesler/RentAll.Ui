@@ -69,7 +69,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
@@ -101,7 +101,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -199,6 +199,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
           const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId != null && this.offices.length > 0) {
             this.applyOfficeSelection(globalOfficeId);
+          } else {
+            this.applyOfficeSelection(null);
           }
         }
         if (this.companyId) {
@@ -821,10 +823,12 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     // But only if offices are loaded, otherwise wait for them to load
     if (this.offices.length > 0) {
       this.onOfficeSelected(officeId);
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     } else {
       // Offices not loaded yet, wait for them to load
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
         this.onOfficeSelected(officeId);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
       });
     }
   }

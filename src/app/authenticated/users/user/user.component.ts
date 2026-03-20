@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Inject, OnDestroy, OnInit, Optional } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -452,7 +451,7 @@ export class UserComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Form methods
+  //#region Form Methods
   buildForm(): void {
     const jwtDefaultOffice = this.authService.getUser()?.defaultOfficeId ?? null;
     const defaultOfficeAccess = this.isAddMode && jwtDefaultOffice !== null ? [jwtDefaultOffice] : [];

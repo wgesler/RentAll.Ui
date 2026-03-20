@@ -10,7 +10,7 @@
   <div class="mat list-layout-tabbed">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
-      @if (showOfficeDropdown) {
+      @if (showOfficeDropdown && !embeddedInSettings) {
         <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
@@ -26,7 +26,7 @@
     }
     <!-- Filter and data table below -->
     <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-      @if (showInactiveInput === undefined) {
+      @if (showInactiveInput === undefined && !embeddedInSettings) {
         <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
           <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
             Inactive

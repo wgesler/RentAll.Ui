@@ -1,10 +1,178 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-      <span class="flex flex-column items-center gap-3 py-4">
-        <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-        <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-      </span>
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+        </span>
+        @if (selectedTabIndex === 0 && !isSuperAdmin && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [ngModel]="accountingInvoiceList.selectedOffice" (ngModelChange)="accountingInvoiceList.selectedOffice = $event; accountingInvoiceList.onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of accountingInvoiceList.offices; track office.officeId) {
+                  <mat-option [value]="office">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-company">
+              <mat-label>Companies</mat-label>
+              <mat-select [ngModel]="accountingInvoiceList.selectedCompanyContact" (ngModelChange)="accountingInvoiceList.selectedCompanyContact = $event; accountingInvoiceList.onCompanyChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Companies</mat-option>
+                @for (company of accountingInvoiceList.availableCompanyContacts; track company.value.contactId) {
+                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservations</mat-label>
+              <mat-select [ngModel]="accountingInvoiceList.selectedReservation" (ngModelChange)="accountingInvoiceList.selectedReservation = $event; accountingInvoiceList.onReservationChange()" [compareWith]="accountingInvoiceList.compareReservationById" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Reservations</mat-option>
+                @for (reservation of accountingInvoiceList.availableReservations; track reservation.value.reservationId) {
+                  <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [ngModel]="accountingCostCodes.selectedOffice" (ngModelChange)="accountingCostCodes.selectedOffice = $event; accountingCostCodes.onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of accountingCostCodes.offices; track office.officeId) {
+                  <mat-option [value]="office">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        } @else if (selectedTabIndex === 2 && !isSuperAdmin && accountingGeneralLedger) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [(ngModel)]="accountingGeneralLedger.selectedOfficeId" (selectionChange)="accountingGeneralLedger.onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of accountingGeneralLedger.offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-company">
+              <mat-label>Companies</mat-label>
+              <mat-select [(ngModel)]="accountingGeneralLedger.selectedCompanyContact" (selectionChange)="accountingGeneralLedger.onCompanyChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Companies</mat-option>
+                @for (company of accountingGeneralLedger.availableCompanyContacts; track company.value.contactId) {
+                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservations</mat-label>
+              <mat-select [(ngModel)]="accountingGeneralLedger.selectedReservationId" (selectionChange)="accountingGeneralLedger.onReservationChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Reservations</mat-option>
+                @for (reservation of accountingGeneralLedger.availableReservations; track reservation.value.reservationId) {
+                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        } @else if (selectedTabIndex === 3 && !isSuperAdmin && accountingEmailList) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [(ngModel)]="accountingEmailList.selectedOfficeId" (selectionChange)="accountingEmailList.onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of accountingEmailList.offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-company">
+              <mat-label>Companies</mat-label>
+              <mat-select [(ngModel)]="accountingEmailList.selectedCompanyContact" (selectionChange)="accountingEmailList.onCompanyChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Companies</mat-option>
+                @for (company of accountingEmailList.availableCompanyContacts; track company.value.contactId) {
+                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservations</mat-label>
+              <mat-select [(ngModel)]="accountingEmailList.selectedReservationId" (selectionChange)="accountingEmailList.onReservationChange()" [compareWith]="accountingEmailList.compareReservationId" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Reservations</mat-option>
+                @for (reservation of accountingEmailList.availableReservations; track reservation.value.reservationId) {
+                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        } @else if (selectedTabIndex === 4 && !isSuperAdmin && accountingDocumentList) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [(ngModel)]="accountingDocumentList.selectedOfficeId" (selectionChange)="accountingDocumentList.onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of accountingDocumentList.offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-company">
+              <mat-label>Companies</mat-label>
+              <mat-select [(ngModel)]="accountingDocumentList.selectedCompany" (selectionChange)="accountingDocumentList.onCompanyChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Companies</mat-option>
+                @for (company of accountingDocumentList.availableCompanies; track company.value.contactId) {
+                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservations</mat-label>
+              <mat-select [(ngModel)]="accountingDocumentList.selectedReservationId" (selectionChange)="accountingDocumentList.onReservationChange()" [compareWith]="accountingDocumentList.compareReservationId" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Reservations</mat-option>
+                @for (reservation of accountingDocumentList.availableReservations; track reservation.value.reservationId) {
+                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-document-type">
+              <mat-label>Document Types</mat-label>
+              <mat-select [(ngModel)]="accountingDocumentList.selectedDocumentTypeId" (selectionChange)="accountingDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Document Types</mat-option>
+                @for (docType of accountingDocumentList.documentTypes; track docType.value) {
+                  <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        }
+      </div>
+      @if (selectedTabIndex === 0 && !isSuperAdmin && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
+        <div class="form-titlebar-actions-wrap">
+          <mat-slide-toggle [checked]="accountingInvoiceList.showInactive" color="primary" (change)="accountingInvoiceList.toggleInactive()">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="accountingInvoiceList.openApplyPaymentDialog()" [disabled]="((!accountingInvoiceList.selectedReservation && !accountingInvoiceList.selectedCompanyContact) || accountingInvoiceList.invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
+            Apply Payment
+          </button>
+          <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="accountingInvoiceList.addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
+        </div>
+      } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes && accountingCostCodes.showInactiveInput === undefined) {
+        <div class="form-titlebar-actions-wrap">
+          <mat-slide-toggle [checked]="accountingCostCodes.showInactive" color="primary" (change)="accountingCostCodes.toggleInactive()">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="accountingCostCodes.addCostCode()" class="whitespace-nowrap items-center flex gap-1">
+            <mat-icon class="text-base">add</mat-icon>
+            <span>Add</span>
+          </button>
+        </div>
+      }
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
@@ -22,7 +190,7 @@
             </div>
           }
           <app-invoice-list 
-            [hideFilters]="isSuperAdmin"
+            [hideFilters]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -37,6 +205,7 @@
         </mat-tab>
         <mat-tab label="Cost Codes">
           <app-cost-codes-list 
+            #accountingCostCodes
             [officeId]="selectedOfficeId"
             [embeddedInSettings]="true"
             (officeIdChange)="onCostCodesOfficeChange($event)">
@@ -56,7 +225,8 @@
             </div>
           }
           <app-general-ledger 
-            [hideFilters]="isSuperAdmin"
+            #accountingGeneralLedger
+            [hideFilters]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -83,7 +253,7 @@
           <app-email-list
             #accountingEmailList
             [hideHeader]="true"
-            [hideFilters]="isSuperAdmin"
+            [hideFilters]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
@@ -113,7 +283,7 @@
             #accountingDocumentList
             [documentTypeId]="DocumentType.Invoice"
             [hideHeader]="true"
-            [hideFilters]="isSuperAdmin"
+            [hideFilters]="true"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"

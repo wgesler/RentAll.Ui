@@ -10,19 +10,81 @@
 } @else {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">build</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            Maintenance
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">build</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              Maintenance
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
+          @if (selectedTabIndex === 4 && maintenanceDocumentList) {
+            <div class="header-title form-titlebar-fields-wrap">
+              @if (maintenanceDocumentList.showOfficeDropdown) {
+                <mat-form-field appearance="outline" class="titlebar-field-office">
+                  <mat-label>{{ maintenanceDocumentList.selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
+                  <mat-select [(ngModel)]="maintenanceDocumentList.selectedOfficeId" (selectionChange)="maintenanceDocumentList.onOfficeChange()" [canSelectNullableOptions]="true">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of maintenanceDocumentList.offices; track office.officeId) {
+                      <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+              <mat-form-field appearance="outline" class="titlebar-field-document-type">
+                <mat-label>Document Types</mat-label>
+                <mat-select [(ngModel)]="maintenanceDocumentList.selectedDocumentTypeId" (selectionChange)="maintenanceDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Document Types</mat-option>
+                  @for (docType of maintenanceDocumentList.documentTypes; track docType.value) {
+                    <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
+        </div>
+        <div class="form-titlebar-actions-wrap">
+          @if (selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) {
+            <mat-slide-toggle
+              [ngModel]="maintenanceReceiptsList.showInactive"
+              (ngModelChange)="onMaintenanceReceiptsInactiveChange($event)"
+              color="primary">
+              Inactive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="add-receipt-button" (click)="maintenanceReceiptsList.addReceipt()" class="text-nowrap flex-shrink-0">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          }
+          @if (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList) {
+            <mat-slide-toggle
+              [ngModel]="maintenanceWorkOrderList.showInactive"
+              (ngModelChange)="onMaintenanceWorkOrderInactiveChange($event)"
+              color="primary">
+              Inactive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="add-work-order-button" (click)="maintenanceWorkOrderList.addWorkOrder()" class="text-nowrap flex-shrink-0">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          }
+          @if (!((selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) || (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList))) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
         </div>
       </div>
 
@@ -62,6 +124,7 @@
                 (savedEvent)="onReceiptSaved()" />
             } @else {
               <app-receipts-list
+                #maintenanceReceiptsList
                 [property]="property"
                 [embeddedInMaintenance]="true"
                 [refreshTrigger]="refreshReceiptsTrigger"
@@ -78,6 +141,7 @@
                 (savedEvent)="onWorkOrderSaved()" />
             } @else {
               <app-work-order-list
+                #maintenanceWorkOrderList
                 [property]="property"
                 [embeddedInMaintenance]="true"
                 (workOrderSelect)="onWorkOrderSelect($event)" />
@@ -85,11 +149,12 @@
           </mat-tab>
           <mat-tab label="Documents">
             <app-document-list
+              #maintenanceDocumentList
               [propertyId]="property?.propertyId ?? undefined"
               [propertyCode]="property?.propertyCode ?? null"
               source="maintenance"
               [hideHeader]="true"
-              [hideFilters]="false" />
+              [hideFilters]="true" />
           </mat-tab>
         </mat-tab-group>
       </mat-card>

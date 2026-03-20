@@ -63,7 +63,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   
   showOfficeDropdown = true;
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
+  officeScopeResolved: boolean = false;
 
   emailsDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
@@ -105,11 +106,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
-        this.selectedOfficeId = officeId;
-        this.officeIdChange.emit(this.selectedOfficeId);
-        this.filterCompanies();
-        this.filterReservations();
-        this.applyFilters();
+        this.resolveOfficeScope(officeId, true);
       }
     });
     this.loadCompanies();
@@ -178,23 +175,18 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
           // For Accounting Emails (source='invoice'), keep default as All Offices.
           if (this.offices.length === 1 && this.source !== 'invoice') {
-            this.selectedOfficeId = this.offices[0].officeId;
             this.showOfficeDropdown = false;
           } else {
             this.showOfficeDropdown = true;
-            if (this.officeId === null || this.officeId === undefined) {
-              const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-              if (globalOfficeId != null) {
-                this.selectedOfficeId = globalOfficeId;
-              }
-            }
           }
 
-          this.applyFilters();
+          const preferredOfficeId = this.officeId ?? (this.source !== 'invoice' ? this.globalOfficeSelectionService.getSelectedOfficeIdValue() : null);
+          this.resolveOfficeScope(preferredOfficeId, this.officeId === null || this.officeId === undefined);
         },
         error: () => {
           this.offices = [];
           this.showOfficeDropdown = true;
+          this.resolveOfficeScope(null, false);
         }
       });
     });
@@ -371,6 +363,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = [...this.allEmails];
 
     if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
@@ -443,6 +439,17 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.officeScopeResolved = true;
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    this.filterCompanies();
+    this.filterReservations();
+    this.applyFilters();
   }
   //#endregion
 }

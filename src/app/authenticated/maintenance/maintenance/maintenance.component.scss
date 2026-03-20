@@ -35,6 +35,12 @@
   max-width: none;
 }
 
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
+}
+
 /* Match accordion size/shape/font with property component */
 ::ng-deep .maintenance-history-accordion mat-expansion-panel {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;

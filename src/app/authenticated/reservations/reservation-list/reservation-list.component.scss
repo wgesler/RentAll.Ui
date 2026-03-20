@@ -32,21 +32,6 @@ body {
     padding: 0 !important;
 }
 
-// Pink Clear button
-.clear-button {
-    background-color: #e91e63 !important;
-    color: white !important;
-    
-    &:hover:not(:disabled) {
-        background-color: #c2185b !important;
-    }
-    
-    &:disabled {
-        background-color: rgba(233, 30, 99, 0.3) !important;
-        color: rgba(255, 255, 255, 0.5) !important;
-    }
-}
-
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -63,54 +48,9 @@ body {
   }
 }
 
-.date-field {
-  min-width: 250px;
-  width: 100%;
-  max-width: 300px;
-}
-
-// Header date controls - smaller version
-.header-date-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 0;
-  flex-shrink: 0;
-  
-  // Ensure controls stay on one line on smaller screens
-  @media (max-width: 1200px) {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-
-.header-date-field {
-  min-width: 140px;
-  max-width: 160px;
-  
-  ::ng-deep {
-    .mat-mdc-form-field-subscript-wrapper {
-      display: none !important; // Hide hint/error space for compact header
-    }
-    
-    .mat-mdc-text-field-wrapper {
-      height: 41px !important; // +1px to avoid label clipping in header
-    }
-    
-    .mat-mdc-form-field {
-      margin-bottom: 0 !important;
-    }
-
-    .mat-mdc-input-element {
-      font-size: 0.875rem !important;
-    }
-  }
-}
-
-.header-clear-button {
-  height: 32px;
-  font-size: 0.875rem;
-  padding: 0 16px;
-  min-width: auto;
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
 }
 

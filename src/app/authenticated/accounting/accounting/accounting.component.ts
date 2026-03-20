@@ -1,5 +1,5 @@
 
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -36,6 +36,11 @@ import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
     styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
+  @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
+  @ViewChild('accountingCostCodes') accountingCostCodes?: CostCodesListComponent;
+  @ViewChild('accountingGeneralLedger') accountingGeneralLedger?: GeneralLedgerComponent;
+  @ViewChild('accountingEmailList') accountingEmailList?: EmailListComponent;
+  @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
   DocumentType = DocumentType; // Expose DocumentType enum to template
   EmailType = EmailType; // Expose EmailType enum to template
   selectedTabIndex: number = 0; // Default to Outstanding Invoices tab

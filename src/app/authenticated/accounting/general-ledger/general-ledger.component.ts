@@ -74,7 +74,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   companyContacts: ContactResponse[] = [];
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   reservationsSubscription?: Subscription;
   companyContactsSubscription?: Subscription;
   invoicesSubscription?: Subscription;
@@ -85,6 +85,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   isLoading: boolean = false;
   showInactive: boolean = false;
   showOfficeDropdown: boolean = true;
+  officeScopeResolved: boolean = false;
   generalLedgerColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '16ch' },
     reservationCode: { displayAs: 'ReservationCode', maxWidth: '18ch', sortType: 'natural' },
@@ -118,13 +119,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOfficeId = officeId ?? null;
-        this.officeIdChange.emit(this.selectedOfficeId);
-        this.filterCompanyContacts();
-        this.filterReservations();
-        this.selectedReservationId = null;
-        this.reservationIdChange.emit(this.selectedReservationId);
-        this.loadInvoices();
+        this.resolveOfficeScope(officeId, true);
       }
     });
 
@@ -152,9 +147,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
       
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOfficeId = newOfficeId;
-          this.filterCompanyContacts();
-          this.filterReservations();
+          this.resolveOfficeScope(newOfficeId, false);
         }
       }
     }
@@ -208,24 +201,14 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
         next: (allOffices: OfficeResponse[]) => {
           this.offices = allOffices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          
-          if (this.officeId !== null && this.officeId !== undefined) {
-            this.selectedOfficeId = this.officeId;
-          } else {
-            const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-            if (globalId != null) {
-              this.selectedOfficeId = globalId;
-              this.filterCompanyContacts();
-              this.filterReservations();
-              this.loadInvoices();
-            }
-          }
 
           // Keep General Ledger defaults as All Offices.
           this.showOfficeDropdown = true;
+          this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         },
         error: () => {
           this.offices = [];
+          this.resolveOfficeScope(null, false);
         }
       });
     });
@@ -500,6 +483,19 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.companyContactsSubscription?.unsubscribe();
     this.invoicesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.officeScopeResolved = true;
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    this.filterCompanyContacts();
+    this.filterReservations();
+    this.selectedReservationId = null;
+    this.reservationIdChange.emit(this.selectedReservationId);
+    this.loadInvoices();
   }
   //#endregion
 }

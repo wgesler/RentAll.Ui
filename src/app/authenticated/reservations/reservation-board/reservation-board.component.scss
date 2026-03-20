@@ -68,7 +68,7 @@
   font-size: 16px;
   font-weight: 600;
   line-height: 1.2;
-  padding: 12px 0;
+  padding: 0;
 }
 
 // Match Reservations page header date/selection controls.
@@ -76,7 +76,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 0;
   flex-shrink: 0;
 
   @media (max-width: 1200px) {
@@ -86,8 +85,8 @@
 }
 
 .header-date-field {
-  min-width: 140px;
-  max-width: 160px;
+  min-width: 190px;
+  max-width: 190px;
 
   ::ng-deep {
     .mat-mdc-form-field-subscript-wrapper {
@@ -104,15 +103,26 @@
 
     .mat-mdc-input-element {
       font-size: 0.875rem !important;
+      transform: translateY(7px);
+    }
+
+    .mat-mdc-form-field-infix {
+      display: flex;
+      align-items: center;
+    }
+
+    .mat-datepicker-toggle {
+      display: inline-flex;
+      align-items: center;
+      transform: translateY(7px);
     }
   }
 }
 
-.header-clear-button {
-  height: 32px;
-  font-size: 0.875rem;
-  padding: 0 16px;
-  min-width: auto;
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
 }
 
 .board-header {

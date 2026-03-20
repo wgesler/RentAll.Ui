@@ -1,16 +1,16 @@
 import { CommonModule } from "@angular/common";
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, forkJoin, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
@@ -42,10 +42,12 @@ export class UserListComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   isSuperAdminUser: boolean = false;
   organizations: OrganizationResponse[] = [];
   selectedOrganization: OrganizationResponse | null = null;
+  users: UserResponse[] = [];
+  officeScopeResolved: boolean = false;
 
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
@@ -58,7 +60,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -71,20 +73,20 @@ export class UserListComponent implements OnInit, OnDestroy {
     public router: Router,
     private ngZone: NgZone,
     private formatterService: FormatterService,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private utilityService: UtilityService) {
   }
 
   //#region User-List
   ngOnInit(): void {
     this.isSuperAdminUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
-    this.getUsers();
+    this.loadUsers();
+    this.loadOrganizations();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.refreshDefaultOfficeDisplay();
-        this.applyFilters();
+        this.resolveOfficeScope(officeId);
       }
     });
   }
@@ -93,66 +95,12 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, ['new']));
   }
 
-  getUsers(): void {
-    forkJoin({
-      users: this.userService.getUsers().pipe(take(1)),
-      organizations: this.organizationService.getOrganizations().pipe(take(1))
-    }).pipe(
-      take(1),
-      finalize(() => {
-        this.removeLoadItem('users');
-        this.removeLoadItem('organizations');
-      })
-    ).subscribe({
-      next: ({ users, organizations }) => {
-        this.organizations = organizations || [];
-
-        // Create lookup map for organizations
-        const orgMap = new Map<string, string>();
-        organizations.forEach(org => {
-          orgMap.set(org.organizationId, org.name);
-        });
-
-        // Map users with organization names
-        this.allUsers = users.map<UserListDisplay>((user: UserResponse) => {
-          const userGroups = user.userGroups || [];
-          const groupLabels: { [key: string]: string } = {
-            'SuperAdmin': 'Super Admin',
-            'Admin': 'Admin',
-            'User': 'User',
-            'Unknown': 'Unknown'
-          };
-          const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
-          return {
-            userId: user.userId,
-            fullName: user.firstName + ' ' + user.lastName,
-            email: user.email,
-            phone: this.formatterService.phoneNumber(user.phone || ''),
-            organizationName: orgMap.get(user.organizationId) || '',
-            officeAccess: (user.officeAccess || []).map(id => Number(id)).filter(id => !isNaN(id)),
-            startupPageDisplay: getStartupPage(user.startupPageId),
-            defaultOfficeId: user.defaultOfficeId ?? null,
-            defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId),
-            userGroups: userGroups,
-            userGroupsDisplay: userGroupsDisplay,
-            isActive: user.isActive
-          };
-        });
-        this.applyFilters();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.removeLoadItem('users');
-        this.removeLoadItem('organizations');
-      }
-    });
-  }
-
   deleteUser(user: UserListDisplay): void {
     this.userService.deleteUser(user.userId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('User deleted successfully', CommonMessage.Success);
-        this.getUsers();
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'users');
+        this.loadUsers();
       },
       error: () => {}
     });
@@ -167,6 +115,10 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region Filter Methods
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.showInactive
       ? this.allUsers
       : this.allUsers.filter(user => user.isActive);
@@ -189,18 +141,13 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.usersDisplay = filtered;
   }
 
-  toggleIncludeOwners(): void {
-    this.includeOwners = !this.includeOwners;
-    this.applyFilters();
-  }
-
   onIncludeOwnersChange(checked: boolean): void {
     this.includeOwners = checked;
     this.applyFilters();
   }
 
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
+  onInactiveChange(checked: boolean): void {
+    this.showInactive = checked;
     this.applyFilters();
   }
 
@@ -214,42 +161,60 @@ export class UserListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Data Load Methods
+  //#region Data Loading Methods
+  loadUsers(): void {
+    this.userService.getUsers().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users'); })).subscribe({
+      next: (users: UserResponse[]) => {
+        this.users = users || [];
+        this.rebuildUsersDisplay();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.users = [];
+        this.allUsers = [];
+        this.usersDisplay = [];
+      }
+    });
+  }
+
+  loadOrganizations(): void {
+    this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
+      next: (organizations: OrganizationResponse[]) => {
+        this.organizations = organizations || [];
+        this.rebuildUsersDisplay();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.organizations = [];
+        this.rebuildUsersDisplay();
+      }
+    });
+  }
+
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = (allOffices || []).filter(office => office.isActive);
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.removeLoadItem('offices');
+      this.officesSubscription = this.officeService.getAllOffices().subscribe({
+        next: allOffices => {
+          this.offices = (allOffices || []).filter(office => office.isActive);
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
 
-        if (this.offices.length === 1) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
+          this.showOfficeDropdown = this.offices.length !== 1;
+          this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        },
+        error: () => {
+          this.offices = [];
+          this.availableOffices = [];
           this.showOfficeDropdown = true;
-          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-          if (globalOfficeId !== null) {
-            this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-          }
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+          this.resolveOfficeScope(null);
         }
-
-        this.refreshDefaultOfficeDisplay();
-        this.applyFilters();
       });
     });
   }
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   private hasRole(role: UserGroups): boolean {
     const userGroups = this.authService.getUser()?.userGroups || [];
     if (!userGroups.length) {
@@ -287,6 +252,49 @@ export class UserListComponent implements OnInit, OnDestroy {
       ...user,
       defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId ?? null)
     }));
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.refreshDefaultOfficeDisplay();
+    this.applyFilters();
+  }
+
+  private rebuildUsersDisplay(): void {
+    const orgMap = new Map<string, string>();
+    this.organizations.forEach(org => {
+      orgMap.set(org.organizationId, org.name);
+    });
+
+    const groupLabels: { [key: string]: string } = {
+      'SuperAdmin': 'Super Admin',
+      'Admin': 'Admin',
+      'User': 'User',
+      'Unknown': 'Unknown'
+    };
+
+    this.allUsers = this.users.map<UserListDisplay>((user: UserResponse) => {
+      const userGroups = user.userGroups || [];
+      const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
+      return {
+        userId: user.userId,
+        fullName: user.firstName + ' ' + user.lastName,
+        email: user.email,
+        phone: this.formatterService.phoneNumber(user.phone || ''),
+        organizationName: orgMap.get(user.organizationId) || '',
+        officeAccess: (user.officeAccess || []).map(id => Number(id)).filter(id => !isNaN(id)),
+        startupPageDisplay: getStartupPage(user.startupPageId),
+        defaultOfficeId: user.defaultOfficeId ?? null,
+        defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId),
+        userGroups: userGroups,
+        userGroupsDisplay: userGroupsDisplay,
+        isActive: user.isActive
+      };
+    });
+
+    this.applyFilters();
   }
 
   ngOnDestroy(): void {

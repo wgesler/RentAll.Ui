@@ -47,13 +47,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   private navigationSubscription?: Subscription;
   private lastNavigationUrl = '';
   private destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   propertiesFiltered = false;
+  officeScopeResolved = false;
 
   reservationsDisplayedColumns: ColumnSet = {
     'office': { displayAs: 'Office', maxWidth: '15ch' },
@@ -68,7 +69,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -92,12 +93,17 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertySelectionFilterService.propertiesFiltered$
       .pipe(takeUntil(this.destroy$))
       .subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.dateRange$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((range) => {
+        this.startDate = range.startDate;
+        this.endDate = range.endDate;
+        this.applyFilters();
+      });
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.officeIdChange.emit(officeId ?? null);
-        this.applyFilters();
+        this.resolveOfficeScope(officeId, true);
       }
     });
 
@@ -128,16 +134,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         if (officeIdParam) {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-              this.applyFilters();
-            }
+            this.resolveOfficeScope(parsedOfficeId, true);
           }
         } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.applyFilters();
-          }
+          this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         }
       });
     });
@@ -150,12 +150,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          if (this.selectedOffice) {
-            this.applyFilters();
-          } else {
-            this.applyFilters();
-          }
+          this.resolveOfficeScope(newOfficeId, false);
         }
       }
     }
@@ -326,23 +321,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
           this.showOfficeDropdown = true;
         }
         
-        const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-        if (this.officeId !== null && this.officeId !== undefined) {
-          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-          if (matchingOffice !== this.selectedOffice) {
-            this.selectedOffice = matchingOffice;
-            this.applyFilters();
-          }
-        } else if (globalOfficeId !== null) {
-          const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-          if (globalOffice && globalOffice !== this.selectedOffice) {
-            this.selectedOffice = globalOffice;
-            this.officeIdChange.emit(globalOffice.officeId);
-            this.applyFilters();
-          }
-        } else if (this.selectedOffice && this.offices.length === 1) {
-          this.applyFilters();
-        }
+        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         
         this.getReservations();
       });
@@ -356,21 +335,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  clearDateFilters(): void {
-    this.startDate = null;
-    this.endDate = null;
-    this.applyFilters();
-  }
-
-  onStartDateChange(): void {
-    this.applyFilters();
-  }
-
-  onEndDateChange(): void {
-    this.applyFilters();
-  }
-
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allReservations;
 
     // Filter by active/inactive
@@ -459,6 +428,16 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       queryParamsHandling: 'merge'
     });
     
+    this.applyFilters();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+    }
     this.applyFilters();
   }
   //#endregion

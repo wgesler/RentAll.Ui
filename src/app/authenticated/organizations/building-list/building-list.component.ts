@@ -40,6 +40,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  officeScopeResolved: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
@@ -49,7 +50,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'buildings']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'buildings', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -69,8 +70,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.applyFilters();
+        this.resolveOfficeScope(officeId);
       }
     });
   }
@@ -90,7 +90,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
         } else {
           this.showOfficeDropdown = true;
         }
-        this.applyFilters();
+        this.resolveOfficeScope(this.selectedOffice?.officeId ?? null);
       });
     });
   }
@@ -144,6 +144,10 @@ export class BuildingListComponent implements OnInit, OnDestroy {
 
   //#region Filter methods
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allBuildings;
     if (this.selectedOffice) {
       filtered = filtered.filter(building => Number(building.officeId) === this.selectedOffice!.officeId);
@@ -167,6 +171,13 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
   }
 
   ngOnDestroy(): void {

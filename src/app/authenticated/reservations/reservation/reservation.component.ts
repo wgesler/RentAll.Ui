@@ -103,7 +103,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
@@ -157,7 +157,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
+        this.resolveOfficeScope(officeId);
         if (this.selectedOffice) {
           this.loadCostCodes();
         }
@@ -188,7 +188,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         if (queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
           const officeId = parseInt(queryParams['officeId'], 10);
           if (!isNaN(officeId)) {
-            this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+            this.resolveOfficeScope(officeId);
             if (this.selectedOffice) {
               this.loadCostCodes();
               this.filterPropertiesByOffice();
@@ -197,7 +197,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         } else if (this.isAddMode && this.offices.length > 0) {
           const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId != null) {
-            this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
+            this.resolveOfficeScope(globalOfficeId);
             if (this.selectedOffice) {
               this.loadCostCodes();
               this.filterPropertiesByOffice();
@@ -221,6 +221,10 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.getReservation();
       }
     });
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
   /** Pre-fill form from a copied reservation: empty property code, arrival = today, same stay length. */
@@ -1457,6 +1461,35 @@ export class ReservationComponent implements OnInit, OnDestroy {
         propertyCode: ''
       }, { emitEvent: false });
     }
+  }
+
+  get sharedOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? this.reservation?.officeId ?? null;
+  }
+
+  get sharedPropertyId(): string | null {
+    const formPropertyId = this.form?.get('propertyId')?.value;
+    if (formPropertyId) {
+      return String(formPropertyId);
+    }
+    return this.selectedProperty?.propertyId ?? this.reservation?.propertyId ?? null;
+  }
+
+  get sharedPropertyCode(): string | null {
+    const formCode = this.form?.get('propertyCode')?.value;
+    if (typeof formCode === 'string' && formCode.trim().length > 0) {
+      return formCode.trim();
+    }
+    return this.selectedProperty?.propertyCode
+      ?? this.properties.find(p => p.propertyId === this.reservation?.propertyId)?.propertyCode
+      ?? null;
+  }
+
+  get sharedReservationId(): string | null {
+    if (this.isAddMode) {
+      return null;
+    }
+    return this.reservationId ?? this.reservation?.reservationId ?? null;
   }
   //#endregion
 

@@ -107,6 +107,10 @@
   --mat-expansion-header-indicator-color: #1a1a1a;
   --mat-expansion-header-text-weight: 600;
   --mat-expansion-header-text-size: 16px;
+
+  .form-standard-grid {
+    row-gap: 16px !important;
+  }
 }
 
 :host ::ng-deep .reservation-accordion-wrap mat-expansion-panel {
@@ -249,6 +253,40 @@
   min-width: 250px;
   width: 100%;
   max-width: 300px;
+}
+
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
+}
+
+/* Edit Reservation title-bar fields: slightly taller to match Property page visuals. */
+:host ::ng-deep .header-title .titlebar-field-office.mat-mdc-form-field,
+:host ::ng-deep .header-title .titlebar-field-property-code.mat-mdc-form-field,
+:host ::ng-deep .header-title .titlebar-field-reservation.mat-mdc-form-field {
+  .mat-mdc-text-field-wrapper {
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+
+  .mat-mdc-form-field-flex,
+  .mat-mdc-form-field-infix,
+  .mat-mdc-select-trigger,
+  input.mat-mdc-input-element {
+    height: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+}
+
+.titlebar-reservation-slot {
+  width: 400px;
+  min-width: 400px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 ::ng-deep mat-form-field {

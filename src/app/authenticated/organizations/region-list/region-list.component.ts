@@ -39,6 +39,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  officeScopeResolved: boolean = false;
 
   regionsDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
@@ -48,7 +49,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   globalOfficeSubscription?: Subscription;
 
@@ -69,8 +70,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.applyFilters();
+        this.resolveOfficeScope(officeId);
       }
     });
   }
@@ -90,7 +90,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
         } else {
           this.showOfficeDropdown = true;
         }
-        this.applyFilters();
+        this.resolveOfficeScope(this.selectedOffice?.officeId ?? null);
       });
     });
   }
@@ -150,6 +150,10 @@ export class RegionListComponent implements OnInit, OnDestroy {
 
   //#region Filtering Methods
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allRegions;
     if (this.selectedOffice) {
       filtered = filtered.filter(region => region.officeId === this.selectedOffice!.officeId);
@@ -173,6 +177,13 @@ export class RegionListComponent implements OnInit, OnDestroy {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
   }
 
   ngOnDestroy(): void {

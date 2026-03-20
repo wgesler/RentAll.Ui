@@ -66,11 +66,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   isSuperUser: boolean = false;
+  officeScopeResolved: boolean = false;
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -134,7 +135,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   get useRouteQueryParams(): boolean {
     // When embedded in parent tabs, parent inputs are the source of truth.
@@ -169,45 +170,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOffice = officeId != null ? this.offices.find(o => o.officeId === officeId) || null : null;
-        this.officeIdChange.emit(officeId ?? null);
-        this.filterCompanyContacts();
-        this.filterReservations();
-        if (this.selectedOffice) {
-          this.filterCostCodes();
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-          this.getInvoices();
-        } else {
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-          this.loadAllInvoices();
-          this.selectedReservation = null;
-          this.selectedCompanyContact = null;
-          this.applyFilters();
-        }
+        this.resolveOfficeScope(officeId, true);
       }
     });
     this.loadCompanyContacts();
     this.loadCostCodes();
-    this.loadAllInvoices();
     
     // Wait for offices to load before processing query params
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-       if (this.officeId !== null && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        if (this.selectedOffice) {
-          this.filterCostCodes();
-          this.filterReservations();
-          // Load invoices for selected office
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-          this.getInvoices();
-          
-          // Apply initial reservationId from @Input if provided
-          if (this.reservationId !== null && this.reservations.length > 0) {
-            this.selectedReservation = this.reservations.find(r => 
-              r.reservationId === this.reservationId && r.officeId === this.selectedOffice?.officeId
-            ) || null;
-          }
-        }
+      if (this.officeId !== null && this.offices.length > 0) {
+        this.resolveOfficeScope(this.officeId, false);
       }
       
       if (!this.useRouteQueryParams) {
@@ -222,36 +194,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (officeIdParam) {
           const parsedOfficeId = parseInt(officeIdParam, 10);
           if (parsedOfficeId) {
-            // Find office from already loaded offices
-            this.selectedOffice = this.offices.find(o => o.officeId === parsedOfficeId) || null;
-            if (this.selectedOffice) {
-              // Emit office change to parent
-              this.officeIdChange.emit(this.selectedOffice.officeId);
-              this.filterCostCodes();
-              this.filterCompanyContacts();
-              this.filterReservations();
-              
-              // Apply companyId (contactId) from query params if available
-              if (companyIdParam && this.companyContacts.length > 0 && this.selectedOffice) {
-                const matching = this.companyContacts.find(c =>
-                  c.contactId === companyIdParam && c.officeId === this.selectedOffice?.officeId
-                );
-                if (matching) {
-                  this.selectedCompanyContact = matching;
-                }
-              }
-              
-              // Load invoices for selected office
-              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-              this.getInvoices();
-            }
+            this.resolveOfficeScope(parsedOfficeId, true);
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.selectedOffice = null;
-            // Load all invoices when "All Offices" is selected
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.loadAllInvoices();
+            const defaultOfficeId = this.source === 'accounting' ? null : this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            this.resolveOfficeScope(defaultOfficeId, true);
           }
         }
         
@@ -277,21 +225,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       // Update if the value changed (including initial load when previousOfficeId is undefined)
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
-          this.selectedOffice = newOfficeId ? this.offices.find(o => o.officeId === newOfficeId) || null : null;
-          if (this.selectedOffice) {
-            this.filterCostCodes();
-            this.filterCompanyContacts();
-            this.filterReservations();
-            // Load invoices for selected office
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.getInvoices();
-          } else {
-            this.selectedReservation = null;
-            this.selectedCompanyContact = null;
-            // Load all invoices when "All Offices" is selected
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.loadAllInvoices();
-          }
+          this.resolveOfficeScope(newOfficeId, false);
         } else {
           // Offices not loaded yet, wait for them to load in loadOffices()
           // The loadOffices() method will handle setting selectedOffice from officeId input
@@ -570,6 +504,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = this.allInvoices;
     if (!this.showInactive) {
       filtered = filtered.filter(invoice => invoice.isActive);
@@ -832,6 +770,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Avoid invoice requests with an invalid/cleared auth context.
         if (!this.offices.length) {
           this.selectedOffice = null;
+          this.officeScopeResolved = true;
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
           this.selectedReservation = null;
           this.selectedCompanyContact = null;
           this.availableReservations = [];
@@ -841,65 +781,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           return;
         }
         
-        // Preserve single-office behavior; otherwise default from global office context.
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'accounting') {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-          if (this.officeId === null || this.officeId === undefined) {
-            const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-            if (globalOfficeId !== null) {
-              this.selectedOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-            }
-          }
-        }
-        
-        // Set selectedOffice from input
-        // Always check current officeId input value to sync with other tabs
-        let requestedInvoices = false;
-        if (this.officeId !== null && this.officeId !== undefined) {
-          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-          if (matchingOffice !== this.selectedOffice) {
-            this.selectedOffice = matchingOffice;
-            if (this.selectedOffice) {
-              this.filterCostCodes();
-              this.filterCompanyContacts();
-              this.filterReservations();
-              // Load invoices for selected office
-              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-              this.getInvoices();
-              requestedInvoices = true;
-            } else {
-              this.selectedReservation = null;
-              this.selectedCompanyContact = null;
-              // Load all invoices when "All Offices" is selected
-              this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-              this.loadAllInvoices();
-              requestedInvoices = true;
-            }
-          }
-        } else if (this.selectedOffice && this.offices.length === 1 && this.source !== 'accounting') {
-          // If auto-selected, apply filters
-          this.filterCostCodes();
-          this.filterCompanyContacts();
-          this.filterReservations();
-          this.applyFilters();
-        }
-        
-        // Request invoices once per office update.
-        if (!requestedInvoices) {
-          if (this.selectedOffice) {
-            this.filterCostCodes();
-            this.filterCompanyContacts();
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.getInvoices();
-          } else {
-            // Load all invoices when no office is selected
-            this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-            this.loadAllInvoices();
-          }
-        }
+        this.showOfficeDropdown = !(this.offices.length === 1 && this.source !== 'accounting');
+        const defaultOfficeId = this.officeId
+          ?? (this.source === 'accounting'
+            ? null
+            : (this.offices.length === 1 ? this.offices[0].officeId : this.globalOfficeSelectionService.getSelectedOfficeIdValue()));
+        this.resolveOfficeScope(defaultOfficeId, this.officeId === null || this.officeId === undefined);
       });
     });
   }
@@ -983,29 +870,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Form Response Methods
   onOfficeChange(): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    // Emit office change to parent
-    if (this.selectedOffice) {
-      this.officeIdChange.emit(this.selectedOffice.officeId);
-    } else {
-      this.officeIdChange.emit(null);
-    }
-    
-    this.filterCompanyContacts();
-    this.filterReservations();
-    
-    // Load invoices - show all if no office selected, or filter by office if selected
-    if (this.selectedOffice) {
-      this.filterCostCodes();
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-      this.getInvoices();
-    } else {
-      // Load all invoices when "All Offices" is selected
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-      this.loadAllInvoices();
-      this.selectedReservation = null;
-      this.selectedCompanyContact = null;
-      this.applyFilters();
-    }
+    this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
   }
 
   onCompanyChange(): void {
@@ -1639,6 +1504,28 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+    }
+    this.filterCompanyContacts();
+    this.filterReservations();
+    if (this.selectedOffice) {
+      this.filterCostCodes();
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+      this.getInvoices();
+    } else {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+      this.loadAllInvoices();
+      this.selectedReservation = null;
+      this.selectedCompanyContact = null;
+      this.applyFilters();
+    }
+  }
+
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
     this.costCodesSubscription?.unsubscribe();

@@ -6,19 +6,63 @@
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Reservation' : 'Edit Reservation' }}
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add Reservation' : 'Edit Reservation' }}
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2 items-center">
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              @if (offices.length > 1 || (offices.length === 1 && isAddMode)) {
+                <mat-form-field appearance="outline" class="titlebar-field-office">
+                  <mat-label>Office</mat-label>
+                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [required]="isAddMode" [disabled]="true">
+                    <mat-option [value]="null">Select Office</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+              <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
+                @if (form.get('propertyCode')?.value || selectedProperty?.propertyCode) {
+                  <mat-label>Property Code</mat-label>
+                }
+                <input matInput [value]="form.get('propertyCode')?.value || selectedProperty?.propertyCode || 'Code'" readonly class="readonly-field">
+              </mat-form-field>
+              @if (!isAddMode) {
+                <div class="titlebar-reservation-slot">
+                  <mat-form-field appearance="outline" class="flex-shrink-0 header-title-reservation titlebar-field-reservation">
+                    <mat-label>Reservation</mat-label>
+                    <input matInput [value]="form.get('reservationCode')?.value || reservation?.reservationCode || ''" readonly class="readonly-field">
+                  </mat-form-field>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <div class="flex items-center gap-3 ml-[10px]">
+          <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0">
+            Is Active
+          </mat-checkbox>
+          <mat-checkbox formControlName="allowExtensions" color="primary" class="flex-shrink-0">
+            Allow Extensions
+          </mat-checkbox>
+          <div class="uniform-gap form-titlebar-actions-wrap">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
+            class="text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReservation()"
+            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+          </div>
         </div>
       </div>
         
@@ -27,35 +71,8 @@
           <mat-tab label="Reservation">
             @if (form) {
             <div class="mat">
-              @if (offices.length > 1 || (offices.length === 1 && isAddMode)) {
-                <div class="flex gap-3 items-center mt-3 px-4">
-                  <mat-form-field appearance="outline" class="office-dropdown">
-                    <mat-label>Office</mat-label>
-                    <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [required]="isAddMode" [disabled]="true">
-                      <mat-option [value]="null">Offices</mat-option>
-                      @for (office of offices; track office.officeId) {
-                        <mat-option [value]="office">{{ office.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-              }
             </div>
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
-              <mat-checkbox formControlName="isActive" color="primary">
-                Is Active
-              </mat-checkbox>
-              <mat-checkbox formControlName="allowExtensions" color="primary">
-                Allow Extensions
-              </mat-checkbox>
-              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReservation()"
-                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
-            </div>
-            
             <div class="reservation-accordion-wrap">
             <mat-accordion multi>
               <!-- Reservation Section -->
@@ -63,18 +80,13 @@
                 <mat-expansion-panel-header>
                   <mat-panel-title>Reservation</mat-panel-title>
                 </mat-expansion-panel-header>
-                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                <div class="grid grid-cols-4 form-standard-grid">
               @if (!isAddMode) {
-                <!-- Edit Mode: Line 1: Reservation Code (1/4), Property (1/4 when editable) or Property Code (1/4 when read-only), Property Address, Credit Due (1/4 if > 0) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Code</mat-label>
-                  <input matInput formControlName="reservationCode" readonly class="readonly-field">
-                </mat-form-field>
-
+                <!-- Edit Mode: Line 1: Property (when editable), Property Address, Credit Due (if > 0) -->
                 @if (canEditProperty) {
                   <!-- Reservation has not started: property is editable -->
                   <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Property</mat-label>
+                    <mat-label>Property Code</mat-label>
                     <mat-select formControlName="propertyId" required>
                       <mat-option value="">Select Property</mat-option>
                       @for (property of availableProperties; track property.propertyId) {
@@ -85,15 +97,9 @@
                       <mat-error>Property is required</mat-error>
                     }
                   </mat-form-field>
-                } @else {
-                  <!-- Reservation has started: Property Code read-only -->
-                  <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Property Code</mat-label>
-                    <input matInput formControlName="propertyCode" readonly class="readonly-field">
-                  </mat-form-field>
                 }
 
-                <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
+                <mat-form-field appearance="outline" [ngClass]="canEditProperty ? ((reservation?.creditDue > 0) ? 'col-span-2' : 'col-span-3') : ((reservation?.creditDue > 0) ? 'col-span-3' : 'col-span-4')">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
@@ -109,7 +115,7 @@
               @if (isAddMode) {
                 <!-- Add Mode: Line 1: Property (1/4), Property Address (2/4 or 3/4), Credit Due (1/4 if > 0) -->
                 <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Property</mat-label>
+                  <mat-label>Property Code</mat-label>
                   <mat-select formControlName="propertyId" required>
                     <mat-option value="">Select Property</mat-option>
                     @for (property of availableProperties; track property.propertyId) {
@@ -339,7 +345,7 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
                 <!-- Line 6: Billing Type, Billing Rate, DepositType, Deposit -->
-                <div class="flex gap-x-1.5 mb-1">
+                <div class="flex form-standard-row">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
@@ -385,7 +391,7 @@
             </div>
 
                 <!-- Line 7: Billing Method, Departure Fee, Taxes -->
-                <div class="flex gap-x-1.5 mb-1">
+                <div class="flex form-standard-row">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Client Billing Method</mat-label>
                 <mat-select formControlName="billingModelId" required>
@@ -422,7 +428,7 @@
             </div>
 
             <!-- Line 7: All Pet fields (Pets, Pet Fee, Number of Pets, Pet(s) Description) -->
-            <div class="flex gap-x-1.5 mb-1">
+            <div class="flex form-standard-row">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Pets</mat-label>
                 <mat-select formControlName="pets" required>
@@ -465,7 +471,7 @@
             </div>
 
             <!-- Line 8: All Maid Service fields and Maid Start Date (MaidService, Maid Fee, Frequency, Maid Start Date) -->
-            <div class="flex gap-x-1.5 mb-1">
+            <div class="flex form-standard-row">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>MaidService</mat-label>
                 <mat-select formControlName="maidService" required>
@@ -600,7 +606,7 @@
             </div>
 
             <!-- Notes Section -->
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 mt-4">
+            <div class="grid grid-cols-4 form-standard-grid mt-4">
               <mat-form-field appearance="outline" class="col-span-4">
                 <mat-label>Notes</mat-label>
                 <textarea matInput formControlName="notes" rows="3"></textarea>
@@ -619,9 +625,9 @@
           
           <mat-tab label="Lease">
             <app-lease 
-              [reservationId]="isAddMode ? '' : reservationId" 
-              [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || ''"
-              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
+              [reservationId]="sharedReservationId ?? ''" 
+              [propertyId]="sharedPropertyId ?? ''"
+              [officeId]="sharedOfficeId"
               [lockOfficeSelection]="true"
               (officeIdChange)="onLeaseOfficeIdChange($event)">
             </app-lease>
@@ -629,8 +635,8 @@
 
           <mat-tab label="Invoices">
             <app-invoice-list 
-              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
-              [reservationId]="isAddMode ? null : reservationId"
+              [officeId]="sharedOfficeId"
+              [reservationId]="sharedReservationId"
               [source]="'reservation'">
             </app-invoice-list>
           </mat-tab>
@@ -638,10 +644,10 @@
           <mat-tab label="Emails">
             <app-email-list
               #reservationEmailList
-              [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null"
-              [propertyCode]="form?.get('propertyCode')?.value || selectedProperty?.propertyCode || null"
-              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
-              [reservationId]="isAddMode ? null : reservationId"
+              [propertyId]="sharedPropertyId"
+              [propertyCode]="sharedPropertyCode"
+              [officeId]="sharedOfficeId"
+              [reservationId]="sharedReservationId"
               [emailTypeId]="EmailType.ReservationLease"
               [source]="'reservation'"
               [hideHeader]="true">
@@ -651,11 +657,11 @@
           <mat-tab label="Documents">
             <app-document-list 
               #reservationDocumentList
-              [propertyId]="reservation?.propertyId || form?.get('propertyId')?.value || null" 
-              [propertyCode]="form?.get('propertyCode')?.value || selectedProperty?.propertyCode || null"
+              [propertyId]="sharedPropertyId" 
+              [propertyCode]="sharedPropertyCode"
               [documentTypeId]="DocumentType.ReservationLease"
-              [officeId]="selectedOffice?.officeId || reservation?.officeId || selectedProperty?.officeId || null"
-              [reservationId]="isAddMode ? null : reservationId"
+              [officeId]="sharedOfficeId"
+              [reservationId]="sharedReservationId"
               [source]="'reservation'"
               [hideHeader]="true">
             </app-document-list>

@@ -91,6 +91,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   //#region Property-Selection
   ngOnInit(): void {
     this.buildForm();
+    this.propertySelectionFilterService.setDateRange(null, null);
     this.initializePropertyStatuses();
     this.loadStates();
     this.loadDropDownLookups();
@@ -174,6 +175,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       next: (response: PropertySelectionResponse) => {
         this.preloadedSelection = response;
         this.propertySelectionFilterService.setFromResponse(response);
+        this.propertySelectionFilterService.setDateRange(null, null);
         this.toastr.success('Selection saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.goBack();
       },
@@ -423,6 +425,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       next: (response: PropertySelectionResponse) => {
         this.preloadedSelection = response;
         this.propertySelectionFilterService.setFromResponse(response);
+        this.propertySelectionFilterService.setDateRange(null, null);
         this.toastr.success('Property filters cleared.', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
       },
       error: () => {

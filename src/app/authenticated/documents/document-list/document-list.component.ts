@@ -61,8 +61,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
   officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
+  officeScopeResolved: boolean = false;
   
   selectedReservationId: string | null = null;
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -135,26 +136,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'officeScope');
     this.loadOffices();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.selectedOfficeId = officeId;
-        this.officeIdChange.emit(officeId);
-        if (this.source === 'invoice') {
-          this.filterCompanies();
-        }
-        if (this.source === 'reservation' || this.source === 'invoice') {
-          this.filterReservations();
-        } else if (this.source === 'documents') {
-          this.filterReservations();
-          this.selectedReservationId = null;
-        } else if (this.source === 'property') {
-          this.filterReservations();
-          this.selectedReservationId = null;
-          this.reservationIdChange.emit(this.selectedReservationId);
-        }
-        this.applyFilters();
+        this.resolveOfficeScope(officeId, true);
       }
     });
 
@@ -485,32 +472,25 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.offices = allOffices || [];
           
           if (this.officeId !== null && this.officeId !== undefined) {
-            this.selectedOfficeId = this.officeId;
+            this.resolveOfficeScope(this.officeId, false);
           } else {
-            this.selectedOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
           }
 
           if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
-            this.selectedOfficeId = null;
+            this.resolveOfficeScope(null, true);
           }
           
           if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'invoice') {
-            this.selectedOfficeId = this.offices[0].officeId;
+            this.resolveOfficeScope(this.offices[0].officeId, true);
             this.showOfficeDropdown = false;
           } else {
             this.showOfficeDropdown = true;
           }
-          
-          if (this.officeId !== null && this.officeId !== undefined && this.offices.length > 0) {
-            const matchingOffice = this.offices.find(o => o.officeId === this.officeId);
-            if (matchingOffice) {
-              this.selectedOfficeId = matchingOffice.officeId;
-              this.applyFilters();
-            }
-          }
         },
         error: () => {
           this.offices = [];
+          this.resolveOfficeScope(null, false);
         }
       });
       
@@ -527,14 +507,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           if (parsedOfficeId) {
             const matchingOffice = this.offices.find(o => o.officeId === parsedOfficeId);
             if (matchingOffice) {
-              this.selectedOfficeId = matchingOffice.officeId;
-              this.officeIdChange.emit(this.selectedOfficeId);
-              this.applyFilters();
+              this.resolveOfficeScope(matchingOffice.officeId, true);
             }
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.applyFilters();
+            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
           }
         }
       });
@@ -759,6 +737,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     let filtered = [...this.allDocuments];
     
     if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
@@ -839,6 +821,29 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.globalOfficeSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    if (this.source === 'invoice') {
+      this.filterCompanies();
+    }
+    if (this.source === 'reservation' || this.source === 'invoice') {
+      this.filterReservations();
+    } else if (this.source === 'documents') {
+      this.filterReservations();
+      this.selectedReservationId = null;
+    } else if (this.source === 'property') {
+      this.filterReservations();
+      this.selectedReservationId = null;
+      this.reservationIdChange.emit(this.selectedReservationId);
+    }
+    this.applyFilters();
   }
   //#endregion
 }

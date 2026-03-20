@@ -49,7 +49,7 @@
             <mat-form-field appearance="outline" class="flex-shrink-0 header-title-reservation titlebar-field-reservation">
               <mat-label>Reservation</mat-label>
               <mat-select formControlName="reservationId" (selectionChange)="onReservationChange()" [compareWith]="compareReservationId" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Select Reservation</mat-option>
+                <mat-option [value]="null">{{ selectedTabIndex >= 3 ? 'All Reservations' : 'Select Reservation' }}</mat-option>
                 @for (reservation of availableReservations; track reservation.value.reservationId) {
                   <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
                 }

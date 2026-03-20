@@ -44,41 +44,45 @@
 
 @if (!(isLoading$ | async)) {
   <div class="mat list-layout-tabbed">
-      @if (!hideFilters) {
-      <!-- Office, Company, and Reservation dropdowns row - First Row -->
-      <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-4 px-4">
-        @if (showOfficeDropdown) {
-          <mat-form-field appearance="outline" class="office-dropdown">
-            <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-            <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'" placeholder="All Offices">
-              <mat-option [value]="null">All Offices</mat-option>
-              @for (office of offices; track office.officeId) {
-                <mat-option [value]="office">{{ office.name }}</mat-option>
+      @if (!showPaymentForm && source === null) {
+        <div class="list-top-controls list-top-controls--tabbed flex justify-between items-center gap-3 mt-3 px-4">
+          @if (!hideFilters) {
+            <div class="header-title form-titlebar-fields-wrap">
+              @if (showOfficeDropdown) {
+                <mat-form-field appearance="outline" class="titlebar-field-office">
+                  <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
+                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'" placeholder="All Offices">
+                    <mat-option [value]="null">All Offices</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
               }
-            </mat-select>
-          </mat-form-field>
-        }
-        @if (source === 'accounting') {
-          <mat-form-field appearance="outline" class="company-dropdown">
-            <mat-label>{{ selectedCompanyContact ? 'Company' : 'All Companies' }}</mat-label>
-            <mat-select [(ngModel)]="selectedCompanyContact" (selectionChange)="onCompanyChange()">
-              <mat-option [value]="null">All Companies</mat-option>
-              @for (company of availableCompanyContacts; track company.value.contactId) {
-                <mat-option [value]="company.value">{{ company.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-        }
-        <mat-form-field appearance="outline" class="reservation-dropdown">
-          <mat-label>{{ selectedReservation ? 'Reservation' : 'All Reservations' }}</mat-label>
-          <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [compareWith]="compareReservationById">
-            <mat-option [value]="null">All Reservations</mat-option>
-            @for (reservation of availableReservations; track reservation.value.reservationId) {
-              <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      </div>
+              <mat-form-field appearance="outline" class="field-width-300">
+                <mat-label>Reservation</mat-label>
+                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [compareWith]="compareReservationById" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">Select Reservation</mat-option>
+                  @for (reservation of availableReservations; track reservation.value.reservationId) {
+                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
+          <div class="form-titlebar-actions-wrap">
+            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+              Inactive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompanyContact && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
+              Apply Payment
+            </button>
+            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+              <mat-icon class="text-base">add</mat-icon>
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
       }
       @if (showPaymentForm) {
         <!-- Payment form fields - Second Row (right justified) -->
@@ -137,20 +141,6 @@
       }
       <!-- Filter and data table below -->
       <div class="tableDiv table-filter-row-actions-wrap">
-        @if (!showPaymentForm) {
-          <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex gap-2 px-4 justify-end">
-            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-              Inactive
-            </mat-slide-toggle>
-            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompanyContact && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
-              Apply Payment
-            </button>
-            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">add</mat-icon>
-              <span>Add</span>
-            </button>
-          </div>
-        }
         <app-data-table
           [data]="invoicesDisplay"
           [columns]="invoicesDisplayedColumns"

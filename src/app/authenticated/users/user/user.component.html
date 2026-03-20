@@ -39,7 +39,7 @@
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveUser()" class="info-form mb-8 pt-5">
             @if (isPrivilegedOfficeEditor || isAddMode) {
-              <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+              <div class="mb-4 flex justify-end active-checkbox-row">
                 <mat-checkbox formControlName="isActive" color="primary">
                   Is Active
                 </mat-checkbox>
@@ -177,7 +177,7 @@
                         <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
                           Choose Image
                         </button>
-                        <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" style="width: 100%;">
+                        <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" class="btn-full-width">
                           Delete Image
                         </button>
                       </div>
@@ -185,10 +185,10 @@
                   } @else if (profilePath && !fileDetails) {
                     <img class="object-contain max-w-xs max-h-44" id="profile-image" alt="Profile Picture" title="Profile Picture" [src]="profilePath" />
                     <div class="flex flex-col gap-2 ml-4">
-                      <button class="myfilebrowser" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()" style="width: 100%;">
+                      <button class="myfilebrowser btn-full-width" type="button" id="file-button" color="primary" mat-raised-button (click)="UploadFileInput.click()">
                         Choose Image
                       </button>
-                      <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" style="width: 100%;">
+                      <button type="button" color="accent" mat-raised-button (click)="removeProfilePicture()" class="btn-full-width">
                         Delete Image
                       </button>
                     </div>
@@ -197,7 +197,7 @@
                       Choose Image
                     </button>
                   }
-                  <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="uploadProfilePicture($event)" style="display: none;" />
+                  <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="uploadProfilePicture($event)" class="file-input-hidden" />
                 </div>
                 @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
                   <div class="image-file-error mb-4">

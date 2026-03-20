@@ -26,6 +26,12 @@ body {
     background-color: #cbd5e1 !important;
 }
 
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
+}
+
  .mat-expansion-panel-header-title {
     font-weight: 600 !important;
     font-size: 16px !important;
