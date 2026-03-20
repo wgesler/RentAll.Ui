@@ -1,10 +1,10 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subscription, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, finalize, map, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
@@ -37,6 +37,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   isLoadingProperties: boolean = false;
   isLoadingReservations: boolean = false;
   todayDate: string = '';
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   ownerPropertiesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
@@ -62,14 +64,18 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private reservationService: ReservationService,
     private mappingService: MappingService,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    private utilityService: UtilityService
   ) {}
 
   //#region Owner Dashboard
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.setTodayDate();
-    this.loadUserProfilePicture();
+    if (!this.user?.userId) {
+      return;
+    }
+    this.loadCurrentUser(this.user.userId);
     this.loadReservations();
     this.loadProperties();
   }
@@ -89,20 +95,11 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   }
   //#endregion
   
-  //#region Data Load Methods
-  loadUserProfilePicture(): void {
-    if (!this.user?.userId) {
-      return;
-    }
-
-    this.userSubscription = this.userService.getUserByGuid(this.user.userId).pipe(take(1)).subscribe({
+  //#region Data Loading Methods
+  loadCurrentUser(userId: string): void {
+    this.userSubscription = this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'); })).subscribe({
       next: (userResponse: UserResponse) => {
-        if (userResponse.fileDetails?.file) {
-          const contentType = userResponse.fileDetails.contentType || 'image/png';
-          this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
-        } else {
-          this.profilePictureUrl = userResponse.profilePath || null;
-        }
+        this.applyUserProfilePicture(userResponse);
       },
       error: () => {
         this.profilePictureUrl = null;
@@ -110,8 +107,18 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     });
   }
 
+  applyUserProfilePicture(userResponse: UserResponse): void {
+    if (userResponse.fileDetails?.file) {
+      const contentType = userResponse.fileDetails.contentType || 'image/png';
+      this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
+    } else {
+      this.profilePictureUrl = userResponse.profilePath || null;
+    }
+  }
+
   loadProperties(): void {
-    if (!this.user?.userId) {
+    const userId = this.user?.userId;
+    if (!userId) {
       this.allProperties = [];
       this.ownerPropertyReservations = [];
       this.rentedCount = 0;
@@ -122,13 +129,13 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     }
 
     this.isLoadingProperties = true;
-    this.propertyService.getPropertiesByOwner(this.user.userId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertiesByOwner(userId).pipe(take(1)).subscribe({
       next: (response: PropertyListResponse[]) => {
         this.allProperties = (response || []).filter(p => p.isActive);
         this.refreshOwnerReservationData();
         this.isLoadingProperties = false;
       },
-      error: (_err: HttpErrorResponse) => {
+      error: () => {
         this.allProperties = [];
         this.ownerPropertyReservations = [];
         this.rentedCount = 0;
@@ -148,7 +155,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.refreshOwnerReservationData();
         this.isLoadingReservations = false;
       },
-      error: (_err: HttpErrorResponse) => {
+      error: () => {
         this.allReservations = [];
         this.ownerPropertyReservations = [];
         this.rentedCount = 0;
@@ -198,7 +205,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Untility Methods
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
   }

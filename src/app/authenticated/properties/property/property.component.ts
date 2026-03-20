@@ -41,7 +41,6 @@ import { PropertyInformationComponent } from '../property-information/property-i
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
-import { UserGroups } from '../../users/models/user-enums';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
 @Component({
@@ -147,10 +146,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Property
   ngOnInit(): void {
-    const user = this.authService.getUser();
-    this.isAdmin =
-      this.utilityService.hasRole(user?.userGroups, UserGroups.Admin) ||
-      this.utilityService.hasRole(user?.userGroups, UserGroups.SuperAdmin);
+    this.isAdmin = this.authService.isAdmin();
 
     this.loadStates();
     this.loadContacts();

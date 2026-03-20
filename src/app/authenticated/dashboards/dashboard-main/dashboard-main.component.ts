@@ -1,12 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subscription, forkJoin, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
@@ -16,7 +16,6 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserResponse } from '../../users/models/user.model';
-import { UserGroups } from '../../users/models/user-enums';
 import { UserService } from '../../users/services/user.service';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
@@ -46,14 +45,14 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   user: JwtUser | null = null;
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
+  private usersSubscription?: Subscription;
+  private agentsSubscription?: Subscription;
 
-  // Reservation data
   allReservations: ReservationListDisplay[] = [];
   upcomingArrivals: ReservationListDisplay[] = [];
   upcomingDepartures: ReservationListDisplay[] = [];
   isLoadingReservations: boolean = false;
   
-  // Today/Tomorrow data
   todayArrivals: ReservationListDisplay[] = [];
   todayDepartures: ReservationListDisplay[] = [];
   tomorrowArrivals: ReservationListDisplay[] = [];
@@ -62,23 +61,22 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   currentUserAgentId: string | null = null;
   currentUserAgentCode: string | null = null;
   currentUserCommissionRate: number = 0;
-  isAdminUser: boolean = false;
+  isAdmin: boolean = false;
+  adminUsers: UserResponse[] = [];
+  adminAgents: AgentResponse[] = [];
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   adminCommissionRatesByAgentCode = new Map<string, number>();
   showMonthlyCommissionAmount: boolean = false;
   monthlyCommissions: MonthlyCommissionDisplay[] = [];
 
-  // Property data
   allProperties: PropertyListResponse[] = [];
   rentedCount: number = 0;
   vacantCount: number = 0;
   isLoadingProperties: boolean = false;
   propertiesByVacancy: PropertyVacancyDisplay[] = [];
 
-  // Accordion states
-  arrivalsExpanded: boolean = true;
-  departuresExpanded: boolean = true;
-  monthlyCommissionsExpanded: boolean = true;
-  propertiesExpanded: boolean = true;
+  expandedSections = { arrivals: true, departures: true, monthlyCommissions: true, properties: true };
 
   reservationsDisplayedColumns: ColumnSet = {
     'office': { displayAs: 'Office', maxWidth: '20ch' },
@@ -120,107 +118,77 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private router: Router,
     private propertyService: PropertyService,
-    private agentService: AgentService
+    private agentService: AgentService,
+    private utilityService: UtilityService
   ) { }
 
-  //#region Dashboard
+  //#region Dashboard-Main
   ngOnInit(): void {
-    // Get current user from auth service
     this.user = this.authService.getUser();
-    this.isAdminUser = this.hasAdminRole(this.user);
-    
-    // Set today's date
+    this.isAdmin = this.authService.isAdmin();
     this.setTodayDate();
-    
-    // Load user profile picture
-    this.loadUserProfilePicture();
-    
-    // Load reservations
+    if (!this.user?.userId) {
+      return;
+    }
+
+    this.loadCurrentUser(this.user.userId);
+    if (this.isAdmin) {
+      this.adminUsers = [];
+      this.adminAgents = [];
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'users');
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'agents');
+      this.loadUsers();
+      this.loadAgents();
+    }
+
     this.loadReservations();
-    
-    // Load properties
     this.loadProperties();
   }
-  //#endregion 
+  //#endregion
 
   //#region Data Loading Methods
-  loadUserProfilePicture(): void {
-    const currentUser = this.authService.getUser();
-    if (!currentUser?.userId) {
-      return;
-    }
-    
-    if (this.isAdminUser) {
-      this.userSubscription = forkJoin({
-        currentUser: this.userService.getUserByGuid(currentUser.userId),
-        allUsers: this.userService.getUsers(),
-        agents: this.agentService.getAgents()
-      }).pipe(take(1)).subscribe({
-        next: ({ currentUser, allUsers, agents }) => {
-          this.applyUserProfilePicture(currentUser);
-          this.currentUserAgentId = currentUser.agentId ?? this.user?.agentId ?? null;
-          this.currentUserCommissionRate = Number(currentUser.commissionRate ?? 0);
-
-          const agentCodeByAgentId = new Map<string, string>();
-          (agents || []).forEach(agent => {
-            if (agent.agentId && agent.agentCode) {
-              agentCodeByAgentId.set(agent.agentId, agent.agentCode.trim().toLowerCase());
-            }
-          });
-
-          this.adminCommissionRatesByAgentCode.clear();
-          (allUsers || []).forEach(user => {
-            if (!user.agentId) {
-              return;
-            }
-            const agentCode = agentCodeByAgentId.get(user.agentId);
-            if (!agentCode) {
-              return;
-            }
-            this.adminCommissionRatesByAgentCode.set(agentCode, Number(user.commissionRate ?? 0));
-          });
-
-          this.resolveCurrentAgentAndFilter();
-        },
-        error: () => {
-          this.profilePictureUrl = null;
-          this.currentUserAgentId = this.user?.agentId ?? null;
-          this.currentUserCommissionRate = 0;
-          this.adminCommissionRatesByAgentCode.clear();
-          this.resolveCurrentAgentAndFilter();
-        }
-      });
-      return;
-    }
-
-    this.userSubscription = this.userService.getUserByGuid(currentUser.userId).pipe(take(1)).subscribe({
+  loadCurrentUser(userId: string): void {
+    this.userSubscription = this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'); if (this.isAdmin) { this.tryResolveAdminProfilePictureAndCommissions(); } })).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
         this.currentUserAgentId = userResponse.agentId ?? this.user?.agentId ?? null;
         this.currentUserCommissionRate = Number(userResponse.commissionRate ?? 0);
-        this.resolveCurrentAgentAndFilter();
+        if (!this.isAdmin) {
+          this.resolveCurrentAgentAndFilter();
+        }
       },
       error: () => {
-        // Silently fail - just don't show profile picture
         this.profilePictureUrl = null;
         this.currentUserAgentId = this.user?.agentId ?? null;
         this.currentUserCommissionRate = 0;
-        this.adminCommissionRatesByAgentCode.clear();
-        this.resolveCurrentAgentAndFilter();
+        if (!this.isAdmin) {
+          this.adminCommissionRatesByAgentCode.clear();
+          this.resolveCurrentAgentAndFilter();
+        }
       }
     });
   }
 
-  applyUserProfilePicture(userResponse: UserResponse): void {
-    // Set profile picture URL from fileDetails or profilePath
-    if (userResponse.fileDetails && userResponse.fileDetails.file) {
-      const contentType = userResponse.fileDetails.contentType || 'image/png';
-      this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
-    } else if (userResponse.profilePath) {
-      this.profilePictureUrl = userResponse.profilePath;
-    } else {
-      this.profilePictureUrl = null;
-    }
+  loadUsers(): void {
+    this.usersSubscription = this.userService.getUsers().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users'); this.tryResolveAdminProfilePictureAndCommissions(); })).subscribe({
+      next: (users: UserResponse[]) => {
+        this.adminUsers = users || [];
+      },
+      error: () => {
+        this.adminUsers = [];
+      }
+    });
+  }
+
+  loadAgents(): void {
+    this.agentsSubscription = this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); this.tryResolveAdminProfilePictureAndCommissions(); })).subscribe({
+      next: (agents: AgentResponse[]) => {
+        this.adminAgents = agents || [];
+      },
+      error: () => {
+        this.adminAgents = [];
+      }
+    });
   }
   
   loadReservations(): void {
@@ -231,12 +199,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         this.filterUpcomingReservations();
         this.filterMonthlyCommissions();
         this.isLoadingReservations = false;
-        // Recalculate property status when reservations are loaded
         if (this.allProperties.length > 0) {
           this.calculatePropertyStatus();
         }
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.allReservations = [];
         this.upcomingArrivals = [];
         this.upcomingDepartures = [];
@@ -251,13 +218,12 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: (response: PropertyListResponse[]) => {
         this.allProperties = response.filter(p => p.isActive);
-        // Only calculate if reservations are already loaded
         if (this.allReservations.length > 0) {
           this.calculatePropertyStatus();
         }
         this.isLoadingProperties = false;
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.allProperties = [];
         this.rentedCount = 0;
         this.vacantCount = 0;
@@ -268,6 +234,45 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Setting and Filtering
+  tryResolveAdminProfilePictureAndCommissions(): void {
+    const pendingAdminItems = this.itemsToLoad$.value;
+    if (pendingAdminItems.has('currentUser') || pendingAdminItems.has('users') || pendingAdminItems.has('agents')) {
+      return;
+    }
+
+    const agentCodeByAgentId = new Map<string, string>();
+    this.adminAgents.forEach(agent => {
+      if (agent.agentId && agent.agentCode) {
+        agentCodeByAgentId.set(agent.agentId, agent.agentCode.trim().toLowerCase());
+      }
+    });
+
+    this.adminCommissionRatesByAgentCode.clear();
+    this.adminUsers.forEach(user => {
+      if (!user.agentId) {
+        return;
+      }
+      const agentCode = agentCodeByAgentId.get(user.agentId);
+      if (!agentCode) {
+        return;
+      }
+      this.adminCommissionRatesByAgentCode.set(agentCode, Number(user.commissionRate ?? 0));
+    });
+
+    this.resolveCurrentAgentAndFilter();
+  }
+
+  applyUserProfilePicture(userResponse: UserResponse): void {
+    if (userResponse.fileDetails && userResponse.fileDetails.file) {
+      const contentType = userResponse.fileDetails.contentType || 'image/png';
+      this.profilePictureUrl = `data:${contentType};base64,${userResponse.fileDetails.file}`;
+    } else if (userResponse.profilePath) {
+      this.profilePictureUrl = userResponse.profilePath;
+    } else {
+      this.profilePictureUrl = null;
+    }
+  }
+  
   getFullName(): string {
     if (!this.user) {
       return '';
@@ -343,7 +348,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     fifteenDaysFromNow.setDate(today.getDate() + 15);
     fifteenDaysFromNow.setHours(23, 59, 59, 999);
 
-    // Filter for today's arrivals
     this.todayArrivals = this.allReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
@@ -353,7 +357,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return arrivalDate.getTime() === today.getTime();
     });
 
-    // Filter for today's departures
     this.todayDepartures = this.allReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
@@ -363,7 +366,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return departureDate.getTime() === today.getTime();
     });
 
-    // Filter for tomorrow's arrivals
     this.tomorrowArrivals = this.allReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
@@ -373,7 +375,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return arrivalDate.getTime() === tomorrow.getTime();
     });
 
-    // Filter for tomorrow's departures
     this.tomorrowDepartures = this.allReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
@@ -383,7 +384,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return departureDate.getTime() === tomorrow.getTime();
     });
 
-    // Filter for upcoming arrivals (arrival date within next 15 days)
     this.upcomingArrivals = this.allReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
@@ -396,7 +396,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
              arrivalDate.getTime() <= fifteenDaysFromNow.getTime();
     });
 
-    // Filter for upcoming departures (departure date within next 15 days)
     this.upcomingDepartures = this.allReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
@@ -411,7 +410,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   resolveCurrentAgentAndFilter(): void {
-    if (this.isAdminUser) {
+    if (this.isAdmin) {
       this.currentUserAgentCode = 'ALL';
       this.filterMonthlyCommissions();
       return;
@@ -437,7 +436,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   filterMonthlyCommissions(): void {
-    if (!this.isAdminUser && !this.currentUserAgentCode) {
+    if (!this.isAdmin && !this.currentUserAgentCode) {
       this.monthlyCommissions = [];
       return;
     }
@@ -494,7 +493,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
     this.monthlyCommissions = this.allReservations
       .filter(reservation =>
-        this.isAdminUser
+        this.isAdmin
           ? (reservation.agentCode || '').trim().length > 0
           : (reservation.agentCode || '').trim().toLowerCase() === agentCode
       )
@@ -503,7 +502,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       )
       .map(reservation => {
         const normalizedReservationAgentCode = (reservation.agentCode || '').trim().toLowerCase();
-        const commissionRate = this.isAdminUser
+        const commissionRate = this.isAdmin
           ? Number(this.adminCommissionRatesByAgentCode.get(normalizedReservationAgentCode) ?? 0)
           : this.currentUserCommissionRate;
         const daysRented = getDaysRentedInCurrentMonth(reservation.arrivalDate, reservation.departureDate);
@@ -515,20 +514,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       });
   }
 
-  hasAdminRole(user: JwtUser | null): boolean {
-    if (!user?.userGroups?.length) {
-      return false;
-    }
-
-    const adminIds = new Set<number>([UserGroups.Admin, UserGroups.SuperAdmin]);
-    return user.userGroups.some(group => {
-      if (group === 'Admin' || group === 'SuperAdmin') {
-        return true;
-      }
-      const parsed = parseInt(String(group), 10);
-      return !isNaN(parsed) && adminIds.has(parsed);
-    });
-  }
   //#endregion
 
   //#region Routing Methods
@@ -553,30 +538,20 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   calculatePropertyStatus(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // Get all active reservations
     const activeReservations = this.allReservations.filter(r => r.isActive);
-    
-    // Create a set of property IDs that are currently rented
     const rentedPropertyIds = new Set<string>();
-    
-    // Track last departure date for each property
     const propertyLastDeparture = new Map<string, Date>();
-    
+
     activeReservations.forEach(reservation => {
       if (reservation.arrivalDate && reservation.departureDate) {
         const arrivalDate = new Date(reservation.arrivalDate);
         arrivalDate.setHours(0, 0, 0, 0);
-        
         const departureDate = new Date(reservation.departureDate);
         departureDate.setHours(0, 0, 0, 0);
-        
-        // Check if today falls between arrival and departure (inclusive)
         if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
           rentedPropertyIds.add(reservation.propertyId);
         }
-        
-        // Track the latest departure date for each property
+
         if (reservation.propertyId) {
           const existingDate = propertyLastDeparture.get(reservation.propertyId);
           if (!existingDate || departureDate.getTime() > existingDate.getTime()) {
@@ -586,11 +561,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       }
     });
     
-    // Count rented and vacant properties
     this.rentedCount = rentedPropertyIds.size;
     this.vacantCount = this.allProperties.length - this.rentedCount;
-    
-    // Calculate vacancy duration for each property
     this.calculateVacancyDuration(rentedPropertyIds, propertyLastDeparture, today);
   }
 
@@ -605,11 +577,9 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       let lastDepartureDate: string | null = null;
       
       if (isCurrentlyRented) {
-        // Currently rented should never show negative vacancy.
         vacancyDays = 0;
         lastDepartureDate = null;
       } else if (lastDeparture) {
-        // Property has been rented before, calculate days since last departure
         const daysDiff = Math.floor((today.getTime() - lastDeparture.getTime()) / (1000 * 60 * 60 * 24));
         vacancyDays = Math.max(daysDiff, 0);
         lastDepartureDate = lastDeparture.toLocaleDateString('en-US', { 
@@ -618,14 +588,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
           day: 'numeric' 
         });
       } else {
-        // Property has never been rented (or no departure date found)
-        // Could be considered as vacant since the beginning of time, but we'll use a large number
-        // or mark as "Never rented"
-        vacancyDays = null; // Will be sorted last
+        vacancyDays = null;
         lastDepartureDate = 'Never rented';
       }
-      
-      // Format vacancy days for display
+
       let vacancyDaysDisplay: string | number;
       if (vacancyDays === null) {
         vacancyDaysDisplay = 'Never rented';
@@ -659,28 +625,23 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         lastDepartureDate: lastDepartureDate
       });
     });
-    
-    // Filter out currently rented properties - only show vacant ones
+
     const vacantProperties = propertiesWithVacancy.filter(p => !rentedPropertyIds.has(p.propertyId));
-    
-    // Sort by vacancy days (longest first), then by property code for consistency
+
     vacantProperties.sort((a, b) => {
-      // Properties with null vacancy days (never rented) go to the end
       if (a.vacancyDays === null && b.vacancyDays === null) {
         return a.propertyCode.localeCompare(b.propertyCode);
       }
       if (a.vacancyDays === null) return 1;
       if (b.vacancyDays === null) return -1;
-      
-      // Sort by vacancy days descending (longest first)
+
       if (b.vacancyDays !== a.vacancyDays) {
         return b.vacancyDays - a.vacancyDays;
       }
-      
-      // If same vacancy days, sort by property code
+
       return a.propertyCode.localeCompare(b.propertyCode);
     });
-    
+
     this.propertiesByVacancy = vacantProperties;
   }
   //#endregion
@@ -688,6 +649,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
+    this.usersSubscription?.unsubscribe();
+    this.agentsSubscription?.unsubscribe();
   }
   //#endregion
 }

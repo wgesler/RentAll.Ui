@@ -10,6 +10,7 @@ import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
 import { LoginRequest } from '../public/login/models/login-request';
 import { RefreshTokenRequest } from '../public/login/models/refresh-token-request';
+import { UserGroups } from '../authenticated/users/models/user-enums';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
 
@@ -83,6 +84,22 @@ export class AuthService {
 
     getUser(): JwtUser | null {
         return this.jwtContainer$.value?.user;
+    }
+
+    isAdmin(): boolean {
+        const userGroups = this.getUser()?.userGroups;
+        if (!userGroups?.length) {
+            return false;
+        }
+
+        const adminIds = new Set<number>([UserGroups.Admin, UserGroups.SuperAdmin]);
+        return userGroups.some(group => {
+            if (group === 'Admin' || group === 'SuperAdmin') {
+                return true;
+            }
+            const parsed = parseInt(String(group), 10);
+            return !isNaN(parsed) && adminIds.has(parsed);
+        });
     }
 
     getSessionId(): string | null {
