@@ -45,37 +45,17 @@
         </div>
         <div class="form-titlebar-actions-wrap">
           @if (selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) {
-            <mat-slide-toggle
-              [ngModel]="maintenanceReceiptsList.showInactive"
-              (ngModelChange)="onMaintenanceReceiptsInactiveChange($event)"
-              color="primary">
-              Inactive
-            </mat-slide-toggle>
             <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
               class="text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
               Back
-            </button>
-            <button mat-raised-button type="button" color="primary" id="add-receipt-button" (click)="maintenanceReceiptsList.addReceipt()" class="text-nowrap flex-shrink-0">
-              <mat-icon>add</mat-icon>
-              Add
             </button>
           }
           @if (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList) {
-            <mat-slide-toggle
-              [ngModel]="maintenanceWorkOrderList.showInactive"
-              (ngModelChange)="onMaintenanceWorkOrderInactiveChange($event)"
-              color="primary">
-              Inactive
-            </mat-slide-toggle>
             <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
               class="text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
               Back
-            </button>
-            <button mat-raised-button type="button" color="primary" id="add-work-order-button" (click)="maintenanceWorkOrderList.addWorkOrder()" class="text-nowrap flex-shrink-0">
-              <mat-icon>add</mat-icon>
-              Add
             </button>
           }
           @if (!((selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) || (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList))) {

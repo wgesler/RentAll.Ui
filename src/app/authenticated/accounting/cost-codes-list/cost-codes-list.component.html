@@ -26,7 +26,7 @@
     }
     <!-- Filter and data table below -->
     <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-      @if (showInactiveInput === undefined && !embeddedInSettings) {
+      @if (showInactiveInput === undefined) {
         <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
           <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
             Inactive

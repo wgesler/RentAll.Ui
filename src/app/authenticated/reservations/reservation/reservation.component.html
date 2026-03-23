@@ -28,9 +28,7 @@
                 </mat-form-field>
               }
               <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
-                @if (form.get('propertyCode')?.value || selectedProperty?.propertyCode) {
-                  <mat-label>Property Code</mat-label>
-                }
+                <mat-label>Property Code</mat-label>
                 <input matInput [value]="form.get('propertyCode')?.value || selectedProperty?.propertyCode || 'Code'" readonly class="readonly-field">
               </mat-form-field>
               @if (!isAddMode) {
@@ -45,22 +43,11 @@
           }
         </div>
         <div class="flex items-center gap-3 ml-[10px]">
-          <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0">
-            Is Active
-          </mat-checkbox>
-          <mat-checkbox formControlName="allowExtensions" color="primary" class="flex-shrink-0">
-            Allow Extensions
-          </mat-checkbox>
           <div class="uniform-gap form-titlebar-actions-wrap">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
             class="text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
-          </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveReservation()"
-            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-            <mat-icon>save</mat-icon>
-            Save
           </button>
           </div>
         </div>
@@ -73,6 +60,12 @@
             <div class="mat">
             </div>
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
+            <div class="flex justify-end mb-3">
+              <button mat-raised-button type="submit" color="primary" id="save-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            </div>
             <div class="reservation-accordion-wrap">
             <mat-accordion multi>
               <!-- Reservation Section -->
@@ -99,7 +92,7 @@
                   </mat-form-field>
                 }
 
-                <mat-form-field appearance="outline" [ngClass]="canEditProperty ? ((reservation?.creditDue > 0) ? 'col-span-2' : 'col-span-3') : ((reservation?.creditDue > 0) ? 'col-span-3' : 'col-span-4')">
+                <mat-form-field appearance="outline" [ngClass]="canEditProperty ? ((reservation?.creditDue > 0) ? 'col-span-1' : 'col-span-2') : ((reservation?.creditDue > 0) ? 'col-span-2' : 'col-span-3')">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
@@ -110,6 +103,14 @@
                     <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
                   </mat-form-field>
                 }
+                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles">
+                  <mat-checkbox formControlName="isActive" color="primary">
+                    Is Active
+                  </mat-checkbox>
+                  <mat-checkbox formControlName="allowExtensions" color="primary">
+                    Allow Extensions
+                  </mat-checkbox>
+                </div>
               }
 
               @if (isAddMode) {
@@ -127,7 +128,7 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" [class.col-span-3]="!(reservation?.creditDue > 0)" [class.col-span-2]="reservation?.creditDue > 0">
+                <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
@@ -138,6 +139,14 @@
                     <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
                   </mat-form-field>
                 }
+                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles">
+                  <mat-checkbox formControlName="isActive" color="primary">
+                    Is Active
+                  </mat-checkbox>
+                  <mat-checkbox formControlName="allowExtensions" color="primary">
+                    Allow Extensions
+                  </mat-checkbox>
+                </div>
 
                 <!-- Add Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
                 <mat-form-field appearance="outline" class="col-span-1">
@@ -646,6 +655,7 @@
               #reservationEmailList
               [propertyId]="sharedPropertyId"
               [propertyCode]="sharedPropertyCode"
+              [hideFilters]="true"
               [officeId]="sharedOfficeId"
               [reservationId]="sharedReservationId"
               [emailTypeId]="EmailType.ReservationLease"
@@ -660,6 +670,7 @@
               [propertyId]="sharedPropertyId" 
               [propertyCode]="sharedPropertyCode"
               [documentTypeId]="DocumentType.ReservationLease"
+              [hideFilters]="true"
               [officeId]="sharedOfficeId"
               [reservationId]="sharedReservationId"
               [source]="'reservation'"

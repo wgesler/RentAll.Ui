@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -12,8 +11,10 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ColorResponse } from '../../organizations/models/color.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
 import { ColorService } from '../../organizations/services/color.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { OfficeService } from '../../organizations/services/office.service';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
@@ -22,9 +23,6 @@ import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
-
-
-
 @Component({
     standalone: true,
     selector: 'app-reservation-board',
@@ -40,19 +38,18 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
   contacts: ContactResponse[] = [];
-  contactMap: Map<string, ContactResponse> = new Map();
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
-
-  /** Cache for getReservationDisplayText so template always shows the same computed value (EOM/SOM name logic). */
-  private displayTextCache = new Map<string, string>();
+  displayTextCache = new Map<string, string>();
 
   startDate: Date = null;
   endDate: Date = null;
+  officeScopeResolved = false;
+  selectedOfficeId: number | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private destroy$ = new Subject<void>();
+  destroy$ = new Subject<void>();
   propertiesFiltered = false;
 
   constructor(
@@ -62,10 +59,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private colorService: ColorService,
     private router: Router,
     private authService: AuthService,
-    private toastr: ToastrService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private officeService: OfficeService,
     private propertySelectionFilterService: PropertySelectionFilterService
   ) { }
 
@@ -75,15 +72,21 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.generateCalendarDays();
     this.loadContacts();
     this.loadColors();
-    this.loadReservations();
+    this.initializeOfficeScope();
 
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
-    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$))
-      .subscribe(() => this.loadReservations());
+    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe({
+      next: officeId => {
+        this.resolveOfficeScope(officeId);
+        this.loadReservations();
+      }
+    });
 
-    this.propertySelectionFilterService.propertiesFiltered$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe({
+      next: value => {
+        this.propertiesFiltered = value;
+      }
+    });
   }
 
   setDefaultDateRange(): void {
@@ -133,7 +136,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
         this.contacts = contacts || [];
-       });
+      });
     });
   }
 
@@ -151,6 +154,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    // We limit properties when an owner is logged in to display on their dashboard
     const scopedOwnerId = (this.ownerUserId || '').trim();
     const properties$ = scopedOwnerId
       ? this.propertyService.getPropertiesByOwner(scopedOwnerId)
@@ -158,7 +163,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     properties$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
-        const workingOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        const workingOfficeId = this.selectedOfficeId;
         const filtered = workingOfficeId == null
           ? (properties || [])
           : (properties || []).filter(p => p.officeId === workingOfficeId);
@@ -171,9 +176,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   loadReservations(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
-        const workingOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+        const workingOfficeId = this.selectedOfficeId;
         this.reservations = reservations.filter(r =>
           r.isActive && (workingOfficeId == null || r.officeId === workingOfficeId)
         );
@@ -185,6 +194,36 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.loadProperties();
       }
     });
+  }
+
+  initializeOfficeScope(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(take(1)).subscribe({
+          next: offices => {
+            const activeOffices = (offices || []).filter(office => office.isActive);
+            const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+            const resolvedOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(activeOffices, preferredOfficeId);
+            this.resolveOfficeScope(resolvedOfficeId);
+            this.loadReservations();
+          },
+          error: () => {
+            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+            this.loadReservations();
+          }
+        });
+      },
+      error: () => {
+        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        this.loadReservations();
+      }
+    });
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
   }
   //#endregion
 
@@ -329,13 +368,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return null;
     }
 
-    // If multiple reservations overlap on the same date, prioritize:
-    // 1. Active/current reservations (those that include today or later)
-    // 2. Most recent arrival date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Sort by arrival date descending (most recent first)
+    // If multiple reservations overlap on the same date, prioritize most recent arrival date.
     matchingReservations.sort((a, b) => {
       if (!a.arrivalDate || !b.arrivalDate) return 0;
       const dateA = new Date(a.arrivalDate);

@@ -149,30 +149,6 @@
           </div>
         }
       </div>
-      @if (selectedTabIndex === 0 && !isSuperAdmin && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
-        <div class="form-titlebar-actions-wrap">
-          <mat-slide-toggle [checked]="accountingInvoiceList.showInactive" color="primary" (change)="accountingInvoiceList.toggleInactive()">
-            Inactive
-          </mat-slide-toggle>
-          <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="accountingInvoiceList.openApplyPaymentDialog()" [disabled]="((!accountingInvoiceList.selectedReservation && !accountingInvoiceList.selectedCompanyContact) || accountingInvoiceList.invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
-            Apply Payment
-          </button>
-          <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="accountingInvoiceList.addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
-      } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes && accountingCostCodes.showInactiveInput === undefined) {
-        <div class="form-titlebar-actions-wrap">
-          <mat-slide-toggle [checked]="accountingCostCodes.showInactive" color="primary" (change)="accountingCostCodes.toggleInactive()">
-            Inactive
-          </mat-slide-toggle>
-          <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="accountingCostCodes.addCostCode()" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
-      }
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">

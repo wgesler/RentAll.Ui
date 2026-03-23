@@ -40,7 +40,18 @@
         </div>
       </div>
     }
-    <div class="tableDiv">
+    <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
+      @if (entityTypeId !== undefined && entityTypeId !== null) {
+        <div class="table-filter-row-actions form-titlebar-actions-wrap">
+          <mat-slide-toggle color="primary" class="flex-shrink-0" [checked]="showInactive" (change)="toggleInactive()">
+            Inactive
+          </mat-slide-toggle>
+          <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addContact()">
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+        </div>
+      }
       <app-data-table
         [data]="contactsDisplay"
         [columns]="contactsDisplayedColumns"

@@ -68,6 +68,40 @@
         backdrop-filter: blur(1px);
     }
 
+    /* Login-only field alignment: center value text vertically in the input box. */
+    ::ng-deep mat-form-field.admin-login-field {
+        .mat-mdc-text-field-wrapper {
+            min-height: 42px !important;
+        }
+
+        .mat-mdc-form-field-flex {
+            min-height: 42px !important;
+            align-items: center !important;
+        }
+
+        .mat-mdc-form-field-infix {
+            min-height: 42px !important;
+            padding-top: 10px !important;
+            padding-bottom: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        input.mat-mdc-input-element {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            line-height: 1.35 !important;
+            transform: translateY(10px);
+        }
+
+        .mat-mdc-form-field-icon-prefix,
+        .mat-mdc-form-field-icon-suffix {
+            display: flex !important;
+            align-items: center !important;
+            transform: translateY(10px);
+        }
+    }
+
     @media screen and (max-width: 959px) {
         & .login-header-logo {
             height: 62px;

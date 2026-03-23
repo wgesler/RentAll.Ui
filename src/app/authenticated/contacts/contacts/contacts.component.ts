@@ -107,8 +107,8 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.updateUrlWithCurrentState();
   }
 
-  toggleShowInactive(): void {
-    this.showInactive = !this.showInactive;
+  onShowInactiveChange(showInactive: boolean): void {
+    this.showInactive = showInactive;
   }
 
   /** Update URL query params to match current tab and office so tab switches and reloads preserve state. */
@@ -128,28 +128,6 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.formEntityTypeId = event.entityTypeId ?? null;
     this.formTabIndex = event.tabIndex ?? this.selectedTabIndex;
     this.showContactForm = true;
-  }
-
-  addContactFromHeader(): void {
-    this.onOpenContact({
-      contactId: 'new',
-      entityTypeId: this.getEntityTypeForTab(this.selectedTabIndex),
-      tabIndex: this.selectedTabIndex
-    });
-  }
-
-  getEntityTypeForTab(tabIndex: number): number {
-    switch (tabIndex) {
-      case 0:
-        return EntityType.Owner;
-      case 1:
-        return EntityType.Tenant;
-      case 2:
-        return EntityType.Company;
-      case 3:
-      default:
-        return EntityType.Vendor;
-    }
   }
 
   onContactClosed(_event: { saved?: boolean }): void {

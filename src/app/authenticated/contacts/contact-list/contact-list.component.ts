@@ -32,6 +32,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() showInactive: boolean = false;
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  @Output() showInactiveChange = new EventEmitter<boolean>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
 
   panelOpenState: boolean = true;
@@ -158,6 +159,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
+    this.showInactiveChange.emit(this.showInactive);
     this.applyFilters();
   }
 
