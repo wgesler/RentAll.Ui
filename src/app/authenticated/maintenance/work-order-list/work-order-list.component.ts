@@ -42,7 +42,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, maxWidth: '15ch'}
+    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, maxWidth: '15ch'}
   };
 
   constructor(

@@ -20,7 +20,7 @@
           @if (showOfficeDropdown) {
             <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-office">
               <mat-label>Office</mat-label>
-              @if (isAdmin) {
+              @if (isHeaderOfficeEditable) {
                 <mat-select formControlName="officeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
                   <mat-option [value]="null">Select Office</mat-option>
                   @for (office of offices; track office.officeId) {
@@ -28,14 +28,18 @@
                   }
                 </mat-select>
               } @else {
-                <input matInput [value]="sharedOfficeName" readonly [disabled]="true">
+                <input matInput [value]="sharedOfficeName" readonly [disabled]="true" class="readonly-field">
               }
             </mat-form-field>
           }
           <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code"
             [class.titlebar-default-code]="isAddMode && !!form.get('propertyCode')?.hasError('defaultCode')">
             <mat-label>Property Code</mat-label>
-            <input matInput formControlName="propertyCode" maxlength="15" (focus)="onPropertyCodeFocus($event)" (input)="onCodeInput($event)">
+            @if (isHeaderPropertyCodeEditable) {
+              <input matInput formControlName="propertyCode" maxlength="15" (focus)="onPropertyCodeFocus($event)" (input)="onCodeInput($event)">
+            } @else {
+              <input matInput [value]="form.get('propertyCode')?.value || (isAddMode ? propertyCodeDefaultPrompt : '')" readonly [disabled]="true" class="readonly-field">
+            }
             @if (isAddMode && form.get('propertyCode')?.hasError('required') && form.get('propertyCode')?.touched) {
               <mat-error>Required</mat-error>
             }
@@ -61,20 +65,22 @@
             </div>
           </div>
         <div class="flex items-center gap-3 ml-[10px]">
-          <mat-checkbox
-            color="primary"
-            class="flex-shrink-0"
-            [checked]="contextualIsActiveValue"
-            (change)="onContextualIsActiveChange($event.checked)">
-            Is Active
-          </mat-checkbox>
+          @if (!(selectedTabIndex === 0 && !isAddMode) && selectedTabIndex !== 2) {
+            <mat-checkbox
+              color="primary"
+              class="flex-shrink-0"
+              [checked]="contextualIsActiveValue"
+              (change)="onContextualIsActiveChange($event.checked)">
+              IsActive
+            </mat-checkbox>
+          }
           <div class="uniform-gap form-titlebar-actions-wrap">
             <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
               class="text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
               Back
             </button>
-            @if (showContextualSave) {
+            @if (showContextualSave && !(selectedTabIndex === 0 && !isAddMode) && selectedTabIndex !== 2) {
             <button mat-raised-button type="button" color="primary" id="save-button" (click)="onContextualSave()"
               class="text-nowrap flex-shrink-0" [disabled]="contextualSaveDisabled">
               <mat-icon>save</mat-icon>
@@ -89,6 +95,22 @@
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Property">
             <div class="info-form mb-8 pt-5">
+            @if (!isAddMode) {
+              <div class="flex justify-end items-center gap-3 mb-3">
+                <mat-checkbox
+                  color="primary"
+                  class="flex-shrink-0"
+                  [checked]="contextualIsActiveValue"
+                  (change)="onContextualIsActiveChange($event.checked)">
+                  IsActive
+                </mat-checkbox>
+                <button mat-raised-button type="button" color="primary" id="save-button" (click)="onContextualSave()"
+                  class="text-nowrap flex-shrink-0" [disabled]="contextualSaveDisabled">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
+            }
             <mat-accordion multi="true">
             <!-- Basic Rental Information (combined: basic + address + location + rates) -->
             <mat-expansion-panel [expanded]="expandedSections.basic" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">

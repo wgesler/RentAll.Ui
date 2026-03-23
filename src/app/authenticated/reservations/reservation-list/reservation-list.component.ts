@@ -66,7 +66,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '16ch', alignment: 'center'},
     'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
     'hasCredit': { displayAs: 'Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'officeScope']));

@@ -66,6 +66,11 @@
             <mat-icon>download</mat-icon>
             {{ isDownloading ? 'Downloading...' : 'Download' }}
           </button>
+          <button mat-raised-button type="button" color="primary" id="save-welcome-letter-button" (click)="saveWelcomeLetter()"
+            [disabled]="!selectedOffice || !selectedReservation || isSubmitting">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
         </div>
       </div>
 

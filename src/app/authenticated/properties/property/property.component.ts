@@ -1318,6 +1318,14 @@ export class PropertyComponent implements OnInit, OnDestroy {
     return this.property?.officeName || '';
   }
 
+  get isHeaderOfficeEditable(): boolean {
+    return this.isAdmin && this.selectedTabIndex <= 1;
+  }
+
+  get isHeaderPropertyCodeEditable(): boolean {
+    return this.isAdmin && this.selectedTabIndex <= 1;
+  }
+
   get showContextualSave(): boolean {
     return this.selectedTabIndex <= 2;
   }

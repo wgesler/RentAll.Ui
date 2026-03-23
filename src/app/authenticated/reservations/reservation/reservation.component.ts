@@ -100,6 +100,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
   properties: PropertyListResponse[] = [];
   availableProperties: PropertyListResponse[] = [];
   selectedProperty: PropertyListResponse | null = null;
+  reservationList: ReservationListResponse[] = [];
+  availableHeaderReservations: { value: ReservationListResponse, label: string }[] = [];
+  selectedHeaderReservationId: string | null | undefined = undefined;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -172,6 +175,9 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       this.reservationId = paramMap.get('id') || null;
       this.isAddMode = !this.reservationId || this.reservationId === 'new';
+      if (!this.isAddMode && this.reservationId) {
+        this.selectedHeaderReservationId = this.reservationId;
+      }
       
       if (this.isAddMode) {
         this.billingPanelOpen = false;
@@ -219,6 +225,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         }
       } else {
         this.getReservation();
+        this.loadReservationOptions();
       }
     });
   }
@@ -367,6 +374,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
         this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
         this.populateForm();
+        this.selectedHeaderReservationId = this.reservation.reservationId;
+        this.refreshHeaderReservationOptions();
       },
       error: () => {
         this.isServiceError = true;
@@ -577,7 +586,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
 
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-    this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
+    const reservationOfficeId = this.selectedProperty?.officeId ?? this.reservation.officeId;
+    this.selectedOffice = this.offices.find(o => o.officeId === reservationOfficeId) || null;
     this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
     if (this.selectedOffice) {
       this.loadCostCodes();
@@ -597,7 +607,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       allowExtensions: this.reservation.allowExtensions ?? true,
       reservationCode: this.reservation.reservationCode || '',
       propertyId: this.reservation.propertyId,
-      propertyCode: this.selectedProperty?.propertyCode || '',
+      propertyCode: this.selectedProperty?.propertyCode || this.properties.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
       propertyAddress: this.selectedProperty?.shortAddress || '',
       agentId: this.reservation.agentId || null,
       contactId: this.reservation.contactId || null,
@@ -719,6 +729,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.updatePetFields();
       this.updateMaidServiceFields();
       this.updateContactFields();
+      this.refreshHeaderReservationOptions();
     });
   }
 
@@ -1388,6 +1399,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         propertyCode: ''
       });
     }
+    this.refreshHeaderReservationOptions();
   }
 
   onLeaseOfficeIdChange(officeId: number | null): void {
@@ -1402,6 +1414,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.selectedOffice = null;
       this.filterPropertiesByOffice();
     }
+    this.refreshHeaderReservationOptions();
   }
 
   filterPropertiesByOffice(): void {
@@ -1412,6 +1425,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if (!this.canEditProperty || !this.reservation) {
       this.availableProperties = officeFiltered;
       this.applySelectedPropertyClearIfOfficeMismatch();
+      this.refreshHeaderReservationOptions();
       return;
     }
 
@@ -1420,6 +1434,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if (!arrivalRaw || !departureRaw) {
       this.availableProperties = officeFiltered;
       this.applySelectedPropertyClearIfOfficeMismatch();
+      this.refreshHeaderReservationOptions();
       return;
     }
 
@@ -1443,7 +1458,95 @@ export class ReservationComponent implements OnInit, OnDestroy {
         !propertyIdsWithConflict.has(p.propertyId) || p.propertyId === currentPropertyId
       );
       this.applySelectedPropertyClearIfOfficeMismatch();
+      this.refreshHeaderReservationOptions();
     });
+  }
+
+  loadReservationOptions(): void {
+    this.reservationService.getReservationList().pipe(take(1), catchError(() => of([] as ReservationListResponse[]))).subscribe(reservations => {
+      this.reservationList = reservations || [];
+      this.refreshHeaderReservationOptions();
+    });
+  }
+
+  refreshHeaderReservationOptions(): void {
+    const officeId = this.sharedOfficeId;
+    const propertyId = this.sharedPropertyId;
+    const preferredReservationId = this.reservation?.reservationId ?? this.reservationId ?? null;
+    if (!officeId || !propertyId) {
+      this.availableHeaderReservations = [];
+      if (this.selectedHeaderReservationId === undefined) {
+        this.selectedHeaderReservationId = preferredReservationId;
+      }
+      return;
+    }
+
+    this.availableHeaderReservations = this.reservationList
+      .filter(r => r.officeId === officeId && r.propertyId === propertyId)
+      .sort((a, b) => a.reservationCode.localeCompare(b.reservationCode))
+      .map(r => ({
+        value: r,
+        label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
+      }));
+
+    if (this.selectedHeaderReservationId === undefined) {
+      this.selectedHeaderReservationId = preferredReservationId ?? this.sharedReservationId ?? null;
+    }
+
+    // Preserve current selection while options are still loading.
+    if (this.availableHeaderReservations.length === 0) {
+      return;
+    }
+
+    if (this.selectedHeaderReservationId && !this.availableHeaderReservations.some(r => r.value.reservationId === this.selectedHeaderReservationId)) {
+      if (preferredReservationId && this.availableHeaderReservations.some(r => r.value.reservationId === preferredReservationId)) {
+        this.selectedHeaderReservationId = preferredReservationId;
+        return;
+      }
+      this.selectedHeaderReservationId = null;
+    }
+  }
+
+  onHeaderReservationChange(): void {
+    if (this.selectedTabIndex === 0) {
+      if (!this.selectedHeaderReservationId) {
+        return;
+      }
+      this.loadReservationFromHeaderSelection(this.selectedHeaderReservationId);
+      return;
+    }
+    if (this.selectedTabIndex === 1 && this.selectedHeaderReservationId) {
+      this.leaseReloadService.triggerReload();
+    }
+    if (this.selectedTabIndex === 3 && this.reservationEmailList) {
+      this.reservationEmailList.reload();
+    }
+    if (this.selectedTabIndex === 4 && this.reservationDocumentList) {
+      this.reservationDocumentList.reload();
+    }
+  }
+
+  private loadReservationFromHeaderSelection(reservationId: string): void {
+    if (!reservationId || this.reservation?.reservationId === reservationId) {
+      return;
+    }
+
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.reservation = response;
+        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
+        this.selectedHeaderReservationId = response.reservationId;
+        this.populateForm();
+        this.refreshHeaderReservationOptions();
+      },
+      error: () => {}
+    });
+  }
+
+  get activeReservationId(): string | null {
+    return this.selectedHeaderReservationId ?? null;
   }
 
   private normalizeDateForConflict(value: string | Date | null | undefined): Date {
@@ -1779,6 +1882,14 @@ export class ReservationComponent implements OnInit, OnDestroy {
   //#region Tab Selection Methods
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
+    this.refreshHeaderReservationOptions();
+    if (event.index === 1) {
+      const defaultReservationId = this.sharedReservationId ?? this.reservation?.reservationId ?? null;
+      if (!this.selectedHeaderReservationId && defaultReservationId) {
+        this.selectedHeaderReservationId = defaultReservationId;
+      }
+      this.onHeaderReservationChange();
+    }
     const tabParam = this.getTabParamFromIndex(event.index);
 
     this.router.navigate([], {

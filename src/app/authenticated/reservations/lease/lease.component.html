@@ -6,6 +6,26 @@
 } @else {
   <div class="lease-container">
     <form [formGroup]="form" class="lease-form">
+      <div class="top-controls">
+        <div class="flex gap-2 items-center uniform-gap">
+          <button mat-raised-button type="button" color="accent" id="print-lease-button" (click)="onPrint()">
+            <mat-icon>print</mat-icon>
+            Print
+          </button>
+          <button mat-raised-button type="button" color="accent" id="email-lease-button" (click)="onEmail()">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
+          <button mat-raised-button type="button" color="accent" id="download-lease-button" (click)="onDownload()">
+            <mat-icon>download</mat-icon>
+            Download
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-lease-button" (click)="saveLease()" [disabled]="isSubmitting || !selectedOffice || !selectedReservation">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
 
       <!-- Include Checkboxes Section -->
       <div class="include-controls">

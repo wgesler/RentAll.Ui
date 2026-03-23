@@ -177,6 +177,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         }
       }
     }
+
+    if (changes['reservationId']) {
+      const newReservationId = changes['reservationId'].currentValue as string | null | undefined;
+      const previousReservationId = changes['reservationId'].previousValue as string | null | undefined;
+      if (newReservationId !== previousReservationId) {
+        this.applyReservationSelectionFromInput(newReservationId);
+      }
+    }
   }
 
   getLease(): void {
@@ -361,6 +369,38 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
           this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+        }
+        this.loadContact();
+        this.generatePreviewIframe();
+      },
+      error: () => {}
+    });
+  }
+
+  private applyReservationSelectionFromInput(reservationId: string | null | undefined): void {
+    if (!reservationId || reservationId === 'new') {
+      this.selectedReservation = null;
+      this.contact = null;
+      this.companyContact = null;
+      this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
+      this.generatePreviewIframe();
+      return;
+    }
+
+    if (this.selectedReservation?.reservationId === reservationId) {
+      this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
+      this.generatePreviewIframe();
+      return;
+    }
+
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (reservation: ReservationResponse) => {
+        this.selectedReservation = reservation;
+        this.form.patchValue({ selectedReservationId: reservation.reservationId }, { emitEvent: false });
+        if (reservation.officeId && this.offices.length > 0) {
+          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
+          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId }, { emitEvent: false });
+          this.filterReservations();
         }
         this.loadContact();
         this.generatePreviewIframe();
@@ -1173,15 +1213,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Html Processing
   generatePreviewIframe(): void {
-    // Check form control value - if null, show html, else show the lease
     const formReservationId = this.form.get('selectedReservationId')?.value;
-    if (!formReservationId) {
-      this.previewIframeHtml = '';
-      return;
-    }
+    const shouldMerge = !!formReservationId;
 
-    // If form control has value but missing office or reservation, don't show preview
-    if (!this.selectedOffice || !this.selectedReservation) {
+    // If merge was requested but required merge context has not loaded yet, keep preview empty.
+    if (shouldMerge && (!this.selectedOffice || !this.selectedReservation)) {
       this.previewIframeHtml = '';
       return;
     }
@@ -1220,14 +1256,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         try {
       // If only one document selected, use it as-is
       if (selectedDocuments.length === 1) {
-        let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+        let processedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
         this.processAndSetHtml(processedHtml);
         return;
       }
 
       // Multiple documents: process first as base, strip and concatenate the rest
       // Process first document as base (full HTML)
-      let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
+      let combinedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
       
       // Extract and merge styles from all documents before stripping
       const allExtractedStyles: string[] = [];
@@ -1249,7 +1285,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       // Process and strip remaining documents, extracting their styles first
       for (let i = 1; i < selectedDocuments.length; i++) {
         if (selectedDocuments[i]) {
-          const processed = this.replacePlaceholders(selectedDocuments[i]);
+          const processed = shouldMerge ? this.replacePlaceholders(selectedDocuments[i]) : selectedDocuments[i];
           
           // Extract styles from this document before stripping
           styleRegex.lastIndex = 0;

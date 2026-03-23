@@ -31,16 +31,16 @@
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center justify-end">
               <mat-checkbox formControlName="isActive" color="primary">
-                Is Active
+                IsActive
               </mat-checkbox>
             </div>
             <!-- First Row: Office, Cost Code, Transaction Type -->
             <div class="col-span-4 flex gap-x-1.5">
               <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
-              @if (isAddMode) {
+              @if (isAddMode || source === 'configuration') {
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Office</mat-label>
-                  <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required>
+                  <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required [canSelectNullableOptions]="true">
                     <mat-option [value]="null">Select Office</mat-option>
                     @for (office of offices; track office.officeId) {
                       <mat-option [value]="office">{{ office.name }}</mat-option>

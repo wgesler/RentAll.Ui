@@ -49,7 +49,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     'fax': { displayAs: 'Fax', maxWidth: '20ch' },
     'bankName': { displayAs: 'Bank Name', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '40ch' },
-    'isActive': { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices']));

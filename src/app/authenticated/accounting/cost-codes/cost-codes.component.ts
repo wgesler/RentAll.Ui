@@ -318,8 +318,11 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    // This will be called when office selection changes in the dropdown
-    // selectedOffice is updated via ngModel binding
+    // In settings/configuration, changing office while editing should reload
+    // the selected cost code in the newly selected office scope.
+    if (!this.isAddMode && this.source === 'configuration' && this.selectedOffice && this.costCodeId) {
+      this.getCostCode();
+    }
   }
 
   getOfficeName(): string {

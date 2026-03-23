@@ -32,6 +32,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
   @Input() embeddedInSettings: boolean = false; // Input to indicate component is embedded in configuration settings
+  @Input() showOfficeDropdownInEmbedded: boolean = false; // Show office dropdown when embedded (settings use-case)
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: string, officeId: number | null }>();
@@ -63,7 +64,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
-    isActive: { displayAs: 'Is Active', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 

@@ -2,7 +2,7 @@
   <app-cost-codes
     [id]="costCodesId"
     [officeId]="costCodesOfficeId"
-    [source]="'accounting'"
+    [source]="'configuration'"
     (backEvent)="onCostCodesBack()"
     (savedEvent)="onCostCodesSaved()">
   </app-cost-codes>
@@ -10,7 +10,7 @@
   <div class="mat list-layout-tabbed">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
-      @if (showOfficeDropdown && !embeddedInSettings) {
+      @if (showOfficeDropdown && (!embeddedInSettings || showOfficeDropdownInEmbedded)) {
         <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
