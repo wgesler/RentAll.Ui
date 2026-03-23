@@ -158,6 +158,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription?.unsubscribe();
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
+          this.offices = [];
+          this.selectedGlobalOfficeId = null;
+          return;
+        }
         this.offices = (allOffices || []).filter(office => office.isActive);
         const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
         this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, preferredId);

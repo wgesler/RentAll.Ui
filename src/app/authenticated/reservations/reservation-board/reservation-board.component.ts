@@ -77,6 +77,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
     this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe({
       next: officeId => {
+        if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
+          return;
+        }
         this.resolveOfficeScope(officeId);
         this.loadReservations();
       }
@@ -176,7 +179,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   loadReservations(): void {
-    if (!this.officeScopeResolved) {
+    if (!this.officeScopeResolved || this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
       return;
     }
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');

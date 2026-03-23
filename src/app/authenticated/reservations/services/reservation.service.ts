@@ -1,9 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { AuthService } from '../../../services/auth.service';
 import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 
 @Injectable({
@@ -15,20 +13,11 @@ export class ReservationService {
 
   constructor(
     private http: HttpClient,
-    private configService: ConfigService,
-    private router: Router,
-    private authService: AuthService) {
+    private configService: ConfigService) {
   }
 
   // GET: Get reservation list (summary view)
   getReservationList(): Observable<ReservationListResponse[]> {
-    // Temporary production diagnostic: identify unexpected caller paths (e.g., during logout).
-    console.warn('[TRACE] reservation/list requested', {
-      route: this.router.url,
-      isLoggingOut: this.authService.isLoggingOut(),
-      isLoggedIn: this.authService.getIsLoggedIn()
-    });
-    console.trace('[TRACE] reservation/list stack');
     return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
 

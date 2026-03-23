@@ -202,7 +202,7 @@ export class AuthService {
     }
 
     getIsLoggedIn(): boolean {
-        return this.getAuthData() && this.getIsAuth();
+        return !!(this.getAuthData() && this.getIsAuth());
     }
 
     getIsLoggedIn$(): Observable<boolean> {
