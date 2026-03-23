@@ -24,6 +24,7 @@ export class AuthService {
     private jwtContainer$ = new BehaviorSubject<JwtContainer | undefined>(undefined);
     private jwtHelperService = new JwtHelperService();
     private isLoggedIn$ = new BehaviorSubject<boolean>(false);
+    private isLoggingOut$ = new BehaviorSubject<boolean>(false);
 
     private readonly controller = this.configService.config().apiUrl + 'auth/';
 
@@ -42,6 +43,7 @@ export class AuthService {
     }
 
     login(request: LoginRequest): Observable<AuthResponse> {
+        this.isLoggingOut$.next(false);
         this.clearSensitiveData();
         return this.http.post<AuthResponse>(this.controller + 'login', request).pipe(
             tap((response: AuthResponse) => this.setAuthData(response))
@@ -49,6 +51,7 @@ export class AuthService {
     }
 
     logout(): Observable<boolean> {
+        this.isLoggingOut$.next(true);
         if (this.authData$.value?.refreshToken) {
             const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken };
             this.http.post<boolean>(this.controller + 'logout', request).pipe(take(1)).subscribe({});
@@ -63,7 +66,9 @@ export class AuthService {
     }
 
     refresh(): Observable<AuthResponse> {
-        if (!this.authData$.value) return of(new AuthResponse());
+        if (this.isLoggingOut$.value || !this.authData$.value?.refreshToken) {
+            return of(new AuthResponse());
+        }
         const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken! };
 
         return this.http.post<AuthResponse>(this.controller + 'refresh', request).pipe(
@@ -202,6 +207,10 @@ export class AuthService {
 
     getIsLoggedIn$(): Observable<boolean> {
         return this.isLoggedIn$;
+    }
+
+    isLoggingOut(): boolean {
+        return this.isLoggingOut$.value;
     }
 
     private clearSensitiveData(): void {

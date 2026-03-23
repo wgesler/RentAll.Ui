@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpEvent, HttpHandlerFn, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, catchError, filter, finalize, switchMap, take, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, catchError, filter, finalize, switchMap, take, throwError } from 'rxjs';
 import { CommonMessage } from '../enums/common-message.enum';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { AuthService } from '../services/auth.service';
@@ -197,6 +197,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Skip interceptor for anonymous endpoints
   if (req.url.endsWith('/refresh-token') || 
       req.url.endsWith('/login') ||
+      req.url.endsWith('/logout') ||
       req.url.includes('/common/daily-quote') ||
       req.url.includes('/common/state')) {
     return next(req);
@@ -206,6 +207,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const loadingBarService = inject(LoadingBarService);
   const authService = inject(AuthService);
   const toastrService = inject(ToastrService);
+
+  // During explicit logout, silently ignore protected API requests.
+  if (authService.isLoggingOut()) {
+    return EMPTY;
+  }
+
+  // If there's no access token for a protected endpoint, avoid sending a request that will 401.
+  const authData = authService.getAuthData();
+  if (!authData?.accessToken) {
+    return EMPTY;
+  }
 
   loadingBarService.show();
   req = addToken(req, authService);
