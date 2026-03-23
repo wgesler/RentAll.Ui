@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -56,7 +56,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesFiltered = false;
   officeScopeResolved = false;
 
-  reservationsDisplayedColumns: ColumnSet = {
+  private readonly compactViewportWidth = 1024;
+  private readonly fullReservationsDisplayedColumns: ColumnSet = {
     'office': { displayAs: 'Office', maxWidth: '15ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -68,6 +69,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'hasCredit': { displayAs: 'Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
+  private readonly compactReservationsDisplayedColumns: ColumnSet = {
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' }
+  };
+  reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -88,6 +93,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Reservation List
   ngOnInit(): void {
+    this.updateDisplayedColumns();
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$
@@ -154,6 +160,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateDisplayedColumns();
   }
 
   addReservation(): void {
@@ -443,6 +454,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  private updateDisplayedColumns(): void {
+    const useCompactColumns = window.innerWidth <= this.compactViewportWidth;
+    this.reservationsDisplayedColumns = useCompactColumns ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

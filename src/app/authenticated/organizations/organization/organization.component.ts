@@ -201,7 +201,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       unit100Fee: new FormControl('0.00', [Validators.required]),
       unit200Fee: new FormControl('0.00', [Validators.required]),
       unit500Fee: new FormControl('0.00', [Validators.required]),
-      fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isInternational: new FormControl(false),
       isActive: new FormControl(true)
     });

@@ -31,9 +31,7 @@ export function fileValidator(allowedTypes: string[],
         //check file content if possible
         if (checkFileContent) {
             if (window.FileReader && window.Blob) {
-                const firstFourBytes = value.slice(0, 4);
-
-                const isFileMimeTypeValid = await checkFileHeader(firstFourBytes, allowedMimeTypes);
+                const isFileMimeTypeValid = await checkFileHeader(value, allowedMimeTypes);
                 if (isFileMimeTypeValid)
                     return null;
                 return { fileValidator: true };
@@ -45,38 +43,52 @@ export function fileValidator(allowedTypes: string[],
 }
 
 
-function checkFileHeader(fileHeaderBytes: Blob, allowedMimeTypes: string[]): Promise<boolean> {
+function checkFileHeader(file: File, allowedMimeTypes: string[]): Promise<boolean> {
     const fileReader = new FileReader();
 
     return new Promise((resolve) => {
         fileReader.onloadend = function (e): void {
             if (e.target.readyState === FileReader.DONE) {
                 const uintArray = new Uint8Array(e.target.result as ArrayBuffer);
-                const bytesToCheck = [];
-                uintArray.forEach((byte) => {
-                    bytesToCheck.push(byte.toString(16));
-                });
-
-                const header = bytesToCheck.join('').toLowerCase();
+                const header = Array.from(uintArray).map((byte) => byte.toString(16).padStart(2, '0')).join('').toLowerCase();
+                const ascii = Array.from(uintArray).map((byte) => (byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : ' ')).join('');
+                const normalizedText = (() => {
+                    try {
+                        return new TextDecoder('utf-8', { fatal: false }).decode(uintArray).trim().toLowerCase();
+                    } catch {
+                        return ascii.trim().toLowerCase();
+                    }
+                })();
                 let fileType = '';
 
-                switch (header) {
-                    case '89504e47':
-                        fileType = 'image/png';
-                        break;
-                    case '47494638':
-                        fileType = 'image/gif';
-                        break;
-                    case 'ffd8ffe0':
-                    case 'ffd8ffe1':
-                    case 'ffd8ffe2':
-                    case 'ffd8ffe3':
-                    case 'ffd8ffe8':
-                    case 'ffd8ffdb':
-                        fileType = 'image/jpeg';
-                        break;
-                    default:
-                        fileType = '';
+                if (header.startsWith('89504e47')) {
+                    fileType = 'image/png';
+                } else if (header.startsWith('47494638')) {
+                    fileType = 'image/gif';
+                } else if (
+                    header.startsWith('ffd8ffe0') ||
+                    header.startsWith('ffd8ffe1') ||
+                    header.startsWith('ffd8ffe2') ||
+                    header.startsWith('ffd8ffe3') ||
+                    header.startsWith('ffd8ffe8') ||
+                    header.startsWith('ffd8ffdb')
+                ) {
+                    fileType = 'image/jpeg';
+                } else if (ascii.length >= 12 && ascii.substring(4, 8) === 'ftyp') {
+                    const brand = ascii.substring(8, 12).toLowerCase();
+                    if (['heic', 'heix', 'hevc', 'hevx'].includes(brand)) {
+                        fileType = 'image/heic';
+                    } else if (['heif', 'heis', 'heim', 'hevm', 'mif1', 'msf1'].includes(brand)) {
+                        fileType = 'image/heif';
+                    }
+                } else if (
+                    normalizedText.startsWith('<svg') ||
+                    normalizedText.includes('<svg ') ||
+                    (normalizedText.startsWith('<?xml') && normalizedText.includes('<svg'))
+                ) {
+                    fileType = 'image/svg+xml';
+                } else if (header.startsWith('25504446')) {
+                    fileType = 'application/pdf';
                 }
 
                 if (allowedMimeTypes.lastIndexOf(fileType) === -1)
@@ -88,6 +100,6 @@ function checkFileHeader(fileHeaderBytes: Blob, allowedMimeTypes: string[]): Pro
             resolve(false);
         };
 
-        fileReader.readAsArrayBuffer(fileHeaderBytes);
+        fileReader.readAsArrayBuffer(file.slice(0, 512));
     });
 }

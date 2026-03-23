@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -56,7 +56,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesFiltered = false;
   officeScopeResolved = false;
 
-  propertiesDisplayedColumns: ColumnSet = {
+  private readonly compactViewportWidth = 1024;
+  private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
@@ -67,6 +68,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'hvacServiced': { displayAs: 'HVAC Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     'fireplaceServiced': { displayAs: 'Fireplace Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     };
+  private readonly compactPropertiesDisplayedColumns: ColumnSet = {
+    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false }
+  };
+  propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -89,6 +94,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Maintenance-List
   ngOnInit(): void {
+    this.updateDisplayedColumns();
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
@@ -142,6 +148,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateDisplayedColumns();
   }
 
   /** Properties matching saved Property Selection (GET property/user/{userId}). */
@@ -282,6 +293,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  private updateDisplayedColumns(): void {
+    const useCompactColumns = window.innerWidth <= this.compactViewportWidth;
+    this.propertiesDisplayedColumns = useCompactColumns ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

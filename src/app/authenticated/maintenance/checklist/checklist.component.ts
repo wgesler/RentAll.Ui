@@ -17,6 +17,8 @@ import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '
 import { DocumentService } from '../../documents/services/document.service';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
+import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, INVENTORY_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
 import { InventoryRequest, InventoryResponse } from '../models/inventory.model';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
@@ -68,6 +70,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   hasInitialized = false;
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
   private photoBlobUrlCache = new Map<string, string>();
+  private readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
+  private readonly maxUploadedImageBytes = 1.5 * 1024 * 1024; // 1.5 MB target
+  private readonly maxImageDimension = 1920;
 
   constructor(
     public fb: FormBuilder,
@@ -1226,7 +1231,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     inputElement?.click();
   }
 
-  onPhotoSelected(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
+  async onPhotoSelected(sectionKey: string, repeatIndex: number, itemId: string, event: Event): Promise<void> {
     const target = event.target as HTMLInputElement;
     const file = target.files && target.files.length > 0 ? target.files[0] : null;
     if (!file) {
@@ -1238,22 +1243,18 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const base64String = dataUrl.includes(',') ? dataUrl.split(',')[1] : btoa(dataUrl);
-      const fileName = file.name || `${sectionKey}-${repeatIndex + 1}-${item.id}.jpg`;
-      const contentType = file.type || 'image/jpeg';
+    try {
+      const optimizedImage = await this.optimizePhotoForUpload(file, sectionKey, repeatIndex, item.id);
       const currentUser = this.authService.getUser();
       const photoRequest: PhotoRequest = {
         organizationId: this.property?.organizationId || currentUser?.organizationId || '',
         officeId: this.property?.officeId || 0,
         maintenanceId: this.maintenanceRecord?.maintenanceId || null,
         fileDetails: {
-          fileName,
-          contentType,
-          file: base64String,
-          dataUrl: `data:${contentType};base64,${base64String}`
+          fileName: optimizedImage.fileName,
+          contentType: optimizedImage.contentType,
+          file: optimizedImage.base64,
+          dataUrl: optimizedImage.dataUrl
         }
       };
 
@@ -1261,7 +1262,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         next: (photoResponse: PhotoResponse) => {
           item.photoPath = photoResponse.photoPath || null;
           item.documentId = photoResponse.photoId || null;
-          item.displayDataUrl = dataUrl;
+          item.displayDataUrl = optimizedImage.dataUrl;
           if (item.requiresPhoto) {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
             control?.setValue(!!(item.photoPath || item.displayDataUrl));
@@ -1284,8 +1285,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           });
         }
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to process the selected image.';
+      this.toastr.error(message, CommonMessage.Error);
+    } finally {
+      target.value = '';
+    }
   }
 
   deletePhoto(sectionKey: string, repeatIndex: number, itemId: string, event: Event): void {
@@ -1320,9 +1325,188 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return null;
   }
 
-  openPhotoPreview(_item: ChecklistItem, event: Event): void {
+  openPhotoPreview(item: ChecklistItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
+
+    const imageSrc = this.getItemPhotoSrc(item);
+    if (!imageSrc) {
+      return;
+    }
+
+    const dialogData: ImageViewDialogData = {
+      imageSrc,
+      title: 'Photo Preview'
+    };
+
+    this.dialog.open(ImageViewDialogComponent, {
+      data: dialogData,
+      width: '90vmin',
+      height: '90vmin',
+      minWidth: '320px',
+      minHeight: '320px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'image-view-dialog-panel'
+    });
+  }
+  //#endregion
+
+  //#region Photo Optimization
+  private async optimizePhotoForUpload(file: File, sectionKey: string, repeatIndex: number, itemId: string): Promise<{ dataUrl: string; base64: string; fileName: string; contentType: string }> {
+    if (!file.type.startsWith('image/') && !this.isHeicLikeFile(file)) {
+      throw new Error('Only image uploads are supported for checklist photos.');
+    }
+    if (file.size > this.maxSourceImageBytes) {
+      throw new Error('Image is too large. Maximum file size is 20 MB.');
+    }
+
+    const normalizedFile = await this.convertHeicToJpegIfNeeded(file);
+    const sourceDataUrl = await this.readFileAsDataUrl(normalizedFile);
+    const image = await this.loadImageElement(sourceDataUrl);
+    const scaled = this.getScaledDimensions(image.naturalWidth || image.width, image.naturalHeight || image.height, this.maxImageDimension);
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Unable to process image. Please try a different file.');
+    }
+
+    let width = scaled.width;
+    let height = scaled.height;
+    let bestBlob: Blob | null = null;
+    const qualitySteps = [0.82, 0.74, 0.66, 0.58, 0.5];
+
+    for (let pass = 0; pass < 4; pass += 1) {
+      canvas.width = width;
+      canvas.height = height;
+      context.clearRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      for (const quality of qualitySteps) {
+        const blob = await this.canvasToBlob(canvas, 'image/jpeg', quality);
+        if (!blob) {
+          continue;
+        }
+        if (!bestBlob || blob.size < bestBlob.size) {
+          bestBlob = blob;
+        }
+        if (blob.size <= this.maxUploadedImageBytes) {
+          const dataUrl = await this.readBlobAsDataUrl(blob);
+          const base64 = dataUrl.split(',')[1] || '';
+          const fileName = this.buildCompressedPhotoName(file.name, sectionKey, repeatIndex, itemId);
+          return {
+            dataUrl,
+            base64,
+            fileName,
+            contentType: 'image/jpeg'
+          };
+        }
+      }
+
+      width = Math.max(640, Math.round(width * 0.8));
+      height = Math.max(480, Math.round(height * 0.8));
+    }
+
+    if (bestBlob) {
+      const dataUrl = await this.readBlobAsDataUrl(bestBlob);
+      const base64 = dataUrl.split(',')[1] || '';
+      const fileName = this.buildCompressedPhotoName(file.name, sectionKey, repeatIndex, itemId);
+      return {
+        dataUrl,
+        base64,
+        fileName,
+        contentType: 'image/jpeg'
+      };
+    }
+
+    throw new Error('Unable to process the selected image.');
+  }
+
+  private isHeicLikeFile(file: File): boolean {
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    return fileType.includes('heic') || fileType.includes('heif') || fileName.endsWith('.heic') || fileName.endsWith('.heif');
+  }
+
+  private async convertHeicToJpegIfNeeded(file: File): Promise<File> {
+    if (!this.isHeicLikeFile(file)) {
+      return file;
+    }
+
+    try {
+      const heic2anyModule = await import('heic2any');
+      const heic2any = heic2anyModule.default;
+      const converted = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9
+      }) as Blob | Blob[];
+      const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
+      if (!convertedBlob) {
+        throw new Error('HEIC conversion returned no image data.');
+      }
+      const convertedName = (file.name || 'photo').replace(/\.[^/.]+$/i, '') + '.jpg';
+      return new File([convertedBlob], convertedName, { type: 'image/jpeg' });
+    } catch {
+      throw new Error('This HEIC/HEIF file could not be converted in your browser. Please convert it to JPG/PNG and try again.');
+    }
+  }
+
+  private buildCompressedPhotoName(originalName: string, sectionKey: string, repeatIndex: number, itemId: string): string {
+    const baseName = (originalName || '').replace(/\.[^/.]+$/, '').trim();
+    if (baseName.length > 0) {
+      return `${baseName}.jpg`;
+    }
+    return `${sectionKey}-${repeatIndex + 1}-${itemId}.jpg`;
+  }
+
+  private getScaledDimensions(width: number, height: number, maxDimension: number): { width: number; height: number } {
+    if (width <= 0 || height <= 0) {
+      return { width: maxDimension, height: maxDimension };
+    }
+    if (width <= maxDimension && height <= maxDimension) {
+      return { width, height };
+    }
+    if (width > height) {
+      const scale = maxDimension / width;
+      return { width: maxDimension, height: Math.max(1, Math.round(height * scale)) };
+    }
+    const scale = maxDimension / height;
+    return { width: Math.max(1, Math.round(width * scale)), height: maxDimension };
+  }
+
+  private readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Unable to read image file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private readBlobAsDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Unable to read optimized image.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  private loadImageElement(dataUrl: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Selected file is not a valid image.'));
+      image.src = dataUrl;
+    });
+  }
+
+  private canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob | null> {
+    return new Promise(resolve => {
+      canvas.toBlob(blob => resolve(blob), mimeType, quality);
+    });
   }
   //#endregion
 

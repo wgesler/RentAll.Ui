@@ -469,7 +469,7 @@ export class UserComponent implements OnInit, OnDestroy {
       officeAccess: new FormControl({ value: defaultOfficeAccess, disabled: this.selfEdit }, [Validators.required]),
       defaultOffice: new FormControl(initialDefaultOffice),
       changePassword: new FormControl(this.isAddMode ? true : false), // Toggle to enable/require password fields - default to true in add mode
-      fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif'], ['image/png', 'image/jpeg', 'image/gif'], 2000000, true)] }),
+      fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       startupPageId: new FormControl(0, [Validators.required]),
       agentId: new FormControl(null),
       commissionRate: new FormControl('0.00'),
