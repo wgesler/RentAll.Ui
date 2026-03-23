@@ -94,6 +94,11 @@ function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorRespons
 
 // 401 Unauthorized
 function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+  // If user is logging out, do not attempt refresh/retry.
+  if (authService.isLoggingOut()) {
+    return EMPTY;
+  }
+
   // If we just refreshed and still get 401, it's an unauthorized action
   if (justRefreshed) {
     justRefreshed = false;
