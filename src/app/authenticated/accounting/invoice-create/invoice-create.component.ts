@@ -63,7 +63,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   organization: OrganizationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
-  companyContact: ContactResponse | null = null; // When contact is company, use contact; when loading by id, use this
+  companyContact: ContactResponse | null = null;
   isCompanyRental: boolean = false;
 
   offices: OfficeResponse[] = [];
@@ -101,7 +101,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -374,20 +374,61 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
+    const bindOfficeStream = (): void => {
+      this.officesSubscription?.unsubscribe();
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
       });
+    };
+
+    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe({
+      next: (loaded) => {
+        if (!loaded) {
+          const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+          if (!organizationId) {
+            this.offices = [];
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+            return;
+          }
+          this.officeService.loadAllOffices(organizationId);
+        }
+
+        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+          next: () => bindOfficeStream(),
+          error: () => { this.offices = []; }
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      }
     });
   }
 
   loadAccountingOffices(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
-    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe(() => {
-      this.accountingOffices = this.accountingOfficeService.getAllAccountingOfficesValue();
-      this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
-        this.accountingOffices = accountingOffices || [];
-      });
+    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: (loaded) => {
+        if (!loaded) {
+          this.accountingOfficeService.loadAllAccountingOffices();
+        }
+
+        this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(isLoaded => isLoaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+          next: () => {
+            this.accountingOffices = this.accountingOfficeService.getAllAccountingOfficesValue();
+            this.accountingOfficesSubscription?.unsubscribe();
+            this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
+              this.accountingOffices = accountingOffices || [];
+            });
+          },
+          error: () => {
+            this.accountingOffices = [];
+          }
+        });
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      }
     });
   }
 
@@ -590,10 +631,35 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
-        this.contacts = contacts || [];
-      });
+    this.contactService.areContactsLoaded().pipe(take(1)).subscribe({
+      next: (loaded) => {
+        if (!loaded) {
+          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+            error: () => {
+              // contactsLoaded$ is set by service even on error
+            }
+          });
+        }
+
+        this.contactService.areContactsLoaded().pipe(
+          filter(isLoaded => isLoaded === true),
+          take(1),
+          finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })
+        ).subscribe({
+          next: () => {
+            this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
+              this.contacts = contacts || [];
+            });
+          },
+          error: () => {
+            this.contacts = [];
+          }
+        });
+      },
+      error: () => {
+        this.contacts = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+      }
     });
   }
 
@@ -823,12 +889,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     // But only if offices are loaded, otherwise wait for them to load
     if (this.offices.length > 0) {
       this.onOfficeSelected(officeId);
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     } else {
       // Offices not loaded yet, wait for them to load
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
         this.onOfficeSelected(officeId);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
       });
     }
   }
@@ -945,8 +1009,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{officeName\}\}/g, this.selectedOffice.name || '');
     }
 
-    // Replace office logo placeholder - prefer accounting office logo, fallback to office logo, then org logo
-    const officeLogoDataUrl = this.accountingOfficeLogo || this.officeLogo || this.orgLogo;
+    // Replace office logo placeholder - prefer office logo, then accounting office logo, then org logo
+    const officeLogoDataUrl = this.officeLogo || this.accountingOfficeLogo || this.orgLogo;
     if (officeLogoDataUrl) {
       result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
     }

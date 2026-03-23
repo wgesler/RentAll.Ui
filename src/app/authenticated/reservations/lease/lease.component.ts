@@ -41,6 +41,7 @@ import { ReservationListResponse, ReservationResponse } from '../models/reservat
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
     standalone: true,
@@ -87,7 +88,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   includeBusinessCreditApplication: boolean = false;
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
-  debuggingHtml: boolean = true;
+  debuggingHtml: boolean = environment.local || environment.dev;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -193,6 +194,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // This loads on add reservation, do nothing
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
+      return;
+    }
+
+    // In debug mode, pull form templates from local assets (no DB HTML fetch).
+    if (this.debuggingHtml) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
+      this.generatePreviewIframe();
       return;
     }
 
@@ -1341,7 +1349,36 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   processAndSetHtml(html: string): void {
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
-    this.previewIframeStyles = result.extractedStyles;
+    const leaseLogoStyles = `
+      #header {
+        background-color: #ffffff !important;
+      }
+      #header tr:first-child,
+      #header tr:first-child td {
+        background-color: #ffffff !important;
+        padding-bottom: 3px !important;
+      }
+      #header tr:last-child,
+      #header tr:last-child td,
+      #header h1 {
+        background-color: #222222 !important;
+        color: #ffffff !important;
+      }
+      #header td {
+        text-align: left !important;
+      }
+      #header img,
+      #header img.logo,
+      img.logo {
+        width: 25% !important;
+        max-width: 25% !important;
+        height: auto !important;
+        margin: 0 !important;
+        display: block !important;
+        float: none !important;
+      }
+    `;
+    this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.iframeKey++; // Force iframe refresh
   }

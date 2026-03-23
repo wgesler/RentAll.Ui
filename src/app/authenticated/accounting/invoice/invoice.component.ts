@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, skip, take, timeout } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -588,17 +588,55 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    const bindOfficeStream = (): void => {
+      this.officesSubscription?.unsubscribe();
+      this.officesSubscription = this.officeService.getAllOffices().subscribe({
+        next: (offices) => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        },
+        error: () => {
+          this.offices = [];
+          this.availableOffices = [];
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        }
       });
+    };
+
+    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe((loaded) => {
+      if (loaded) {
+        bindOfficeStream();
+        return;
+      }
+
+      const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+      if (organizationId) {
+        // Self-heal if root preload did not run yet.
+        this.officeService.loadAllOffices(organizationId);
+        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe({
+          next: () => bindOfficeStream(),
+          error: () => {
+            this.offices = [];
+            this.availableOffices = [];
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+          }
+        });
+      } else {
+        // No org scope available; do not block the page spinner forever.
+        this.offices = [];
+        this.availableOffices = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      }
     });
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+    this.reservationService.getReservationList().pipe(
+      take(1),
+      timeout(20000),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })
+    ).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         // Update available reservations - will filter by officeId if form exists and office is selected
