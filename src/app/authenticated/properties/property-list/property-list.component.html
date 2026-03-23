@@ -21,18 +21,20 @@
         </div>
       </div>
       <div class="form-titlebar-actions-wrap">
-        <button
-          mat-raised-button
-          type="button"
-          color="primary"
-          id="selection-button"
-          (click)="goToPropertySelection()"
-          class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
-          <mat-icon
-            class="!w-[18px] !h-[18px] !text-lg leading-none"
-            [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
-          Selection
-        </button>
+        @if (!isCompactView) {
+          <button
+            mat-raised-button
+            type="button"
+            color="primary"
+            id="selection-button"
+            (click)="goToPropertySelection()"
+            class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
+            <mat-icon
+              class="!w-[18px] !h-[18px] !text-lg leading-none"
+              [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
+            Selection
+          </button>
+        }
       </div>
     </div>
     <mat-card>
@@ -62,6 +64,7 @@
               </button>
             </div>
             <app-data-table
+              [class.compact-code-only-table]="isCompactView"
               [data]="propertiesDisplay"
               [columns]="propertiesDisplayedColumns"
               [hasColumnIndex]="true"

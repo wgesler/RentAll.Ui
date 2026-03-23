@@ -55,6 +55,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
   propertiesFiltered = false;
   officeScopeResolved = false;
+  isCompactView = false;
 
   private readonly compactViewportWidth = 1024;
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
@@ -294,8 +295,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   private updateDisplayedColumns(): void {
-    const useCompactColumns = window.innerWidth <= this.compactViewportWidth;
-    this.propertiesDisplayedColumns = useCompactColumns ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
   }
 
   ngOnDestroy(): void {

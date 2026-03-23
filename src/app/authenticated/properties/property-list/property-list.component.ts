@@ -54,6 +54,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
   /** True when saved property selection has non-default filters. */
   propertiesFiltered = false;
+  isCompactView = false;
 
   private readonly compactViewportWidth = 1024;
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
@@ -69,7 +70,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false }
+    'propertyCode': { displayAs: '', maxWidth: '20ch', sortType: 'natural', wrap: false }
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
@@ -339,8 +340,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   private updateDisplayedColumns(): void {
-    const useCompactColumns = window.innerWidth <= this.compactViewportWidth;
-    this.propertiesDisplayedColumns = useCompactColumns ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {

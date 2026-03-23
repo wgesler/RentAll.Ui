@@ -288,3 +288,17 @@
   white-space: nowrap;
 }
 
+.reservation-mobile-toggle-row {
+  display: none;
+}
+
+@media screen and (max-width: 1024px) {
+  .reservation-mobile-toggle-row {
+    display: block;
+  }
+
+  .reservation-desktop-toggle-cell {
+    display: none !important;
+  }
+}
+

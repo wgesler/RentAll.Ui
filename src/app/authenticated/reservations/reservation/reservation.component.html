@@ -75,6 +75,17 @@
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 form-standard-grid">
               @if (!isAddMode) {
+                <div class="col-span-4 reservation-mobile-toggle-row">
+                  <div class="flex items-center justify-end gap-4 reservation-first-row-toggles">
+                    <mat-checkbox formControlName="isActive" color="primary">
+                      IsActive
+                    </mat-checkbox>
+                    <mat-checkbox formControlName="allowExtensions" color="primary">
+                      Allow Extensions
+                    </mat-checkbox>
+                  </div>
+                </div>
+
                 <!-- Edit Mode: Line 1: Property (when editable), Property Address, Credit Due (if > 0) -->
                 @if (canEditProperty) {
                   <!-- Reservation has not started: property is editable -->
@@ -103,7 +114,7 @@
                     <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
                   </mat-form-field>
                 }
-                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles">
+                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles reservation-desktop-toggle-cell">
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>

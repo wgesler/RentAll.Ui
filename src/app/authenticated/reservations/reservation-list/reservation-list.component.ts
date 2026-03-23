@@ -55,6 +55,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = true;
   propertiesFiltered = false;
   officeScopeResolved = false;
+  isCompactView = false;
 
   private readonly compactViewportWidth = 1024;
   private readonly fullReservationsDisplayedColumns: ColumnSet = {
@@ -70,7 +71,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactReservationsDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' }
+    'reservationCode': { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural' }
   };
   reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 
@@ -455,8 +456,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   private updateDisplayedColumns(): void {
-    const useCompactColumns = window.innerWidth <= this.compactViewportWidth;
-    this.reservationsDisplayedColumns = useCompactColumns ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
   }
 
   ngOnDestroy(): void {
