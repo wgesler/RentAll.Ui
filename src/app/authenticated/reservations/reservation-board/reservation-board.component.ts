@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -51,6 +51,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   propertiesFiltered = false;
+  private isLoadingReservations = false;
+  private lastLoadedOfficeId: number | null | undefined = undefined;
 
   constructor(
     private propertyService: PropertyService,
@@ -75,7 +77,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.initializeOfficeScope();
 
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
-    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe({
+    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe({
       next: officeId => {
         if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
           return;
@@ -178,22 +180,40 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadReservations(): void {
+  loadReservations(force: boolean = false): void {
     if (!this.officeScopeResolved || this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
       return;
     }
+    const currentOfficeId = this.selectedOfficeId ?? null;
+    if (!force) {
+      if (this.isLoadingReservations) {
+        return;
+      }
+      if (this.lastLoadedOfficeId === currentOfficeId) {
+        return;
+      }
+    }
+    this.isLoadingReservations = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+    this.reservationService.getReservationList().pipe(
+      take(1),
+      finalize(() => {
+        this.isLoadingReservations = false;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      })
+    ).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
         this.reservations = reservations.filter(r =>
           r.isActive && (workingOfficeId == null || r.officeId === workingOfficeId)
         );
+        this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
         this.loadProperties();
       },
       error: () => {
         this.reservations = [];
+        this.lastLoadedOfficeId = currentOfficeId;
         this.loadProperties();
       }
     });
@@ -208,17 +228,17 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
             const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
             const resolvedOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(activeOffices, preferredOfficeId);
             this.resolveOfficeScope(resolvedOfficeId);
-            this.loadReservations();
+            this.loadReservations(true);
           },
           error: () => {
             this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
-            this.loadReservations();
+            this.loadReservations(true);
           }
         });
       },
       error: () => {
         this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
-        this.loadReservations();
+        this.loadReservations(true);
       }
     });
   }
