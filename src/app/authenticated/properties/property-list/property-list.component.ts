@@ -176,10 +176,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
-    ).subscribe({
+    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
         const mappedProperties = this.mappingService.mapProperties(properties || []);
         this.allProperties = mappedProperties.map(property => ({
