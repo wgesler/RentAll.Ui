@@ -118,7 +118,7 @@ export function getPropertyTypes(): { value: number, label: string }[] {
 
 //#region PropertyStatus
 export enum PropertyStatus {
-  NotProcessed = 0,
+  Vacant = 0,
   Cleaned = 1,
   Inspected = 2,
   Ready = 3,
@@ -129,7 +129,7 @@ export enum PropertyStatus {
 
 export function getPropertyStatusLetter(statusId: number): string {
   const statusMap: { [key: number]: string } = {
-    [PropertyStatus.NotProcessed]: 'N',
+    [PropertyStatus.Vacant]: 'V',
     [PropertyStatus.Cleaned]: 'C',
     [PropertyStatus.Inspected]: 'I',
     [PropertyStatus.Ready]: 'R',
@@ -144,7 +144,7 @@ export function getPropertyStatus(propertyStatusId: number | undefined): string 
   if (propertyStatusId === undefined || propertyStatusId === null) return '';
   
   const statusMap: { [key: number]: string } = {
-    [PropertyStatus.NotProcessed]: 'Not Processed',
+    [PropertyStatus.Vacant]: 'Vacant',
     [PropertyStatus.Cleaned]: 'Cleaned',
     [PropertyStatus.Inspected]: 'Inspected',
     [PropertyStatus.Ready]: 'Ready',

@@ -372,7 +372,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
     // Map enum fields to Id fields
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
-    propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.NotProcessed;
+    propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
     propertyRequest.maintenanceStatusId = Number(formValue.maintenanceStatusId) ?? MaintenanceStatus.UnProcessed;
     
     // Handle owner2Id - set to undefined if empty string or null
@@ -495,7 +495,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       owner2Id: new FormControl(null),
       owner3Id: new FormControl(null),
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
-      propertyStatus: new FormControl<number>(PropertyStatus.NotProcessed, [Validators.required]),
+      propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
       phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
@@ -641,7 +641,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       
       // Handle enum Id fields as numbers (map from Id fields)
       const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
-      const propertyStatusValue = this.property.propertyStatusId != null ? Number(this.property.propertyStatusId) : PropertyStatus.NotProcessed;
+      const propertyStatusValue = this.property.propertyStatusId != null ? Number(this.property.propertyStatusId) : PropertyStatus.Vacant;
       const propertyTypeValue = this.property.propertyTypeId != null ? Number(this.property.propertyTypeId) : PropertyType.Unspecified;
       
       formData.propertyStyle = propertyStyleValue;

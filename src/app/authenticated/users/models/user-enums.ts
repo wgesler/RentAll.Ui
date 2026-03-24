@@ -18,7 +18,8 @@ export enum UserGroups {
   VendorAdmin = 16,
   Tenant = 17,
   Owner = 18,
-  Client = 19
+  Client = 19,
+  Inspector = 20
 }
 
 export function getUserGroup(userGroupId: number | undefined): string {
@@ -44,7 +45,8 @@ export function getUserGroup(userGroupId: number | undefined): string {
     [UserGroups.VendorAdmin]: 'Vendor-Admin',
     [UserGroups.Tenant]: 'Tenant',
     [UserGroups.Owner]: 'Owner',
-    [UserGroups.Client]: 'Client'
+    [UserGroups.Client]: 'Client',
+    [UserGroups.Inspector]: 'Inspector'
   };
   
   return groupMap[userGroupId] || '';
