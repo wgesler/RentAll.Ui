@@ -2,14 +2,16 @@ export enum TransactionType {
   Charge = 0,
   Payment = 1,
   Deposit = 2,
-  Sdw = 3
+  Sdw = 3,
+  Expense = 4
  }
 
 export const TransactionTypeLabels: { value: TransactionType, label: string }[] = [
   { value: TransactionType.Charge, label: 'Charge' },
   { value: TransactionType.Payment, label: 'Payment' },
   { value: TransactionType.Deposit, label: 'Deposit' },
-  { value: TransactionType.Sdw, label: 'SDW' }
+  { value: TransactionType.Sdw, label: 'SDW' },
+  { value: TransactionType.Sdw, label: 'Expense' },
 ];
 
 export function getTransactionType(transactionTypeId: number | undefined): string {
@@ -19,7 +21,8 @@ export function getTransactionType(transactionTypeId: number | undefined): strin
     [TransactionType.Charge]: 'Charge',
     [TransactionType.Payment]: 'Payment',
     [TransactionType.Deposit]: 'Deposit',
-    [TransactionType.Sdw]: 'SDW'
+    [TransactionType.Sdw]: 'SDW',
+    [TransactionType.Expense]: 'Expense',
    };
   
   return typeMap[transactionTypeId] || '';
