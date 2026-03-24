@@ -294,7 +294,10 @@ export interface PropertyListResponse{
   petFee: number;
   maidServiceFee: number;
   propertyStatusId: number;
-  maintenanceStatusId: number;
+  bedroomId1: number;
+  bedroomId2: number;
+  bedroomId3: number;
+  bedroomId4: number;
   lastFilterChangeDate?: string | null;
   lastSmokeChangeDate?: string | null;
   licenseDate?: string | null;
@@ -322,7 +325,10 @@ export interface PropertyListDisplay {
   petFee: number;
   maidServiceFee: number;
   propertyStatusId: number;
-  maintenanceStatusId: number;
+  bedroomId1: number;
+  bedroomId2: number;
+  bedroomId3: number;
+  bedroomId4: number;
   lastFilterChangeDate?: string | null;
   lastSmokeChangeDate?: string | null;
   licenseDate?: string | null;

@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -18,8 +18,9 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CalendarUrlResponse } from '../models/property-calendar';
+import { getPropertyStatus, getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListDisplay } from '../models/property.model';
+import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
@@ -39,16 +40,16 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
-  allProperties: PropertyListDisplay[] = [];
-  propertiesDisplay: PropertyListDisplay[] = [];
+  allProperties: PropertyListDisplayRow[] = [];
+  propertiesDisplay: PropertyListDisplayRow[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
-  private navigationSubscription?: Subscription;
-  private lastNavigationUrl = '';
-  private destroy$ = new Subject<void>();
+  navigationSubscription?: Subscription;
+  lastNavigationUrl = '';
+  destroy$ = new Subject<void>();
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
@@ -57,13 +58,17 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   isCompactView = false;
 
   private readonly compactViewportWidth = 1024;
+  private readonly propertyStatuses = getPropertyStatuses();
+  private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
+  private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
-    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
-    'ownerName': { displayAs: 'Owner', maxWidth: '25ch', wrap: false },
+    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
+    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '23ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
-    'accomodates': { displayAs: 'Acms', wrap: false , maxWidth: '10ch', alignment: 'center'},
+    'accomodates': { displayAs: 'Accom', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'propertyType': { displayAs: 'Type', maxWidth: '10ch', wrap: false },
     'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
@@ -176,7 +181,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
     ).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapProperties(properties || []);
+        const mappedProperties = this.mappingService.mapProperties(properties || []);
+        this.allProperties = mappedProperties.map(property => ({
+          ...property,
+          propertyStatusText: getPropertyStatus(property.propertyStatusId),
+          propertyStatusDropdown: this.buildStatusDropdownCell(getPropertyStatus(property.propertyStatusId))
+        }));
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -267,6 +277,42 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+
+  onPropertyStatusChange(event: PropertyListDisplayRow): void {
+    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
+    const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
+    const previousStatusId = event.propertyStatusId;
+    const previousLabel = event.propertyStatusText;
+
+    if (selectedStatusId === undefined) {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+      return;
+    }
+
+    if (selectedStatusId === previousStatusId) {
+      return;
+    }
+
+    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
+
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
+      take(1),
+      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
+      finalize(() => {
+        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
+      })
+    ).subscribe({
+      next: () => {
+        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
+        this.toastr.success('Property status updated.', CommonMessage.Success);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Error updating property status:', err);
+        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
+        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      }
+    });
+  }
   //#endregion
 
   //#region Filter Methods
@@ -344,6 +390,35 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
   }
 
+  private buildStatusDropdownCell(label: string, isOverridable: boolean = true): PropertyListDisplayRow['propertyStatusDropdown'] {
+    return {
+      value: label,
+      isOverridable,
+      toString: () => label
+    };
+  }
+
+  private buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      propertyStatusId,
+      parkingnotes: parkingNotes
+    };
+  }
+
+  private updatePropertyStatusDisplay(propertyId: string, propertyStatusId: number, propertyStatusText: string): void {
+    for (const property of this.allProperties) {
+      if (property.propertyId === propertyId) {
+        property.propertyStatusId = propertyStatusId;
+        property.propertyStatusText = propertyStatusText;
+        property.propertyStatusDropdown = this.buildStatusDropdownCell(propertyStatusText);
+        break;
+      }
+    }
+    this.applyFilters();
+  }
+
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
@@ -364,4 +439,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 }
+
+type PropertyListDisplayRow = PropertyListDisplay & {
+  propertyStatusText: string;
+  propertyStatusDropdown: {
+    value: string;
+    isOverridable: boolean;
+    toString: () => string;
+  };
+};
 

@@ -32,6 +32,20 @@ body {
   box-sizing: border-box;
 }
 
+/* Status dropdown should read like a link and match row text size. */
+:host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
+:host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    color: #0d47a1 !important;
+    text-decoration: underline;
+    font-size: inherit !important;
+    line-height: inherit !important;
+  }
+}
+
  .mat-expansion-panel-header-title {
     font-weight: 600 !important;
     font-size: 16px !important;

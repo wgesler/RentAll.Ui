@@ -44,19 +44,19 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch' },
-    bedrooms: { displayAs: 'Beds', maxWidth: '10ch' },
-    bathrooms: { displayAs: 'Baths', maxWidth: '10ch' },
-    accomodates: { displayAs: 'Accom.', maxWidth: '12ch' },
-    monthlyRate: { displayAs: 'Monthly', maxWidth: '15ch' },
-    dailyRate: { displayAs: 'Daily', maxWidth: '12ch' }
+    bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
+    bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
+    accomodates: { displayAs: 'Accom', maxWidth: '12ch', alignment: 'center' },
+    monthlyRate: { displayAs: 'Monthly', maxWidth: '15ch', alignment: 'center' },
   };
 
   ownerReservationsDisplayedColumns: ColumnSet = {
     office: { displayAs: 'Office', maxWidth: '20ch' },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    arrivalDate: { displayAs: 'Arrival', maxWidth: '20ch' },
-    departureDate: { displayAs: 'Departure', maxWidth: '20ch' }
+    arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
+    departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
+    monthlyRate: { displayAs: 'Monthly', maxWidth: '15ch', alignment: 'center' }
   };
 
   constructor(

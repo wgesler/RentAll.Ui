@@ -41,6 +41,15 @@ mat-sidenav {
     & mat-icon {
       display:block;
       margin: 0 auto 4px auto;
+      color: #fff !important;
+    }
+    & .sidebar-svg-icon {
+      display: block;
+      width: 24px;
+      height: 24px;
+      margin: 0 auto 4px auto;
+      color: #fff;
+      filter: drop-shadow(-1px 1px 1px #000000);
     }
     & span  {
       text-align:center;
@@ -69,6 +78,10 @@ mat-sidenav.sidenav-collapsed {
   }
 
   & .mat-list-item-content-open mat-icon {
+    margin: 0 auto !important;
+  }
+
+  & .mat-list-item-content-open .sidebar-svg-icon {
     margin: 0 auto !important;
   }
 }

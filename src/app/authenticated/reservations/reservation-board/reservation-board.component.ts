@@ -2,8 +2,10 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, switchMap, take, takeUntil, timeout } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -15,8 +17,9 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { ColorService } from '../../organizations/services/color.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
@@ -33,6 +36,7 @@ import { ReservationService } from '../services/reservation.service';
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() readOnly: boolean = false;
+  getPropertyStatusLetter = getPropertyStatusLetter;
 
   properties: BoardProperty[] = [];
   calendarDays: CalendarDay[] = [];
@@ -51,6 +55,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   propertiesFiltered = false;
+  propertyStatusOptions = getPropertyStatuses().map(status => ({
+    value: status.value,
+    label: status.label,
+    letter: getPropertyStatusLetter(status.value)
+  }));
+  updatingPropertyStatusIds = new Set<string>();
   private isLoadingReservations = false;
   private lastLoadedOfficeId: number | null | undefined = undefined;
 
@@ -65,7 +75,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private officeService: OfficeService,
-    private propertySelectionFilterService: PropertySelectionFilterService
+    private propertySelectionFilterService: PropertySelectionFilterService,
+    private toastr: ToastrService
   ) { }
 
   //#region Reservation-Board
@@ -138,10 +149,26 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
-        this.contacts = contacts || [];
-      });
+    this.contactService.areContactsLoaded().pipe(take(1)).subscribe({
+      next: loaded => {
+        if (!loaded) {
+          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+            error: () => {
+              // contactsLoaded$ is set by service even on error
+            }
+          });
+        }
+
+        this.contactService.areContactsLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe(() => {
+          this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+            this.contacts = contacts || [];
+          });
+        });
+      },
+      error: () => {
+        this.contacts = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+      }
     });
   }
 
@@ -166,7 +193,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       ? this.propertyService.getPropertiesByOwner(scopedOwnerId)
       : this.propertyService.getPropertiesBySelectionCritera(this.authService.getUser()?.userId || '');
 
-    properties$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    properties$.pipe(timeout(20000), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
         const filtered = workingOfficeId == null
@@ -196,6 +223,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.isLoadingReservations = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
     this.reservationService.getReservationList().pipe(
+      timeout(20000),
       take(1),
       finalize(() => {
         this.isLoadingReservations = false;
@@ -220,15 +248,34 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   initializeOfficeScope(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(take(1)).subscribe({
-          next: offices => {
-            const activeOffices = (offices || []).filter(office => office.isActive);
-            const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-            const resolvedOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(activeOffices, preferredOfficeId);
-            this.resolveOfficeScope(resolvedOfficeId);
+    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe({
+      next: loaded => {
+        if (!loaded) {
+          const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+          if (organizationId) {
+            this.officeService.loadAllOffices(organizationId);
+          } else {
+            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
             this.loadReservations(true);
+            return;
+          }
+        }
+
+        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe({
+          next: () => {
+            this.officeService.getAllOffices().pipe(take(1)).subscribe({
+              next: offices => {
+                const activeOffices = (offices || []).filter(office => office.isActive);
+                const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+                const resolvedOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(activeOffices, preferredOfficeId);
+                this.resolveOfficeScope(resolvedOfficeId);
+                this.loadReservations(true);
+              },
+              error: () => {
+                this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+                this.loadReservations(true);
+              }
+            });
           },
           error: () => {
             this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
@@ -805,9 +852,58 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
     this.navigateToNewReservation(propertyId, date);
   }
+
+  onBoardPropertyStatusChange(property: BoardProperty, statusId: number): void {
+    if (this.readOnly || !property || this.updatingPropertyStatusIds.has(property.propertyId)) {
+      return;
+    }
+
+    const previousStatusId = property.propertyStatusId;
+    if (statusId === previousStatusId) {
+      return;
+    }
+
+    this.updatingPropertyStatusIds.add(property.propertyId);
+    property.propertyStatusId = statusId;
+    property.statusLetter = getPropertyStatusLetter(statusId);
+
+    this.propertyService.getPropertyByGuid(property.propertyId).pipe(
+      take(1),
+      timeout(20000),
+      switchMap((fullProperty: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(fullProperty, statusId)).pipe(take(1), timeout(20000))),
+      finalize(() => {
+        this.updatingPropertyStatusIds.delete(property.propertyId);
+      })
+    ).subscribe({
+      next: () => {
+        property.propertyStatusId = statusId;
+        property.statusLetter = getPropertyStatusLetter(statusId);
+        this.toastr.success('Property status updated.', CommonMessage.Success);
+      },
+      error: () => {
+        property.propertyStatusId = previousStatusId;
+        property.statusLetter = getPropertyStatusLetter(previousStatusId);
+        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
+    event.stopPropagation();
+    dropdown?.open();
+  }
   //#endregion
 
   //#region Utility Methods
+  private buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      propertyStatusId,
+      parkingnotes: parkingNotes
+    };
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

@@ -19,6 +19,7 @@ import { ReceiptsListComponent } from '../receipts-list/receipts-list.component'
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { hasInspectorRole } from '../../shared/access/role-access';
 
 @Component({
   standalone: true,
@@ -55,6 +56,7 @@ export class MaintenanceComponent implements OnInit {
   selectedWorkOrderId: string | null = null;
   /** Increment to tell Receipts list to refetch (e.g. after work order save). */
   refreshReceiptsTrigger = 0;
+  showWorkOrdersTab = true;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -70,10 +72,13 @@ export class MaintenanceComponent implements OnInit {
 
   //#region Maintenance
   ngOnInit(): void {
+    this.showWorkOrdersTab = !hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+
     this.route.queryParamMap.pipe(take(1)).subscribe(params => {
       const tabParam = Number(params.get('tab'));
-      if (!Number.isNaN(tabParam) && tabParam >= 0 && tabParam <= 4) {
-        this.selectedTabIndex = tabParam;
+      const normalizedTab = this.normalizeRequestedTab(tabParam);
+      if (normalizedTab !== null) {
+        this.selectedTabIndex = normalizedTab;
       }
     });
 
@@ -216,6 +221,14 @@ export class MaintenanceComponent implements OnInit {
     this.selectedTabIndex = event.index;
   }
 
+  get workOrdersTabIndex(): number {
+    return 3;
+  }
+
+  get documentsTabIndex(): number {
+    return this.showWorkOrdersTab ? 4 : 3;
+  }
+
   onReceiptSelect(receiptId: number | null): void {
     this.showReceiptDetail = true;
     this.selectedReceiptId = receiptId;
@@ -261,6 +274,19 @@ export class MaintenanceComponent implements OnInit {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.MaintenanceList);
+  }
+
+  private normalizeRequestedTab(tabParam: number): number | null {
+    if (Number.isNaN(tabParam) || tabParam < 0) {
+      return null;
+    }
+
+    const maxTab = this.showWorkOrdersTab ? 4 : 3;
+    if (tabParam > maxTab) {
+      return maxTab;
+    }
+
+    return tabParam;
   }
   //#endregion
 }

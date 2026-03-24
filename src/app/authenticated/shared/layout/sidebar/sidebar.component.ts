@@ -4,10 +4,9 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Observable, Subject, map, shareReplay, takeUntil } from 'rxjs';
-import { RouterToken } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-import { UserGroups } from '../../../users/models/user-enums';
+import { getVisibleNavItems } from '../../access/role-access';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -32,93 +31,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
     );
   navItems: any[] = [];
   destroy$ = new Subject<void>();
-  
-  private allNavItems = [
-    {
-      icon: 'dashboard',
-      displayName: 'Dashboard',
-      url: RouterToken.Dashboard,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'grid_view',
-      displayName: 'Boards',
-      url: RouterToken.ReservationBoard,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'handshake',
-      displayName: 'Reservations',
-      url: RouterToken.RentalList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'home',
-      displayName: 'Properties',
-      url: RouterToken.PropertyList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'build',
-      displayName: 'Maintenance',
-      url: RouterToken.MaintenanceList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'account_balance',
-      displayName: 'Accounting',
-      url: RouterToken.AccountingList,
-      requiredRoles: [UserGroups.Accounting, UserGroups.Admin, UserGroups.SuperAdmin], // Accounting, Admin, and SuperAdmin
-      excludedRoles: [] // No exclusions
-    },
-    {
-      icon: 'mail',
-      displayName: 'Emails',
-      url: RouterToken.EmailList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'description',
-      displayName: 'Documents',
-      url: RouterToken.DocumentList,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'contacts',
-      displayName: 'Contacts',
-      url: RouterToken.Contacts,
-      requiredRoles: [], // Available to all
-      excludedRoles: [UserGroups.SuperAdmin] // Exclude SuperAdmin
-    },
-    {
-      icon: 'corporate_fare',
-      displayName: 'Organizations',
-      url: RouterToken.OrganizationList,
-      requiredRoles: [UserGroups.SuperAdmin], // SuperAdmin only
-      excludedRoles: [] // No exclusions
-    },
-    {
-      icon: 'people',
-      displayName: 'Users',
-      url: RouterToken.UserList,
-      requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin], 
-      excludedRoles: [] // No exclusions
-    },
-    {
-      icon: 'settings',
-      displayName: 'Settings',
-      url: RouterToken.OrganizationConfiguration,
-      requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin], // SuperAdmin and Admin only
-      excludedRoles: [] // No exclusions
-    },
-  ];
 
   constructor(
     public router: Router,
@@ -156,65 +68,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
-    if (!user || !user.userGroups || user.userGroups.length === 0) {
-      this.navItems = this.allNavItems.filter(item => item.requiredRoles.length === 0);
-      return;
-    }
-
-    // Convert userGroups to numbers for comparison
-    const userGroupNumbers = user.userGroups.map(group => {
-      // Handle both string names and numeric strings
-      if (typeof group === 'string') {
-        // Try to find enum value by name (e.g., "SuperAdmin" -> 1)
-        const enumKey = Object.keys(UserGroups).find(key => key === group);
-        if (enumKey) {
-          return UserGroups[enumKey as keyof typeof UserGroups];
-        }
-        // Try parsing as number (e.g., "1" -> 1)
-        const num = parseInt(group, 10);
-        if (!isNaN(num)) {
-          return num;
-        }
-      }
-      return typeof group === 'number' ? group : null;
-    }).filter(num => num !== null) as number[];
-
-    const isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
-    const isOwner = userGroupNumbers.includes(UserGroups.Owner);
-
-    if (isOwner) {
-      const dashboardItem = this.allNavItems.find(item => item.url === RouterToken.Dashboard);
-      this.navItems = dashboardItem ? [{ ...dashboardItem, url: RouterToken.DashboardOwner }] : [];
-      return;
-    }
-
-    // Filter nav items based on user roles
-    const filteredNavItems = this.allNavItems.filter(item => {
-      // First check if user is excluded
-      if (item.excludedRoles && item.excludedRoles.length > 0) {
-        const isExcluded = item.excludedRoles.some(role => userGroupNumbers.includes(role));
-        if (isExcluded) {
-          return false; // User is excluded, don't show this item
-        }
-      }
-      
-      // If no required roles, show to everyone (unless excluded above)
-      if (item.requiredRoles.length === 0) {
-        return true;
-      }
-      
-      // Check if user has at least one of the required roles
-      return item.requiredRoles.some(role => userGroupNumbers.includes(role));
-    });
-
-    if (isSuperAdmin) {
-      const organizationsItem = filteredNavItems.find(item => item.url === RouterToken.OrganizationList);
-      const otherItems = filteredNavItems.filter(item => item.url !== RouterToken.OrganizationList);
-      this.navItems = organizationsItem ? [organizationsItem, ...otherItems] : otherItems;
-      return;
-    }
-
-    this.navItems = filteredNavItems;
+    this.navItems = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
   }
     
   get desktopSidebarWidth(): number {

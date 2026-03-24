@@ -6,7 +6,8 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
 import { RouterUrl } from '../../app.routes';
-import { StartupPage, UserGroups } from '../../authenticated/users/models/user-enums';
+import { hasInspectorRole, hasOwnerRole } from '../../authenticated/shared/access/role-access';
+import { StartupPage } from '../../authenticated/users/models/user-enums';
 import { StorageKey } from '../../enums/storage-keys.enum';
 import { MaterialModule } from '../../material.module';
 import { emailRegex } from '../../regex/email-regex';
@@ -81,8 +82,12 @@ export class LoginComponent {
         if (this.authService.getIsLoggedIn()) {
           const user = this.authService.getUser();
 
-          if (this.hasOwnerRole(user?.userGroups || [])) {
+          if (hasOwnerRole(user?.userGroups as Array<string | number> | undefined)) {
             this.router.navigateByUrl(RouterUrl.DashboardOwner);
+            return;
+          }
+          if (hasInspectorRole(user?.userGroups as Array<string | number> | undefined)) {
+            this.router.navigateByUrl(RouterUrl.MaintenanceList);
             return;
           }
 
@@ -147,17 +152,6 @@ export class LoginComponent {
 
   getLoginRequest(): LoginRequest {
     return {username: this.form.value.username, password: this.form.value.password} as LoginRequest;
-  }
-
-  private hasOwnerRole(userGroups: string[]): boolean {
-    return (userGroups || []).some(group => {
-      if (group === 'Owner') {
-        return true;
-      }
-
-      const parsed = parseInt(String(group), 10);
-      return !isNaN(parsed) && parsed === UserGroups.Owner;
-    });
   }
   //#endregion
 }

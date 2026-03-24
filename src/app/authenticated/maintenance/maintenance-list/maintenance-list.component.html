@@ -61,7 +61,10 @@
               [hasColumnIndex]="true"
               [hasFilter]="true"
               [hasActionsRowClick]="true"
+              [hasActionsInspect]="true"
               [itemsPerPage]="100"
+              (dropdownChangeEvent)="onPropertyStatusChange($event)"
+              (inspectEvent)="goToInspection($event)"
               (rowClickEvent)="goToProperty($event)"
               (contactClickEvent)="goToContact($event)"/>
           </div>

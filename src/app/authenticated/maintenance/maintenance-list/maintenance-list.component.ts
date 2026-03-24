@@ -4,7 +4,7 @@ import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDest
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -15,16 +15,28 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { getBedSizeType } from '../../properties/models/property-enums';
 import { getPropertyStatus } from '../../properties/models/property-enums';
-import { PropertyListDisplay } from '../../properties/models/property.model';
+import { getPropertyStatuses } from '../../properties/models/property-enums';
+import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { hasInspectorRole } from '../../shared/access/role-access';
 
 type MaintenanceListDisplay = PropertyListDisplay & {
   propertyStatusText: string;
+  propertyStatusDropdown: {
+    value: string;
+    isOverridable: boolean;
+    toString: () => string;
+  };
+  bed1Text: string;
+  bed2Text: string;
+  bed3Text: string;
+  bed4Text: string;
 };
 
 @Component({
@@ -56,21 +68,38 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
+  isInspectorView = false;
 
   private readonly compactViewportWidth = 1024;
+  private readonly propertyStatuses = getPropertyStatuses();
+  private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
+  private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
-    'propertyStatusText': { displayAs: 'Status', wrap: false, maxWidth: '15ch' },
+    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '20ch', sort: true, options: this.propertyStatusLabels },
     'licenseDate': { displayAs: 'License Expires', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     'lastFilterChangeDate': { displayAs: 'Filters Changed', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     'lastSmokeChangeDate': { displayAs: 'Detectors Changed', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     'hvacServiced': { displayAs: 'HVAC Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     'fireplaceServiced': { displayAs: 'Fireplace Serviced', wrap: false, maxWidth: '20ch', alignment: 'center', headerAlignment: 'center' },
     };
+    
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false }
+  };
+
+  private readonly inspectorPropertiesDisplayedColumns: ColumnSet = {
+    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '23ch', sort: true, options: this.propertyStatusLabels },
+    'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '15ch', alignment: 'center'},
+    'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '15ch', alignment: 'center'},
+    'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
+    'bed1Text': { displayAs: 'Bed1', wrap: false , maxWidth: '15ch', alignment: 'center'},
+    'bed2Text': { displayAs: 'Bed2', wrap: false , maxWidth: '15ch', alignment: 'center'},
+    'bed3Text': { displayAs: 'Bed3', wrap: false , maxWidth: '15ch', alignment: 'center'},
+    'bed4Text': { displayAs: 'Bed4', wrap: false , maxWidth: '15ch', alignment: 'center'},
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
@@ -95,6 +124,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Maintenance-List
   ngOnInit(): void {
+    this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.updateDisplayedColumns();
     this.loadOffices();
 
@@ -156,7 +186,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateDisplayedColumns();
   }
 
-  /** Properties matching saved Property Selection (GET property/user/{userId}). */
   getProperties(): void {
     this.isServiceError = false;
     const userId = this.authService.getUser()?.userId || '';
@@ -173,6 +202,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.allProperties = mappedProperties.map(property => ({
           ...property,
           propertyStatusText: getPropertyStatus(property.propertyStatusId),
+          propertyStatusDropdown: this.buildStatusDropdownCell(getPropertyStatus(property.propertyStatusId)),
+          bed1Text: property.bedroomId1 ? getBedSizeType(property.bedroomId1) : 'None',
+          bed2Text: property.bedroomId2 ? getBedSizeType(property.bedroomId2) : 'None',
+          bed3Text: property.bedroomId3 ? getBedSizeType(property.bedroomId3) : 'None',
+          bed4Text: property.bedroomId4 ? getBedSizeType(property.bedroomId4) : 'None',
           licenseDate: this.formatterService.formatDateString(property.licenseDate ?? undefined),
           lastFilterChangeDate: this.formatterService.formatDateString(property.lastFilterChangeDate ?? undefined),
           lastSmokeChangeDate: this.formatterService.formatDateString(property.lastSmokeChangeDate ?? undefined),
@@ -187,6 +221,28 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.propertiesDisplay = [];
         console.error('Error loading properties:', err);
       }
+    });
+  }
+  //#endregion
+  
+  //#region Routing Methods
+  goToProperty(event: MaintenanceListDisplay): void {
+    this.ngZone.run(() => {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId]));
+    });
+  }
+
+  goToContact(event: MaintenanceListDisplay): void {
+    if (event.owner1Id) {
+      this.ngZone.run(() => {
+        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
+      });
+    }
+  }
+
+  goToInspection(event: MaintenanceListDisplay): void {
+    this.ngZone.run(() => {
+      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     });
   }
 
@@ -207,21 +263,40 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
-  //#endregion
-  
-  //#region Routing Methods
-  goToProperty(event: MaintenanceListDisplay): void {
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId]));
-    });
-  }
 
-  goToContact(event: MaintenanceListDisplay): void {
-    if (event.owner1Id) {
-      this.ngZone.run(() => {
-        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
-      });
+  onPropertyStatusChange(event: MaintenanceListDisplay): void {
+    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
+    const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
+    const previousStatusId = event.propertyStatusId;
+    const previousLabel = event.propertyStatusText;
+
+    if (selectedStatusId === undefined) {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+      return;
     }
+
+    if (selectedStatusId === previousStatusId) {
+      return;
+    }
+
+    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
+
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
+      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
+      finalize(() => {
+        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
+      })
+    ).subscribe({
+      next: () => {
+        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
+        this.toastr.success('Property status updated.', CommonMessage.Success);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Error updating property status:', err);
+        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
+        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
@@ -293,10 +368,48 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  //#region Property Status
+  buildStatusDropdownCell(label: string, isOverridable: boolean = true): MaintenanceListDisplay['propertyStatusDropdown'] {
+    return {
+      value: label,
+      isOverridable,
+      toString: () => label
+    };
+  }
+
+  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      propertyStatusId,
+      parkingnotes: parkingNotes
+    };
+  }
+
+  updatePropertyStatusDisplay(propertyId: string, propertyStatusId: number, propertyStatusText: string): void {
+    for (const property of this.allProperties) {
+      if (property.propertyId === propertyId) {
+        property.propertyStatusId = propertyStatusId;
+        property.propertyStatusText = propertyStatusText;
+        property.propertyStatusDropdown = this.buildStatusDropdownCell(propertyStatusText);
+        break;
+      }
+    }
+    this.applyFilters();
+  }
+  //#endregion
+
   //#region Utility Methods
-  private updateDisplayedColumns(): void {
+  updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
+    if (this.isCompactView) {
+      this.propertiesDisplayedColumns = this.compactPropertiesDisplayedColumns;
+      return;
+    }
+
+    this.propertiesDisplayedColumns = this.isInspectorView
+      ? this.inspectorPropertiesDisplayedColumns
+      : this.fullPropertiesDisplayedColumns;
   }
 
   ngOnDestroy(): void {

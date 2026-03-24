@@ -95,6 +95,8 @@
             [style.min-width]="column.maxWidth"
             [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
             [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
+            (click)="column.options?.length ? $event.stopPropagation() : null"
+            (mousedown)="column.options?.length ? $event.stopPropagation() : null"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
                 'align-center': getColumnAlignment(column) === 'center', 'align-right': getColumnAlignment(column) === 'right',
@@ -261,14 +263,19 @@
                     </div>
                   } @else if (column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
-                      <mat-select [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
-                        [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item)">
-                        @for (option of column.options; track option) {
-                          <mat-option [value]="option" id="option-{{column}}-{{$index}}">
-                            {{option}}
-                          </mat-option>
-                        }
-                      </mat-select>
+                      <div class="datatable-dropdown-trigger" (click)="openDropdown($event, dropdownSelect)" (mousedown)="$event.stopPropagation()">
+                        <mat-select #dropdownSelect [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
+                          (click)="$event.stopPropagation()"
+                          (mousedown)="$event.stopPropagation()"
+                          panelClass="datatable-dropdown-panel"
+                          [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item)">
+                          @for (option of column.options; track option) {
+                            <mat-option [value]="option" id="option-{{column}}-{{$index}}">
+                              {{option}}
+                            </mat-option>
+                          }
+                        </mat-select>
+                      </div>
                     } @else {
                       <span matTooltip="Locked">
                         @if (item[column.name]?.value !== 'NONE') { {{item[column.name]?.value}} }

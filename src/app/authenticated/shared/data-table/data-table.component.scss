@@ -83,6 +83,22 @@ tr.mat-mdc-row.mat-no-data-row,
     transform: scale(0.9);
 }
 
+.datatable-dropdown-trigger {
+    width: 100%;
+}
+
+/* Keep inline dropdown menu options aligned with list row typography. */
+::ng-deep .datatable-dropdown-panel .mat-mdc-option .mdc-list-item__primary-text {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+::ng-deep .datatable-dropdown-panel .mat-mdc-option {
+    min-height: 30px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
 .is-scrollable {
     overflow-x: auto;
 }

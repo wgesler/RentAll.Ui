@@ -104,7 +104,29 @@
                 <td class="property-cell address-cell">{{ property.address }}</td>
                 <td class="property-cell rent-cell">${{ property.monthlyRate }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
-                <td class="property-cell status-cell">{{ property.statusLetter }}</td>
+                <td class="property-cell status-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                  @if (readOnly) {
+                    {{ property.statusLetter }}
+                  } @else {
+                    <div class="board-status-trigger" (click)="openBoardStatusDropdown($event, statusSelect)" (mousedown)="$event.stopPropagation()">
+                      <mat-select
+                        #statusSelect
+                        class="board-status-select"
+                        panelClass="board-status-panel"
+                        [ngModel]="property.propertyStatusId"
+                        [ngModelOptions]="{ standalone: true }"
+                        [disabled]="updatingPropertyStatusIds.has(property.propertyId)"
+                        (selectionChange)="onBoardPropertyStatusChange(property, $event.value)"
+                        (click)="$event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()">
+                        <mat-select-trigger>{{ getPropertyStatusLetter(property.propertyStatusId) }}</mat-select-trigger>
+                        @for (statusOption of propertyStatusOptions; track statusOption.value) {
+                          <mat-option [value]="statusOption.value">{{ statusOption.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </div>
+                  }
+                </td>
                 @for (day of calendarDays; track day.date.getTime()) {
                   @if (isDateBlockedByAvailability(property, day.date)) {
                     @if (getBlockedAvailabilityColor(); as blockedColor) {

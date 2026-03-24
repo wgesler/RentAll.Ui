@@ -4,6 +4,7 @@ export interface BoardProperty {
   address: string;
   monthlyRate: number;
   bedsBaths: string;
+  propertyStatusId: number;
   statusLetter: string;
   availableFrom?: string;
   availableUntil?: string;

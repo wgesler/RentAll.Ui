@@ -64,6 +64,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
   @Input() hasActionsSelect: boolean = false;
+  @Input() hasActionsInspect: boolean = false;
   @Input() hasActionsView: boolean = false;
 
   @Input() isColumnFirstActions: boolean = false;
@@ -126,6 +127,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
+  @Output() inspectEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
   @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
@@ -229,6 +231,9 @@ export class DataTableComponent implements OnChanges, OnInit {
         case 'string':
           return value.toLocaleLowerCase();
         case 'object':
+          if (value && typeof value === 'object' && typeof value['value'] === 'string') {
+            return value['value'].toLocaleLowerCase();
+          }
           return value[0]?.toLocaleLowerCase() ?? '';
         default:
           return value;
@@ -360,6 +365,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.viewEvent.emit(rowItem);
   }
 
+  emitInspectEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.inspectEvent.emit(rowItem);
+  }
+
   emitRowClickEvent(rowItem: PurposefulAny): void {
     // Only emit if row clicks are enabled
     if (this.hasActionsRowClick) {
@@ -407,6 +417,11 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   emitDropdownChangeEvent(rowItem: PurposefulAny): void {
     this.dropdownChangeEvent.emit(rowItem);
+  }
+
+  openDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
+    event.stopPropagation();
+    dropdown?.open();
   }
 
   emitButtonEvent(rowItem: PurposefulAny): void {
@@ -462,7 +477,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsCopy || this.hasActionsCalendar || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsCopy || this.hasActionsCalendar || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -491,6 +506,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.buttons = [];
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#4CAF50', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
+    if (this.hasActionsInspect)  this.buttons.push({name: 'inspect', callback: (event, rowItem) => this.emitInspectEvent(event, rowItem), color: '#1565C0', tooltip: 'Open Inspection', tooltipPosition: 'before', icon: 'search', suspendOnUpdate: false});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});

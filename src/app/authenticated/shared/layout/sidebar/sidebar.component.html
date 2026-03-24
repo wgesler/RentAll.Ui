@@ -15,7 +15,11 @@
         [id]="'sidenav-list-item-' + i"
         (click)="sideNav.mode === 'over' ? sideNav.toggle() : ''">
         <div class="mat-list-item-content-open" [ngClass]="{'mat-list-item-content-closed': !isExpanded || (isHandset$ | async)}" routerLinkActive="active-list-item">
+          @if (navItem.icon === 'dashboard') {
+            <img src="assets/images/icons/dashboard.svg" alt="" class="sidebar-svg-icon" aria-hidden="true" />
+          } @else {
           <mat-icon>{{navItem.icon}}</mat-icon>
+          }
           @if (isExpanded && (isHandset$ | async) === false) {
             <span>{{navItem.displayName}}</span>
           }

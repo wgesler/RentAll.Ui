@@ -597,6 +597,56 @@
   }
 }
 
+.board-status-select {
+  width: 100%;
+  min-width: 100%;
+
+  ::ng-deep .mat-mdc-select-trigger {
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+    justify-content: center;
+    color: #0d47a1 !important;
+    text-decoration: underline;
+  }
+
+  ::ng-deep .mat-mdc-select-value,
+  ::ng-deep .mat-mdc-select-value-text,
+  ::ng-deep .mat-mdc-select-min-line {
+    font-size: 11px !important;
+    line-height: 1 !important;
+    text-align: center;
+    color: #0d47a1 !important;
+    text-decoration: underline;
+  }
+
+  ::ng-deep .mat-mdc-select-arrow-wrapper {
+    display: none !important;
+  }
+}
+
+.board-status-trigger {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+::ng-deep .board-status-panel .mat-mdc-option {
+  min-height: 26px !important;
+  height: 26px !important;
+}
+
+::ng-deep .board-status-panel .mat-mdc-option .mdc-list-item__primary-text {
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+::ng-deep .board-status-panel {
+  min-width: 140px !important;
+  width: 140px !important;
+  max-width: 140px !important;
+}
+
 .calendar-cell {
   display: table-cell;
   width: 20px !important;

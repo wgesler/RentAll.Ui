@@ -18,7 +18,7 @@
               Maintenance
             </span>
           </span>
-          @if (selectedTabIndex === 4 && maintenanceDocumentList) {
+          @if (selectedTabIndex === documentsTabIndex && maintenanceDocumentList) {
             <div class="header-title form-titlebar-fields-wrap">
               @if (maintenanceDocumentList.showOfficeDropdown) {
                 <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -51,14 +51,14 @@
               Back
             </button>
           }
-          @if (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList) {
+          @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
             <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
               class="text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
               Back
             </button>
           }
-          @if (!((selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) || (selectedTabIndex === 3 && !showWorkOrderDetail && maintenanceWorkOrderList))) {
+          @if (!((selectedTabIndex === 2 && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
             <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
               class="text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
@@ -111,22 +111,24 @@
                 (receiptSelect)="onReceiptSelect($event)" />
             }
           </mat-tab>
-          <mat-tab label="Work Orders">
-            @if (showWorkOrderDetail) {
-              <app-work-order
-                [property]="property"
-                [workOrderId]="selectedWorkOrderId"
-                [embeddedInMaintenance]="true"
-                (backEvent)="onWorkOrderBack()"
-                (savedEvent)="onWorkOrderSaved()" />
-            } @else {
-              <app-work-order-list
-                #maintenanceWorkOrderList
-                [property]="property"
-                [embeddedInMaintenance]="true"
-                (workOrderSelect)="onWorkOrderSelect($event)" />
-            }
-          </mat-tab>
+          @if (showWorkOrdersTab) {
+            <mat-tab label="Work Orders">
+              @if (showWorkOrderDetail) {
+                <app-work-order
+                  [property]="property"
+                  [workOrderId]="selectedWorkOrderId"
+                  [embeddedInMaintenance]="true"
+                  (backEvent)="onWorkOrderBack()"
+                  (savedEvent)="onWorkOrderSaved()" />
+              } @else {
+                <app-work-order-list
+                  #maintenanceWorkOrderList
+                  [property]="property"
+                  [embeddedInMaintenance]="true"
+                  (workOrderSelect)="onWorkOrderSelect($event)" />
+              }
+            </mat-tab>
+          }
           <mat-tab label="Documents">
             <app-document-list
               #maintenanceDocumentList
