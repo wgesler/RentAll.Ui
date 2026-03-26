@@ -1521,6 +1521,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    if (returnTo === 'reservation-board') {
+      this.router.navigateByUrl(RouterUrl.ReservationBoard);
+      return;
+    }
     this.router.navigateByUrl(RouterUrl.PropertyList);
   }
   //#endregion

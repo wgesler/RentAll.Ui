@@ -797,7 +797,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     if (this.readOnly) {
       return;
     }
-    this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])]);
+    this.router.navigate(['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])], {
+      queryParams: { returnTo: 'reservation-board' }
+    });
   }
 
   navigateToNewReservation(propertyId: string, date: Date): void {
@@ -811,6 +813,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       ['/' + RouterUrl.replaceTokens(RouterUrl.Reservation, ['new'])],
       {
         queryParams: {
+          returnTo: 'reservation-board',
           propertyId,
           startDate: selectedDate.toISOString().split('T')[0]
         }

@@ -1935,6 +1935,11 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   back(): void {
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    if (returnTo === 'reservation-board') {
+      this.router.navigateByUrl(RouterUrl.ReservationBoard);
+      return;
+    }
     this.router.navigateByUrl(RouterUrl.ReservationList);
   }
   

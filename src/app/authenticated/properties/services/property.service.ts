@@ -23,8 +23,17 @@ export class PropertyService {
   }
 
   // GET: Get property list (summary view)
-  getPropertyList(): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'list');
+  getPropertyList(includeInactive: boolean = false): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'list', {
+      params: {
+        includeInactive: String(includeInactive)
+      }
+    }).pipe(
+      // Keep behavior safe until API-side filtering lands.
+      map((properties) => includeInactive
+        ? (properties || [])
+        : (properties || []).filter(p => p?.isActive === true))
+    );
   }
 
   // GET: Get property by ID
@@ -64,8 +73,17 @@ export class PropertyService {
   }
 
   // POST: Get properties by selection criteria
-  getPropertiesBySelectionCritera(userId: string): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
+  getPropertiesBySelectionCritera(userId: string, includeInactive: boolean = false): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId, {
+      params: {
+        includeInactive: String(includeInactive)
+      }
+    }).pipe(
+      // Keep behavior safe until API-side filtering lands.
+      map((properties) => includeInactive
+        ? (properties || [])
+        : (properties || []).filter(p => p?.isActive === true))
+    );
   }
 
   // GET: Get properties associated with owner

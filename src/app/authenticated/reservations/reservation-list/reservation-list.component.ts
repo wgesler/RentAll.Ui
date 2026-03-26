@@ -191,7 +191,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     const finalizeLoad = () => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
 
     if (!userId) {
-      this.reservationService.getReservationList().pipe(take(1), finalize(finalizeLoad)).subscribe({
+      this.reservationService.getReservationList(true).pipe(take(1), finalize(finalizeLoad)).subscribe({
         next: (response: ReservationListResponse[]) => {
           this.isServiceError = false;
           this.allReservations = this.mappingService.mapReservationList(response);
@@ -209,7 +209,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     forkJoin({
-      reservations: this.reservationService.getReservationList(),
+      reservations: this.reservationService.getReservationList(true),
       selectedProperties: this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
         catchError(() => {
           this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
@@ -286,6 +286,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedOffice) {
       queryParams.officeId = this.selectedOffice.officeId;
     }
+    queryParams.returnTo = 'reservation-list';
     
     this.router.navigate([url], {
       queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined

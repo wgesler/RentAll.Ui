@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 
@@ -17,8 +18,17 @@ export class ReservationService {
   }
 
   // GET: Get reservation list (summary view)
-  getReservationList(): Observable<ReservationListResponse[]> {
-    return this.http.get<ReservationListResponse[]>(this.controller + 'list');
+  getReservationList(includeInactive: boolean = false): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'list', {
+      params: {
+        includeInactive: String(includeInactive)
+      }
+    }).pipe(
+      // Keep behavior safe until API-side filtering lands.
+      map((reservations) => includeInactive
+        ? (reservations || [])
+        : (reservations || []).filter(r => r?.isActive === true))
+    );
   }
 
   // GET: Get reservations list for a particular property

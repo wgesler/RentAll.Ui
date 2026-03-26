@@ -98,7 +98,7 @@
                   @if (readOnly) {
                     <span>{{ property.propertyCode }}</span>
                   } @else {
-                    <a [routerLink]="getPropertyRoute(property.propertyId)">{{ property.propertyCode }}</a>
+                    <a [routerLink]="getPropertyRoute(property.propertyId)" [queryParams]="{ returnTo: 'reservation-board' }">{{ property.propertyCode }}</a>
                   }
                 </td>
                 <td class="property-cell address-cell">{{ property.address }}</td>
@@ -148,7 +148,7 @@
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
-                              <a [routerLink]="getReservationRoute(reservation.reservationId)" class="reservation-link" (click)="$event.stopPropagation()">
+                              <a [routerLink]="getReservationRoute(reservation.reservationId)" [queryParams]="{ returnTo: 'reservation-board' }" class="reservation-link" (click)="$event.stopPropagation()">
                                 {{ getReservationDisplayText(reservation, day.date) }}
                               </a>
                             }
@@ -178,7 +178,7 @@
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
-                              <a [routerLink]="getReservationRoute(reservation.reservationId)" class="reservation-link" (click)="$event.stopPropagation()">
+                              <a [routerLink]="getReservationRoute(reservation.reservationId)" [queryParams]="{ returnTo: 'reservation-board' }" class="reservation-link" (click)="$event.stopPropagation()">
                                 {{ getReservationDisplayText(reservation, day.date) }}
                               </a>
                             }
