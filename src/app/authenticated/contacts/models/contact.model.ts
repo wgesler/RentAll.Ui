@@ -8,6 +8,7 @@ export interface ContactRequest {
   entityId?: string | null;
   ownerTypeId?: number | null;
   companyName?: string | null;
+  companyEmail?: string | null;
   displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
@@ -50,6 +51,7 @@ export interface ContactResponse {
   entityId?: string | null;
   ownerTypeId?: number | null;
   companyName?: string | null;
+  companyEmail?: string | null;
   displayName?: string |null;
   firstName?: string | null;
   lastName?: string | null;
@@ -96,6 +98,7 @@ export interface ContactListDisplay {
   entityTypeId?: number;
   ownerTypeId?: number | null;
   companyName?: string | null;
+  companyEmail?: string | null;
   propertyCodesDisplay?: string;
   phone?: string | null;
   email: string;

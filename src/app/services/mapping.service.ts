@@ -106,6 +106,7 @@ export class MappingService {
     copyIfMissing('bankName', 'BankName');
     copyIfMissing('routingNumber', 'RoutingNumber');
     copyIfMissing('accountNumber', 'AccountNumber');
+    copyIfMissing('companyEmail', 'CompanyEmail');
     return o as unknown as ContactResponse;
   }
 
@@ -126,6 +127,7 @@ export class MappingService {
         entityTypeId: o.entityTypeId,
         ownerTypeId: o.ownerTypeId ?? null,
         companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,
+        companyEmail: o.companyEmail ?? (o as { CompanyEmail?: string })['CompanyEmail'] ?? null,
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
         rating: o.rating ?? 0,

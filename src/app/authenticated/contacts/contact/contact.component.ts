@@ -41,25 +41,30 @@ export class ContactComponent implements OnInit, OnDestroy {
   @Input() compactDialogMode: boolean = false;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
 
+  readonly ratingStars: number[] = [1, 2, 3, 4, 5];
+  EntityType = EntityType;
+  OwnerType = OwnerType; 
+ 
   isServiceError: boolean = false;
-  contactId: string;
-  contact: ContactResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isEmbedded: boolean = true;
   states: string[] = [];
+  
+  contactId: string;
+  contact: ContactResponse;
   availableContactTypes: { value: number, label: string }[] = [];
+  availableOwnerTypes: { value: number; label: string }[] = [];
+
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
-  EntityType = EntityType; // Expose enum to template
-  OwnerType = OwnerType; // Expose enum to template
-  availableOwnerTypes: { value: number; label: string }[] = [];
+
   allProperties: PropertyListResponse[] = [];
   availablePropertyCodes: { value: string; label: string }[] = [];
-  readonly ratingStars: number[] = [1, 2, 3, 4, 5];
+
   w9FileName: string | null = null;
   w9FileDataUrl: string | null = null;
   w9FileContentType: string | null = null;
@@ -316,6 +321,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     contactRequest.ownerTypeId = entityTypeId === EntityType.Owner ? (formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null) : undefined;
     contactRequest.properties = entityTypeId === EntityType.Owner ? (formValue.propertyCodes || []) : [];
     contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
+    contactRequest.companyEmail = ((formValue.companyEmail || '').trim() || undefined);
     const isCompany = entityTypeId === EntityType.Company;
     contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
 
@@ -371,6 +377,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       lastName: new FormControl(''),
       officeId: new FormControl(null, [Validators.required]),
       companyName: new FormControl(''),
+      companyEmail: new FormControl('', [Validators.email]),
       displayName: new FormControl(''),
       phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
       email: new FormControl('', [Validators.required, Validators.email]),
@@ -397,20 +404,64 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
     this.formatContractMarkup();
 
-    // Company/Vendor require company name. Tenant and Owner have optional company name.
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
+      const isCompany = contactTypeId === EntityType.Company;
       const companyNameControl = this.form.get('companyName');
+      const companyEmailControl = this.form.get('companyEmail');
       const displayNameControl = this.form.get('displayName');
-      if (contactTypeId === EntityType.Company || contactTypeId === EntityType.Vendor) {
+      const firstNameControl = this.form.get('firstName');
+      const lastNameControl = this.form.get('lastName');
+      const phoneControl = this.form.get('phone');
+      const emailControl = this.form.get('email');
+      const address1Control = this.form.get('address1');
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isCompany) {
         companyNameControl?.setValidators([Validators.required]);
+        companyEmailControl?.setValidators([Validators.required, Validators.email]);
+        displayNameControl?.setValidators([Validators.required]);
+        firstNameControl?.setValidators([Validators.required]);
+        lastNameControl?.setValidators([Validators.required]);
+        phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+        emailControl?.setValidators([Validators.required, Validators.email]);
+        address1Control?.setValidators([Validators.required]);
+        cityControl?.setValidators([Validators.required]);
+        stateControl?.setValidators([Validators.required]);
+        zipControl?.setValidators([Validators.required]);
       } else {
         companyNameControl?.clearValidators();
+        companyEmailControl?.setValidators([Validators.email]);
+        displayNameControl?.clearValidators();
+        firstNameControl?.clearValidators();
+        lastNameControl?.clearValidators();
+        phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+        emailControl?.setValidators([Validators.required, Validators.email]);
+        address1Control?.clearValidators();
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
       }
-      if (contactTypeId !== EntityType.Company && displayNameControl) {
+
+      if (!isCompany && displayNameControl) {
         displayNameControl.setValue('');
       }
+
       companyNameControl?.updateValueAndValidity({ emitEvent: false });
+      companyEmailControl?.updateValueAndValidity({ emitEvent: false });
+      displayNameControl?.updateValueAndValidity({ emitEvent: false });
+      firstNameControl?.updateValueAndValidity({ emitEvent: false });
+      lastNameControl?.updateValueAndValidity({ emitEvent: false });
+      phoneControl?.updateValueAndValidity({ emitEvent: false });
+      emailControl?.updateValueAndValidity({ emitEvent: false });
+      address1Control?.updateValueAndValidity({ emitEvent: false });
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
     });
+
+    this.form.get('contactTypeId')?.updateValueAndValidity({ emitEvent: true });
 
     // When not in compact dialog mode, syncing contact's office to global selection is desired (e.g. add contact).
     // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
@@ -441,6 +492,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         lastName: this.contact.lastName,
         officeId: this.contact.officeId || null,
         companyName: companyName,
+        companyEmail: this.contact.companyEmail ?? '',
         displayName: this.contact.displayName ?? '',
         address1: this.contact.address1 || '',
         address2: this.contact.address2 || '',
@@ -659,13 +711,22 @@ export class ContactComponent implements OnInit, OnDestroy {
       const cityControl = this.form.get('city');
       const stateControl = this.form.get('state');
       const zipControl = this.form.get('zip');
+      const isCompany = this.form.get('contactTypeId')?.value === EntityType.Company;
 
-      if (isInternational) {
+      if (isInternational && !isCompany) {
         cityControl?.clearValidators();
         stateControl?.clearValidators();
         zipControl?.clearValidators();
       } else {
-        // Note: City, State, Zip are optional for contacts, so no validators needed
+        if (isCompany) {
+          cityControl?.setValidators([Validators.required]);
+          stateControl?.setValidators([Validators.required]);
+          zipControl?.setValidators([Validators.required]);
+        } else {
+          cityControl?.clearValidators();
+          stateControl?.clearValidators();
+          zipControl?.clearValidators();
+        }
       }
 
       cityControl?.updateValueAndValidity({ emitEvent: false });

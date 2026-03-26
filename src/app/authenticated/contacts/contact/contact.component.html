@@ -55,7 +55,7 @@
 
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
 
-              <!-- Row 1: Office, Contact Type, Owner Type (when Owner), Company Name, Display Name (when Company) - each 1/4 -->
+              <!-- Row 1: Office, Contact Type, Owner Type (when Owner) -->
               <div class="col-span-4 grid gap-x-1.5 form-grid-four-equal">
                 <mat-form-field appearance="outline" class="field-min-0">
                   <mat-label>Office</mat-label>
@@ -96,20 +96,36 @@
                   </mat-form-field>
                 }
 
-                @if (form.get('contactTypeId')?.value !== EntityType.Owner || (form.get('ownerTypeId')?.value != null && form.get('ownerTypeId')?.value !== OwnerType.Individual)) {
-                  <mat-form-field appearance="outline" class="field-min-0">
-                    <mat-label>{{ form.get('contactTypeId')?.value === EntityType.Vendor ? 'Vendor Name' : 'Company Name' }}</mat-label>
-                    <input matInput formControlName="companyName" [placeholder]="form.get('contactTypeId')?.value === EntityType.Vendor ? 'Enter vendor name' : 'Enter company name'">
-                  </mat-form-field>
-                }
-
-                @if (form.get('contactTypeId')?.value === EntityType.Company) {
-                  <mat-form-field appearance="outline" class="field-min-0">
-                    <mat-label>Display Name</mat-label>
-                    <input matInput formControlName="displayName" placeholder="Enter display name">
+                @if (form.get('contactTypeId')?.value === EntityType.Vendor) {
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Company Name</mat-label>
+                    <input matInput formControlName="companyName" placeholder="Enter company name">
                   </mat-form-field>
                 }
               </div>
+
+              @if (form.get('contactTypeId')?.value === EntityType.Company) {
+                <!-- Row 2: Company Name (2), Display Name (1), Company Email (2) -->
+                <div class="col-span-4 grid grid-cols-5 gap-x-1.5">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Company Name</mat-label>
+                    <input matInput formControlName="companyName" placeholder="Enter company name">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                    <mat-label>Display Name</mat-label>
+                    <input matInput formControlName="displayName" placeholder="Enter display name">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Accounting Email</mat-label>
+                    <input matInput type="email" formControlName="companyEmail" placeholder="Enter company email">
+                    @if (form.get('companyEmail')?.hasError('email') && form.get('companyEmail')?.touched) {
+                      <mat-error>Invalid email format</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              }
 
               @if (form.get('contactTypeId')?.value === EntityType.Owner) {
                 <mat-form-field appearance="outline" class="col-span-4">
@@ -122,25 +138,34 @@
                 </mat-form-field>
               }
 
-              <!-- Row 2: Code, First Name, Last Name -->
-              <div class="col-span-4 flex items-center gap-x-1.5 name-row-min-0">
-                @if (!isAddMode) {
-                  <mat-form-field appearance="outline" class="code-field-fixed-20">
+              <!-- Row 3: Code (edit only), First Name, Last Name -->
+              @if (!isAddMode) {
+                <div class="col-span-4 grid grid-cols-5 gap-x-1.5">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                     <mat-label>Code</mat-label>
                     <input matInput [value]="contact?.contactCode || ''" readonly disabled>
                   </mat-form-field>
-                }
-                
-                <mat-form-field appearance="outline" class="name-flex-field">
-                  <mat-label>First Name</mat-label>
-                  <input matInput formControlName="firstName">
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="name-flex-field">
-                  <mat-label>Last Name</mat-label>
-                  <input matInput formControlName="lastName">
-                </mat-form-field>
-              </div>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>First Name</mat-label>
+                    <input matInput formControlName="firstName">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Last Name</mat-label>
+                    <input matInput formControlName="lastName">
+                  </mat-form-field>
+                </div>
+              } @else {
+                <div class="col-span-4 grid grid-cols-4 gap-x-1.5">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>First Name</mat-label>
+                    <input matInput formControlName="firstName">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-label>Last Name</mat-label>
+                    <input matInput formControlName="lastName">
+                  </mat-form-field>
+                </div>
+              }
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
