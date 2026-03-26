@@ -36,6 +36,7 @@ import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normali
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { LeaseComponent } from '../lease/lease.component';
@@ -57,7 +58,7 @@ interface ExtraFeeLineDisplay {
 @Component({
     standalone: true,
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitlebarSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })
@@ -913,6 +914,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
     this.form.get('contactId')?.setValue(normalizedContactId);
     this.form.get('contactId')?.markAsTouched();
+  }
+
+  get headerReservationOptions(): SearchableSelectOption[] {
+    return this.availableHeaderReservations.map(option => ({ value: option.value.reservationId, label: option.label }));
+  }
+
+  onHeaderReservationDropdownChange(reservationId: string | number | null): void {
+    this.selectedHeaderReservationId = reservationId == null ? null : String(reservationId);
+    this.onHeaderReservationChange();
   }
 
   onReservationNumberDropdownChange(controlName: 'reservationTypeId' | 'reservationStatusId' | 'reservationNoticeId' | 'checkInTimeId' | 'checkOutTimeId', value: string | number | null): void {

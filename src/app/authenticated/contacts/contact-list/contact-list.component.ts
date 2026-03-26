@@ -15,6 +15,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
@@ -24,7 +25,7 @@ import { ContactService } from '../services/contact.service';
     selector: 'app-contact-list',
     templateUrl: './contact-list.component.html',
     styleUrls: ['./contact-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
@@ -226,6 +227,25 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(null);
     }
     this.applyFilters();
+  }
+
+  get officeOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get selectedOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? null;
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.selectedOffice = officeId == null
+      ? null
+      : this.offices.find(office => office.officeId === officeId) || null;
+    this.onOfficeChange();
   }
   //#endregion
 

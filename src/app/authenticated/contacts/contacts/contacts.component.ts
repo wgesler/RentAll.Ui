@@ -12,6 +12,7 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { ContactListComponent } from '../contact-list/contact-list.component';
 import { ContactComponent } from '../contact/contact.component';
 import { EntityType } from '../models/contact-enum';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
@@ -19,6 +20,7 @@ import { EntityType } from '../models/contact-enum';
     imports: [
     MaterialModule,
     FormsModule,
+    TitlebarSelectComponent,
     ContactListComponent,
     ContactComponent
 ],
@@ -100,6 +102,17 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
     this.resolveOfficeScope(officeId);
     this.updateUrlWithCurrentState();
+  }
+
+  get officeOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    this.onOfficeIdChange(value == null || value === '' ? null : Number(value));
   }
 
   onTabChange(event: any): void {

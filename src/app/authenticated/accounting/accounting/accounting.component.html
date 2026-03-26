@@ -8,144 +8,144 @@
         </span>
         @if (selectedTabIndex === 0 && !isSuperAdmin && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [ngModel]="accountingInvoiceList.selectedOffice" (ngModelChange)="accountingInvoiceList.selectedOffice = $event; accountingInvoiceList.onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of accountingInvoiceList.offices; track office.officeId) {
-                  <mat-option [value]="office">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-company">
-              <mat-label>Companies</mat-label>
-              <mat-select [ngModel]="accountingInvoiceList.selectedCompanyContact" (ngModelChange)="accountingInvoiceList.selectedCompanyContact = $event; accountingInvoiceList.onCompanyChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Companies</mat-option>
-                @for (company of accountingInvoiceList.availableCompanyContacts; track company.value.contactId) {
-                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-reservation">
-              <mat-label>Reservations</mat-label>
-              <mat-select [ngModel]="accountingInvoiceList.selectedReservation" (ngModelChange)="accountingInvoiceList.selectedReservation = $event; accountingInvoiceList.onReservationChange()" [compareWith]="accountingInvoiceList.compareReservationById" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Reservations</mat-option>
-                @for (reservation of accountingInvoiceList.availableReservations; track reservation.value.reservationId) {
-                  <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingInvoiceList.selectedOffice?.officeId ?? null"
+              [options]="getOfficeOptions(accountingInvoiceList.offices)"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingInvoiceOfficeDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Companies'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="accountingInvoiceList.selectedCompanyContact?.contactId ?? null"
+              [options]="getCompanyOptions(accountingInvoiceList.availableCompanyContacts)"
+              [nullOptionLabel]="'All Companies'"
+              [noResultsText]="'No companies match your search'"
+              (valueChange)="onAccountingInvoiceCompanyDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Reservations'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="accountingInvoiceList.selectedReservation?.reservationId ?? null"
+              [options]="getReservationOptions(accountingInvoiceList.availableReservations)"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onAccountingInvoiceReservationDropdownChange($event)">
+            </app-titlebar-select>
           </div>
         } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes) {
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [ngModel]="accountingCostCodes.selectedOffice" (ngModelChange)="accountingCostCodes.selectedOffice = $event; accountingCostCodes.onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of accountingCostCodes.offices; track office.officeId) {
-                  <mat-option [value]="office">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingCostCodes.selectedOffice?.officeId ?? null"
+              [options]="getOfficeOptions(accountingCostCodes.offices)"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingCostCodesOfficeDropdownChange($event)">
+            </app-titlebar-select>
           </div>
         } @else if (selectedTabIndex === 2 && !isSuperAdmin && accountingGeneralLedger) {
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="accountingGeneralLedger.selectedOfficeId" (selectionChange)="accountingGeneralLedger.onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of accountingGeneralLedger.offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-company">
-              <mat-label>Companies</mat-label>
-              <mat-select [(ngModel)]="accountingGeneralLedger.selectedCompanyContact" (selectionChange)="accountingGeneralLedger.onCompanyChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Companies</mat-option>
-                @for (company of accountingGeneralLedger.availableCompanyContacts; track company.value.contactId) {
-                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-reservation">
-              <mat-label>Reservations</mat-label>
-              <mat-select [(ngModel)]="accountingGeneralLedger.selectedReservationId" (selectionChange)="accountingGeneralLedger.onReservationChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Reservations</mat-option>
-                @for (reservation of accountingGeneralLedger.availableReservations; track reservation.value.reservationId) {
-                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingGeneralLedger.selectedOfficeId"
+              [options]="getOfficeOptions(accountingGeneralLedger.offices)"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingGeneralLedgerOfficeDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Companies'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="accountingGeneralLedger.selectedCompanyContact?.contactId ?? null"
+              [options]="getCompanyOptions(accountingGeneralLedger.availableCompanyContacts)"
+              [nullOptionLabel]="'All Companies'"
+              [noResultsText]="'No companies match your search'"
+              (valueChange)="onAccountingGeneralLedgerCompanyDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Reservations'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="accountingGeneralLedger.selectedReservationId"
+              [options]="getReservationOptions(accountingGeneralLedger.availableReservations)"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onAccountingGeneralLedgerReservationDropdownChange($event)">
+            </app-titlebar-select>
           </div>
         } @else if (selectedTabIndex === 3 && !isSuperAdmin && accountingEmailList) {
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="accountingEmailList.selectedOfficeId" (selectionChange)="accountingEmailList.onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of accountingEmailList.offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-company">
-              <mat-label>Companies</mat-label>
-              <mat-select [(ngModel)]="accountingEmailList.selectedCompanyContact" (selectionChange)="accountingEmailList.onCompanyChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Companies</mat-option>
-                @for (company of accountingEmailList.availableCompanyContacts; track company.value.contactId) {
-                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-reservation">
-              <mat-label>Reservations</mat-label>
-              <mat-select [(ngModel)]="accountingEmailList.selectedReservationId" (selectionChange)="accountingEmailList.onReservationChange()" [compareWith]="accountingEmailList.compareReservationId" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Reservations</mat-option>
-                @for (reservation of accountingEmailList.availableReservations; track reservation.value.reservationId) {
-                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingEmailList.selectedOfficeId"
+              [options]="getOfficeOptions(accountingEmailList.offices)"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingEmailOfficeDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Companies'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="accountingEmailList.selectedCompanyContact?.contactId ?? null"
+              [options]="getCompanyOptions(accountingEmailList.availableCompanyContacts)"
+              [nullOptionLabel]="'All Companies'"
+              [noResultsText]="'No companies match your search'"
+              (valueChange)="onAccountingEmailCompanyDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Reservations'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="accountingEmailList.selectedReservationId"
+              [options]="getReservationOptions(accountingEmailList.availableReservations)"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onAccountingEmailReservationDropdownChange($event)">
+            </app-titlebar-select>
           </div>
         } @else if (selectedTabIndex === 4 && !isSuperAdmin && accountingDocumentList) {
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="accountingDocumentList.selectedOfficeId" (selectionChange)="accountingDocumentList.onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of accountingDocumentList.offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-company">
-              <mat-label>Companies</mat-label>
-              <mat-select [(ngModel)]="accountingDocumentList.selectedCompany" (selectionChange)="accountingDocumentList.onCompanyChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Companies</mat-option>
-                @for (company of accountingDocumentList.availableCompanies; track company.value.contactId) {
-                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-reservation">
-              <mat-label>Reservations</mat-label>
-              <mat-select [(ngModel)]="accountingDocumentList.selectedReservationId" (selectionChange)="accountingDocumentList.onReservationChange()" [compareWith]="accountingDocumentList.compareReservationId" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Reservations</mat-option>
-                @for (reservation of accountingDocumentList.availableReservations; track reservation.value.reservationId) {
-                  <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-document-type">
-              <mat-label>Document Types</mat-label>
-              <mat-select [(ngModel)]="accountingDocumentList.selectedDocumentTypeId" (selectionChange)="accountingDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Document Types</mat-option>
-                @for (docType of accountingDocumentList.documentTypes; track docType.value) {
-                  <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingDocumentList.selectedOfficeId"
+              [options]="getOfficeOptions(accountingDocumentList.offices)"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingDocumentOfficeDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Companies'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="accountingDocumentList.selectedCompany?.contactId ?? null"
+              [options]="getCompanyOptions(accountingDocumentList.availableCompanies)"
+              [nullOptionLabel]="'All Companies'"
+              [noResultsText]="'No companies match your search'"
+              (valueChange)="onAccountingDocumentCompanyDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Reservations'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="accountingDocumentList.selectedReservationId"
+              [options]="getReservationOptions(accountingDocumentList.availableReservations)"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
+            </app-titlebar-select>
+            <app-titlebar-select
+              [label]="'Document Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="accountingDocumentList.selectedDocumentTypeId"
+              [options]="getDocumentTypeOptions(accountingDocumentList.documentTypes)"
+              [nullOptionLabel]="'All Document Types'"
+              [noResultsText]="'No document types match your search'"
+              (valueChange)="onAccountingDocumentTypeDropdownChange($event)">
+            </app-titlebar-select>
           </div>
         }
       </div>

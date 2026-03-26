@@ -43,6 +43,7 @@ import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     selector: 'app-property',
@@ -53,6 +54,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
         FormsModule,
         ReactiveFormsModule,
         SearchableSelectComponent,
+        TitlebarSelectComponent,
         PropertyWelcomeLetterComponent,
         PropertyInformationComponent,
         DocumentListComponent,
@@ -882,6 +884,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
   onNumericDropdownChange(controlName: string, value: string | number | null): void {
     this.form.get(controlName)?.setValue(value == null || value === '' ? null : Number(value));
     this.form.get(controlName)?.markAsTouched();
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    this.form.get('officeId')?.setValue(value == null || value === '' ? null : Number(value));
+    this.form.get('officeId')?.markAsTouched();
+    this.onOfficeChange();
+  }
+
+  get officeOptions(): SearchableSelectOption[] {
+    return this.offices.map(office => ({ value: office.officeId, label: office.name }));
   }
 
   get bedSizeOptionsWithNone(): SearchableSelectOption[] {

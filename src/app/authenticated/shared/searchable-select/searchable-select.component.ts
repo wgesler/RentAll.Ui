@@ -19,8 +19,9 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           <mat-label>{{ formFieldLabel }}</mat-label>
         }
         <mat-select
-          [value]="value"
+          [value]="normalizedValue"
           [required]="required"
+          [canSelectNullableOptions]="true"
           [compareWith]="compareValues"
           [disabled]="disabled"
           [class]="selectClass"
@@ -40,8 +41,8 @@ export interface SearchableSelectOption<TValue = string | number | null> {
                 (keydown)="$event.stopPropagation()" />
             </mat-option>
           }
-          @if (nullOptionLabel) {
-            <mat-option [value]="null">{{ nullOptionLabel }}</mat-option>
+          @if (showInstructionOption && nullOptionLabel) {
+            <mat-option [value]="instructionOptionValue">{{ nullOptionLabel }}</mat-option>
           }
           @for (option of filteredOptions; track option.value) {
             <mat-option [value]="option.value">{{ option.label }}</mat-option>
@@ -56,8 +57,9 @@ export interface SearchableSelectOption<TValue = string | number | null> {
       </mat-form-field>
     } @else {
       <mat-select
-        [value]="value"
+        [value]="normalizedValue"
         [required]="required"
+        [canSelectNullableOptions]="true"
         [compareWith]="compareValues"
         [disabled]="disabled"
         [class]="selectClass"
@@ -77,8 +79,8 @@ export interface SearchableSelectOption<TValue = string | number | null> {
               (keydown)="$event.stopPropagation()" />
           </mat-option>
         }
-        @if (nullOptionLabel) {
-          <mat-option [value]="null">{{ nullOptionLabel }}</mat-option>
+        @if (showInstructionOption && nullOptionLabel) {
+          <mat-option [value]="instructionOptionValue">{{ nullOptionLabel }}</mat-option>
         }
         @for (option of filteredOptions; track option.value) {
           <mat-option [value]="option.value">{{ option.label }}</mat-option>
@@ -95,6 +97,8 @@ export class SearchableSelectComponent {
   @Input() value: string | number | null = null;
   @Input() disabled = false;
   @Input() required = false;
+  @Input() showInstructionOption = true;
+  @Input() instructionOptionValue: string | number | null = null;
   @Input() nullOptionLabel = 'Select';
   @Input() noResultsText = 'No matches found';
   @Input() showSearchInput = false;
@@ -113,6 +117,15 @@ export class SearchableSelectComponent {
 
   searchText = '';
   isPanelOpen = false;
+  get normalizedValue(): string | number | null {
+    if (!this.showInstructionOption || !this.nullOptionLabel) {
+      return this.value;
+    }
+    if (this.value === undefined || this.value === '' || this.value === null) {
+      return this.instructionOptionValue;
+    }
+    return this.value;
+  }
   compareValues = (left: string | number | null, right: string | number | null): boolean => {
     if (left === right) {
       return true;

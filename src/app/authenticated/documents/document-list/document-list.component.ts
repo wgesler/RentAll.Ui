@@ -20,6 +20,7 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
@@ -31,7 +32,7 @@ import { ContactService } from "../../contacts/services/contact.service";
     standalone: true,
     templateUrl: './document-list.component.html',
     styleUrls: ['./document-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
 })
 
 export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
@@ -653,7 +654,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableCompanies = filteredCompanies.map(c => ({
       value: c,
-      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
+      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
     }));
 
     if (this.selectedCompany && !filteredCompanies.some(c => c.contactId === this.selectedCompany?.contactId)) {
@@ -681,6 +682,24 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     ];
   }
 
+  get documentTypeOptions(): { value: number, label: string }[] {
+    return this.documentTypes;
+  }
+
+  get officeOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get reservationOptions(): { value: string, label: string }[] {
+    return this.availableReservations.map(reservation => ({
+      value: reservation.value.reservationId,
+      label: reservation.label
+    }));
+  }
+
   filterProperties(): void {
     if (!this.selectedOfficeId) {
       this.availableProperties = [];
@@ -700,6 +719,21 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   onDocumentTypeChange(): void {
     this.applyFilters();
+  }
+
+  onDocumentTypeDropdownChange(value: string | number | null): void {
+    this.selectedDocumentTypeId = value == null || value === '' ? null : Number(value);
+    this.onDocumentTypeChange();
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    this.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.onOfficeChange();
+  }
+
+  onReservationDropdownChange(value: string | number | null): void {
+    this.selectedReservationId = value == null || value === '' ? null : String(value);
+    this.onReservationChange();
   }
 
   onReservationChange(): void {

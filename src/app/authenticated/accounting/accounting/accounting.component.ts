@@ -16,6 +16,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
@@ -30,7 +31,8 @@ import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
     CostCodesListComponent,
     GeneralLedgerComponent,
     DocumentListComponent,
-    EmailListComponent
+    EmailListComponent,
+    TitlebarSelectComponent
 ],
     templateUrl: './accounting.component.html',
     styleUrls: ['./accounting.component.scss']
@@ -258,6 +260,155 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  getOfficeOptions(offices: OfficeResponse[] | null | undefined): { value: number, label: string }[] {
+    return (offices || []).map(office => ({ value: office.officeId, label: office.name }));
+  }
+
+  getCompanyOptions(companies: { value: { contactId: string }, label: string }[] | null | undefined): { value: string, label: string }[] {
+    return (companies || []).map(company => ({ value: company.value.contactId, label: company.label }));
+  }
+
+  getReservationOptions(reservations: { value: { reservationId: string }, label: string }[] | null | undefined): { value: string, label: string }[] {
+    return (reservations || []).map(reservation => ({ value: reservation.value.reservationId, label: reservation.label }));
+  }
+
+  getDocumentTypeOptions(documentTypes: { value: number, label: string }[] | null | undefined): { value: number, label: string }[] {
+    return documentTypes || [];
+  }
+
+  onAccountingInvoiceOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingInvoiceList) {
+      return;
+    }
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.accountingInvoiceList.selectedOffice = officeId == null
+      ? null
+      : this.accountingInvoiceList.offices.find(office => office.officeId === officeId) || null;
+    this.accountingInvoiceList.onOfficeChange();
+  }
+
+  onAccountingInvoiceCompanyDropdownChange(value: string | number | null): void {
+    if (!this.accountingInvoiceList) {
+      return;
+    }
+    const contactId = value == null || value === '' ? null : String(value);
+    this.accountingInvoiceList.selectedCompanyContact = contactId
+      ? this.accountingInvoiceList.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      : null;
+    this.accountingInvoiceList.onCompanyChange();
+  }
+
+  onAccountingInvoiceReservationDropdownChange(value: string | number | null): void {
+    if (!this.accountingInvoiceList) {
+      return;
+    }
+    const reservationId = value == null || value === '' ? null : String(value);
+    this.accountingInvoiceList.selectedReservation = reservationId
+      ? this.accountingInvoiceList.availableReservations.find(reservation => reservation.value.reservationId === reservationId)?.value || null
+      : null;
+    this.accountingInvoiceList.onReservationChange();
+  }
+
+  onAccountingCostCodesOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingCostCodes) {
+      return;
+    }
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.accountingCostCodes.selectedOffice = officeId == null
+      ? null
+      : this.accountingCostCodes.offices.find(office => office.officeId === officeId) || null;
+    this.accountingCostCodes.onOfficeChange();
+  }
+
+  onAccountingGeneralLedgerOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingGeneralLedger) {
+      return;
+    }
+    this.accountingGeneralLedger.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.accountingGeneralLedger.onOfficeChange();
+  }
+
+  onAccountingGeneralLedgerCompanyDropdownChange(value: string | number | null): void {
+    if (!this.accountingGeneralLedger) {
+      return;
+    }
+    const contactId = value == null || value === '' ? null : String(value);
+    this.accountingGeneralLedger.selectedCompanyContact = contactId
+      ? this.accountingGeneralLedger.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      : null;
+    this.accountingGeneralLedger.onCompanyChange();
+  }
+
+  onAccountingGeneralLedgerReservationDropdownChange(value: string | number | null): void {
+    if (!this.accountingGeneralLedger) {
+      return;
+    }
+    this.accountingGeneralLedger.selectedReservationId = value == null || value === '' ? null : String(value);
+    this.accountingGeneralLedger.onReservationChange();
+  }
+
+  onAccountingEmailOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingEmailList) {
+      return;
+    }
+    this.accountingEmailList.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.accountingEmailList.onOfficeChange();
+  }
+
+  onAccountingEmailCompanyDropdownChange(value: string | number | null): void {
+    if (!this.accountingEmailList) {
+      return;
+    }
+    const contactId = value == null || value === '' ? null : String(value);
+    this.accountingEmailList.selectedCompanyContact = contactId
+      ? this.accountingEmailList.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      : null;
+    this.accountingEmailList.onCompanyChange();
+  }
+
+  onAccountingEmailReservationDropdownChange(value: string | number | null): void {
+    if (!this.accountingEmailList) {
+      return;
+    }
+    this.accountingEmailList.selectedReservationId = value == null || value === '' ? null : String(value);
+    this.accountingEmailList.onReservationChange();
+  }
+
+  onAccountingDocumentOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingDocumentList) {
+      return;
+    }
+    this.accountingDocumentList.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.accountingDocumentList.onOfficeChange();
+  }
+
+  onAccountingDocumentCompanyDropdownChange(value: string | number | null): void {
+    if (!this.accountingDocumentList) {
+      return;
+    }
+    const contactId = value == null || value === '' ? null : String(value);
+    this.accountingDocumentList.selectedCompany = contactId
+      ? this.accountingDocumentList.availableCompanies.find(company => company.value.contactId === contactId)?.value || null
+      : null;
+    this.accountingDocumentList.onCompanyChange();
+  }
+
+  onAccountingDocumentReservationDropdownChange(value: string | number | null): void {
+    if (!this.accountingDocumentList) {
+      return;
+    }
+    this.accountingDocumentList.selectedReservationId = value == null || value === '' ? null : String(value);
+    this.accountingDocumentList.onReservationChange();
+  }
+
+  onAccountingDocumentTypeDropdownChange(value: string | number | null): void {
+    if (!this.accountingDocumentList) {
+      return;
+    }
+    this.accountingDocumentList.selectedDocumentTypeId = value == null || value === '' ? null : Number(value);
+    this.accountingDocumentList.onDocumentTypeChange();
+  }
+
   applyQueryParamState(params: Record<string, string>): void {
     const tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
     if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {

@@ -18,6 +18,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -27,7 +28,7 @@ import { UserService } from '../services/user.service';
     selector: 'app-user-list',
     templateUrl: './user-list.component.html',
     styleUrls: ['./user-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
 })
 
 export class UserListComponent implements OnInit, OnDestroy {
@@ -158,6 +159,44 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   onOrganizationChange(): void {
     this.applyFilters();
+  }
+
+  get organizationOptions(): { value: string, label: string }[] {
+    return this.organizations.map(organization => ({
+      value: organization.organizationId,
+      label: organization.name
+    }));
+  }
+
+  get selectedOrganizationId(): string | null {
+    return this.selectedOrganization?.organizationId ?? null;
+  }
+
+  get officeOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get selectedOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? null;
+  }
+
+  onOrganizationDropdownChange(value: string | number | null): void {
+    const organizationId = value == null || value === '' ? null : String(value);
+    this.selectedOrganization = organizationId
+      ? this.organizations.find(organization => organization.organizationId === organizationId) || null
+      : null;
+    this.onOrganizationChange();
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.selectedOffice = officeId == null
+      ? null
+      : this.offices.find(office => office.officeId === officeId) || null;
+    this.onOfficeChange();
   }
   //#endregion
 

@@ -9,15 +9,15 @@
         @if (!showContactForm) {
           <div class="header-title form-titlebar-fields-wrap">
             @if (showOfficeDropdown) {
-              <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-office">
-                <mat-label>Office</mat-label>
-                <mat-select [ngModel]="selectedOfficeId" (ngModelChange)="onOfficeIdChange($event)" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              <app-titlebar-select
+                [label]="'Office'"
+                [formFieldClass]="'flex-shrink-0 titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="officeOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onOfficeDropdownChange($event)">
+              </app-titlebar-select>
             }
           </div>
         }

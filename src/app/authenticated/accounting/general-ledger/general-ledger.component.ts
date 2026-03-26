@@ -289,7 +289,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
+      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
     }));
 
     if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {

@@ -28,15 +28,17 @@
               </mat-form-field>
               @if (!isAddMode) {
                 <div class="titlebar-reservation-slot">
-                  <mat-form-field appearance="outline" class="flex-shrink-0 header-title-reservation titlebar-field-reservation">
-                    <mat-label>Reservation</mat-label>
-                    <mat-select [(ngModel)]="selectedHeaderReservationId" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true" (selectionChange)="onHeaderReservationChange()">
-                      <mat-option [value]="null">{{ (selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4) ? 'All Reservations' : 'Select Reservation' }}</mat-option>
-                      @for (option of availableHeaderReservations; track option.value.reservationId) {
-                        <mat-option [value]="option.value.reservationId">{{ option.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <app-titlebar-select
+                    [label]="'Reservation'"
+                    [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                    [required]="selectedTabIndex === 0"
+                    [value]="selectedHeaderReservationId ?? null"
+                    [options]="headerReservationOptions"
+                    [showInstructionOption]="selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4"
+                    [nullOptionLabel]="selectedTabIndex === 1 ? 'Select Reservation' : 'All Reservations'"
+                    [noResultsText]="'No reservations match your search'"
+                    (valueChange)="onHeaderReservationDropdownChange($event)">
+                  </app-titlebar-select>
                 </div>
               }
             </div>

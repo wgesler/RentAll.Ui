@@ -679,7 +679,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       : this.companyContacts.filter(c => c.isActive);
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
+      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
     }));
 
     if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {

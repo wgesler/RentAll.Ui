@@ -21,11 +21,12 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
   selector: 'app-email-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, TitlebarSelectComponent, DataTableComponent],
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss'
 })
@@ -276,6 +277,49 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
+  get officeOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get companyOptions(): { value: string, label: string }[] {
+    return this.availableCompanyContacts.map(company => ({
+      value: company.value.contactId,
+      label: company.label
+    }));
+  }
+
+  get selectedCompanyContactId(): string | null {
+    return this.selectedCompanyContact?.contactId ?? null;
+  }
+
+  get reservationOptions(): { value: string, label: string }[] {
+    return this.availableReservations.map(reservation => ({
+      value: reservation.value.reservationId,
+      label: reservation.label
+    }));
+  }
+
+  onOfficeDropdownChange(value: string | number | null): void {
+    this.selectedOfficeId = value == null || value === '' ? null : Number(value);
+    this.onOfficeChange();
+  }
+
+  onCompanyDropdownChange(value: string | number | null): void {
+    const contactId = value == null || value === '' ? null : String(value);
+    this.selectedCompanyContact = contactId
+      ? this.companyContacts.find(contact => contact.contactId === contactId) || null
+      : null;
+    this.onCompanyChange();
+  }
+
+  onReservationDropdownChange(value: string | number | null): void {
+    this.selectedReservationId = value == null || value === '' ? null : String(value);
+    this.onReservationChange();
+  }
+
   filterReservations(): void {
     if (this.source !== 'emails' && this.source !== 'property' && this.source !== 'reservation' && this.source !== 'invoice') {
       this.availableReservations = [];
@@ -331,7 +375,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: `${c.contactCode || ''} - ${c.fullName}`.trim()
+      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
     }));
 
     if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {
