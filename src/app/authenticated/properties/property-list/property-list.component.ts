@@ -18,12 +18,21 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CalendarUrlResponse } from '../models/property-calendar';
-import { getPropertyStatus, getPropertyStatuses } from '../models/property-enums';
+import { getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
+
+type PropertyListDisplayRow = PropertyListDisplay & {
+  propertyStatusText: string;
+  propertyStatusDropdown: {
+    value: string;
+    isOverridable: boolean;
+    toString: () => string;
+  };
+};
 
 @Component({
     standalone: true,
@@ -53,7 +62,9 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
-  /** True when saved property selection has non-default filters. */
+  userId: string = '';
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
   propertiesFiltered = false;
   isCompactView = false;
 
@@ -100,11 +111,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Property-List
   ngOnInit(): void {
     this.updateDisplayedColumns();
+    this.userId = this.authService.getUser()?.userId || '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadOffices();
 
-    this.propertySelectionFilterService.propertiesFiltered$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
@@ -112,10 +124,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    this.navigationSubscription = this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      takeUntil(this.destroy$)
-    ).subscribe(e => {
+    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const path = e.urlAfterRedirects.split('?')[0];
       const isPropertyList = /\/properties$/.test(path);
       const fromSelection = this.lastNavigationUrl.includes('/selection');
@@ -125,7 +134,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       this.lastNavigationUrl = path;
     });
 
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.resolveOfficeScope(this.officeId, false);
       }
@@ -165,48 +174,25 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateDisplayedColumns();
   }
 
-  /** GET property/user/{userId} — properties matching saved Property Selection (server-filtered). */
   getProperties(): void {
+    if (!this.itemsToLoad$.value.has('properties')) return;
     this.isServiceError = false;
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
+    if (!this.userId) {
       this.allProperties = [];
       this.applyFilters();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
       return;
     }
 
-    this.propertyService.getPropertiesBySelectionCritera(userId, true).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
-        const mappedProperties = this.mappingService.mapProperties(properties || []);
-        this.allProperties = mappedProperties.map(property => ({
-          ...property,
-          propertyStatusText: getPropertyStatus(property.propertyStatusId),
-          propertyStatusDropdown: this.buildStatusDropdownCell(getPropertyStatus(property.propertyStatusId))
-        }));
+        this.allProperties = this.mappingService.mapPropertyListRows(properties || []);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.allProperties = [];
         this.propertiesDisplay = [];
-        console.error('Error loading properties:', err);
-      }
-    });
-  }
-
-  goToPropertySelection(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
-      return;
-    }
-    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
-      next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list', selection } });
-      },
-      error: () => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
       }
     });
   }
@@ -218,32 +204,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   copyProperty(event: PropertyListDisplay): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
     this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
-  }
-
-  openPropertyCalendar(property: PropertyListDisplay): void {
-    this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
-      next: (response: CalendarUrlResponse) => {
-        if (!response?.subscriptionUrl) {
-          this.toastr.error('No calendar URL was returned for this property.', CommonMessage.ServiceError);
-          return;
-        }
-
-        const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
-          width: '700px',
-          autoFocus: true,
-          restoreFocus: true,
-          disableClose: false,
-          hasBackdrop: true,
-          data: {
-            propertyCode: property.propertyCode,
-            subscriptionUrl: response.subscriptionUrl
-          }
-        };
-
-        this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
-      },
-      error: () => {}
-    });
   }
 
   deleteProperty(property: PropertyListDisplay): void {
@@ -275,39 +235,44 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  onPropertyStatusChange(event: PropertyListDisplayRow): void {
-    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
-    const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
-    const previousStatusId = event.propertyStatusId;
-    const previousLabel = event.propertyStatusText;
-
-    if (selectedStatusId === undefined) {
-      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+  goToPropertySelection(): void {
+    if (!this.userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
       return;
     }
-
-    if (selectedStatusId === previousStatusId) {
-      return;
-    }
-
-    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
-
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
-      take(1),
-      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
-      finalize(() => {
-        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
-      })
-    ).subscribe({
-      next: () => {
-        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
-        this.toastr.success('Property status updated.', CommonMessage.Success);
+    this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list', selection } });
       },
-      error: (err: HttpErrorResponse) => {
-        console.error('Error updating property status:', err);
-        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
-        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      error: () => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'property-list' } });
       }
+    });
+  }
+
+  openPropertyCalendar(property: PropertyListDisplay): void {
+    this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
+      next: (response: CalendarUrlResponse) => {
+        if (!response?.subscriptionUrl) {
+          this.toastr.error('No calendar URL was returned for this property.', CommonMessage.ServiceError);
+          return;
+        }
+
+        const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
+          width: '700px',
+          autoFocus: true,
+          restoreFocus: true,
+          disableClose: false,
+          hasBackdrop: true,
+          data: {
+            propertyCode: property.propertyCode,
+            subscriptionUrl: response.subscriptionUrl
+          }
+        };
+
+        this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
+      },
+      error: () => {}
     });
   }
   //#endregion
@@ -339,81 +304,50 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Office Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-        
-        const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-        if (this.officeId !== null && this.officeId !== undefined) {
-          const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-          if (matchingOffice !== this.selectedOffice) {
-            this.selectedOffice = matchingOffice;
-            this.applyFilters();
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            if (this.officeId !== null && this.officeId !== undefined) {
+              const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+              if (matchingOffice !== this.selectedOffice) {
+                this.selectedOffice = matchingOffice;
+                this.applyFilters();
+              }
+              return;
+            }
+
+            if (uiState.selectedOffice) {
+              if (uiState.selectedOffice !== this.selectedOffice) {
+                this.selectedOffice = uiState.selectedOffice;
+                this.officeIdChange.emit(uiState.selectedOffice.officeId);
+                this.applyFilters();
+              }
+              return;
+            }
+
+            if (this.selectedOffice && this.offices.length === 1) {
+              this.applyFilters();
+            }
           }
-        } else if (globalOfficeId !== null) {
-          const globalOffice = this.offices.find(o => o.officeId === globalOfficeId) || null;
-          if (globalOffice && globalOffice !== this.selectedOffice) {
-            this.selectedOffice = globalOffice;
-            this.officeIdChange.emit(globalOffice.officeId);
-            this.applyFilters();
-          }
-        } else if (this.selectedOffice && this.offices.length === 1) {
-          this.applyFilters();
-        }
-        
+        });
+
         this.getProperties();
-      });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.getProperties();
+      }
     });
   }
 
   onOfficeChange(): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
-  }
-  //#endregion
-
-  //#region Utility Methods
-  private updateDisplayedColumns(): void {
-    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
-  }
-
-  private buildStatusDropdownCell(label: string, isOverridable: boolean = true): PropertyListDisplayRow['propertyStatusDropdown'] {
-    return {
-      value: label,
-      isOverridable,
-      toString: () => label
-    };
-  }
-
-  private buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
-    return {
-      ...requestBase,
-      propertyStatusId,
-      parkingnotes: parkingNotes
-    };
-  }
-
-  private updatePropertyStatusDisplay(propertyId: string, propertyStatusId: number, propertyStatusText: string): void {
-    for (const property of this.allProperties) {
-      if (property.propertyId === propertyId) {
-        property.propertyStatusId = propertyStatusId;
-        property.propertyStatusText = propertyStatusText;
-        property.propertyStatusDropdown = this.buildStatusDropdownCell(propertyStatusText);
-        break;
-      }
-    }
-    this.applyFilters();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
@@ -424,6 +358,77 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
     this.applyFilters();
+  }
+  //#endregion
+
+  //#region Property Status Methods
+  onPropertyStatusChange(event: PropertyListDisplayRow): void {
+    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
+    const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
+    const previousStatusId = event.propertyStatusId;
+    const previousLabel = event.propertyStatusText;
+
+    if (selectedStatusId === undefined) {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+      return;
+    }
+
+    if (selectedStatusId === previousStatusId) {
+      return;
+    }
+
+    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
+
+    // We allow the user to update the property status in-line on a property row
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
+      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
+      finalize(() => {  event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText); })
+    ).subscribe({
+      next: () => {
+        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
+        this.toastr.success('Property status updated.', CommonMessage.Success);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
+        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      }
+    });
+  }
+
+  buildStatusDropdownCell(label: string, isOverridable: boolean = true): PropertyListDisplayRow['propertyStatusDropdown'] {
+    return {
+      value: label,
+      isOverridable,
+      toString: () => label
+    };
+  }
+
+  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      propertyStatusId,
+      parkingnotes: parkingNotes
+    };
+  }
+
+  updatePropertyStatusDisplay(propertyId: string, propertyStatusId: number, propertyStatusText: string): void {
+    for (const property of this.allProperties) {
+      if (property.propertyId === propertyId) {
+        property.propertyStatusId = propertyStatusId;
+        property.propertyStatusText = propertyStatusText;
+        property.propertyStatusDropdown = this.buildStatusDropdownCell(propertyStatusText);
+        break;
+      }
+    }
+    this.applyFilters();
+  }
+  //#endregion
+
+  //#region Utility Methods
+  updateDisplayedColumns(): void {
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
   }
 
   ngOnDestroy(): void {
@@ -436,13 +441,4 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 }
-
-type PropertyListDisplayRow = PropertyListDisplay & {
-  propertyStatusText: string;
-  propertyStatusDropdown: {
-    value: string;
-    isOverridable: boolean;
-    toString: () => string;
-  };
-};
 

@@ -631,34 +631,12 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(take(1)).subscribe({
-      next: (loaded) => {
-        if (!loaded) {
-          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-            error: () => {
-              // contactsLoaded$ is set by service even on error
-            }
-          });
-        }
-
-        this.contactService.areContactsLoaded().pipe(
-          filter(isLoaded => isLoaded === true),
-          take(1),
-          finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })
-        ).subscribe({
-          next: () => {
-            this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
-              this.contacts = contacts || [];
-            });
-          },
-          error: () => {
-            this.contacts = [];
-          }
-        });
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
+        this.contacts = contacts || [];
       },
       error: () => {
         this.contacts = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       }
     });
   }

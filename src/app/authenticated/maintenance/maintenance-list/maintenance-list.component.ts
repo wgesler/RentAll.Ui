@@ -196,7 +196,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.propertyService.getPropertiesBySelectionCritera(userId, true).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
         const mappedProperties = this.mappingService.mapProperties(properties || []);
         this.allProperties = mappedProperties.map(property => ({
@@ -332,15 +332,12 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-        
-        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+          }
+        });
         
         this.getProperties();
       });

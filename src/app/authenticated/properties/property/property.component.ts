@@ -807,12 +807,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-        next: () => {
-          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
-            this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-            this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
-          });
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+          this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
         },
         error: () => {}
       });
@@ -840,11 +838,9 @@ export class PropertyComponent implements OnInit, OnDestroy {
           .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
 
         dialogRef.afterClosed().pipe(take(1)).subscribe(() => {
-          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-            next: () => {
-              this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
-                this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-              });
+          this.contactService.refreshContacts().pipe(take(1)).subscribe({
+            next: (contacts) => {
+              this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
             },
             error: () => {}
           });
@@ -1029,10 +1025,13 @@ export class PropertyComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
         this.contacts = contacts?.filter(c => c.entityTypeId === EntityType.Owner) || [];
-      });
+      },
+      error: () => {
+        this.contacts = [];
+      }
     });
   }
 
@@ -1066,12 +1065,16 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.showOfficeDropdown = true;
           this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null }, { emitEvent: false });
           this.filterReservations();
-        } else if (this.offices.length === 1 && !this.property?.officeId) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-          this.form?.patchValue({ officeId: this.selectedOffice.officeId }, { emitEvent: false });
         } else {
-          this.showOfficeDropdown = true;
+          this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { useGlobalSelection: false, disableSingleOfficeRule: !!this.property?.officeId }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              if (uiState.autoSelectedOfficeId !== null) {
+                this.selectedOffice = uiState.selectedOffice;
+                this.form?.patchValue({ officeId: uiState.autoSelectedOfficeId }, { emitEvent: false });
+              }
+            }
+          });
         }
 
         if (this.property && this.form) {

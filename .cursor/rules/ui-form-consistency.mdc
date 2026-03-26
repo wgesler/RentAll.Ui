@@ -53,9 +53,12 @@ alwaysApply: true
 - Prefer single-line RxJS chain starters before `subscribe`, e.g.:
   - `this.reservationService.getReservationList().pipe(take(1)).subscribe({`
   - `this.serviceCall().pipe(take(1), finalize(() => { ... })).subscribe({`
+- Keep API service call expressions on one line regardless of length (do not wrap/chop the call chain unless required by syntax).
+- Keep API call flows simple and direct; avoid unnecessary indirection around straightforward request/subscribe paths.
 - Under `subscribe({ ... })`, keep the body focused on:
   - `next: ...`
   - `error: ...`
+- Avoid `forkJoin` by default; prefer simpler sequential/targeted loading flows unless parallel aggregation is truly necessary.
 
 # Comment Style
 

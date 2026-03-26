@@ -218,17 +218,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
-        // Set selectedOffice from parent input.
-        // Auto-select if only one office available (unless officeId input/query param is provided)
-        if (this.offices.length === 1) {
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-
-        const preferredOfficeId = this.officeId ?? (this.embeddedInSettings ? this.globalOfficeSelectionService.getSelectedOfficeIdValue() : null);
-        this.resolveOfficeScope(preferredOfficeId, this.officeId === null || this.officeId === undefined);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.embeddedInSettings }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+          }
+        });
       });
     });
   }

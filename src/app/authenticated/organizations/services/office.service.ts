@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 
@@ -13,6 +13,7 @@ export class OfficeService {
   private readonly controller = this.configService.config().apiUrl + 'organization/office/';
   private allOffices$ = new BehaviorSubject<OfficeResponse[]>([]);
   private officesLoaded$ = new BehaviorSubject<boolean>(false);
+  private loadedOrganizationId: string | null = null;
 
   constructor(
       private http: HttpClient,
@@ -20,24 +21,44 @@ export class OfficeService {
   }
 
   /** Load offices for the given organization. Requires a non-empty organizationId. */
-  loadAllOffices(organizationId: string): void {
+  loadAllOffices(organizationId: string): Observable<OfficeResponse[]> {
     const id = organizationId?.trim();
     if (!id) {
       this.allOffices$.next([]);
       this.officesLoaded$.next(true);
-      return;
+      this.loadedOrganizationId = null;
+      return of([]);
     }
-    this.http.get<OfficeResponse[]>(this.controller + id).subscribe({
-      next: (offices) => {
+    return this.http.get<OfficeResponse[]>(this.controller + id).pipe(
+      tap((offices) => {
         this.allOffices$.next(offices || []);
         this.officesLoaded$.next(true);
-      },
-      error: (err: HttpErrorResponse) => {
+        this.loadedOrganizationId = id;
+      }),
+      catchError((err: HttpErrorResponse) => {
         console.error('Office Service - Error loading all offices:', err);
         this.allOffices$.next([]);
         this.officesLoaded$.next(true); // Mark as loaded even on error
-      }
-    });
+        this.loadedOrganizationId = id;
+        return of([]);
+      })
+    );
+  }
+
+  ensureOfficesLoaded(organizationId: string): Observable<OfficeResponse[]> {
+    const id = organizationId?.trim();
+    if (!id) {
+      this.clearOffices();
+      return of([]);
+    }
+    if (this.officesLoaded$.value && this.loadedOrganizationId === id) return this.getAllOffices().pipe(take(1));
+    return this.loadAllOffices(id).pipe(take(1), switchMap(() => this.getAllOffices().pipe(take(1))));
+  }
+
+  refreshOffices(organizationId: string): Observable<OfficeResponse[]> {
+    this.officesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+    return this.loadAllOffices(organizationId).pipe(take(1), switchMap(() => this.getAllOffices().pipe(take(1))));
   }
 
   // Check if offices have been loaded
@@ -49,6 +70,7 @@ export class OfficeService {
   clearOffices(): void {
     this.allOffices$.next([]);
     this.officesLoaded$.next(false);
+    this.loadedOrganizationId = null;
   }
 
   // Get all offices as observable (returns BehaviorSubject - components should filter for non-empty)

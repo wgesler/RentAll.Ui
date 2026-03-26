@@ -26,6 +26,8 @@ import { UtilityService } from './services/utility.service';
 
 export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -54,12 +56,16 @@ export class AppComponent implements OnInit, OnDestroy {
     // Watch for login changes and re-initialize organization list, contacts, and offices
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       if (isLoggedIn) {
+        this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+        this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
         this.initializeOrganizationList();
         this.loadContacts();
         this.loadOffices();
         this.loadAccountingOffices();
         this.loadPropertySelectionFilterState();
       } else {
+        this.organizationId = '';
+        this.preferredOfficeId = null;
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
@@ -91,38 +97,24 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadContacts(): void {
-    this.contactService.loadAllContacts().subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: () => {},
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
-      }
-    });
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: () => {},
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
-      }
+      error: () => {}
     });
   }
 
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
+    if (!this.organizationId) {
       this.officeService.clearOffices();
+      this.globalOfficeSelectionService.setSelectedOfficeId(null);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.loadAllOffices(organizationId);
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
-         const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-         const availableOffices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
-         this.globalOfficeSelectionService.syncWithAvailableOffices(availableOffices, preferredOfficeId);
-         this.loadCostCodes();
+        this.loadCostCodes();
       },
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      }
+      error: () => {}
     });
   }
 

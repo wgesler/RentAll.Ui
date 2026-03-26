@@ -103,6 +103,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
   reservationList: ReservationListResponse[] = [];
   availableHeaderReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedHeaderReservationId: string | null | undefined = undefined;
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -152,6 +154,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Reservation Page
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadContacts();  
     this.loadOrganization();
     this.loadProperties();
@@ -1042,31 +1046,29 @@ export class ReservationComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-        next: () => {
-          this.contactService.getAllContacts().pipe(take(1)).subscribe(contacts => {
-            this.contacts = contacts || [];
-            let targetReservationTypeId: number | null = null;
-            if (result.entityTypeId === EntityType.Tenant) {
-              targetReservationTypeId = ReservationType.Individual;
-            } else if (result.entityTypeId === EntityType.Company) {
-              targetReservationTypeId = ReservationType.Corporate;
-            }
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.contacts = contacts || [];
+          let targetReservationTypeId: number | null = null;
+          if (result.entityTypeId === EntityType.Tenant) {
+            targetReservationTypeId = ReservationType.Individual;
+          } else if (result.entityTypeId === EntityType.Company) {
+            targetReservationTypeId = ReservationType.Corporate;
+          }
 
-            if (targetReservationTypeId !== null) {
-              this.form.patchValue({ reservationTypeId: targetReservationTypeId }, { emitEvent: false });
-              this.updateReservationStatusesByReservationType();
-              this.updateContactsByReservationType();
-              this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
-              this.updateEnabledFieldsByReservationType();
-            } else {
-              this.updateContactsByReservationType();
-            }
+          if (targetReservationTypeId !== null) {
+            this.form.patchValue({ reservationTypeId: targetReservationTypeId }, { emitEvent: false });
+            this.updateReservationStatusesByReservationType();
+            this.updateContactsByReservationType();
+            this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
+            this.updateEnabledFieldsByReservationType();
+          } else {
+            this.updateContactsByReservationType();
+          }
 
-            this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
-            this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
-            this.updateContactFields();
-          });
+          this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
+          this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
+          this.updateContactFields();
         },
         error: () => {}
       });
@@ -1297,10 +1299,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
         this.contacts = contacts || [];
-       });
+      },
+      error: () => {
+        this.contacts = [];
+      }
     });
   }
 
@@ -1338,17 +1343,15 @@ export class ReservationComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
-          if (this.selectedOffice) {
-            this.loadCostCodes();
-          }
-          this.filterPropertiesByOffice();
-        });
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
+        if (this.selectedOffice) {
+          this.loadCostCodes();
+        }
+        this.filterPropertiesByOffice();
       },
       error: () => {
         this.offices = [];

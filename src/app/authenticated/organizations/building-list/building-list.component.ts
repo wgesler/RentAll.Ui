@@ -80,17 +80,13 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-
-        const globalId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-        this.selectedOffice = globalId !== null ? (this.offices.find(o => o.officeId === globalId) || null) : null;
-
-        if (this.offices.length === 1 && !this.selectedOffice) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-        this.resolveOfficeScope(this.selectedOffice?.officeId ?? null);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.selectedOffice = uiState.selectedOffice;
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          }
+        });
       });
     });
   }

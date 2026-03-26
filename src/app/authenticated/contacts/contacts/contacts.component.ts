@@ -137,7 +137,7 @@ export class ContactsComponent implements OnInit, OnDestroy {
     this.formEntityTypeId = null;
     this.formTabIndex = null;
     if (_event.saved) {
-      this.contactService.loadAllContacts().pipe(take(1)).subscribe();
+      this.contactService.refreshContacts().pipe(take(1)).subscribe();
     }
   }
   //#endregion

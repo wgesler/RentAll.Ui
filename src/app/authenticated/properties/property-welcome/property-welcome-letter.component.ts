@@ -289,10 +289,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
         this.contacts = contacts || [];
-       });
+      },
+      error: () => {
+        this.contacts = [];
+      }
     });
   }
 

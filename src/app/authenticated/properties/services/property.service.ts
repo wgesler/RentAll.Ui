@@ -23,17 +23,12 @@ export class PropertyService {
   }
 
   // GET: Get property list (summary view)
-  getPropertyList(includeInactive: boolean = false): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'list', {
-      params: {
-        includeInactive: String(includeInactive)
-      }
-    }).pipe(
-      // Keep behavior safe until API-side filtering lands.
-      map((properties) => includeInactive
-        ? (properties || [])
-        : (properties || []).filter(p => p?.isActive === true))
-    );
+  getPropertyList(): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'list');
+  }
+
+  getActivePropertyList(): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'active-list');
   }
 
   // GET: Get property by ID
@@ -67,28 +62,31 @@ export class PropertyService {
     return this.http.get<PropertySelectionResponse>(this.controller + 'selection/' + userId);
   }
 
+  getActivePropertySelection(userId: string): Observable<PropertySelectionResponse> {
+    return this.http.get<PropertySelectionResponse>(this.controller + 'selection/' + userId + '/active');
+  }
+
   // PUT: Save property selection criteria for a user
   putPropertySelection(selection: PropertySelectionRequest): Observable<PropertySelectionResponse> {
     return this.http.put<PropertySelectionResponse>(this.controller + 'selection/', selection);
   }
 
   // POST: Get properties by selection criteria
-  getPropertiesBySelectionCritera(userId: string, includeInactive: boolean = false): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId, {
-      params: {
-        includeInactive: String(includeInactive)
-      }
-    }).pipe(
-      // Keep behavior safe until API-side filtering lands.
-      map((properties) => includeInactive
-        ? (properties || [])
-        : (properties || []).filter(p => p?.isActive === true))
-    );
+  getPropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
+  }
+
+  getActivePropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId + '/active');
   }
 
   // GET: Get properties associated with owner
   getPropertiesByOwner(ownerId: string): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId);
+  }
+
+  getActivePropertiesByOwner(ownerId: string): Observable<PropertyListResponse[]> {
+    return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId + '/active');
   }
 
   // GET: Get calendar URL/tokenized calendar response for a property

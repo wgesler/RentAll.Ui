@@ -13,6 +13,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
 import { PropertyResponse } from '../models/property.model';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -58,6 +59,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     private formatterService: FormatterService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private mappingService: MappingService,
     private utilityService: UtilityService
   ) {
@@ -232,13 +234,12 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
-        if (this.offices.length === 1) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.selectedOffice = uiState.selectedOffice;
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+          }
+        });
         
         if (this.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;

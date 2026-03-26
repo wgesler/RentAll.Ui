@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription, filter, skip, take } from 'rxjs';
+import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -86,6 +87,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   showInactive: boolean = false;
   showOfficeDropdown: boolean = true;
   officeScopeResolved: boolean = false;
+  preferredOfficeId: number | null = null;
   generalLedgerColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '16ch' },
     reservationCode: { displayAs: 'ReservationCode', maxWidth: '18ch', sortType: 'natural' },
@@ -106,11 +108,14 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
     private formatter: FormatterService,
+    private authService: AuthService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {}
 
   //#region General-Ledger
   ngOnInit(): void {
+    this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadReservations();
     this.loadCompanyContacts();
@@ -196,21 +201,17 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe({
-        next: (allOffices: OfficeResponse[]) => {
-          this.offices = allOffices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-
-          // Keep General Ledger defaults as All Offices.
-          this.showOfficeDropdown = true;
-          this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-        },
-        error: () => {
-          this.offices = [];
-          this.resolveOfficeScope(null, false);
-        }
-      });
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.showOfficeDropdown = true;
+        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+      },
+      error: () => {
+        this.offices = [];
+        this.resolveOfficeScope(null, false);
+      }
     });
   }
 
@@ -229,18 +230,24 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadCompanyContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.companyContacts = contacts || [];
-          this.filterCompanyContacts();
-          this.buildGeneralLedgerRows();
-        },
-        error: () => {
-          this.companyContacts = [];
-          this.availableCompanyContacts = [];
-        }
-      });
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+          next: (contacts) => {
+            this.companyContacts = contacts || [];
+            this.filterCompanyContacts();
+            this.buildGeneralLedgerRows();
+          },
+          error: () => {
+            this.companyContacts = [];
+            this.availableCompanyContacts = [];
+          }
+        });
+      },
+      error: () => {
+        this.companyContacts = [];
+        this.availableCompanyContacts = [];
+      }
     });
   }
 

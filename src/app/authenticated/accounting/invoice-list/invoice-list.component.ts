@@ -849,20 +849,27 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   loadCompanyContacts(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'companies');
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(
-        take(1),
-        finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })
-      ).subscribe({
-        next: (contacts) => {
-          this.companyContacts = contacts || [];
-          this.filterCompanyContacts();
-        },
-        error: () => {
-          this.companyContacts = [];
-          this.availableCompanyContacts = [];
-        }
-      });
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(
+          take(1),
+          finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies'); })
+        ).subscribe({
+          next: (contacts) => {
+            this.companyContacts = contacts || [];
+            this.filterCompanyContacts();
+          },
+          error: () => {
+            this.companyContacts = [];
+            this.availableCompanyContacts = [];
+          }
+        });
+      },
+      error: () => {
+        this.companyContacts = [];
+        this.availableCompanyContacts = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+      }
     });
   }
   //#endregion

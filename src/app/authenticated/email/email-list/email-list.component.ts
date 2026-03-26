@@ -7,6 +7,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { AuthService } from '../../../services/auth.service';
 import { Subscription, filter, skip, take } from 'rxjs';
 import { EmailListDisplay } from '../models/email.model';
 import { EmailService } from '../services/email.service';
@@ -62,6 +63,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   selectedCompanyContact: ContactResponse | null = null;
   
   showOfficeDropdown = true;
+  preferredOfficeId: number | null = null;
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   officeScopeResolved: boolean = false;
@@ -83,6 +85,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
+    private authService: AuthService,
     private contactService: ContactService,
     private toastr: ToastrService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService
@@ -90,6 +93,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Email-List
   ngOnInit(): void {
+    this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     if (!this.source) {
       this.source = 'emails';
     }
@@ -166,29 +171,22 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe({
-        next: (allOffices: OfficeResponse[]) => {
-          this.offices = allOffices || [];
-          this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
-
-          // For Accounting Emails (source='invoice'), keep default as All Offices.
-          if (this.offices.length === 1 && this.source !== 'invoice') {
-            this.showOfficeDropdown = false;
-          } else {
-            this.showOfficeDropdown = true;
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.source !== 'invoice', disableSingleOfficeRule: this.source === 'invoice' }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
           }
-
-          const preferredOfficeId = this.officeId ?? (this.source !== 'invoice' ? this.globalOfficeSelectionService.getSelectedOfficeIdValue() : null);
-          this.resolveOfficeScope(preferredOfficeId, this.officeId === null || this.officeId === undefined);
-        },
-        error: () => {
-          this.offices = [];
-          this.showOfficeDropdown = true;
-          this.resolveOfficeScope(null, false);
-        }
-      });
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.showOfficeDropdown = true;
+        this.resolveOfficeScope(null, false);
+      }
     });
   }
 
@@ -228,17 +226,23 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCompanies(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.companyContacts = contacts || [];
-          this.filterCompanies();
-        },
-        error: () => {
-          this.companyContacts = [];
-          this.availableCompanyContacts = [];
-        }
-      });
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+          next: (contacts) => {
+            this.companyContacts = contacts || [];
+            this.filterCompanies();
+          },
+          error: () => {
+            this.companyContacts = [];
+            this.availableCompanyContacts = [];
+          }
+        });
+      },
+      error: () => {
+        this.companyContacts = [];
+        this.availableCompanyContacts = [];
+      }
     });
   }
 

@@ -336,7 +336,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         const savedContactId = savedContact?.contactId || contactRequest.contactId;
         const savedEntityTypeId = savedContact?.entityTypeId ?? contactRequest.entityTypeId;
 
-        this.contactService.loadAllContacts().pipe(take(1)).subscribe({
+        this.contactService.refreshContacts().pipe(take(1)).subscribe({
           next: () => {
             if (this.isEmbedded) {
               this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });

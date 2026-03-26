@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, tap, catchError, of } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { EntityType } from '../models/contact-enum';
@@ -36,6 +36,16 @@ export class ContactService {
         return of([]);
       })
     );
+  }
+
+  ensureContactsLoaded(): Observable<ContactResponse[]> {
+    if (this.contactsLoaded$.value) return this.getAllContacts().pipe(take(1));
+    return this.loadAllContacts().pipe(take(1), switchMap(() => this.getAllContacts().pipe(take(1))));
+  }
+
+  refreshContacts(): Observable<ContactResponse[]> {
+    this.contactsLoaded$.next(false);
+    return this.loadAllContacts().pipe(take(1), switchMap(() => this.getAllContacts().pipe(take(1))));
   }
 
   areContactsLoaded(): Observable<boolean> {

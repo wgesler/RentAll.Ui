@@ -21,7 +21,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { PropertyType, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { PropertyType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -513,6 +513,21 @@ export class MappingService {
         hvacServiced: o.hvacServiced ?? undefined,
         fireplaceServiced: o.fireplaceServiced ?? undefined,
         isActive: o.isActive,
+      };
+    });
+  }
+
+  mapPropertyListRows(properties: PropertyListResponse[]): Array<PropertyListDisplay & { propertyStatusText: string; propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string } }> {
+    return this.mapProperties(properties || []).map(property => {
+      const propertyStatusText = getPropertyStatus(property.propertyStatusId);
+      return {
+        ...property,
+        propertyStatusText,
+        propertyStatusDropdown: {
+          value: propertyStatusText,
+          isOverridable: true,
+          toString: () => propertyStatusText
+        }
       };
     });
   }

@@ -18,22 +18,22 @@ export class ReservationService {
   }
 
   // GET: Get reservation list (summary view)
-  getReservationList(includeInactive: boolean = false): Observable<ReservationListResponse[]> {
-    return this.http.get<ReservationListResponse[]>(this.controller + 'list', {
-      params: {
-        includeInactive: String(includeInactive)
-      }
-    }).pipe(
-      // Keep behavior safe until API-side filtering lands.
-      map((reservations) => includeInactive
-        ? (reservations || [])
-        : (reservations || []).filter(r => r?.isActive === true))
-    );
+  getReservationList(): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
+
+  getActiveReservationList(): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'active-list');
+  }
+
 
   // GET: Get reservations list for a particular property
   getReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
     return this.http.get<ReservationListResponse[]>(this.controller + 'property/' + propertyId);
+  }
+
+  getActiveReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'property/' + propertyId + '/active');
   }
 
   // GET: Get all reservations (full detail)

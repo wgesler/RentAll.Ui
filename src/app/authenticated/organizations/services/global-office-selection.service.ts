@@ -1,6 +1,22 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, map, take } from 'rxjs';
 import { OfficeResponse } from '../models/office.model';
+import { OfficeService } from './office.service';
+
+export interface OfficeUiStateOptions {
+  explicitOfficeId?: number | null;
+  useGlobalSelection?: boolean;
+  disableSingleOfficeRule?: boolean;
+  requireExplicitOfficeUnset?: boolean;
+  requireResolvedSelectionEmpty?: boolean;
+}
+
+export interface OfficeUiState {
+  selectedOfficeId: number | null;
+  selectedOffice: OfficeResponse | null;
+  showOfficeDropdown: boolean;
+  autoSelectedOfficeId: number | null;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -8,6 +24,8 @@ import { OfficeResponse } from '../models/office.model';
 export class GlobalOfficeSelectionService {
   private readonly storageKey = 'rentall.globalOfficeId';
   private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readFromStorage());
+
+  constructor(private officeService: OfficeService) {}
 
   getSelectedOfficeId$(): Observable<number | null> {
     return this.selectedOfficeId$.asObservable();
@@ -48,6 +66,43 @@ export class GlobalOfficeSelectionService {
 
     this.setSelectedOfficeId(null);
     return null;
+  }
+
+  ensureOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
+    return this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), map(offices => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)));
+  }
+
+  refreshOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
+    return this.officeService.refreshOffices(organizationId).pipe(take(1), map(offices => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)));
+  }
+
+  getOfficeUiState$(offices: OfficeResponse[], options: OfficeUiStateOptions = {}): Observable<OfficeUiState> {
+    return this.getSelectedOfficeId$().pipe(
+      take(1),
+      map(globalOfficeId => {
+        const explicitOfficeId = options.explicitOfficeId ?? null;
+        const useGlobalSelection = options.useGlobalSelection ?? true;
+        const fallbackGlobalOfficeId = useGlobalSelection ? globalOfficeId : null;
+        const resolvedSelectionId = explicitOfficeId ?? fallbackGlobalOfficeId;
+        const selectedOffice = offices.find(office => office.officeId === resolvedSelectionId) || null;
+        const singleOfficeRuleApplies = !(options.disableSingleOfficeRule ?? false) && offices.length === 1;
+        const explicitOfficeUnset = explicitOfficeId === null;
+        const requireExplicitOfficeUnset = options.requireExplicitOfficeUnset ?? false;
+        const requireResolvedSelectionEmpty = options.requireResolvedSelectionEmpty ?? false;
+        const autoSelectSingleOffice = singleOfficeRuleApplies
+          && (!requireExplicitOfficeUnset || explicitOfficeUnset)
+          && (!requireResolvedSelectionEmpty || selectedOffice === null);
+        const autoSelectedOfficeId = autoSelectSingleOffice ? offices[0].officeId : null;
+        const selectedOfficeId = selectedOffice?.officeId ?? autoSelectedOfficeId;
+
+        return {
+          selectedOfficeId,
+          selectedOffice: offices.find(office => office.officeId === selectedOfficeId) || null,
+          showOfficeDropdown: !autoSelectSingleOffice,
+          autoSelectedOfficeId
+        };
+      })
+    );
   }
 
   private readFromStorage(): number | null {

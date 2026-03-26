@@ -7,6 +7,7 @@ import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip,
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -46,6 +47,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   officeScopeResolved: boolean = false;
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
 
   routerSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
@@ -83,6 +86,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
+    private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
@@ -91,6 +95,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Contact-List
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadContacts();
 
@@ -106,7 +112,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       )
       .subscribe(() => {
         if (this.hasInitialLoad) {
-          this.contactService.loadAllContacts().subscribe(contacts => {
+          this.contactService.refreshContacts().pipe(take(1)).subscribe(contacts => {
             this.allContacts = this.mappingService.mapContacts(contacts || []);
             this.applyFilters();
           });
@@ -126,7 +132,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Contact deleted successfully', CommonMessage.Success);
-        this.contactService.getContacts().pipe(take(1)).subscribe({
+        this.contactService.refreshContacts().pipe(take(1)).subscribe({
           next: contacts => {
             this.allContacts = this.mappingService.mapContacts(contacts || []);
             this.applyFilters();
@@ -225,32 +231,36 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
         this.allContacts = this.mappingService.mapContacts(contacts || []);
         this.applyFilters();
         this.hasInitialLoad = true;
-      });
+      },
+      error: () => {
+        this.allContacts = [];
+        this.contactsDisplay = [];
+      }
     });
   }
 
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-
-        const preferredOfficeId = this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue();
-        this.resolveOfficeScope(preferredOfficeId);
-      });
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.resolveOfficeScope(null);
+      }
     });
   }
 

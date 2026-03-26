@@ -3,7 +3,7 @@ import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, switchMap, take, takeUntil, timeout } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,6 +22,7 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
+import { hasOwnerRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
@@ -39,6 +40,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   getPropertyStatusLetter = getPropertyStatusLetter;
 
   properties: BoardProperty[] = [];
+  propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
   contacts: ContactResponse[] = [];
@@ -50,6 +52,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   endDate: Date = null;
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
+  userId: string = '';
+  isOwner: boolean = false;
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -81,6 +87,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   //#region Reservation-Board
   ngOnInit(): void {
+    this.userId = this.authService.getUser()?.userId || '';
+    this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.setDefaultDateRange();
     this.generateCalendarDays();
     this.loadContacts();
@@ -95,13 +105,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         }
         this.resolveOfficeScope(officeId);
         this.loadReservations();
+        this.loadBoardProperties();
       }
     });
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: value => {
-        this.propertiesFiltered = value;
-      }
+      next: value => {this.propertiesFiltered = value;}
     });
   }
 
@@ -149,25 +158,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.areContactsLoaded().pipe(take(1)).subscribe({
-      next: loaded => {
-        if (!loaded) {
-          this.contactService.loadAllContacts().pipe(take(1)).subscribe({
-            error: () => {
-              // contactsLoaded$ is set by service even on error
-            }
-          });
-        }
-
-        this.contactService.areContactsLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe(() => {
-          this.contactService.getAllContacts().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe(contacts => {
-            this.contacts = contacts || [];
-          });
-        });
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts: ContactResponse[]) => {
+        this.contacts = contacts || [];
       },
       error: () => {
         this.contacts = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       }
     });
   }
@@ -187,105 +183,102 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   loadProperties(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    // We limit properties when an owner is logged in to display on their dashboard
-    const scopedOwnerId = (this.ownerUserId || '').trim();
-    const properties$ = scopedOwnerId
-      ? this.propertyService.getPropertiesByOwner(scopedOwnerId)
-      : this.propertyService.getPropertiesBySelectionCritera(this.authService.getUser()?.userId || '');
+    if (!this.userId) {
+      this.propertyRows = [];
+      this.properties = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
 
-    properties$.pipe(timeout(20000), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
-        const workingOfficeId = this.selectedOfficeId;
-        const filtered = workingOfficeId == null
-          ? (properties || [])
-          : (properties || []).filter(p => p.officeId === workingOfficeId);
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(filtered, this.reservations);
+        this.propertyRows = this.selectedOfficeId == null ? (properties || []) : (properties || []).filter(p => p.officeId === this.selectedOfficeId);
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
       },
       error: () => {
+        this.propertyRows = [];
         this.properties = [];
       }
     });
   }
 
-  loadReservations(force: boolean = false): void {
-    if (!this.officeScopeResolved || this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
+  loadPropertiesForOwner(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    if (!this.userId) {
+      this.propertyRows = [];
+      this.properties = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
       return;
     }
-    const currentOfficeId = this.selectedOfficeId ?? null;
-    if (!force) {
-      if (this.isLoadingReservations) {
-        return;
-      }
-      if (this.lastLoadedOfficeId === currentOfficeId) {
-        return;
-      }
+
+    const scopedOwnerId = (this.userId || this.ownerUserId || '').trim();
+    if (!scopedOwnerId) {
+      this.propertyRows = [];
+      this.properties = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
     }
+
+    this.propertyService.getActivePropertiesByOwner(scopedOwnerId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        const workingOfficeId = this.selectedOfficeId;
+        const filtered = workingOfficeId == null
+          ? (properties || [])
+          : (properties || []).filter(p => p.officeId === workingOfficeId);
+        this.propertyRows = filtered;
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+      },
+      error: () => {
+        this.propertyRows = [];
+        this.properties = [];
+      }
+    });
+  }
+
+  loadBoardProperties(): void {
+    if (this.isOwner) {
+      this.loadPropertiesForOwner();
+      return;
+    }
+    this.loadProperties();
+  }
+
+  loadReservations(force: boolean = false): void {
+    if (!this.officeScopeResolved || this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) return;
+    const currentOfficeId = this.selectedOfficeId ?? null;
+    if (!force && (this.isLoadingReservations || this.lastLoadedOfficeId === currentOfficeId)) return;
+
     this.isLoadingReservations = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
-    this.reservationService.getReservationList().pipe(
-      timeout(20000),
-      take(1),
-      finalize(() => {
-        this.isLoadingReservations = false;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-      })
-    ).subscribe({
+    this.reservationService.getActiveReservationList().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
-        this.reservations = reservations.filter(r =>
-          r.isActive && (workingOfficeId == null || r.officeId === workingOfficeId)
-        );
+        this.reservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
-        this.loadProperties();
+        this.isLoadingReservations = false;
       },
       error: () => {
         this.reservations = [];
+        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
         this.lastLoadedOfficeId = currentOfficeId;
-        this.loadProperties();
+        this.isLoadingReservations = false;
       }
     });
   }
 
   initializeOfficeScope(): void {
-    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe({
-      next: loaded => {
-        if (!loaded) {
-          const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-          if (organizationId) {
-            this.officeService.loadAllOffices(organizationId);
-          } else {
-            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
-            this.loadReservations(true);
-            return;
-          }
-        }
-
-        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe({
-          next: () => {
-            this.officeService.getAllOffices().pipe(take(1)).subscribe({
-              next: offices => {
-                const activeOffices = (offices || []).filter(office => office.isActive);
-                const preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-                const resolvedOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(activeOffices, preferredOfficeId);
-                this.resolveOfficeScope(resolvedOfficeId);
-                this.loadReservations(true);
-              },
-              error: () => {
-                this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
-                this.loadReservations(true);
-              }
-            });
-          },
-          error: () => {
-            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
-            this.loadReservations(true);
-          }
-        });
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        this.loadReservations(true);
+        this.loadBoardProperties();
       },
       error: () => {
         this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
         this.loadReservations(true);
+        this.loadBoardProperties();
       }
     });
   }
@@ -825,13 +818,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     if (this.readOnly) {
       return;
     }
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
+    if (!this.userId) {
       this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board' } });
       return;
     }
 
-    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
       next: (selection: PropertySelectionResponse) => {
         this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'reservation-board', selection } });
       },
@@ -870,10 +862,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     property.propertyStatusId = statusId;
     property.statusLetter = getPropertyStatusLetter(statusId);
 
-    this.propertyService.getPropertyByGuid(property.propertyId).pipe(
-      take(1),
-      timeout(20000),
-      switchMap((fullProperty: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(fullProperty, statusId)).pipe(take(1), timeout(20000))),
+    this.propertyService.getPropertyByGuid(property.propertyId).pipe(take(1),
+      switchMap((fullProperty: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(fullProperty, statusId)).pipe(take(1))),
       finalize(() => {
         this.updatingPropertyStatusIds.delete(property.propertyId);
       })
@@ -898,7 +888,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  private buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
     const { officeName: _officeName, parkingNotes, ...requestBase } = property;
     return {
       ...requestBase,

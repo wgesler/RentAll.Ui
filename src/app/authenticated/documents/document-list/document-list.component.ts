@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
@@ -58,6 +59,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentsDisplay: DocumentListDisplay[] = [];
   
   showOfficeDropdown: boolean = true;
+  preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
   officesSubscription?: Subscription;
@@ -109,6 +111,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
+    private authService: AuthService,
     private route: ActivatedRoute,
     private propertyService: PropertyService,
     private contactService: ContactService) {
@@ -116,6 +119,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Document-List
   ngOnInit(): void {
+     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
+     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
      if(this.isInAddReservationMode())
       return;
     
@@ -465,57 +470,46 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe({
-        next: (allOffices: OfficeResponse[]) => {
-          this.offices = allOffices || [];
-          
-          if (this.officeId !== null && this.officeId !== undefined) {
-            this.resolveOfficeScope(this.officeId, false);
-          } else {
-            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
-          }
-
-          if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
-            this.resolveOfficeScope(null, true);
-          }
-          
-          if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined) && this.source !== 'invoice') {
-            this.resolveOfficeScope(this.offices[0].officeId, true);
-            this.showOfficeDropdown = false;
-          } else {
-            this.showOfficeDropdown = true;
-          }
-        },
-        error: () => {
-          this.offices = [];
-          this.resolveOfficeScope(null, false);
-        }
-      });
-      
-      if (!this.useRouteQueryParams) {
-        return;
-      }
-
-      this.queryParamsSubscription?.unsubscribe();
-      this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            const matchingOffice = this.offices.find(o => o.officeId === parsedOfficeId);
-            if (matchingOffice) {
-              this.resolveOfficeScope(matchingOffice.officeId, true);
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, disableSingleOfficeRule: this.source === 'invoice', requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+            if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
+              this.resolveOfficeScope(null, true);
             }
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
           }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.resolveOfficeScope(null, false);
+      }
+    });
+
+    if (!this.useRouteQueryParams) {
+      return;
+    }
+
+    this.queryParamsSubscription?.unsubscribe();
+    this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
+      const officeIdParam = params['officeId'];
+
+      if (officeIdParam) {
+        const parsedOfficeId = parseInt(officeIdParam, 10);
+        if (parsedOfficeId) {
+          const matchingOffice = this.offices.find(o => o.officeId === parsedOfficeId);
+          if (matchingOffice) {
+            this.resolveOfficeScope(matchingOffice.officeId, true);
           }
         }
-      });
+      } else {
+        if (this.officeId === null || this.officeId === undefined) {
+          this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
+        }
+      }
     });
   }
   
@@ -538,17 +532,23 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCompanies(): void {
-    this.contactService.areContactsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.companies = contacts || [];
-          this.filterCompanies();
-        },
-        error: () => {
-          this.companies = [];
-          this.availableCompanies = [];
-        }
-      });
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
+          next: (contacts) => {
+            this.companies = contacts || [];
+            this.filterCompanies();
+          },
+          error: () => {
+            this.companies = [];
+            this.availableCompanies = [];
+          }
+        });
+      },
+      error: () => {
+        this.companies = [];
+        this.availableCompanies = [];
+      }
     });
   }
 

@@ -3,7 +3,7 @@ import { Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnI
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -39,7 +39,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
-  /** Property IDs from saved Property Selection (same API as reservation board). Null = not loaded yet. */
   allowedPropertyIds: Set<string> | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
@@ -48,11 +47,15 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
-  private navigationSubscription?: Subscription;
-  private lastNavigationUrl = '';
-  private destroy$ = new Subject<void>();
+  navigationSubscription?: Subscription;
+  lastNavigationUrl = '';
+
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  
+  userId: string = '';
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
   propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
@@ -75,8 +78,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   };
   reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'properties', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public reservationService: ReservationService,
@@ -94,15 +98,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Reservation List
   ngOnInit(): void {
+    this.userId = this.authService.getUser()?.userId || '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.updateDisplayedColumns();
     this.loadOffices();
 
-    this.propertySelectionFilterService.propertiesFiltered$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((v) => (this.propertiesFiltered = v));
-    this.propertySelectionFilterService.dateRange$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((range) => {
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.dateRange$.pipe(takeUntil(this.destroy$)).subscribe((range) => {
         this.startDate = range.startDate;
         this.endDate = range.endDate;
         this.applyFilters();
@@ -114,10 +117,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    this.navigationSubscription = this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      takeUntil(this.destroy$)
-    ).subscribe(e => {
+    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const url = e.urlAfterRedirects.split('?')[0];
       const isReservationList = url.endsWith('/reservations') || url.endsWith('/rentals');
       const fromPropertySelection = this.lastNavigationUrl.includes('/selection');
@@ -127,7 +127,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.lastNavigationUrl = url;
     });
 
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         if (this.selectedOffice) {
@@ -148,6 +148,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         }
       });
     });
+
+    this.getReservations();
+    this.loadProperties();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -182,45 +185,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getReservations(): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (!currentSet.has('reservations')) {
-      return;
-    }
+    if (!this.itemsToLoad$.value.has('reservations')) return;
 
-    const userId = this.authService.getUser()?.userId || '';
-    const finalizeLoad = () => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-
-    if (!userId) {
-      this.reservationService.getReservationList(true).pipe(take(1), finalize(finalizeLoad)).subscribe({
-        next: (response: ReservationListResponse[]) => {
-          this.isServiceError = false;
-          this.allReservations = this.mappingService.mapReservationList(response);
-          this.allowedPropertyIds = null;
-          this.applyFilters();
-        },
-        error: () => {
-          this.isServiceError = true;
-          this.allReservations = [];
-          this.reservationsDisplay = [];
-          finalizeLoad();
-        }
-      });
-      return;
-    }
-
-    forkJoin({
-      reservations: this.reservationService.getReservationList(true),
-      selectedProperties: this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
-        catchError(() => {
-          this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
-          return of([] as PropertyListResponse[]);
-        })
-      )
-    }).pipe(take(1), finalize(finalizeLoad)).subscribe({
-      next: ({ reservations, selectedProperties }) => {
+    this.reservationService.getReservationList().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+      next: (reservations: ReservationListResponse[]) => {
         this.isServiceError = false;
         this.allReservations = this.mappingService.mapReservationList(reservations || []);
-        this.allowedPropertyIds = new Set((selectedProperties || []).map(p => p.propertyId));
         this.applyFilters();
       },
       error: () => {
@@ -229,74 +199,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.reservationsDisplay = [];
       }
     });
-  }
-
-  goToPropertySelection(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    const listReturnPath = this.router.url.split('?')[0];
-    if (!userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
-        state: { source: 'reservation-list', listReturnPath }
-      });
-      return;
-    }
-    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
-      next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
-          state: { source: 'reservation-list', selection, listReturnPath }
-        });
-      },
-      error: () => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
-          state: { source: 'reservation-list', listReturnPath }
-        });
-      }
-    });
-  }
-
-  reloadAllowedPropertyIds(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      return;
-    }
-    this.propertyService.getPropertiesBySelectionCritera(userId).pipe(
-      take(1),
-      catchError(() => of([] as PropertyListResponse[]))
-    ).subscribe(props => {
-      this.allowedPropertyIds = new Set((props || []).map(p => p.propertyId));
-      this.applyFilters();
-    });
-  }
-
-  deleteReservation(reservation: ReservationListDisplay): void {
-    this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
-        this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
-        this.applyFilters();
-      },
-      error: () => {}
-    });
-  }
-
-  goToReservation(event: ReservationListDisplay): void {
-    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
-    const queryParams: any = {};
-    
-    if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
-    }
-    queryParams.returnTo = 'reservation-list';
-    
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
-    });
-  }
-
-  goToContact(event: ReservationListDisplay): void {
-    if (event.contactId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
-    }
   }
 
   copyReservation(row: ReservationListDisplay): void {
@@ -317,28 +219,113 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+
+  deleteReservation(reservation: ReservationListDisplay): void {
+    this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
+        this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+        this.applyFilters();
+      },
+      error: () => {}
+    });
+  }
+  //#endregion
+
+  //#region Routing Methods
+  goToReservation(event: ReservationListDisplay): void {
+    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
+    const queryParams: any = {};
+    
+    if (this.selectedOffice) {
+      queryParams.officeId = this.selectedOffice.officeId;
+    }
+    queryParams.returnTo = 'reservation-list';
+    
+    this.router.navigate([url], {
+      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
+    });
+  }
+
+  goToPropertySelection(): void {
+    const listReturnPath = this.router.url.split('?')[0];
+    if (!this.userId) {
+      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+        state: { source: 'reservation-list', listReturnPath }
+      });
+      return;
+    }
+    this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
+      next: (selection: PropertySelectionResponse) => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+          state: { source: 'reservation-list', selection, listReturnPath }
+        });
+      },
+      error: () => {
+        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
+          state: { source: 'reservation-list', listReturnPath }
+        });
+      }
+    });
+  }
+  
+  goToContact(event: ReservationListDisplay): void {
+    if (event.contactId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    }
+  }
   //#endregion
 
   //#region Data Load Methods
-  loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        
-        if (this.offices.length === 1 && (this.officeId === null || this.officeId === undefined)) {
-          this.selectedOffice = this.offices[0];
-          this.showOfficeDropdown = false;
-        } else {
-          this.showOfficeDropdown = true;
-        }
-        
-        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-        
-        this.getReservations();
-      });
+  loadProperties(): void {
+    if (!this.userId || !this.propertiesFiltered) {
+      this.allowedPropertyIds = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.applyFilters();
+      return;
+    }
+
+    this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+      next: (props: PropertyListResponse[]) => {
+        this.allowedPropertyIds = new Set((props || []).map(p => p.propertyId));
+        this.applyFilters();
+      },
+      error: () => {
+        this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
+        this.allowedPropertyIds = null;
+        this.applyFilters();
+      }
     });
+  }
+
+  loadOffices(): void {
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+      }
+    });
+  }
+
+  reloadAllowedPropertyIds(): void {
+    if (!this.propertiesFiltered) {
+      this.allowedPropertyIds = null;
+      this.applyFilters();
+      return;
+    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    this.loadProperties();
   }
   //#endregion
 
@@ -456,7 +443,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  private updateDisplayedColumns(): void {
+  updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
     this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
   }
