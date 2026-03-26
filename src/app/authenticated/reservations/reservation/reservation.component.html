@@ -160,125 +160,158 @@
                 </div>
 
                 <!-- Add Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Type</mat-label>
-                  <mat-select formControlName="reservationTypeId" required>
-                    <mat-option [value]="null">Select Reservation Type</mat-option>
-                    @for (clientType of availableClientTypes; track clientType.value) {
-                      <mat-option [value]="clientType.value">{{ clientType.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
-                    <mat-error>Reservation Type is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Type'"
+                  [required]="true"
+                  [value]="form.get('reservationTypeId')?.value ?? null"
+                  [options]="availableClientTypes"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Reservation Type'"
+                  [noResultsText]="'No reservation types match your search'"
+                  [showError]="!!(form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched)"
+                  [errorText]="'Reservation Type is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationTypeId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Status</mat-label>
-                  <mat-select formControlName="reservationStatusId" required>
-                    @for (status of availableReservationStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
-                    <mat-error>Reservation Status is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Status'"
+                  [required]="true"
+                  [value]="form.get('reservationStatusId')?.value ?? null"
+                  [options]="availableReservationStatuses"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="''"
+                  [noResultsText]="'No reservation statuses match your search'"
+                  [showError]="!!(form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched)"
+                  [errorText]="'Reservation Status is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationStatusId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Notice</mat-label>
-                  <mat-select formControlName="reservationNoticeId" required>
-                    <mat-option [value]="null">Select Notice</mat-option>
-                    @for (notice of availableReservationNotices; track notice.value) {
-                      <mat-option [value]="notice.value">{{ notice.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationNoticeId')?.hasError('required') && form.get('reservationNoticeId')?.touched) {
-                    <mat-error>Reservation Notice is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Notice'"
+                  [required]="true"
+                  [value]="form.get('reservationNoticeId')?.value ?? null"
+                  [options]="availableReservationNotices"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Notice'"
+                  [noResultsText]="'No reservation notices match your search'"
+                  [showError]="!!(form.get('reservationNoticeId')?.hasError('required') && form.get('reservationNoticeId')?.touched)"
+                  [errorText]="'Reservation Notice is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationNoticeId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Agent</mat-label>
-                  <mat-select formControlName="agentId">
-                    <mat-option [value]="null">None</mat-option>
-                    @for (agent of agents; track agent.agentId) {
-                      <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Agent'"
+                  [value]="form.get('agentId')?.value ?? null"
+                  [options]="agentOptions"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'None'"
+                  [noResultsText]="'No agents match your search'"
+                  (valueChange)="onAgentDropdownChange($event)">
+                </app-searchable-select>
               }
 
               @if (!isAddMode) {
                 <!-- Edit Mode: Line 2: Reservation Type, Reservation Status, Reservation Notice, Agent (all 1/4 each) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Type</mat-label>
-                  <mat-select formControlName="reservationTypeId" required>
-                    <mat-option [value]="null">Select Reservation Type</mat-option>
-                    @for (clientType of availableClientTypes; track clientType.value) {
-                      <mat-option [value]="clientType.value">{{ clientType.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched) {
-                    <mat-error>Reservation Type is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Type'"
+                  [required]="true"
+                  [value]="form.get('reservationTypeId')?.value ?? null"
+                  [options]="availableClientTypes"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Reservation Type'"
+                  [noResultsText]="'No reservation types match your search'"
+                  [showError]="!!(form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched)"
+                  [errorText]="'Reservation Type is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationTypeId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Status</mat-label>
-                  <mat-select formControlName="reservationStatusId" required>
-                    @for (status of availableReservationStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched) {
-                    <mat-error>Reservation Status is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Status'"
+                  [required]="true"
+                  [value]="form.get('reservationStatusId')?.value ?? null"
+                  [options]="availableReservationStatuses"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="''"
+                  [noResultsText]="'No reservation statuses match your search'"
+                  [showError]="!!(form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched)"
+                  [errorText]="'Reservation Status is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationStatusId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Reservation Notice</mat-label>
-                  <mat-select formControlName="reservationNoticeId" required>
-                    <mat-option [value]="null">Select Notice</mat-option>
-                    @for (notice of availableReservationNotices; track notice.value) {
-                      <mat-option [value]="notice.value">{{ notice.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('reservationNoticeId')?.hasError('required') && form.get('reservationNoticeId')?.touched) {
-                    <mat-error>Reservation Notice is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Reservation Notice'"
+                  [required]="true"
+                  [value]="form.get('reservationNoticeId')?.value ?? null"
+                  [options]="availableReservationNotices"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Notice'"
+                  [noResultsText]="'No reservation notices match your search'"
+                  [showError]="!!(form.get('reservationNoticeId')?.hasError('required') && form.get('reservationNoticeId')?.touched)"
+                  [errorText]="'Reservation Notice is required'"
+                  (valueChange)="onReservationNumberDropdownChange('reservationNoticeId', $event)">
+                </app-searchable-select>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Agent</mat-label>
-                  <mat-select formControlName="agentId">
-                    <mat-option [value]="null">None</mat-option>
-                    @for (agent of agents; track agent.agentId) {
-                      <mat-option [value]="agent.agentId">{{ agent.agentCode }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Agent'"
+                  [value]="form.get('agentId')?.value ?? null"
+                  [options]="agentOptions"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'None'"
+                  [noResultsText]="'No agents match your search'"
+                  (valueChange)="onAgentDropdownChange($event)">
+                </app-searchable-select>
               }
 
               <!-- Line 3: Contact Name, Company Name, Phone, Email -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Contact Name</mat-label>
-                <mat-select formControlName="contactId" required>
-                  <mat-option [value]="newContactOptionValue">New Contact</mat-option>
-                  @for (contact of filteredContacts; track contact.contactId) {
-                    <mat-option [value]="contact.contactId">
-                      @if (contact.entityTypeId === EntityType.Company) {
-                        {{ contact.displayName ?? contact.companyName }}: {{ contact.firstName }} {{ contact.lastName }}
-                      } @else {
-                        {{ contact.firstName }} {{ contact.lastName }}
-                      }
-                    </mat-option>
-                  }
-                </mat-select>
-                @if (form.get('contactId')?.hasError('required') && form.get('contactId')?.touched) {
-                  <mat-error>Contact Name is required</mat-error>
-                }
-              </mat-form-field>
+              <app-searchable-select
+                class="col-span-1"
+                [renderInFormField]="true"
+                [formFieldLabel]="'Contact Name'"
+                [required]="true"
+                [value]="form.get('contactId')?.value || ''"
+                [options]="contactNameOptions"
+                [disabled]="form.get('contactId')?.disabled ?? false"
+                [showSearchInput]="true"
+                [hideSearchHint]="true"
+                [hideSearchText]="true"
+                [nullOptionLabel]="''"
+                [noResultsText]="'No contacts match your search'"
+                [showError]="!!(form.get('contactId')?.hasError('required') && form.get('contactId')?.touched)"
+                [errorText]="'Contact Name is required'"
+                (valueChange)="onContactNameChange($event)">
+              </app-searchable-select>
 
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Company Name</mat-label>
@@ -333,29 +366,39 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Check-In Time</mat-label>
-                <mat-select formControlName="checkInTimeId" required>
-                  @for (time of checkInTimes; track time.value) {
-                    <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                  }
-                </mat-select>
-                @if (form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched) {
-                  <mat-error>Check-In Time is required</mat-error>
-                }
-              </mat-form-field>
+              <app-searchable-select
+                class="col-span-1"
+                [renderInFormField]="true"
+                [formFieldLabel]="'Check-In Time'"
+                [required]="true"
+                [value]="form.get('checkInTimeId')?.value ?? null"
+                [options]="checkInTimes"
+                [showSearchInput]="true"
+                [hideSearchHint]="true"
+                [hideSearchText]="true"
+                [nullOptionLabel]="''"
+                [noResultsText]="'No check-in times match your search'"
+                [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
+                [errorText]="'Check-In Time is required'"
+                (valueChange)="onReservationNumberDropdownChange('checkInTimeId', $event)">
+              </app-searchable-select>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Check-Out Time</mat-label>
-                <mat-select formControlName="checkOutTimeId" required>
-                  @for (time of checkOutTimes; track time.value) {
-                    <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                  }
-                </mat-select>
-                @if (form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched) {
-                  <mat-error>Check-Out Time is required</mat-error>
-                }
-              </mat-form-field>
+              <app-searchable-select
+                class="col-span-1"
+                [renderInFormField]="true"
+                [formFieldLabel]="'Check-Out Time'"
+                [required]="true"
+                [value]="form.get('checkOutTimeId')?.value ?? null"
+                [options]="checkOutTimes"
+                [showSearchInput]="true"
+                [hideSearchHint]="true"
+                [hideSearchText]="true"
+                [nullOptionLabel]="''"
+                [noResultsText]="'No check-out times match your search'"
+                [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
+                [errorText]="'Check-Out Time is required'"
+                (valueChange)="onReservationNumberDropdownChange('checkOutTimeId', $event)">
+              </app-searchable-select>
                 </div>
               </mat-expansion-panel>
 

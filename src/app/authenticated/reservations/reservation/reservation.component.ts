@@ -35,6 +35,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { LeaseComponent } from '../lease/lease.component';
@@ -56,7 +57,7 @@ interface ExtraFeeLineDisplay {
 @Component({
     standalone: true,
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })
@@ -889,6 +890,44 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if (contactId)  {
       this.updateContactFields();
     }
+  }
+
+  get contactNameOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.newContactOptionValue, label: 'New Contact' },
+      ...this.filteredContacts.map(contact => ({
+        value: contact.contactId,
+        label: this.getContactNameLabel(contact)
+      }))
+    ];
+  }
+
+  getContactNameLabel(contact: ContactResponse): string {
+    if (contact.entityTypeId === EntityType.Company) {
+      return `${contact.displayName ?? contact.companyName}: ${contact.firstName} ${contact.lastName}`;
+    }
+    return `${contact.firstName} ${contact.lastName}`;
+  }
+
+  onContactNameChange(contactId: string | number | null): void {
+    const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
+    this.form.get('contactId')?.setValue(normalizedContactId);
+    this.form.get('contactId')?.markAsTouched();
+  }
+
+  onReservationNumberDropdownChange(controlName: 'reservationTypeId' | 'reservationStatusId' | 'reservationNoticeId' | 'checkInTimeId' | 'checkOutTimeId', value: string | number | null): void {
+    this.form.get(controlName)?.setValue(value == null || value === '' ? null : Number(value));
+    this.form.get(controlName)?.markAsTouched();
+  }
+
+  onAgentDropdownChange(value: string | number | null): void {
+    const normalizedAgentId = value == null || value === '' ? null : String(value);
+    this.form.get('agentId')?.setValue(normalizedAgentId);
+    this.form.get('agentId')?.markAsTouched();
+  }
+
+  get agentOptions(): SearchableSelectOption[] {
+    return this.agents.map(agent => ({ value: agent.agentId, label: agent.agentCode }));
   }
 
   updateReservationStatusesByReservationType(): void {

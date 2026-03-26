@@ -42,6 +42,7 @@ import { PropertyWelcomeLetterComponent } from '../property-welcome/property-wel
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
 @Component({
     selector: 'app-property',
@@ -51,6 +52,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
         MaterialModule,
         FormsModule,
         ReactiveFormsModule,
+        SearchableSelectComponent,
         PropertyWelcomeLetterComponent,
         PropertyInformationComponent,
         DocumentListComponent,
@@ -856,6 +858,46 @@ export class PropertyComponent implements OnInit, OnDestroy {
     if (value && value !== this.newOwnerOptionValue) {
       this.openEditOwnerDialog(value);
     }
+  }
+
+  onPropertyTypeDropdownChange(value: string | number | null): void {
+    this.form.get('propertyType')?.setValue(value == null ? null : Number(value));
+    this.form.get('propertyType')?.markAsTouched();
+  }
+
+  onOwnerDropdownChange(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id', value: string | number | null): void {
+    const normalizedValue = value === null || value === undefined ? (ownerField === 'owner1Id' ? '' : null) : String(value);
+    this.form.get(ownerField)?.setValue(normalizedValue);
+    this.form.get(ownerField)?.markAsTouched();
+    this.onOwnerSelectionChange(normalizedValue === null ? null : String(normalizedValue));
+  }
+
+  get ownerOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.newOwnerOptionValue, label: 'New Owner' },
+      ...this.ownerContacts.map(contact => ({ value: contact.contactId, label: contact.fullName ?? '' }))
+    ];
+  }
+
+  onNumericDropdownChange(controlName: string, value: string | number | null): void {
+    this.form.get(controlName)?.setValue(value == null || value === '' ? null : Number(value));
+    this.form.get(controlName)?.markAsTouched();
+  }
+
+  get bedSizeOptionsWithNone(): SearchableSelectOption[] {
+    return [{ value: 0, label: 'None' }, ...this.bedSizeTypes];
+  }
+
+  get regionOptions(): { value: number, label: string }[] {
+    return this.regions.map(region => ({ value: region.regionId, label: `${region.regionCode} - ${region.name}` }));
+  }
+
+  get areaOptions(): { value: number, label: string }[] {
+    return this.areas.map(area => ({ value: area.areaId, label: `${area.areaCode} - ${area.name}` }));
+  }
+
+  get buildingOptions(): { value: number, label: string }[] {
+    return this.buildings.map(building => ({ value: building.buildingId, label: `${building.buildingCode} - ${building.name}` }));
   }
 
   getOwnerDisplayName(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): string {

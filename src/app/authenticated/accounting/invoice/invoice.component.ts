@@ -20,6 +20,7 @@ import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, Res
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
@@ -29,7 +30,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 @Component({
     standalone: true,
     selector: 'app-invoice',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent],
     templateUrl: './invoice.component.html',
     styleUrl: './invoice.component.scss'
 })
@@ -1021,8 +1022,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
   }
 
-  onCostCodeChange(index: number, costCodeId: string | null): void {
-    if (costCodeId === null || costCodeId === undefined) {
+  onCostCodeChange(index: number, costCodeId: string | number | null): void {
+    const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : String(costCodeId);
+    if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
       // Clear transactionTypeId when cost code is cleared
@@ -1033,9 +1035,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const previousTransactionTypeId = (line as any).transactionTypeId;
       const currentAmount = line.amount || 0;
       
-      this.updateLedgerLineField(index, 'costCodeId', costCodeId);
+      this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === costCodeId);
+      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === normalizedCostCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode

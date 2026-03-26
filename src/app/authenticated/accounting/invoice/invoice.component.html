@@ -158,16 +158,15 @@
                           <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
                             <td style="width: 50px;">{{ i + 1 }}</td>
                             <td class="cost-center-cell" style="width: 350px;">
-                              <mat-select [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null" 
-                                (selectionChange)="onCostCodeChange(i, $event.value)"
+                              <app-searchable-select
+                                [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null"
+                                [options]="getCostCodesForLine(line)"
                                 [disabled]="isPaymentMode && !line.isNew"
-                                [class.editable-select]="!isPaymentMode || line.isNew"
-                                class="w-full cost-code-select">
-                                <mat-option [value]="null">Select Cost Code</mat-option>
-                                @for (costCode of getCostCodesForLine(line); track costCode.value) {
-                                  <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
-                                }
-                              </mat-select>
+                                [nullOptionLabel]="'Select Cost Code'"
+                                [noResultsText]="'No cost codes match your search'"
+                                [selectClass]="'w-full cost-code-select ' + ((!isPaymentMode || line.isNew) ? 'editable-select' : '')"
+                                (valueChange)="onCostCodeChange(i, $event)">
+                              </app-searchable-select>
                             </td>
                             <td class="type-cell" [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 150px;">
                               {{ line.transactionType || '' }}

@@ -14,6 +14,8 @@
   --global-form-field-gap-x: 6px;
   --global-form-field-gap-y: 4px;
   --global-form-row-gap: 8px;
+  --global-dropdown-font-size: 14px;
+  --global-dropdown-option-min-height: 34px;
 }
 
 /* Prevent horizontal layout shift when page scrollbar appears/disappears. */
@@ -546,8 +548,20 @@ mat-tab-header {
 
 mat-form-field input,
 .mat-mdc-select-min-line,
-.mat-mdc-option {
-  font-size: 16px !important;
+.mat-mdc-option,
+.mat-mdc-option .mdc-list-item__primary-text {
+  font-size: var(--global-dropdown-font-size) !important;
+}
+
+/* Global dropdown panel density: tighter option rows and reduced spacing. */
+.mat-mdc-select-panel .mat-mdc-option {
+  min-height: var(--global-dropdown-option-min-height) !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.mat-mdc-option .mdc-list-item__primary-text {
+  line-height: 1.2 !important;
 }
 
 .datatable-add-btn {

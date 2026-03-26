@@ -187,13 +187,21 @@
   /* Outdoor spaces — 9 equal columns, one line */
   .outdoor-spaces-one-row {
     display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 2fr) minmax(0, 2fr);
     gap: 8px 10px;
     align-items: center;
     width: 100%;
 
     mat-checkbox {
       min-width: 0;
+    }
+
+    .outdoor-pair-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      min-width: 0;
+      align-items: center;
     }
   }
 }
@@ -218,6 +226,17 @@
       min-width: 0;
       margin-right: 0 !important;
       margin-bottom: 0 !important;
+    }
+
+    > app-searchable-select {
+      min-width: 0;
+      max-width: 100%;
+
+      ::ng-deep .mat-mdc-form-field {
+        margin-right: 0 !important;
+        margin-bottom: 0 !important;
+        width: 100% !important;
+      }
     }
   }
   .basic-compact {

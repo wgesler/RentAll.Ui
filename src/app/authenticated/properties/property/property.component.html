@@ -136,28 +136,42 @@
                     </button>
                     <mat-datepicker #availableUntilPicker></mat-datepicker>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-3">
-                    <mat-label>Check-In</mat-label>
-                    <mat-select formControlName="checkInTimeId" required>
-                      @for (time of checkInTimes; track time.value) {
-                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-3">
-                    <mat-label>Check-Out</mat-label>
-                    <mat-select formControlName="checkOutTimeId" required>
-                      @for (time of checkOutTimes; track time.value) {
-                        <mat-option [value]="time.value">{{ time.label }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="basic-compact min-w-0 col-span-3"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Check-In'"
+                    [required]="true"
+                    [value]="form.get('checkInTimeId')?.value ?? null"
+                    [options]="checkInTimes"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter check-in times...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No check-in times match your search'"
+                    [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
+                    [errorText]="'Required'"
+                    (valueChange)="onNumericDropdownChange('checkInTimeId', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact min-w-0 col-span-3"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Check-Out'"
+                    [required]="true"
+                    [value]="form.get('checkOutTimeId')?.value ?? null"
+                    [options]="checkOutTimes"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter check-out times...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No check-out times match your search'"
+                    [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
+                    [errorText]="'Required'"
+                    (valueChange)="onNumericDropdownChange('checkOutTimeId', $event)">
+                  </app-searchable-select>
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
                     <mat-label>Min-Stay</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
@@ -166,39 +180,60 @@
                     <mat-label>Max-Stay</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4">
-                    <mat-label>Style</mat-label>
-                    <mat-select formControlName="propertyStyle" required>
-                      @for (style of propertyStyles; track style.value) {
-                        <mat-option [value]="style.value">{{ style.label }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('propertyStyle')?.hasError('required') && form.get('propertyStyle')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4">
-                    <mat-label>Type</mat-label>
-                    <mat-select formControlName="propertyType" required>
-                      @for (type of propertyTypes; track type.value) {
-                        <mat-option [value]="type.value">{{ type.label }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('propertyType')?.hasError('required') && form.get('propertyType')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4">
-                    <mat-label>Inspected</mat-label>
-                    <mat-select formControlName="propertyStatus" required>
-                      @for (status of propertyStatuses; track status.value) {
-                        <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('propertyStatus')?.hasError('required') && form.get('propertyStatus')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="basic-compact min-w-0 col-span-4"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Style'"
+                    [required]="true"
+                    [value]="form.get('propertyStyle')?.value ?? null"
+                    [options]="propertyStyles"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter styles...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No styles match your search'"
+                    [showError]="!!(form.get('propertyStyle')?.hasError('required') && form.get('propertyStyle')?.touched)"
+                    [errorText]="'Required'"
+                    (valueChange)="onNumericDropdownChange('propertyStyle', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact min-w-0 col-span-4"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Type'"
+                    [required]="true"
+                    [value]="form.get('propertyType')?.value ?? null"
+                    [options]="propertyTypes"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter property types...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No property types match your search'"
+                    [showError]="!!(form.get('propertyType')?.hasError('required') && form.get('propertyType')?.touched)"
+                    [errorText]="'Required'"
+                    (valueChange)="onPropertyTypeDropdownChange($event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact min-w-0 col-span-4"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Inspected'"
+                    [required]="true"
+                    [value]="form.get('propertyStatus')?.value ?? null"
+                    [options]="propertyStatuses"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter statuses...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No statuses match your search'"
+                    [showError]="!!(form.get('propertyStatus')?.hasError('required') && form.get('propertyStatus')?.touched)"
+                    [errorText]="'Required'"
+                    (valueChange)="onNumericDropdownChange('propertyStatus', $event)">
+                  </app-searchable-select>
                 </div>
                 <!-- Row 2: Address A1/A2 = 6, City = 5, Suite/State = 2, Zip = 3 -->
                 <div class="basic-row address-line-grid gap-x-1.5 gap-y-1 w-full">
@@ -272,33 +307,51 @@
                 </div>
                 <!-- Under phone: Region/Area/Build -->
                 <div class="basic-row office-line-grid gap-x-1.5 gap-y-1">
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Region</mat-label>
-                    <mat-select formControlName="regionId">
-                      <mat-option [value]="null">Select Region</mat-option>
-                      @for (r of regions; track r.regionId) {
-                        <mat-option [value]="r.regionId">{{ r.regionCode }} - {{ r.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Area</mat-label>
-                    <mat-select formControlName="areaId">
-                      <mat-option [value]="null">Select Area</mat-option>
-                      @for (a of areas; track a.areaId) {
-                        <mat-option [value]="a.areaId">{{ a.areaCode }} - {{ a.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Building</mat-label>
-                    <mat-select formControlName="buildingId">
-                      <mat-option [value]="null">Select Building</mat-option>
-                      @for (b of buildings; track b.buildingId) {
-                        <mat-option [value]="b.buildingId">{{ b.buildingCode }} - {{ b.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="basic-compact min-w-0"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Region'"
+                    [value]="form.get('regionId')?.value ?? null"
+                    [options]="regionOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter regions...'"
+                    [nullOptionLabel]="'Select Region'"
+                    [noResultsText]="'No regions match your search'"
+                    (valueChange)="onNumericDropdownChange('regionId', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact min-w-0"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Area'"
+                    [value]="form.get('areaId')?.value ?? null"
+                    [options]="areaOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter areas...'"
+                    [nullOptionLabel]="'Select Area'"
+                    [noResultsText]="'No areas match your search'"
+                    (valueChange)="onNumericDropdownChange('areaId', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact min-w-0"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact min-w-0'"
+                    [formFieldLabel]="'Building'"
+                    [value]="form.get('buildingId')?.value ?? null"
+                    [options]="buildingOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter buildings...'"
+                    [nullOptionLabel]="'Select Building'"
+                    [noResultsText]="'No buildings match your search'"
+                    (valueChange)="onNumericDropdownChange('buildingId', $event)">
+                  </app-searchable-select>
                   <mat-form-field appearance="outline" class="basic-compact min-w-0">
                     <mat-label>Latitude</mat-label>
                     <input matInput type="text" inputmode="decimal" formControlName="latitude" maxlength="32" placeholder="0.00000000" (focus)="selectAllOnFocus($event)">
@@ -338,51 +391,76 @@
                     <mat-label>Sq Ft</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Bed 1</mat-label>
-                    <mat-select formControlName="bedroomId1">
-                      <mat-option [value]="0">None</mat-option>
-                      @for (bedSize of bedSizeTypes; track bedSize.value) {
-                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Bed 2</mat-label>
-                    <mat-select formControlName="bedroomId2">
-                      <mat-option [value]="0">None</mat-option>
-                      @for (bedSize of bedSizeTypes; track bedSize.value) {
-                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Bed 3</mat-label>
-                    <mat-select formControlName="bedroomId3">
-                      <mat-option [value]="0">None</mat-option>
-                      @for (bedSize of bedSizeTypes; track bedSize.value) {
-                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Bed 4</mat-label>
-                    <mat-select formControlName="bedroomId4">
-                      <mat-option [value]="0">None</mat-option>
-                      @for (bedSize of bedSizeTypes; track bedSize.value) {
-                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Sofabed</mat-label>
-                    <mat-select formControlName="sofabed">
-                      <mat-option [value]="0">None</mat-option>
-                      @for (bedSize of bedSizeTypes; track bedSize.value) {
-                        <mat-option [value]="bedSize.value">{{ bedSize.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="basic-compact"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact'"
+                    [formFieldLabel]="'Bed 1'"
+                    [value]="form.get('bedroomId1')?.value ?? 0"
+                    [options]="bedSizeOptionsWithNone"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No bed sizes match your search'"
+                    (valueChange)="onNumericDropdownChange('bedroomId1', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact'"
+                    [formFieldLabel]="'Bed 2'"
+                    [value]="form.get('bedroomId2')?.value ?? 0"
+                    [options]="bedSizeOptionsWithNone"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No bed sizes match your search'"
+                    (valueChange)="onNumericDropdownChange('bedroomId2', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact'"
+                    [formFieldLabel]="'Bed 3'"
+                    [value]="form.get('bedroomId3')?.value ?? 0"
+                    [options]="bedSizeOptionsWithNone"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No bed sizes match your search'"
+                    (valueChange)="onNumericDropdownChange('bedroomId3', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact'"
+                    [formFieldLabel]="'Bed 4'"
+                    [value]="form.get('bedroomId4')?.value ?? 0"
+                    [options]="bedSizeOptionsWithNone"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No bed sizes match your search'"
+                    (valueChange)="onNumericDropdownChange('bedroomId4', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="basic-compact"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'basic-compact'"
+                    [formFieldLabel]="'Sofabed'"
+                    [value]="form.get('sofabed')?.value ?? 0"
+                    [options]="bedSizeOptionsWithNone"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No bed sizes match your search'"
+                    (valueChange)="onNumericDropdownChange('sofabed', $event)">
+                  </app-searchable-select>
                 </div>
                 <!-- Pets & parking -->
                 <div class="basic-row flex items-center gap-4 flex-wrap">
@@ -458,48 +536,48 @@
                 </div>
                 <!-- Owners (under rate fields) -->
                 <div class="mb-4 flex items-center gap-3 mt-4">
-                  <mat-form-field appearance="outline" class="owner-select-field owner-select-field-primary" [class.owner-has-value]="!!form.get('owner1Id')?.value">
-                    <mat-label>Owner</mat-label>
-                    <mat-select formControlName="owner1Id" (selectionChange)="onOwnerSelectionChange($event.value)">
-                      <mat-select-trigger class="owner-select-trigger">
-                        <span class="owner-trigger-name" (mousedown)="$event.stopPropagation()" (click)="onOwnerNameClick($event, 'owner1Id')">{{ getOwnerDisplayName('owner1Id') }}</span>
-                        <mat-icon class="owner-trigger-arrow">arrow_drop_down</mat-icon>
-                      </mat-select-trigger>
-                      <mat-option [value]="newOwnerOptionValue">New Owner</mat-option>
-                      @for (contact of ownerContacts; track contact.contactId) {
-                        <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (isAddMode && form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched) {
-                      <mat-error>Owner is required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="owner-select-field owner-select-field-secondary" [class.owner-has-value]="!!form.get('owner2Id')?.value">
-                    <mat-label>Owner 2 (Optional)</mat-label>
-                    <mat-select formControlName="owner2Id" (selectionChange)="onOwnerSelectionChange($event.value)">
-                      <mat-select-trigger class="owner-select-trigger">
-                        <span class="owner-trigger-name" (mousedown)="$event.stopPropagation()" (click)="onOwnerNameClick($event, 'owner2Id')">{{ getOwnerDisplayName('owner2Id') }}</span>
-                        <mat-icon class="owner-trigger-arrow">arrow_drop_down</mat-icon>
-                      </mat-select-trigger>
-                      <mat-option [value]="newOwnerOptionValue">New Owner</mat-option>
-                      @for (contact of ownerContacts; track contact.contactId) {
-                        <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="owner-select-field owner-select-field-secondary" [class.owner-has-value]="!!form.get('owner3Id')?.value">
-                    <mat-label>Owner 3 (Optional)</mat-label>
-                    <mat-select formControlName="owner3Id" (selectionChange)="onOwnerSelectionChange($event.value)">
-                      <mat-select-trigger class="owner-select-trigger">
-                        <span class="owner-trigger-name" (mousedown)="$event.stopPropagation()" (click)="onOwnerNameClick($event, 'owner3Id')">{{ getOwnerDisplayName('owner3Id') }}</span>
-                        <mat-icon class="owner-trigger-arrow">arrow_drop_down</mat-icon>
-                      </mat-select-trigger>
-                      <mat-option [value]="newOwnerOptionValue">New Owner</mat-option>
-                      @for (contact of ownerContacts; track contact.contactId) {
-                        <mat-option [value]="contact.contactId">{{ contact.fullName }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="owner-select-field owner-select-field-primary"
+                    [renderInFormField]="true"
+                    [formFieldLabel]="'Owner'"
+                    [required]="isAddMode"
+                    [value]="form.get('owner1Id')?.value || ''"
+                    [options]="ownerOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No owners match your search'"
+                    [showError]="!!(isAddMode && form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
+                    [errorText]="'Owner is required'"
+                    (valueChange)="onOwnerDropdownChange('owner1Id', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="owner-select-field owner-select-field-secondary"
+                    [renderInFormField]="true"
+                    [formFieldLabel]="'Owner 2 (Optional)'"
+                    [value]="form.get('owner2Id')?.value ?? null"
+                    [options]="ownerOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No owners match your search'"
+                    (valueChange)="onOwnerDropdownChange('owner2Id', $event)">
+                  </app-searchable-select>
+                  <app-searchable-select
+                    class="owner-select-field owner-select-field-secondary"
+                    [renderInFormField]="true"
+                    [formFieldLabel]="'Owner 3 (Optional)'"
+                    [value]="form.get('owner3Id')?.value ?? null"
+                    [options]="ownerOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No owners match your search'"
+                    (valueChange)="onOwnerDropdownChange('owner3Id', $event)">
+                  </app-searchable-select>
                 </div>
               </div>
             </mat-expansion-panel>
@@ -590,10 +668,14 @@
                   <mat-checkbox formControlName="yard">Yard</mat-checkbox>
                   <mat-checkbox formControlName="garden">Garden</mat-checkbox>
                   <mat-checkbox formControlName="commonPool">Common Pool</mat-checkbox>
-                  <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
-                  <mat-checkbox formControlName="jacuzzi">Jacuzzi</mat-checkbox>
-                  <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
-                  <mat-checkbox formControlName="gym">Gym</mat-checkbox>
+                  <div class="outdoor-pair-col">
+                    <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
+                    <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
+                  </div>
+                  <div class="outdoor-pair-col">
+                    <mat-checkbox formControlName="jacuzzi">Jacuzzi</mat-checkbox>
+                    <mat-checkbox formControlName="gym">Gym</mat-checkbox>
+                  </div>
                 </div>
                 <mat-form-field appearance="outline" class="w-full min-w-0">
                   <mat-label>Additional Amenities</mat-label>
