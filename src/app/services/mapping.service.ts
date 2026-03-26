@@ -21,7 +21,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { PropertyType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { PropertyType, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -528,6 +528,30 @@ export class MappingService {
           isOverridable: true,
           toString: () => propertyStatusText
         }
+      };
+    });
+  }
+
+  mapMaintenancePropertyListRows(properties: PropertyListResponse[]): Array<PropertyListDisplay & { propertyStatusText: string; propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string }; bed1Text: string; bed2Text: string; bed3Text: string; bed4Text: string }> {
+    return this.mapProperties(properties || []).map(property => {
+      const propertyStatusText = getPropertyStatus(property.propertyStatusId);
+      return {
+        ...property,
+        propertyStatusText,
+        propertyStatusDropdown: {
+          value: propertyStatusText,
+          isOverridable: true,
+          toString: () => propertyStatusText
+        },
+        bed1Text: property.bedroomId1 ? getBedSizeType(property.bedroomId1) : 'None',
+        bed2Text: property.bedroomId2 ? getBedSizeType(property.bedroomId2) : 'None',
+        bed3Text: property.bedroomId3 ? getBedSizeType(property.bedroomId3) : 'None',
+        bed4Text: property.bedroomId4 ? getBedSizeType(property.bedroomId4) : 'None',
+        licenseDate: this.formatter.formatDateString(property.licenseDate ?? undefined),
+        lastFilterChangeDate: this.formatter.formatDateString(property.lastFilterChangeDate ?? undefined),
+        lastSmokeChangeDate: this.formatter.formatDateString(property.lastSmokeChangeDate ?? undefined),
+        hvacServiced: this.formatter.formatDateString(property.hvacServiced ?? undefined),
+        fireplaceServiced: this.formatter.formatDateString(property.fireplaceServiced ?? undefined)
       };
     });
   }

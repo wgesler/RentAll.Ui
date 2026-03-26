@@ -9,14 +9,11 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { getBedSizeType } from '../../properties/models/property-enums';
-import { getPropertyStatus } from '../../properties/models/property-enums';
 import { getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
@@ -52,19 +49,20 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
-  showInactive: boolean = false;
   allProperties: MaintenanceListDisplay[] = [];
   propertiesDisplay: MaintenanceListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   navigationSubscription?: Subscription;
   lastNavigationUrl = '';
   destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  userId: string = '';
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
   propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
@@ -117,13 +115,15 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public route: ActivatedRoute,
     public utilityService: UtilityService,
     public ngZone: NgZone,
-    public propertySelectionFilterService: PropertySelectionFilterService,
-    private formatterService: FormatterService
+    public propertySelectionFilterService: PropertySelectionFilterService
   ) {
   }
 
   //#region Maintenance-List
   ngOnInit(): void {
+    this.userId = this.authService.getUser()?.userId || '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.updateDisplayedColumns();
     this.loadOffices();
@@ -140,31 +140,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       const isMaintenanceList = /\/maintenance$/.test(path);
       const fromSelection = this.lastNavigationUrl.includes('/selection');
       if (isMaintenanceList && fromSelection) {
-        this.getProperties();
+        this.loadProperties();
       }
       this.lastNavigationUrl = path;
-    });
-
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        if (this.selectedOffice) {
-          this.applyFilters();
-        }
-      }
-      
-      this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.resolveOfficeScope(parsedOfficeId, true);
-          }
-        } else {
-          this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-        }
-      });
     });
   }
 
@@ -186,43 +164,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateDisplayedColumns();
   }
 
-  getProperties(): void {
-    this.isServiceError = false;
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
-      this.allProperties = [];
-      this.applyFilters();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      return;
-    }
-
-    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
-      next: (properties) => {
-        const mappedProperties = this.mappingService.mapProperties(properties || []);
-        this.allProperties = mappedProperties.map(property => ({
-          ...property,
-          propertyStatusText: getPropertyStatus(property.propertyStatusId),
-          propertyStatusDropdown: this.buildStatusDropdownCell(getPropertyStatus(property.propertyStatusId)),
-          bed1Text: property.bedroomId1 ? getBedSizeType(property.bedroomId1) : 'None',
-          bed2Text: property.bedroomId2 ? getBedSizeType(property.bedroomId2) : 'None',
-          bed3Text: property.bedroomId3 ? getBedSizeType(property.bedroomId3) : 'None',
-          bed4Text: property.bedroomId4 ? getBedSizeType(property.bedroomId4) : 'None',
-          licenseDate: this.formatterService.formatDateString(property.licenseDate ?? undefined),
-          lastFilterChangeDate: this.formatterService.formatDateString(property.lastFilterChangeDate ?? undefined),
-          lastSmokeChangeDate: this.formatterService.formatDateString(property.lastSmokeChangeDate ?? undefined),
-          hvacServiced: this.formatterService.formatDateString(property.hvacServiced ?? undefined),
-          fireplaceServiced: this.formatterService.formatDateString(property.fireplaceServiced ?? undefined)
-        }));
-        this.applyFilters();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        this.allProperties = [];
-        this.propertiesDisplay = [];
-        console.error('Error loading properties:', err);
-      }
-    });
-  }
   //#endregion
   
   //#region Routing Methods
@@ -247,12 +188,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToPropertySelection(): void {
-    const userId = this.authService.getUser()?.userId || '';
-    if (!userId) {
+    if (!this.userId) {
       this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'maintenance-list' } });
       return;
     }
-    this.propertyService.getPropertySelection(userId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
       next: (selection: PropertySelectionResponse) => {
         this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
           state: { source: 'maintenance-list', selection }
@@ -264,6 +204,99 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  //#endregion
+
+  //#region Filter Methods
+  applyFilters(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
+    let filtered = this.allProperties;
+
+    if (this.selectedOffice) {
+      filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
+    }
+
+    this.propertiesDisplay = filtered;
+  }
+  //#endregion
+
+  //#region Data Load Methods
+  loadProperties(): void {
+    this.isServiceError = false;
+    if (!this.userId) {
+      this.allProperties = [];
+      this.applyFilters();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
+
+    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+      next: (properties) => {
+        this.allProperties = this.mappingService.mapMaintenancePropertyListRows(properties || []);
+        this.applyFilters();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isServiceError = true;
+        this.allProperties = [];
+        this.propertiesDisplay = [];
+        console.error('Error loading properties:', err);
+      }
+    });
+  }
+
+  loadOffices(): void {
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+            const officeIdParam = this.route.snapshot.queryParamMap.get('officeId');
+            if (officeIdParam) {
+              const parsedOfficeId = parseInt(officeIdParam, 10);
+              if (parsedOfficeId) {
+                this.resolveOfficeScope(parsedOfficeId, true);
+              }
+            }
+          }
+        });
+        this.loadProperties();
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.loadProperties();
+      }
+    });
+  }
+
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
+    this.applyFilters();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+    }
+    this.applyFilters();
+  }
+  //#endregion
+
+  //#region Property Status
   onPropertyStatusChange(event: MaintenanceListDisplay): void {
     const selectedLabel = event.propertyStatusDropdown?.value ?? '';
     const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
@@ -298,74 +331,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
-  //#endregion
 
-  //#region Filter Methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.applyFilters();
-  }
-  
-  applyFilters(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
-    let filtered = this.allProperties;
-
-    if (!this.showInactive) {
-      filtered = filtered.filter(property => property.isActive);
-    }
-
-    if (this.selectedOffice) {
-      filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
-    }
-
-    this.propertiesDisplay = filtered;
-  }
-  //#endregion
-
-  //#region Data Load Methods
-  loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
-          }
-        });
-        
-        this.getProperties();
-      });
-    });
-  }
-
-  onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    if (this.selectedOffice) {
-      this.officeIdChange.emit(this.selectedOffice.officeId);
-    } else {
-      this.officeIdChange.emit(null);
-    }
-    this.applyFilters();
-  }
-
-  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    if (emitChange) {
-      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
-    }
-    this.applyFilters();
-  }
-  //#endregion
-
-  //#region Property Status
   buildStatusDropdownCell(label: string, isOverridable: boolean = true): MaintenanceListDisplay['propertyStatusDropdown'] {
     return {
       value: label,
@@ -413,7 +379,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.destroy$.next();
     this.destroy$.complete();
     this.navigationSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

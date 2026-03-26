@@ -98,6 +98,7 @@ alwaysApply: true
 # Formatting Standard
 
 - Components should use `formatterService` for formatting concerns (not inline/manual formatting logic).
+- Keep mapping functionality in `mappingService` (avoid inline component-level mapping logic).
 - Apply `formatterService` consistently for:
   - names/display strings
   - decimals/currency/number precision
