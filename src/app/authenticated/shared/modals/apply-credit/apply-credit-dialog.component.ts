@@ -105,6 +105,7 @@ export class ApplyCreditDialogComponent implements OnInit {
           reservationNoticeId: reservation.reservationNoticeId ?? 0, // Required field, default to 0 if undefined
           numberOfPeople: reservation.numberOfPeople,
           tenantName: reservation.tenantName,
+          referenceNo: reservation.referenceNo || '',
           arrivalDate: reservation.arrivalDate,
           departureDate: reservation.departureDate,
           checkInTimeId: reservation.checkInTimeId,

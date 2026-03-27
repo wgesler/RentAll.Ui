@@ -402,6 +402,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         reservationNoticeId: reservation.reservationNoticeId ?? 0,
         numberOfPeople: reservation.numberOfPeople,
         tenantName: reservation.tenantName,
+        referenceNo: reservation.referenceNo || '',
         arrivalDate: reservation.arrivalDate,
         departureDate: reservation.departureDate,
         checkInTimeId: reservation.checkInTimeId,

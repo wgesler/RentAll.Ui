@@ -1040,6 +1040,17 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       }
     });
 
+    // Handle conditional section: Reference Number (only show if reservation has a value)
+    // Pattern: {{#if referenceNo}}...content...{{/if}}
+    const referenceNoPattern = /\{\{#if referenceNo\}\}([\s\S]*?)\{\{\/if\}\}/g;
+    let referenceNo: string | null = null;
+    if (this.selectedReservation?.referenceNo) {
+      referenceNo = this.selectedReservation.referenceNo;
+    }
+    result = result.replace(referenceNoPattern, (match, content) => {
+      return referenceNo && referenceNo.trim().length > 0 ? content : '';
+    });
+
     return result;
   }
 
@@ -1102,8 +1113,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     // Replace reservation placeholders
     if (this.selectedReservation) {
+      let referenceNo: string | null = null;
+      if (this.selectedReservation.referenceNo) {
+        referenceNo = this.selectedReservation.referenceNo;
+      }
+
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
+      result = result.replace(/\{\{referenceNo\}\}/g, referenceNo || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
       result = result.replace(/\{\{numberOfPeople\}\}/g, (this.selectedReservation.numberOfPeople || 0).toString());
@@ -1375,7 +1392,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (this.debuggingHtml) {
       // Load HTML from assets for faster testing
       return forkJoin({
-        lease: this.includeLease ? this.http.get('assets/reservation-lease-default.html', { responseType: 'text' }) : of(''),
+        lease: this.includeLease ? this.http.get('assets/reservation-lease.html', { responseType: 'text' }) : of(''),
         letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
         noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
         creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),

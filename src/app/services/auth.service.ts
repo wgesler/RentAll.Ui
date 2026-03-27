@@ -52,9 +52,12 @@ export class AuthService {
 
     logout(): Observable<boolean> {
         this.isLoggingOut$.next(true);
-        if (this.authData$.value?.refreshToken) {
-            const request: RefreshTokenRequest = { refreshToken: this.authData$.value.refreshToken };
-            this.http.post<boolean>(this.controller + 'logout', request).pipe(take(1)).subscribe({});
+        const refreshToken = (this.authData$.value?.refreshToken || '').trim();
+        if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null') {
+            const request: RefreshTokenRequest = { refreshToken };
+            this.http.post<boolean>(this.controller + 'logout', request).pipe(take(1)).subscribe({
+                error: () => {}
+            });
         }
 
         this.clearSensitiveData();

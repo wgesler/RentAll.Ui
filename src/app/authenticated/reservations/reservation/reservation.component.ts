@@ -279,6 +279,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       contactId: source.contactId || null,
       companyName: (source as { companyName?: string })?.companyName ?? '',
       tenantName: source.tenantName || '',
+      referenceNo: source.referenceNo || '',
       reservationStatusId: source.reservationStatusId,
       reservationNoticeId: source.reservationNoticeId ?? undefined,
       arrivalDate: today,
@@ -455,6 +456,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
       hasPets: formValue.pets ?? false,
       tenantName: formValue.tenantName || '',
+      referenceNo: formValue.referenceNo || '',
       arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
       departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
       checkInTimeId: normalizeCheckInTimeId(formValue.checkInTimeId),
@@ -549,6 +551,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       agentId: new FormControl(null, [Validators.required]),
       tenantName: new FormControl('', [Validators.required]), // Always enabled
+      referenceNo: new FormControl(''),
       contactId: new FormControl('', [Validators.required]), // Always enabled
       companyName: new FormControl({ value: '', disabled: true }), // Display selected contact company name
       reservationTypeId: new FormControl(null, [Validators.required]),
@@ -619,6 +622,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
       contactId: this.reservation.contactId || null,
       companyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       tenantName: this.reservation.tenantName || '',
+      referenceNo: this.reservation.referenceNo || '',
       reservationStatusId: this.reservation.reservationStatusId,
       reservationNoticeId: this.reservation.reservationNoticeId,
       arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
@@ -769,6 +773,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         email: '',
         companyName: '',
         tenantName: '',
+        referenceNo: '',
         contactId: ''
       }, { emitEvent: false });
       
@@ -1031,7 +1036,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
       this.form.patchValue({
         companyName: '',
         phone: '',
-        email: ''
+        email: '',
+        referenceNo: ''
       }, { emitEvent: false });
       return;
     }
@@ -1062,7 +1068,24 @@ export class ReservationComponent implements OnInit, OnDestroy {
     if ((tenantName === null || tenantName === undefined) && this.selectedContact.entityTypeId !== EntityType.Company) {
       this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
     }
+
+    if (!this.showPoNumberField) {
+      this.form.patchValue({ referenceNo: '' }, { emitEvent: false });
+    }
  }
+
+  get showPoNumberField(): boolean {
+    if (!this.selectedContact) {
+      return false;
+    }
+
+    if (this.selectedContact.entityTypeId === EntityType.Company) {
+      return true;
+    }
+
+    const entityId = (this.selectedContact.entityId ?? '').trim().toLowerCase();
+    return entityId === 'company';
+  }
 
   openNewContactDialog(): void {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;

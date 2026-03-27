@@ -339,13 +339,20 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-3">
+              <mat-form-field appearance="outline" [ngClass]="showPoNumberField ? 'col-span-2' : 'col-span-3'">
                 <mat-label>Tenant Name(s)</mat-label>
                 <input matInput formControlName="tenantName" required>
                 @if (form.get('tenantName')?.hasError('required') && form.get('tenantName')?.touched) {
                   <mat-error>Tenant Name(s) is required</mat-error>
                 }
               </mat-form-field>
+
+              @if (showPoNumberField) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Reference No</mat-label>
+                  <input matInput formControlName="referenceNo">
+                </mat-form-field>
+              }
 
               <!-- Line 5: Arrival Date, Departure Date, Check-In Time, Check-Out Time -->
               <mat-form-field appearance="outline" class="col-span-1">

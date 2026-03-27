@@ -13,6 +13,7 @@ export interface ReservationRequest {
   reservationNoticeId: number;
   numberOfPeople: number;
   tenantName: string;
+  referenceNo: string;
   arrivalDate: string;
   departureDate: string;
   checkInTimeId: number;
@@ -56,6 +57,7 @@ export interface ReservationResponse {
   reservationNoticeId?: number;
   numberOfPeople: number;
   tenantName: string;
+  referenceNo: string;
   arrivalDate: string;
   departureDate: string;
   checkInTimeId: number;
