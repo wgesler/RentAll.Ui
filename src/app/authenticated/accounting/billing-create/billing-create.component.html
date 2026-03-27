@@ -97,9 +97,10 @@
                 <div class="preview-section">
                   <iframe 
                     [srcdoc]="safePreviewIframeHtml" 
+                    #previewIframe
                     class="preview-iframe"
                     [attr.key]="iframeKey"
-                    (load)="injectStylesIntoIframe()"
+                    (load)="onPreviewIframeLoad()"
                     frameborder="0">
                   </iframe>
                 </div>

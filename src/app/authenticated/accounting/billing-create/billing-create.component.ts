@@ -1,6 +1,6 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -63,6 +63,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   previewIframeStyles: string = '';
   safePreviewIframeHtml: SafeHtml = '';
   iframeKey: number = 0;
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice']));
@@ -724,6 +725,32 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
   //#endregion
+
+  onPreviewIframeLoad(): void {
+    this.injectStylesIntoIframe();
+    this.resizePreviewIframeToContent();
+  }
+
+  resizePreviewIframeToContent(): void {
+    if (!this.previewIframe?.nativeElement) {
+      return;
+    }
+
+    const iframeElement = this.previewIframe.nativeElement;
+
+    // Use a small timeout so injected styles are applied before measuring.
+    setTimeout(() => {
+      const doc = iframeElement.contentDocument || iframeElement.contentWindow?.document;
+      if (!doc?.body) {
+        return;
+      }
+
+      const bodyHeight = doc.body.scrollHeight;
+      const documentHeight = doc.documentElement?.scrollHeight || 0;
+      const targetHeight = Math.max(bodyHeight, documentHeight, 500);
+      iframeElement.style.height = `${targetHeight}px`;
+    }, 0);
+  }
 
   //#region Abstract BaseDocumentComponent
   protected getDocumentConfig(): DocumentConfig {
