@@ -227,6 +227,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
     
     // Add returnTo parameter to track where we came from
     params.push(`returnTo=accounting`);
+    params.push(`autoPrint=true`);
     
     if(this.isSuperAdmin)
     {

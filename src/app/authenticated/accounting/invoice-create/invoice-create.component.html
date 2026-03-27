@@ -2,10 +2,48 @@
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-        </span>
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+          </span>
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              <app-titlebar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="form.get('selectedOfficeId')?.value ?? null"
+                [options]="officeTitlebarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onTitlebarOfficeChange($event)">
+              </app-titlebar-select>
+
+              <app-titlebar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="form.get('selectedReservationId')?.value ?? null"
+                [options]="reservationTitlebarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'All Reservations'"
+                [noResultsText]="'No reservations match your search'"
+                (valueChange)="onTitlebarReservationChange($event)">
+              </app-titlebar-select>
+
+              <app-titlebar-select
+                [label]="'Invoice No'"
+                [formFieldClass]="'field-width-18ch'"
+                [value]="form.get('selectedInvoiceId')?.value ?? null"
+                [options]="invoiceTitlebarOptions"
+                [disabled]="false"
+                [nullOptionLabel]="'Select Invoice'"
+                [noResultsText]="'No invoices match your search'"
+                (valueChange)="onTitlebarInvoiceChange($event)">
+              </app-titlebar-select>
+            </div>
+          }
+        </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
             class="scale-90 text-nowrap flex-shrink-0">
@@ -26,10 +64,48 @@
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-        </span>
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+          </span>
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              <app-titlebar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="form.get('selectedOfficeId')?.value ?? null"
+                [options]="officeTitlebarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onTitlebarOfficeChange($event)">
+              </app-titlebar-select>
+
+              <app-titlebar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="form.get('selectedReservationId')?.value ?? null"
+                [options]="reservationTitlebarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'All Reservations'"
+                [noResultsText]="'No reservations match your search'"
+                (valueChange)="onTitlebarReservationChange($event)">
+              </app-titlebar-select>
+
+              <app-titlebar-select
+                [label]="'Invoice No'"
+                [formFieldClass]="'field-width-18ch'"
+                [value]="form.get('selectedInvoiceId')?.value ?? null"
+                [options]="invoiceTitlebarOptions"
+                [disabled]="false"
+                [nullOptionLabel]="'Select Invoice'"
+                [noResultsText]="'No invoices match your search'"
+                (valueChange)="onTitlebarInvoiceChange($event)">
+              </app-titlebar-select>
+            </div>
+          }
+        </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
             class="scale-90 text-nowrap flex-shrink-0">
@@ -43,7 +119,7 @@
           <form [formGroup]="form" class="invoice-create-form">
             
             <!-- Action Buttons Section - First Row -->
-            <div class="flex gap-2 mt-4 px-4 justify-end">
+            <div class="flex gap-2 mt-8 px-4 justify-end">
               <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
                 [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
                 <mat-icon>print</mat-icon>
@@ -67,46 +143,6 @@
               </button>
             </div>
 
-            <!-- Dropdowns Section - Second Row -->
-            <div class="flex gap-3 items-center mt-3 px-4">
-              <!-- Office Dropdown -->
-              <mat-form-field appearance="outline" class="office-dropdown">
-                <mat-label>Office</mat-label>
-                <mat-select formControlName="selectedOfficeId" (selectionChange)="onOfficeSelected($event.value)">
-                  <mat-option [value]="null">Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Reservation Dropdown -->
-              <mat-form-field appearance="outline" class="reservation-dropdown">
-                <mat-label>Select Reservation</mat-label>
-                <mat-select formControlName="selectedReservationId" (selectionChange)="onReservationSelected($event.value)">
-                  <mat-option [value]="null">All Reservations</mat-option>
-                  @for (reservation of availableReservations; track reservation.value.reservationId) {
-                    <mat-option [value]="reservation.value.reservationId">
-                      {{ reservation.label }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Invoice Dropdown -->
-              <mat-form-field appearance="outline" class="invoice-dropdown">
-                <mat-label>Select Invoice</mat-label>
-                <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)">
-                  <mat-option [value]="null">Select Invoice</mat-option>
-                  @for (invoice of availableInvoices; track invoice.value.invoiceId) {
-                    <mat-option [value]="invoice.value.invoiceId">
-                      {{ invoice.label }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-
             <!-- Invoice Editor or Preview -->
             <div class="editor-section">
               @if (selectedOffice && selectedReservation && selectedInvoice && previewIframeHtml) {
@@ -115,8 +151,9 @@
                   <iframe 
                     [srcdoc]="safePreviewIframeHtml" 
                     class="preview-iframe"
+                    #previewIframe
                     [attr.key]="iframeKey"
-                    (load)="injectStylesIntoIframe()"
+                    (load)="onPreviewIframeLoad()"
                     frameborder="0">
                   </iframe>
                 </div>

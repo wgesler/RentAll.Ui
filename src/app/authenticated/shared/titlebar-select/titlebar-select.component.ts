@@ -8,6 +8,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../searchable
   imports: [CommonModule, SearchableSelectComponent],
   template: `
     <app-searchable-select
+      [titlebarMode]="true"
       [renderInFormField]="true"
       [formFieldLabel]="label"
       [formFieldClass]="formFieldClass"

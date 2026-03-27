@@ -12,9 +12,52 @@ export interface SearchableSelectOption<TValue = string | number | null> {
   standalone: true,
   selector: 'app-searchable-select',
   imports: [CommonModule, FormsModule, MaterialModule],
+  styles: [`
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-text-field-wrapper {
+      height: 32px !important;
+      min-height: 32px !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-flex,
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-infix {
+      height: 32px !important;
+      min-height: 32px !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-trigger {
+      height: 32px !important;
+      min-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value {
+      height: 32px !important;
+      min-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value-text,
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-min-line,
+    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-placeholder {
+      line-height: 32px !important;
+    }
+  `],
   template: `
     @if (renderInFormField) {
-      <mat-form-field [appearance]="formFieldAppearance" [class]="formFieldClass">
+      <mat-form-field
+        [appearance]="formFieldAppearance"
+        [class]="formFieldClass"
+        [class.searchable-titlebar-select]="titlebarMode">
         @if (formFieldLabel) {
           <mat-label>{{ formFieldLabel }}</mat-label>
         }
@@ -110,6 +153,7 @@ export class SearchableSelectComponent {
   @Input() renderInFormField = false;
   @Input() formFieldLabel = '';
   @Input() formFieldClass = '';
+  @Input() titlebarMode = false;
   @Input() formFieldAppearance: 'fill' | 'outline' = 'outline';
   @Input() showError = false;
   @Input() errorText = 'Required';

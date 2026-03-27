@@ -21,6 +21,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
@@ -30,7 +31,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 @Component({
     standalone: true,
     selector: 'app-invoice',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitlebarSelectComponent],
     templateUrl: './invoice.component.html',
     styleUrl: './invoice.component.scss'
 })
@@ -192,6 +193,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
+        console.log('[Invoice] getInvoice response:', response);
         this.invoice = response;
         this.populateForm();
         this.loadLedgerLines(false); 
@@ -232,6 +234,43 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
 
     this.saveInvoice();
+  }
+
+  onFooterAction(): void {
+    if (this.isAddMode) {
+      this.saveInvoice();
+      return;
+    }
+
+    this.navigateToInvoiceCreate(this.invoice, this.form?.getRawValue());
+  }
+
+  get officeTitlebarOptions(): { value: number, label: string }[] {
+    return this.availableOffices.map(office => ({
+      value: office.value,
+      label: office.name
+    }));
+  }
+
+  get reservationTitlebarOptions(): { value: string, label: string }[] {
+    return this.availableReservations.map(reservation => ({
+      value: reservation.value,
+      label: reservation.label
+    }));
+  }
+
+  onTitlebarOfficeChange(value: string | number | null): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    this.form.get('officeId')?.setValue(value == null || value === '' ? null : Number(value));
+  }
+
+  onTitlebarReservationChange(value: string | number | null): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    this.form.get('reservationId')?.setValue(value == null || value === '' ? null : String(value));
   }
 
   async checkAndApplyCredit(): Promise<void> {
@@ -775,7 +814,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
-      invoiceCode: new FormControl({ value: '', disabled: true }), 
+      invoiceCode: new FormControl({ value: ' ', disabled: true }),
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
       paidAmount: new FormControl({ value: '0.00', disabled: true }),
       totalDue: new FormControl({ value: '0.00', disabled: true }), 
@@ -962,11 +1001,16 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
       if (this.selectedReservation) {
         this.setInvoiceCode(this.selectedReservation);
+      } else {
+        this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
       }
     });
   }
 
   setInvoiceCode(reservation: ReservationListResponse): void {
+    if (!this.isAddMode) {
+      return;
+    }
     if (reservation && this.form) {
       const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNo + 1).toString().padStart(3, '0');
       this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });

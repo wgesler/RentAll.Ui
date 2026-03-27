@@ -1,6 +1,6 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -42,13 +42,14 @@ import { getBillingMethod } from '../../reservations/models/reservation-enum';
 import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 
 @Component({
     standalone: true,
     selector: 'app-invoice-create',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitlebarSelectComponent],
     templateUrl: './invoice-create.component.html',
     styleUrls: ['./invoice-create.component.scss']
 })
@@ -100,6 +101,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
   debuggingHtml: boolean = true;
+  shouldAutoPrint: boolean = false;
+  autoPrintExecuted: boolean = false;
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -166,6 +170,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       if (queryParams['invoiceId'] && this.invoiceId === null) {
         this.invoiceId = queryParams['invoiceId'];
       }
+      this.shouldAutoPrint = queryParams['autoPrint'] === 'true';
       
       this.loadOffices();
       this.loadAccountingOffices();
@@ -491,6 +496,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   loadInvoiceByIdFirst(invoiceId: string): void {
     this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1)).subscribe({
       next: (invoice: InvoiceResponse) => {
+        console.log('[InvoiceCreate] getInvoiceByGuid response:', invoice);
         // Set office and reservation from invoice
         if (invoice.officeId && !this.selectedOffice) {
           this.applyOfficeSelection(invoice.officeId);
@@ -711,8 +717,43 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   //#endregion
 
   //#region Form Response Methods
-  onOfficeSelected(officeId: number | null): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+  get officeTitlebarOptions(): { value: number, label: string }[] {
+    return this.offices.map(office => ({
+      value: office.officeId,
+      label: office.name
+    }));
+  }
+
+  get reservationTitlebarOptions(): { value: string, label: string }[] {
+    return this.availableReservations.map(reservation => ({
+      value: reservation.value.reservationId,
+      label: reservation.label
+    }));
+  }
+
+  get invoiceTitlebarOptions(): { value: string, label: string }[] {
+    return this.availableInvoices.map(invoice => ({
+      value: invoice.value.invoiceId,
+      label: invoice.label
+    }));
+  }
+
+  onTitlebarOfficeChange(value: string | number | null): void {
+    this.onOfficeSelected(value == null || value === '' ? null : Number(value));
+  }
+
+  onTitlebarReservationChange(value: string | number | null): void {
+    this.onReservationSelected(value == null || value === '' ? null : String(value));
+  }
+
+  onTitlebarInvoiceChange(value: string | number | null): void {
+    this.onInvoiceSelected(value == null || value === '' ? null : String(value));
+  }
+
+  onOfficeSelected(officeId: number | null, syncGlobalSelection: boolean = true): void {
+    if (syncGlobalSelection) {
+      this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+    }
     if (!officeId) {
       this.selectedOffice = null;
       this.updateOfficeLogo();
@@ -866,11 +907,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     // Call onOfficeSelected to ensure all logic runs (form control enable/disable, emissions, etc.)
     // But only if offices are loaded, otherwise wait for them to load
     if (this.offices.length > 0) {
-      this.onOfficeSelected(officeId);
+      this.onOfficeSelected(officeId, false);
     } else {
       // Offices not loaded yet, wait for them to load
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-        this.onOfficeSelected(officeId);
+        this.onOfficeSelected(officeId, false);
       });
     }
   }
@@ -1180,6 +1221,57 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeStyles = result.extractedStyles;
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.iframeKey++; // Force iframe refresh
+  }
+
+  onPreviewIframeLoad(): void {
+    this.injectStylesIntoIframe();
+    this.resizePreviewIframeToContent();
+    this.tryAutoPrint();
+
+    // Re-check shortly after load so late-rendering content is included.
+    window.setTimeout(() => this.resizePreviewIframeToContent(), 150);
+    window.setTimeout(() => this.resizePreviewIframeToContent(), 500);
+  }
+
+  tryAutoPrint(): void {
+    if (!this.shouldAutoPrint || this.autoPrintExecuted) {
+      return;
+    }
+
+    if (!this.selectedOffice || !this.selectedReservation || !this.selectedInvoice || !this.previewIframeHtml) {
+      return;
+    }
+
+    this.autoPrintExecuted = true;
+    window.setTimeout(() => {
+      this.onPrint();
+    }, 100);
+  }
+
+  resizePreviewIframeToContent(): void {
+    const iframe = this.previewIframe?.nativeElement;
+    if (!iframe) {
+      return;
+    }
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      return;
+    }
+
+    const body = doc.body;
+    const html = doc.documentElement;
+    const contentHeight = Math.max(
+      body?.scrollHeight || 0,
+      body?.offsetHeight || 0,
+      html?.clientHeight || 0,
+      html?.scrollHeight || 0,
+      html?.offsetHeight || 0
+    );
+
+    if (contentHeight > 0) {
+      iframe.style.height = `${contentHeight + 12}px`;
+    }
   }
 
   clearPreview(): void {

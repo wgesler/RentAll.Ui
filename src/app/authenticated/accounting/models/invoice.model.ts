@@ -26,6 +26,8 @@ export interface InvoiceResponse {
   invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  contactId?: string | null;
+  responsibleParty: string | null;
   startDate: string;
   endDate: string;
   invoiceDate: string;
@@ -50,6 +52,7 @@ export interface InvoiceListDisplay {
   invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  responsibleParty: string | null;
   startDate: string;
   endDate: string;
   totalAmount: number;

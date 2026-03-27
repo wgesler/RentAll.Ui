@@ -9,97 +9,65 @@
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Invoice' : 'Edit Invoice') }}
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Invoice' : 'Edit Invoice') }}
+            </span>
           </span>
-        </span>
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              <app-titlebar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="form.get('officeId')?.value ?? null"
+                [options]="officeTitlebarOptions"
+                [disabled]="!isAddMode"
+                [nullOptionLabel]="'Select Office'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onTitlebarOfficeChange($event)">
+              </app-titlebar-select>
+
+              <app-titlebar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="form.get('reservationId')?.value ?? null"
+                [options]="reservationTitlebarOptions"
+                [disabled]="!isAddMode"
+                [nullOptionLabel]="'Select Reservation'"
+                [noResultsText]="'No reservations match your search'"
+                (valueChange)="onTitlebarReservationChange($event)">
+              </app-titlebar-select>
+
+              <mat-form-field appearance="outline" class="field-width-18ch">
+                <mat-label>Invoice No</mat-label>
+                <input matInput [value]="form.get('invoiceCode')?.value ?? ' '" readonly [disabled]="true">
+              </mat-form-field>
+            </div>
+          }
+        </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
             class="scale-90 text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
-            <mat-icon>{{ primaryActionLabel === 'View' ? 'visibility' : 'save' }}</mat-icon>
-            {{ primaryActionLabel }}
-          </button>
+          @if (isPaymentMode || (!isAddMode && hasChanges())) {
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
+              <mat-icon>{{ primaryActionLabel === 'View' ? 'visibility' : 'save' }}</mat-icon>
+              {{ primaryActionLabel }}
+            </button>
+          }
         </div>
       </div>
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="info-form mb-8 form-standard-top-padding">
-            <div class="flex justify-end items-center gap-3 form-standard-section-heading-gap">
-              <mat-checkbox formControlName="isActive" color="primary">
-                IsActive
-              </mat-checkbox>
-            </div>
-            
             <div class="grid grid-cols-4 form-standard-grid">
-              <!-- First Row: Invoice, Office, Reservation -->
-              <!-- Invoice (Read-only) -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Invoice</mat-label>
-                <input matInput formControlName="invoiceCode" readonly>
-              </mat-form-field>
-
-              <!-- Office -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Office</mat-label>
-                @if (isAddMode) {
-                  <mat-select formControlName="officeId" required>
-                    <mat-option [value]="null">Select Office</mat-option>
-                    @for (office of availableOffices; track office.value) {
-                      <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
-                } @else {
-                  <input matInput formControlName="officeName" readonly>
-                }
-                @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
-                  <mat-error>Office is required</mat-error>
-                }
-              </mat-form-field>
-
-              <!-- Reservation -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Reservation</mat-label>
-                @if (isAddMode) {
-                  <mat-select formControlName="reservationId">
-                    <mat-option [value]="null">Select Reservation</mat-option>
-                    @for (reservation of availableReservations; track reservation.value) {
-                      <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                    }
-                  </mat-select>
-                } @else {
-                  <input matInput formControlName="reservationCode" readonly>
-                }
-              </mat-form-field>
-
-              <!-- Empty column for spacing -->
-              <div class="col-span-1"></div>
-
               <!-- Second Row: compact grouped date fields -->
               <div class="col-span-4 grid grid-cols-8 form-standard-grid">
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Start Date</mat-label>
-                  <input matInput [matDatepicker]="startDatePicker" formControlName="startDate">
-                  <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #startDatePicker></mat-datepicker>
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>End Date</mat-label>
-                  <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value">
-                  <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #endDatePicker></mat-datepicker>
-                  @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
-                    <mat-error>End Date must be equal to or greater than Start Date</mat-error>
-                  }
-                </mat-form-field>
-
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Invoice Date</mat-label>
                   <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
@@ -119,6 +87,25 @@
                     <mat-error>Due Date is required</mat-error>
                   }
                 </mat-form-field>
+
+                @if (isAddMode) {
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>Start Date</mat-label>
+                    <input matInput [matDatepicker]="startDatePicker" formControlName="startDate">
+                    <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #startDatePicker></mat-datepicker>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="col-span-1">
+                    <mat-label>End Date</mat-label>
+                    <input matInput [matDatepicker]="endDatePicker" formControlName="endDate" [min]="form.get('startDate')?.value">
+                    <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #endDatePicker></mat-datepicker>
+                    @if (form.get('endDate')?.hasError('endDateBeforeStartDate') && form.get('endDate')?.touched) {
+                      <mat-error>End Date must be equal to or greater than Start Date</mat-error>
+                    }
+                  </mat-form-field>
+                }
               </div>
 
               <!-- Line Items Section -->
@@ -126,16 +113,27 @@
                 <!-- Title Bar with Generate and Add Buttons -->
                 <div class="flex justify-between items-center form-standard-section-heading-gap">
                   <span class="text-lg font-medium">Ledger Items</span>
-                  <div class="flex gap-2">
+                  <div class="uniform-gap form-titlebar-actions-wrap">
+                    <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0 inline-flex items-center">
+                      IsActive
+                    </mat-checkbox>
                     <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
-                      class="scale-90 text-nowrap flex-shrink-0"
+                      class="text-nowrap flex-shrink-0"
                       [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">
                       {{ isAddMode ? 'Get Charges' : 'Get Lines' }}
                     </button>
                     <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
-                      class="scale-90 text-nowrap flex-shrink-0">
+                      class="text-nowrap flex-shrink-0">
                       {{ isAddMode ? 'Add Charge' : 'Add Line' }}
                     </button>
+                    @if (!isPaymentMode) {
+                      <button mat-raised-button type="button" color="primary" (click)="onFooterAction()"
+                        class="text-nowrap flex-shrink-0"
+                        [disabled]="isAddMode && isSaveDisabled">
+                        <mat-icon>{{ isAddMode ? 'save' : 'visibility' }}</mat-icon>
+                        {{ isAddMode ? 'Create' : 'View' }}
+                      </button>
+                    }
                   </div>
                 </div>
                 

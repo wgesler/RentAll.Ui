@@ -70,7 +70,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   leaseInformation: LeaseInformationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
-  companyContact: ContactResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -395,7 +394,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (!reservationId || reservationId === 'new') {
       this.selectedReservation = null;
       this.contact = null;
-      this.companyContact = null;
+      this.isCompanyRental = false;
       this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
       this.generatePreviewIframe();
       return;
@@ -587,30 +586,18 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   loadContact(): void {
     if (!this.selectedReservation?.contactId) {
       this.contact = null;
+      this.isCompanyRental = false;
       return;
     }
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
-    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
-      this.loadCompanyContact(this.contact.entityId);
+    if (this.contact && this.contact.entityTypeId === EntityType.Company) {
       this.isCompanyRental = true;
       this.form.patchValue({ includeRentalCreditApplication: false });
     } else {
-      this.companyContact = null;
       this.isCompanyRental = false;
       this.form.patchValue({ includeBusinessCreditApplication: false });
     }
-  }
- 
-  loadCompanyContact(contactId: string): void {
-    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
-      next: (response: ContactResponse) => {
-        this.companyContact = response;
-      },
-      error: () => {
-        this.companyContact = null;
-      }
-    });
   }
   //#endregion
 
@@ -833,16 +820,15 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsibleParty(): string {
     if(!this.contact ) return '';
-    return (this.contact.entityTypeId === EntityType.Company && this.companyContact) 
-      ?  this.companyContact.fullName 
-      : `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
+    if (this.contact.entityTypeId === EntityType.Company) {
+      return (this.contact.companyName || '').trim();
+    }
+    return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
   getResponsibleNoun(): string {
     if(!this.contact ) return '';
-    return (this.contact.entityTypeId === EntityType.Company && this.companyContact) 
-      ?  'Company'
-      : 'Tenant';
+    return this.contact.entityTypeId === EntityType.Company ? 'Company' : 'Tenant';
   }
 
   getSecurityDepositText(): string {
@@ -1104,23 +1090,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
       result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
       result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
-      
-      // Contact address fields
-      if (this.contact.entityTypeId === EntityType.Company && this.companyContact) {
-        // Use company contact address when contact is a company
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.companyContact.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.companyContact.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.companyContact.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.companyContact.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.companyContact.zip || '');
-      } else {
-        // Use contact address
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
-      }
+
+      // Contact address fields always come from the reservation contact.
+      result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
+      result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
+      result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
+      result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
+      result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
        result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress());
     }
 

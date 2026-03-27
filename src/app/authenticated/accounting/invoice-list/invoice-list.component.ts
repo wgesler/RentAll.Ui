@@ -105,6 +105,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     expand: { displayAs: ' ', maxWidth: '50px', sort: false },
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    responsibleParty: { displayAs: 'Responsible Party', maxWidth: '28ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '20ch', alignment: 'center' },
@@ -425,6 +426,44 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  goToInvoiceCreateView(event: InvoiceResponse): void {
+    if (this.showPaymentForm) {
+      return;
+    }
+
+    const params: string[] = [];
+    const officeIdToUse = event?.officeId ?? this.officeId ?? this.selectedOffice?.officeId ?? null;
+    const reservationIdToUse = event?.reservationId ?? this.reservationId ?? this.selectedReservation?.reservationId ?? null;
+    const invoiceIdToUse = event?.invoiceId ?? null;
+    const companyIdToUse = this.selectedCompanyContact?.contactId || null;
+
+    if (officeIdToUse !== null) {
+      params.push(`officeId=${officeIdToUse}`);
+    }
+    if (reservationIdToUse !== null) {
+      params.push(`reservationId=${reservationIdToUse}`);
+    }
+    if (invoiceIdToUse) {
+      params.push(`invoiceId=${invoiceIdToUse}`);
+    }
+    if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
+      params.push(`companyId=${companyIdToUse}`);
+    }
+
+    if (this.source === 'reservation') {
+      params.push(`returnTo=reservation`);
+    } else {
+      params.push(`returnTo=accounting`);
+    }
+
+    const targetUrl = RouterUrl.InvoiceCreate;
+    if (params.length > 0) {
+      this.router.navigateByUrl(`${targetUrl}?${params.join('&')}`);
+    } else {
+      this.router.navigateByUrl(targetUrl);
+    }
+  }
+
   onPayable(event: InvoiceResponse | any): void {
     // Check DueAmount from the row data (dueAmountValue) or calculate it
     const eventAny = event as any;
@@ -567,6 +606,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ...invoice,
       invoiceNumber: invoice.invoiceCode || '',
       reservationCode: invoice.reservationCode || '-',
+      responsibleParty: invoice.responsibleParty || '',
       totalAmount: '$' + this.formatter.currency(totalAmount),
       totalAmountValue: totalAmount, // Store raw value for validation
       paidAmount: '$' + this.formatter.currency(paidAmount), // Always display as formatted (read-only)
