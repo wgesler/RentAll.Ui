@@ -728,9 +728,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organizationId: this.billingOrganization?.organizationId || null,
-      selectedOfficeId: 1,
-      selectedOfficeName: 'Denver',
+      organizationId: this.billingOrganization?.organizationId || this.authService.getUser()?.organizationId || null,
+      selectedOfficeId: this.selectedAccountingOffice?.officeId || this.selectedInvoice?.officeId || null,
+      selectedOfficeName: this.selectedAccountingOffice?.name || this.selectedInvoice?.officeName || '',
       selectedReservationId: this.recipientOrganization?.organizationId || null,
       propertyId: null,
       contacts: [],
@@ -767,23 +767,39 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   override async onEmail(): Promise<void> {
+    if (!this.selectedInvoice || !this.previewIframeHtml) {
+      this.toastr.warning('Please select an Invoice to generate the invoice', 'No Invoice');
+      return;
+    }
+
+    const toEmail = this.recipientOrganization?.contactEmail || '';
+    const toName = this.recipientOrganization?.contactName || this.recipientOrganization?.name || '';
     const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const accountingName = this.selectedAccountingOffice?.name;
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
+    const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
-    const subjectTemplate = (this.emailHtml?.invoiceSubject || 'Invoice {{invoiceCode}}').trim();
-    const subject = subjectTemplate.replace(/\{\{invoiceCode\}\}/g, invoiceCode);
+    const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const emailSubject = (this.emailHtml?.invoiceSubject || 'Invoice {{invoiceCode}}').trim().replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
+    const emailBodyHtml = (this.emailHtml?.invoice || '')
+      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\{\{accountingName\}\}/g, accountingName || '')
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
 
     const emailConfig: EmailConfig = {
-      subject,
-      toEmail: this.recipientOrganization?.contactEmail || '',
-      toName: this.recipientOrganization?.contactName || this.recipientOrganization?.name || '',
-      fromEmail: currentUser?.email || '',
-      fromName: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim(),
+      subject: emailSubject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
       documentType: DocumentType.Invoice,
       emailType: EmailType.Invoice,
-      plainTextContent: '',
-      htmlContent: this.emailHtml?.invoice || '',
+      plainTextContent,
+      htmlContent: emailBodyHtml,
       fileDetails: {
-        fileName: `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`,
+        fileName: attachmentFileName,
         contentType: 'application/pdf',
         file: ''
       }
@@ -791,22 +807,11 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     this.emailCreateDraftService.setDraft({
       emailConfig,
-      documentConfig: {
-        previewIframeHtml: this.previewIframeHtml || '',
-        previewIframeStyles: this.previewIframeStyles || '',
-        organizationId: this.billingOrganization?.organizationId || this.authService.getUser()?.organizationId || null,
-        selectedOfficeId: 1,
-        selectedOfficeName: this.selectedAccountingOffice?.name || 'Denver',
-        selectedReservationId: this.recipientOrganization?.organizationId || null,
-        propertyId: null,
-        contacts: [],
-        isDownloading: this.isDownloading,
-        printStyleOptions: { marginBottom: '0.25in' }
-      },
+      documentConfig: this.getDocumentConfig(),
       returnUrl: this.router.url
     });
 
-    await this.router.navigateByUrl(RouterUrl.EmailCreate);
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 

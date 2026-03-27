@@ -46,6 +46,11 @@ const openToAllExceptSuperAdmin: AccessRule = {
   excludedRoles: [UserGroups.SuperAdmin]
 };
 
+const openToAll: AccessRule = {
+  requiredRoles: [],
+  excludedRoles: []
+};
+
 const accountingOnly: AccessRule = {
   requiredRoles: [UserGroups.Accounting, UserGroups.Admin, UserGroups.SuperAdmin],
   excludedRoles: []
@@ -80,7 +85,7 @@ export const NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
-  { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAllExceptSuperAdmin },
+  { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
@@ -97,7 +102,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   'work-order': openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.WorkOrderCreate]: openToAllExceptSuperAdmin,
   receipt: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.EmailList]: openToAllExceptSuperAdmin,
+  [ROUTER_TOKEN.EmailList]: openToAll,
   [ROUTER_TOKEN.DocumentList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.Contacts]: openToAllExceptSuperAdmin,
 
