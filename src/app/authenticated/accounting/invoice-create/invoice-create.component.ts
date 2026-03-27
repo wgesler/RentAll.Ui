@@ -496,7 +496,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   loadInvoiceByIdFirst(invoiceId: string): void {
     this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1)).subscribe({
       next: (invoice: InvoiceResponse) => {
-        console.log('[InvoiceCreate] getInvoiceByGuid response:', invoice);
         // Set office and reservation from invoice
         if (invoice.officeId && !this.selectedOffice) {
           this.applyOfficeSelection(invoice.officeId);

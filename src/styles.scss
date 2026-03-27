@@ -290,16 +290,16 @@ mat-form-field.reservation-dropdown {
 .header-title .titlebar-field-document-type.mat-mdc-form-field,
 .header-title .field-width-18ch.mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
-    height: 32px !important;
-    min-height: 32px !important;
+    height: 34px !important;
+    min-height: 34px !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .mat-mdc-form-field-flex,
   .mat-mdc-form-field-infix {
-    height: 32px !important;
-    min-height: 32px !important;
+    height: 34px !important;
+    min-height: 34px !important;
     display: flex !important;
     align-items: center !important;
   }
@@ -328,7 +328,7 @@ mat-form-field.reservation-dropdown {
   .mat-mdc-select-placeholder {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
-    line-height: 1 !important;
+    line-height: 1.2 !important;
     display: inline-flex !important;
     align-items: center !important;
   }

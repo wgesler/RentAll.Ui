@@ -2,10 +2,30 @@
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-        </span>
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+          </span>
+          @if (form) {
+            <div class="header-title form-titlebar-fields-wrap">
+              <app-titlebar-select
+                [label]="'Organization'"
+                [formFieldClass]="'titlebar-field-company'"
+                [value]="form.get('selectedOrganizationId')?.value ?? null"
+                [options]="organizationTitlebarOptions"
+                [nullOptionLabel]="'Select Organization'"
+                [noResultsText]="'No organizations match your search'"
+                (valueChange)="onTitlebarOrganizationChange($event)">
+              </app-titlebar-select>
+
+              <mat-form-field appearance="outline" class="field-width-18ch">
+                <mat-label>Invoice No</mat-label>
+                <input matInput [value]="invoiceCodeDisplay" readonly [disabled]="true">
+              </mat-form-field>
+            </div>
+          }
+        </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
             class="scale-90 text-nowrap flex-shrink-0">
@@ -43,7 +63,7 @@
           <form [formGroup]="form" class="invoice-create-form">
             
             <!-- Action Buttons Section - First Row -->
-            <div class="flex gap-2 mt-4 px-4 justify-end">
+            <div class="flex gap-2 mt-8 px-4 justify-end">
               <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
                 [disabled]="!selectedInvoice || !previewIframeHtml">
                 <mat-icon>print</mat-icon>
@@ -65,35 +85,6 @@
                 <mat-icon>save</mat-icon>
                 Save
               </button>
-            </div>
-
-            <!-- Dropdowns Section - Second Row -->
-            <div class="flex gap-3 items-center mt-3 px-4">
-              <!-- Organization Dropdown -->
-              <mat-form-field appearance="outline" class="reservation-dropdown">
-                <mat-label>Organization</mat-label>
-                <mat-select formControlName="selectedOrganizationId" (selectionChange)="onOrganizationSelected($event.value)">
-                  <mat-option [value]="null">Organization</mat-option>
-                  @for (organization of organizations; track organization.organizationId) {
-                    <mat-option [value]="organization.organizationId">
-                      {{ organization.name }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Invoice Dropdown -->
-              <mat-form-field appearance="outline" class="invoice-dropdown">
-                <mat-label>Invoice</mat-label>
-                <mat-select formControlName="selectedInvoiceId" (selectionChange)="onInvoiceSelected($event.value)">
-                  <mat-option [value]="null">Invoice</mat-option>
-                  @for (invoice of availableInvoices; track invoice.value.invoiceId) {
-                    <mat-option [value]="invoice.value.invoiceId">
-                      {{ invoice.label }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
             </div>
 
             <!-- Invoice Editor or Preview -->

@@ -14,16 +14,16 @@ export interface SearchableSelectOption<TValue = string | number | null> {
   imports: [CommonModule, FormsModule, MaterialModule],
   styles: [`
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-text-field-wrapper {
-      height: 32px !important;
-      min-height: 32px !important;
+      height: 34px !important;
+      min-height: 34px !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
     }
 
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-flex,
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-infix {
-      height: 32px !important;
-      min-height: 32px !important;
+      height: 34px !important;
+      min-height: 34px !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
       display: flex !important;
@@ -31,15 +31,15 @@ export interface SearchableSelectOption<TValue = string | number | null> {
     }
 
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-trigger {
-      height: 32px !important;
-      min-height: 32px !important;
+      height: 34px !important;
+      min-height: 34px !important;
       display: flex !important;
       align-items: center !important;
     }
 
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value {
-      height: 32px !important;
-      min-height: 32px !important;
+      height: 34px !important;
+      min-height: 34px !important;
       display: flex !important;
       align-items: center !important;
       padding-top: 0 !important;
@@ -49,7 +49,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value-text,
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-min-line,
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-placeholder {
-      line-height: 32px !important;
+      line-height: 34px !important;
     }
   `],
   template: `

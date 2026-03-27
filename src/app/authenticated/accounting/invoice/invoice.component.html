@@ -114,9 +114,11 @@
                 <div class="flex justify-between items-center form-standard-section-heading-gap">
                   <span class="text-lg font-medium">Ledger Items</span>
                   <div class="uniform-gap form-titlebar-actions-wrap">
-                    <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0 inline-flex items-center">
-                      IsActive
-                    </mat-checkbox>
+                    @if (!isAddMode) {
+                      <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0 inline-flex items-center">
+                        IsActive
+                      </mat-checkbox>
+                    }
                     <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
                       class="text-nowrap flex-shrink-0"
                       [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">

@@ -193,7 +193,6 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
     this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
       next: (response: InvoiceResponse) => {
-        console.log('[Invoice] getInvoice response:', response);
         this.invoice = response;
         this.populateForm();
         this.loadLedgerLines(false); 

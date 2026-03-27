@@ -20,11 +20,12 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
     selector: 'app-billing',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitlebarSelectComponent],
     templateUrl: './billing.component.html',
     styleUrl: './billing.component.scss'
 })
@@ -170,6 +171,15 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.saveInvoice();
   }
 
+  onFooterAction(): void {
+    if (this.isAddMode) {
+      this.saveInvoice();
+      return;
+    }
+
+    this.navigateToBillingCreate(this.invoice, this.form?.getRawValue());
+  }
+
   performSave(): void {
     this.isSubmitting = true;
 
@@ -306,7 +316,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
-      invoiceCode: new FormControl({ value: '', disabled: true }), 
+      invoiceCode: new FormControl({ value: ' ', disabled: true }),
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
       paidAmount: new FormControl({ value: '0.00', disabled: true }),
       totalDue: new FormControl({ value: '0.00', disabled: true }), 
@@ -446,10 +456,25 @@ export class BillingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Dropdown Methods
+  get organizationTitlebarOptions(): { value: string, label: string }[] {
+    return (this.organizations || []).map(organization => ({
+      value: organization.organizationId,
+      label: organization.name
+    }));
+  }
+
+  onTitlebarOrganizationChange(value: string | number | null): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    this.onOrganizationChange(value == null || value === '' ? null : String(value));
+  }
+
   onOrganizationChange(organizationId?: string | null): void {
     const nextOrganizationId = organizationId ?? this.form?.get('organizationId')?.value ?? null;
     this.form.get('organizationId')?.setValue(nextOrganizationId, { emitEvent: false });
     this.applyOrganizationSelection();
+    this.setInvoiceCode(this.selectedOrganization);
   }
 
   applyOrganizationSelection(): void {
@@ -602,7 +627,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     }, 100);
   }
 
-  setInvoiceCode(organization: OrganizationResponse): void {
+  setInvoiceCode(organization: OrganizationResponse | null): void {
     if (organization && this.form) {
       const invoiceCode = organization.organizationCode + '-' + (organization.currentInvoiceNo + 1).toString().padStart(3, '0');
       this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });

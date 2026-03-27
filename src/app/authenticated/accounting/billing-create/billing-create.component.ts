@@ -31,11 +31,12 @@ import { InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailHtmlService } from '../../email/services/email-html.service';
+import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
     selector: 'app-billing-create',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitlebarSelectComponent],
     templateUrl: './billing-create.component.html',
     styleUrls: ['./billing-create.component.scss']
 })
@@ -66,6 +67,17 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   isSubmitting: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
+  get organizationTitlebarOptions(): { value: string, label: string }[] {
+    return (this.organizations || []).map((organization) => ({
+      value: organization.organizationId,
+      label: organization.name || ''
+    }));
+  }
+
+  get invoiceCodeDisplay(): string {
+    return this.selectedInvoice?.invoiceCode || ' ';
+  }
 
   constructor(
     private accountingService: InvoiceService,
@@ -430,6 +442,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     this.loadInvoicesForRecipientOrganization();
+  }
+
+  onTitlebarOrganizationChange(value: string | number | null): void {
+    this.onOrganizationSelected(value ? String(value) : null);
   }
 
   onInvoiceSelected(invoiceId: string | null): void {
