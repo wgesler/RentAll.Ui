@@ -20,6 +20,8 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
 import { StartupPage, UserGroups } from '../models/user-enums';
 import { UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -58,6 +60,8 @@ export class UserComponent implements OnInit, OnDestroy {
   availableOffices: { value: number, name: string }[] = [];
   availableDefaultOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  properties: PropertyListResponse[] = [];
+  availableProperties: { value: string, label: string }[] = [];
   agents: AgentResponse[] = [];
   availableAgents: { value: string, label: string }[] = [];
   isPopulatingUserForm: boolean = false;
@@ -88,6 +92,7 @@ export class UserComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
+    private propertyService: PropertyService,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: UserDialogData,
     @Optional() private dialogRef?: MatDialogRef<UserComponent>
   ) {
@@ -109,6 +114,7 @@ export class UserComponent implements OnInit, OnDestroy {
     if (!this.isPrivilegedOfficeEditor) {
       this.loadOffices();
     }
+    this.loadProperties();
     this.loadAgents();
     
     // If opened in dialog, use dialog data
@@ -255,6 +261,7 @@ export class UserComponent implements OnInit, OnDestroy {
       password: (changePassword && passwordValue) ? passwordValue : null, // null if not changing password
       userGroups: formValue.userGroups || [],
       officeAccess: formValue.officeAccess || [],
+      properties: formValue.properties || [],
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       profilePath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.profilePath,
       startupPageId: startupPageIdValue,
@@ -269,6 +276,7 @@ export class UserComponent implements OnInit, OnDestroy {
       userRequest.organizationId = this.user.organizationId;
       userRequest.userGroups = this.user.userGroups || [];
       userRequest.officeAccess = this.user.officeAccess || [];
+      userRequest.properties = this.user.properties || [];
       userRequest.startupPageId = this.user.startupPageId ?? userRequest.startupPageId;
       userRequest.defaultOfficeId = this.user.defaultOfficeId ?? userRequest.defaultOfficeId;
       userRequest.agentId = this.user.agentId || null;
@@ -317,6 +325,7 @@ export class UserComponent implements OnInit, OnDestroy {
         userRequest.phone !== this.user.phone ||
         JSON.stringify(userRequest.userGroups) !== JSON.stringify(this.user.userGroups) ||
         JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
+        JSON.stringify(userRequest.properties) !== JSON.stringify(this.user.properties || []) ||
         userRequest.defaultOfficeId !== (this.user.defaultOfficeId ?? null) ||
         userRequest.isActive !== this.user.isActive ||
         userRequest.organizationId !== this.user.organizationId ||
@@ -449,6 +458,24 @@ export class UserComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  loadProperties(): void {
+    this.propertyService.getActivePropertyList().pipe(take(1)).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.properties = properties || [];
+        this.availableProperties = this.properties
+          .map(property => ({
+            value: property.propertyId,
+            label: property.propertyCode
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+      },
+      error: () => {
+        this.properties = [];
+        this.availableProperties = [];
+      }
+    });
+  }
   //#endregion
 
   //#region Form Methods
@@ -467,6 +494,7 @@ export class UserComponent implements OnInit, OnDestroy {
       confirmPassword: new FormControl('', [this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]),
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
       officeAccess: new FormControl({ value: defaultOfficeAccess, disabled: this.selfEdit }, [Validators.required]),
+      properties: new FormControl([]),
       defaultOffice: new FormControl(initialDefaultOffice),
       changePassword: new FormControl(this.isAddMode ? true : false), // Toggle to enable/require password fields - default to true in add mode
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
@@ -488,6 +516,7 @@ export class UserComponent implements OnInit, OnDestroy {
       this.form.get('organizationId')?.disable({ emitEvent: false });
       this.form.get('userGroups')?.disable({ emitEvent: false });
       this.form.get('officeAccess')?.disable({ emitEvent: false });
+      this.form.get('properties')?.disable({ emitEvent: false });
       this.form.get('startupPageId')?.disable({ emitEvent: false });
       this.form.get('defaultOffice')?.disable({ emitEvent: false });
       this.form.get('agentId')?.disable({ emitEvent: false });
@@ -646,6 +675,12 @@ export class UserComponent implements OnInit, OnDestroy {
       this.syncDefaultOfficeOptions();
     });
 
+    this.form.get('userGroups')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((groups: string[]) => {
+      if (!Array.isArray(groups) || !groups.includes('Inspector')) {
+        this.form.get('properties')?.setValue([], { emitEvent: false });
+      }
+    });
+
     this.form.get('agentId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.applyCommissionRateState();
     });
@@ -697,6 +732,7 @@ export class UserComponent implements OnInit, OnDestroy {
         password: '', // Don't populate password in edit mode
         confirmPassword: '', // Don't populate confirm password in edit mode
         startupPageId: this.user.startupPageId ?? 0,
+        properties: this.user.properties || [],
         defaultOffice: this.user.defaultOfficeId ?? null,
         agentId: this.user.agentId ?? null,
         commissionRate: this.user.commissionRate !== null && this.user.commissionRate !== undefined
@@ -854,6 +890,11 @@ export class UserComponent implements OnInit, OnDestroy {
 
   get allUserGroupOptions(): string[] {
     return this.availableUserGroups.map(g => g.value);
+  }
+
+  get showInspectorPropertiesField(): boolean {
+    const selectedGroups = this.form?.get('userGroups')?.value || [];
+    return Array.isArray(selectedGroups) && selectedGroups.includes('Inspector');
   }
   //#endregion
 

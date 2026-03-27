@@ -10,6 +10,7 @@ export interface UserRequest {
   password: string | null;
   userGroups: string[];
   officeAccess: number[];
+  properties: string[];
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
@@ -30,6 +31,7 @@ export interface UserResponse {
   password: string;
   userGroups: string[];
   officeAccess: number[];
+  properties: string[];
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;

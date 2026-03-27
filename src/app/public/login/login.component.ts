@@ -150,6 +150,15 @@ export class LoginComponent {
       this.router.navigate(['']);
   }
 
+  onCredentialFieldFocus(event: FocusEvent): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    setTimeout(() => input.select(), 0);
+  }
+
   getLoginRequest(): LoginRequest {
     return {username: this.form.value.username, password: this.form.value.password} as LoginRequest;
   }

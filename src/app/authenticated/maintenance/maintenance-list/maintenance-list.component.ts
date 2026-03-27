@@ -67,6 +67,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved = false;
   isCompactView = false;
   isInspectorView = false;
+  inspectorPropertyIds = new Set<string>();
 
   private readonly compactViewportWidth = 1024;
   private readonly propertyStatuses = getPropertyStatuses();
@@ -125,6 +126,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    this.inspectorPropertyIds = new Set(
+      (this.authService.getUser()?.properties || [])
+        .map(propertyId => propertyId.trim().toLowerCase())
+        .filter(propertyId => propertyId !== '')
+    );
     this.updateDisplayedColumns();
     this.loadOffices();
 
@@ -234,7 +240,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapMaintenancePropertyListRows(properties || []);
+        const maintenanceRows = this.mappingService.mapMaintenancePropertyListRows(properties || []);
+        this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
+          ? maintenanceRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
+          : maintenanceRows;
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

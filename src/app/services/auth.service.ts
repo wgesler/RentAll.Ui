@@ -178,6 +178,17 @@ export class AuthService {
                 return;
             }
 
+            // Normalize properties on decoded jwt.user as lowercase member.
+            if (jwtUserObj.properties === undefined && jwtUserObj.Properties !== undefined) {
+                jwtUserObj.properties = jwtUserObj.Properties;
+            }
+            if (jwtUserObj.properties === undefined && token.Properties !== undefined) {
+                jwtUserObj.properties = token.Properties;
+            }
+            if (jwtUserObj.properties === undefined) {
+                jwtUserObj.properties = '';
+            }
+
             try {
                 const jwtContainer = new JwtContainer(token.sub || '', token.exp || 0, jwtUserObj);
                 

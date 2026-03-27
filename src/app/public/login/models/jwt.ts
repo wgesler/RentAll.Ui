@@ -29,6 +29,16 @@ export class JwtContainer {
                 officeAccess = officeAccessRaw.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
             }
         }
+
+        const propertiesRaw = user.properties;
+        let properties: string[] = [];
+        if (propertiesRaw) {
+            if (Array.isArray(propertiesRaw)) {
+                properties = propertiesRaw.map(propertyId => String(propertyId).trim()).filter(propertyId => propertyId);
+            } else if (typeof propertiesRaw === 'string') {
+                properties = propertiesRaw.split(',').map(propertyId => propertyId.trim()).filter(propertyId => propertyId);
+            }
+        }
         
         const startupPageRaw = user.StartupPage ?? user.startupPage ?? user.StartupPageId ?? user.startupPageId;
         const startupPage = startupPageRaw !== undefined && startupPageRaw !== null
@@ -51,7 +61,8 @@ export class JwtContainer {
             userGroups,
             startupPage,
             defaultOfficeId,
-            agentId
+            agentId,
+            properties
         );
     }
 }
@@ -69,6 +80,7 @@ export class JwtUser {
     startupPageId: number;
     defaultOfficeId: number | null;
     agentId: string | null;
+    properties: string[];
   
 
 
@@ -82,7 +94,8 @@ export class JwtUser {
         userGroups: string[],
         startupPage: number,
         defaultOfficeId: number | null = null,
-        agentId: string | null = null
+        agentId: string | null = null,
+        properties: string[] = []
     ) {
         this.userGuid = userGuid;
         // Keep userId for backward compatibility in existing UI code paths.
@@ -98,5 +111,6 @@ export class JwtUser {
         this.startupPageId = startupPage;
         this.defaultOfficeId = defaultOfficeId;
         this.agentId = agentId;
+        this.properties = properties;
     }
 }
