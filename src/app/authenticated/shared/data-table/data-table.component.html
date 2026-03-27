@@ -16,7 +16,7 @@
         }
       </mat-form-field>
     }
-    <div class="flex justify-center lg:justify-end items-center gap-5 flex-wrap mobile-view-full mb-4">
+    <div class="flex justify-center lg:justify-end items-center form-titlebar-actions-wrap uniform-gap flex-wrap mobile-view-full mb-4">
       @if (hasToggleTop2) {
         <mat-slide-toggle [checked]="isToggle2Checked" color="primary" (change)="emitToggle2Event()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
           {{buttonToggleTextTop2}}

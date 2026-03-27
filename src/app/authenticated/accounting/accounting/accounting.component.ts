@@ -43,11 +43,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
   @ViewChild('accountingGeneralLedger') accountingGeneralLedger?: GeneralLedgerComponent;
   @ViewChild('accountingEmailList') accountingEmailList?: EmailListComponent;
   @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
-  DocumentType = DocumentType; // Expose DocumentType enum to template
-  EmailType = EmailType; // Expose EmailType enum to template
-  selectedTabIndex: number = 0; // Default to Outstanding Invoices tab
+  DocumentType = DocumentType;
+  EmailType = EmailType;
+  selectedTabIndex: number = 0;
   isSuperAdmin: boolean = false;
-  currentUserOrganizationId: string | null;
+  currentUserOrganizationId: string | null = null;
 
   organizations: OrganizationResponse[] = [];
   availableOffices: OfficeResponse[] = [];
@@ -55,7 +55,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null; 
   selectedCompanyId: string | null = null; 
   selectedReservationId: string | null = null; 
-  selectedInvoiceId: string | null = null; 
    
   destroy$ = new Subject<void>();
 
@@ -120,7 +119,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //region CostCode Drop Downs
+  //#region CostCode Drop Downs
   onCostCodesOfficeChange(officeId: number | null): void {
     if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
@@ -131,7 +130,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region General Ledger Drop Downs
   onGeneralLedgerOrganizationChange(organizationId: string | null): void {
     if (this.selectedOrganizationId !== organizationId) {
-        this.selectedOrganizationId = organizationId
+      this.selectedOrganizationId = organizationId;
     }
   }
 
@@ -157,7 +156,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Document Drop Downs
   onDocumentsOrganizationChange(organizationId: string | null): void {
     if (this.selectedOrganizationId !== organizationId) {
-      this.selectedOrganizationId = organizationId
+      this.selectedOrganizationId = organizationId;
     }
   }
 
@@ -210,7 +209,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
-    // Keep URL tab-only to avoid preselecting dropdowns from query params.
     const queryParams: any = { tab: event.index.toString() };
     this.router.navigate([], { 
       relativeTo: this.route,
@@ -221,11 +219,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
-    // Navigate to Create Invoice/Billing page (standalone route)
-    // Always include officeId, invoiceId, reservationId, and companyId if available
     const params: string[] = [];
-    
-    // Add returnTo parameter to track where we came from
     params.push(`returnTo=accounting`);
     params.push(`autoPrint=true`);
     
@@ -251,7 +245,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
       }
     }
     
-    // Navigate to the Create Invoice route with all parameters
     const url = params.length > 0 
       ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
       : RouterUrl.InvoiceCreate;
@@ -275,6 +268,18 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   getDocumentTypeOptions(documentTypes: { value: number, label: string }[] | null | undefined): { value: number, label: string }[] {
     return documentTypes || [];
+  }
+
+  get organizationTitlebarOptions(): { value: string, label: string }[] {
+    return (this.organizations || []).map((organization) => ({
+      value: organization.organizationId,
+      label: organization.name || ''
+    }));
+  }
+
+  onAccountingOrganizationDropdownChange(value: string | number | null): void {
+    const organizationId = value == null || value === '' ? null : String(value);
+    this.selectedOrganizationId = organizationId;
   }
 
   onAccountingInvoiceOfficeDropdownChange(value: string | number | null): void {

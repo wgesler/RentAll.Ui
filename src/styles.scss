@@ -177,6 +177,55 @@ mat-form-field.reservation-dropdown {
   height: 16px !important;
 }
 
+/* Global page header standard (Accounting is source of truth). */
+.content-card > div.flex.justify-between.items-center.gap-3 {
+  background-color: rgb(203 213 225) !important;
+  border-top-left-radius: 0.5rem !important;
+  border-top-right-radius: 0.5rem !important;
+  border-bottom: 0 !important;
+  height: 70px;
+  min-height: 70px;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 2rem !important;
+  padding-right: 1rem !important;
+  box-sizing: border-box;
+}
+
+.content-card > div.flex.justify-between.items-center.gap-3 > div.flex.items-center.flex-wrap {
+  min-height: 100% !important;
+  height: 100% !important;
+  align-items: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.content-card > div.flex.justify-between.items-center.gap-3 > span.flex.flex-column.items-center,
+.content-card > div.flex.justify-between.items-center.gap-3 > div.flex.items-center.flex-wrap > span.flex.flex-column.items-center {
+  gap: 0.75rem !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+.content-card > div.flex.justify-between.items-center.gap-3 > span.flex.flex-column.items-center > mat-icon,
+.content-card > div.flex.justify-between.items-center.gap-3 > div.flex.items-center.flex-wrap > span.flex.flex-column.items-center > mat-icon {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 24px !important;
+}
+
+.content-card > div.flex.justify-between.items-center.gap-3 > span.flex.flex-column.items-center > span,
+.content-card > div.flex.justify-between.items-center.gap-3 > div.flex.items-center.flex-wrap > span.flex.flex-column.items-center > span {
+  font-size: 1.25rem !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+}
+
+.content-card > div.flex.justify-between.items-center.gap-3 > div.flex.gap-2 {
+  align-items: center !important;
+  padding: 4px !important;
+}
+
 /* ==========================================================================
    Header-title: form fields in page title bars (e.g. Edit Property).
    Same height/structure as main form so hint and value center correctly.

@@ -1,11 +1,11 @@
 import { AsyncPipe, CommonModule } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, firstValueFrom, forkJoin, map, of, take } from 'rxjs';
+import { BehaviorSubject, Observable, finalize, firstValueFrom, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -109,11 +109,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
-    // Read query params if component is used standalone (not via @Input)
-    // Use forkJoin to ensure query params are read before proceeding
-    forkJoin({
-      queryParams: this.route.queryParams.pipe(take(1))
-    }).subscribe(({ queryParams }) => {
+    this.route.queryParams.pipe(take(1)).subscribe((queryParams) => {
       const organizationIdParam = queryParams['OrganizationId'] ?? queryParams['organizationId'];
       if (organizationIdParam) {
         this.selectedOrganizationId = organizationIdParam;
@@ -180,7 +176,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         throw new Error('Invoice HTML template is empty');
       }
 
-      // Process HTML and replace placeholders
       const processedHtml = this.replacePlaceholders(invoiceHtml);
       const processed = this.documentHtmlService.processHtml(processedHtml, true);
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
@@ -189,7 +184,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         { marginBottom: '0.25in' }
       );
 
-      // Generate file name
       const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
       const fileName = this.utilityService.generateDocumentFileName('invoice', invoiceCode);
 
@@ -207,9 +201,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');
       this.isSubmitting = false;
-      this.iframeKey++; // Force iframe refresh
-      
-      // Trigger document list reload
+      this.iframeKey++;
       this.documentReloadService.triggerReload();
     } catch (err: any) {
       this.toastr.error('Document generation failed. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
@@ -218,7 +210,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       console.error('Document save validation errors:', err?.error?.errors);
       console.error('Document save validation errors (json):', JSON.stringify(err?.error?.errors || {}, null, 2));
       this.isSubmitting = false;
-      this.iframeKey++; // Force iframe refresh
+      this.iframeKey++;
     }
   }
 
@@ -245,7 +237,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
-  //#region Data Load Methods
+  //#region Data Loading Methods
   loadOrganizationsList(): void {
     this.organizationService.getOrganizations().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'))).subscribe({
       next: (organizations) => {
@@ -456,17 +448,14 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
     
-    // Find invoice from list first
     this.selectedInvoice = this.invoices.find(i => i.invoiceId === invoiceId) || null;
-    
-    // Update form control
+
     if (this.selectedInvoice) {
       this.form.patchValue({ selectedInvoiceId: invoiceId }, { emitEvent: false });
       this.form.get('selectedInvoiceId')?.enable();
       this.loadAccountingOffice();
     }
-    
-    // Load full invoice details including ledger lines
+
     if (this.selectedInvoice) {
       this.loadInvoice();
     }
@@ -598,68 +587,55 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Html Processing
   generatePreviewIframe(): void {
-    // Only generate preview if an invoice is selected
     if (!this.selectedInvoice) {
       this.clearPreview();
       return;
     }
 
-    // Load HTML files and process them
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
-        // Always include welcome letter
         const selectedDocuments: string[] = [];
 
         if (htmlFiles.invoice) {
           selectedDocuments.push(htmlFiles.invoice);
         }
 
-        // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
       this.previewIframeHtml = '';
       return;
     }
 
         try {
-          // If only one document selected, use it as-is
           if (selectedDocuments.length === 1) {
             let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
             this.processAndSetHtml(processedHtml);
             return;
           }
 
-          // Multiple documents: process first as base, strip and concatenate the rest
-          // Process first document as base (full HTML)
           let combinedHtml = this.replacePlaceholders(selectedDocuments[0]);
-          
-          // Extract and merge styles from all documents before stripping
+
           const allExtractedStyles: string[] = [];
           const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-          
-          // Extract styles from first document
+
           let match;
           styleRegex.lastIndex = 0;
           while ((match = styleRegex.exec(combinedHtml)) !== null) {
             if (match[1]) {
               let styleContent = match[1].trim();
-              // Override gray text colors to black
               styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
               styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
               allExtractedStyles.push(styleContent);
             }
           }
-          
-          // Process and strip remaining documents, extracting their styles first
+
           for (let i = 1; i < selectedDocuments.length; i++) {
             if (selectedDocuments[i]) {
               const processed = this.replacePlaceholders(selectedDocuments[i]);
-              
-              // Extract styles from this document before stripping
+
               styleRegex.lastIndex = 0;
               while ((match = styleRegex.exec(processed)) !== null) {
                 if (match[1]) {
                   let styleContent = match[1].trim();
-                  // Override gray text colors to black
                   styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
                   styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
                   allExtractedStyles.push(styleContent);
@@ -671,17 +647,13 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
             }
           }
           
-          // Remove existing style tags from combinedHtml (they'll be re-injected)
           combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-          
-          // Combine all extracted styles and inject them into the combined HTML
+
           if (allExtractedStyles.length > 0) {
             const combinedStyles = allExtractedStyles.join('\n\n');
-            // Insert styles into the head section if it exists, otherwise create one
             if (combinedHtml.includes('<head>')) {
               combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
             } else {
-              // If no head exists, add one before the body or at the start
               if (combinedHtml.includes('<body>')) {
                 combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
               } else {
@@ -706,7 +678,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
-    this.iframeKey++; // Force iframe refresh
+    this.iframeKey++;
   }
 
   clearPreview(): void {
@@ -720,9 +692,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadHtmlFiles(): Observable<{ invoice: string}> {
-    return forkJoin({
-      invoice: this.http.get('assets/billing.html', { responseType: 'text' })
-    });
+    return this.http.get('assets/billing.html', { responseType: 'text' }).pipe(
+      map(invoice => ({ invoice }))
+    );
   }
   //#endregion
 
@@ -738,7 +710,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     const iframeElement = this.previewIframe.nativeElement;
 
-    // Use a small timeout so injected styles are applied before measuring.
     setTimeout(() => {
       const doc = iframeElement.contentDocument || iframeElement.contentWindow?.document;
       if (!doc?.body) {
@@ -757,10 +728,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     return {
       previewIframeHtml: this.previewIframeHtml,
       previewIframeStyles: this.previewIframeStyles,
-      organizationId: this.billingOrganization.organizationId,
+      organizationId: this.billingOrganization?.organizationId || null,
       selectedOfficeId: 1,
       selectedOfficeName: 'Denver',
-      selectedReservationId: this.recipientOrganization.organizationId,
+      selectedReservationId: this.recipientOrganization?.organizationId || null,
       propertyId: null,
       contacts: [],
       isDownloading: this.isDownloading,
@@ -796,37 +767,23 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   override async onEmail(): Promise<void> {
-    const toEmail = this.recipientOrganization.contactEmail;
-    const toName = this.recipientOrganization.contactName;
     const currentUser = this.authService.getUser();
-    const fromEmail = currentUser?.email || '';
-    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const accountingName = this.selectedAccountingOffice?.name;
-    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
-    const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
-    const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
-
-    const emailSubject = this.emailHtml?.invoiceSubject?.trim()
-      .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
-    const emailBodyHtml = (this.emailHtml?.invoice || '')
-      .replace(/\{\{toName\}\}/g, toName)
-      .replace(/\{\{accountingName\}\}/g, accountingName || '')
-      .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
-
+    const subjectTemplate = (this.emailHtml?.invoiceSubject || 'Invoice {{invoiceCode}}').trim();
+    const subject = subjectTemplate.replace(/\{\{invoiceCode\}\}/g, invoiceCode);
 
     const emailConfig: EmailConfig = {
-      subject: emailSubject,
-      toEmail,
-      toName,
-      fromEmail,
-      fromName,
+      subject,
+      toEmail: this.recipientOrganization?.contactEmail || '',
+      toName: this.recipientOrganization?.contactName || this.recipientOrganization?.name || '',
+      fromEmail: currentUser?.email || '',
+      fromName: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim(),
       documentType: DocumentType.Invoice,
       emailType: EmailType.Invoice,
-      plainTextContent,
-      htmlContent: emailBodyHtml,
+      plainTextContent: '',
+      htmlContent: this.emailHtml?.invoice || '',
       fileDetails: {
-        fileName: attachmentFileName,
+        fileName: `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`,
         contentType: 'application/pdf',
         file: ''
       }
@@ -834,10 +791,22 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     this.emailCreateDraftService.setDraft({
       emailConfig,
-      documentConfig: this.getDocumentConfig(),
+      documentConfig: {
+        previewIframeHtml: this.previewIframeHtml || '',
+        previewIframeStyles: this.previewIframeStyles || '',
+        organizationId: this.billingOrganization?.organizationId || this.authService.getUser()?.organizationId || null,
+        selectedOfficeId: 1,
+        selectedOfficeName: this.selectedAccountingOffice?.name || 'Denver',
+        selectedReservationId: this.recipientOrganization?.organizationId || null,
+        propertyId: null,
+        contacts: [],
+        isDownloading: this.isDownloading,
+        printStyleOptions: { marginBottom: '0.25in' }
+      },
       returnUrl: this.router.url
     });
-    this.router.navigateByUrl(RouterUrl.EmailCreate);
+
+    await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 
@@ -850,10 +819,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
     
-    // Build query parameters from selected values or input values
     const params: string[] = [];
-    
-    // Use selected values when available, otherwise fall back to input values
+
     const invoiceId = this.selectedInvoice?.invoiceId || this.invoiceId;
     const organizationId = this.recipientOrganization?.organizationId || this.selectedOrganizationId;
     
@@ -864,7 +831,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       params.push(`InvoiceId=${invoiceId}`);
     }
     
-    // Navigate back based on where we came from
     if (returnTo === 'accounting' || !returnTo) {
       const accountingUrl = params.length > 0 
         ? `${RouterUrl.AccountingList}?${params.join('&')}`
@@ -876,7 +842,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         : `${RouterUrl.Billing.replace(':id', 'new')}`;
       this.router.navigateByUrl(billingUrl);
     } else {
-      // Fallback to accounting list with all parameters
       const accountingUrl = params.length > 0 
         ? `${RouterUrl.AccountingList}?${params.join('&')}`
         : RouterUrl.AccountingList;

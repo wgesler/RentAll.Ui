@@ -62,7 +62,6 @@
         <div class="mat">
           <form [formGroup]="form" class="invoice-create-form">
             
-            <!-- Action Buttons Section - First Row -->
             <div class="mt-8 px-4 flex justify-end items-center uniform-gap form-titlebar-actions-wrap">
               <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
                 class="text-nowrap flex-shrink-0"
@@ -90,10 +89,8 @@
               </button>
             </div>
 
-            <!-- Invoice Editor or Preview -->
             <div class="editor-section">
               @if (selectedInvoice && previewIframeHtml) {
-                <!-- Preview iframe when office and invoice are selected -->
                 <div class="preview-section">
                   <iframe 
                     [srcdoc]="safePreviewIframeHtml" 
@@ -105,7 +102,6 @@
                   </iframe>
                 </div>
               } @else {
-                <!-- Editor textarea when preview is not available -->
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Invoice (HTML)</mat-label>
                   <textarea 

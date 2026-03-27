@@ -1,30 +1,30 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-      <span class="flex flex-column items-center gap-3 py-4">
-        <mat-icon class="flex-shrink-0">settings</mat-icon>
-        <span class="flex-shrink-0 text-xl font-medium">
-          Settings
+    <div class="flex justify-between items-center gap-3">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">settings</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            Settings
+          </span>
         </span>
-      </span>
+        @if (isSuperAdmin) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-titlebar-select
+              [label]="'Organization'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="selectedOrganizationId"
+              [options]="organizationTitlebarOptions"
+              [nullOptionLabel]="'Select Organization'"
+              [noResultsText]="'No organizations match your search'"
+              (valueChange)="onSettingsOrganizationDropdownChange($event)">
+            </app-titlebar-select>
+          </div>
+        }
+      </div>
     </div>
 
     <mat-card>
-      @if (isSuperAdmin) {
-        <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap" style="height: 56px;">
-          <div class="flex items-center gap-3" style="height: 56px;">
-            <mat-form-field appearance="outline" class="organization-dropdown">
-              <mat-label>Organization</mat-label>
-              <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onOrganizationChange()" [ngModelOptions]="{ standalone: true }">
-                <mat-option [value]="null">Select Organization</mat-option>
-                @for (organization of organizations; track organization.organizationId) {
-                  <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          </div>
-        </div>
-      }
       <div class="info-form mb-8 pt-5 tableDiv">
         <mat-accordion multi="true">
           <!-- Offices Section -->

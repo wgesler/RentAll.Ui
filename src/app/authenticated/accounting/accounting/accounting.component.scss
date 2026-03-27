@@ -60,9 +60,6 @@ mat-card {
   height: 70px;
   min-height: 70px;
   box-sizing: border-box;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
 }
 
 /* Keep Accounting top-bar fields locked in place between tab switches. */

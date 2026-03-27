@@ -6,7 +6,19 @@
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
         </span>
-        @if (selectedTabIndex === 0 && !isSuperAdmin && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
+        @if (isSuperAdmin) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-titlebar-select
+              [label]="'Organization'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="selectedOrganizationId"
+              [options]="organizationTitlebarOptions"
+              [nullOptionLabel]="'Select Organization'"
+              [noResultsText]="'No organizations match your search'"
+              (valueChange)="onAccountingOrganizationDropdownChange($event)">
+            </app-titlebar-select>
+          </div>
+        } @else if (selectedTabIndex === 0 && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
           <div class="header-title form-titlebar-fields-wrap">
             <app-titlebar-select
               [label]="'Office'"
@@ -153,18 +165,6 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
-          @if (isSuperAdmin) {
-            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onInvoiceOrganizationChange($event.value)">
-                  @for (organization of organizations; track organization.organizationId) {
-                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
           <app-invoice-list 
             [hideFilters]="true"
             [officeId]="selectedOfficeId"
@@ -188,18 +188,6 @@
           </app-cost-codes-list>
         </mat-tab>
         <mat-tab label="General Ledger">
-          @if (isSuperAdmin) {
-            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onGeneralLedgerOrganizationChange($event.value)">
-                  @for (organization of organizations; track organization.organizationId) {
-                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
           <app-general-ledger 
             #accountingGeneralLedger
             [hideFilters]="true"
@@ -214,18 +202,6 @@
           </app-general-ledger>
         </mat-tab>
         <mat-tab label="Emails">
-          @if (isSuperAdmin) {
-            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onEmailsOrganizationChange($event.value)">
-                  @for (organization of organizations; track organization.organizationId) {
-                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
           <app-email-list
             #accountingEmailList
             [hideHeader]="true"
@@ -243,18 +219,6 @@
           </app-email-list>
         </mat-tab>
         <mat-tab label="Documents">
-          @if (isSuperAdmin) {
-            <div class="list-top-controls list-top-controls--tabbed flex gap-3 items-center mt-3 px-4">
-              <mat-form-field appearance="outline" style="width: 300px;">
-                <mat-label>Organization</mat-label>
-                <mat-select [(ngModel)]="selectedOrganizationId" (selectionChange)="onDocumentsOrganizationChange($event.value)">
-                  @for (organization of organizations; track organization.organizationId) {
-                    <mat-option [value]="organization.organizationId">{{ organization.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
           <app-document-list 
             #accountingDocumentList
             [documentTypeId]="DocumentType.Invoice"
