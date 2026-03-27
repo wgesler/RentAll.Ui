@@ -64,7 +64,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   organization: OrganizationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
-  companyContact: ContactResponse | null = null;
   isCompanyRental: boolean = false;
 
   offices: OfficeResponse[] = [];
@@ -208,9 +207,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
             this.applyOfficeSelection(null);
           }
         }
-        if (this.companyId) {
-          this.loadCompanyContact(this.companyId);
-        }
+
         // Then wait for reservations to load
         if (this.reservationId !== null) {
           this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
@@ -333,11 +330,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     if (!this.contact && reservation.contactId) {
       const contacts = await firstValueFrom(this.contactService.getAllContacts().pipe(take(1)));
       this.contact = contacts.find(c => c.contactId === reservation.contactId) || null;
-    }
-
-    // When contact is a company, use it as company contact (no separate load)
-    if (this.contact && this.contact.entityTypeId === EntityType.Company && !this.companyContact) {
-      this.companyContact = this.contact;
     }
 
     // Load accounting office if not provided
@@ -664,22 +656,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
     if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
-      this.companyContact = this.contact;
-      this.isCompanyRental = true;
+       this.isCompanyRental = true;
     } else {
-      this.companyContact = null;
       this.isCompanyRental = false;
     }
-  }
-
-  loadCompanyContact(contactId: string): void {
-    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
-      next: (response: ContactResponse) => {
-        this.companyContact = response;
-      },
-      error: () => {
-      }
-    });
   }
   //#endregion
 
@@ -979,40 +959,25 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{billingMethod\}\}/g, getBillingMethod(this.selectedReservation.billingMethodId) || '');
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
+      result = result.replace(/\{\{referenceNo\}\}/g, this.selectedReservation.referenceNo || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.arrivalDate) || '');
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.departureDate) || '');
     }
 
     // Replace contact placeholders
     if (this.contact) {
+      result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
       result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
       result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
       result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
       
-      // Contact address fields
-       if (this.contact.entityTypeId === EntityType.Company && this.companyContact) {
-        // Use company contact address when contact is a company
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.companyContact.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.companyContact.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.companyContact.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.companyContact.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.companyContact.zip || '');
-        result = result.replace(/\{\{contactAddress\}\}/g, this.getCompanyAddress() || '');
-
-      } else {
-        // Use contact address
-        result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
-        result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
-        result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
-        result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
-        result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
-        result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress() || '');
-      }
-    }
-
-    // Replace company name placeholder (company is now a contact)
-    if (this.companyContact) {
-       result = result.replace(/\{\{companyName\}\}/g, this.companyContact.fullName || '');
+      // Use contact address
+      result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
+      result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
+      result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
+      result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
+      result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
+      result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress() || '');
     }
 
     // Replace property placeholders
@@ -1090,10 +1055,12 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return rows;
   }
 
-  getCompanyAddress(): string {
-    if (!this.companyContact) return '';
-    const address = (this.companyContact.address1 || '') + ' ' + (this.companyContact.city || '') + ', ' + (this.companyContact.state || '') + ' ' + (this.companyContact.zip || '');
-    return address.trim();
+  getResponsibleParty(): string {
+    if(!this.contact ) return '';
+    if (this.contact.entityTypeId === EntityType.Company) {
+      return (this.contact.companyName || '').trim();
+    }
+    return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
   getContactAddress(): string {

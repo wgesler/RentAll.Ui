@@ -346,10 +346,12 @@
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
             <p>
-              <span class="label">Client Number:</span> {{reservationCode}}<br>
-              <span class="label">Client Name:</span> {{contactName}}<br>
-              <span class="label">Company Name:</span> {{companyName}}<br>
-              <span class="label">Client Address:</span> {{contactAddress}}<br>
+              <span style="font-weight: bold">Client:</span> {{responsibleParty}}<br>
+              <span style="font-weight: bold">Address:</span> {{contactAddress}}<br>
+              <span style="font-weight: bold">Occupant: {{tenantName}}</span><br>
+             {{#if referenceNo}}
+              <span style="font-weight: bold">Ref No:</span> {{referenceNo}}<br>
+              {{/if}}
             </p>
           </div>
         </td>
