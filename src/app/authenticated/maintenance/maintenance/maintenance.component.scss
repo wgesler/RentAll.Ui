@@ -41,6 +41,11 @@
   box-sizing: border-box;
 }
 
+.maintenance-titlebar-property-code {
+  width: 22ch;
+  min-width: 22ch;
+}
+
 /* Match accordion size/shape/font with property component */
 ::ng-deep .maintenance-history-accordion mat-expansion-panel {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
