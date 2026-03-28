@@ -1452,6 +1452,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   override async onEmail(): Promise<void> {
     const toEmail = this.contact?.email || '';
     const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
+    const salutationName = `${this.contact?.firstName|| ''}`.trim();
+    const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
@@ -1460,11 +1462,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('lease', this.property.propertyCode, this.selectedReservation?.reservationCode);
     const reservationCode = this.selectedReservation?.reservationCode;
+    const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLease || '') : (this.emailHtml?.lease || '');
 
     const emailSubject = this.emailHtml?.leaseSubject?.trim()
        .replace(/\{\{reservationCode\}\}/g, reservationCode || '');
-    const emailBodyHtml = (this.emailHtml?.lease || '')
-      .replace(/\{\{toName\}\}/g, toName)
+    const emailBodyHtml = emailTemplateHtml
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{tenantName\}\}/g, tenantName)
+      .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{companyName\}\}/g, companyName || '')
       .replace(/\{\{companyPhone\}\}/g, companyPhone || '');
 

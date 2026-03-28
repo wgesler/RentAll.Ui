@@ -90,6 +90,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     private emailCreateDraftService: EmailCreateDraftService,
     private documentReloadService: DocumentReloadService,
     private accountingOfficeService: AccountingOfficeService,
+    private formatterService: FormatterService,
     documentService: DocumentService,
     documentExportService: DocumentExportService,
     documentHtmlService: DocumentHtmlService,
@@ -511,20 +512,21 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const recipient = this.getEmailRecipientByType();
-    const fallbackToEmail = recipient.email || fromEmail;
-    const fallbackToName = recipient.name || fromName || 'Recipient';
+    const accountingName = this.selectedAccountingOffice?.name;
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
+
     const subject = (this.emailHtml?.invoiceSubject || 'Work Order {{workOrderId}}')
       .replace(/\{\{invoiceCode\}\}/g, this.workOrder.workOrderId || '')
       .replace(/\{\{workOrderId\}\}/g, this.workOrder.workOrderId || '');
     const body = (this.emailHtml?.invoice || '<p>Please find your work order attached.</p>')
-      .replace(/\{\{toName\}\}/g, fallbackToName)
-      .replace(/\{\{accountingName\}\}/g, this.workOrder.officeName || '')
-      .replace(/\{\{accountingPhone\}\}/g, this.formatter.phoneNumber(this.property?.phone) || '');
+      .replace(/\{\{salutationName\}\}/g, recipient.salutationName)
+      .replace(/\{\{accountingName\}\}/g, accountingName)
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone);
 
     const emailConfig: EmailConfig = {
       subject,
-      toEmail: fallbackToEmail,
-      toName: fallbackToName,
+      toEmail: recipient.email,
+      toName: recipient.name,
       fromEmail,
       fromName,
       documentType: DocumentType.WorkOrder,
@@ -548,33 +550,36 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   //#endregion
 
   //#region Utility Methods
-  getEmailRecipientByType(): { email: string; name: string } {
+  getEmailRecipientByType(): { email: string; name: string, salutationName: string } {
     if (!this.workOrder) {
-      return { email: '', name: '' };
+      return { email: '', name: '', salutationName: '' };
     }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
       return {
         email: this.ownerContact?.email || '',
-        name: this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim()
+        name: this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim(),
+        salutationName: `${this.ownerContact?.firstName || ''}`.trim()
       };
     }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Tenant) {
       return {
         email: this.reservationContact?.email || '',
-        name: this.reservationContact?.fullName || `${this.reservationContact?.firstName || ''} ${this.reservationContact?.lastName || ''}`.trim()
+        name: this.reservationContact?.fullName || `${this.reservationContact?.firstName || ''} ${this.reservationContact?.lastName || ''}`.trim(),
+        salutationName: `${this.reservationContact?.firstName || ''}`.trim()
       };
     }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
       return {
         email: this.organization?.contactEmail || '',
-        name: this.organization?.contactName || this.organization?.name || ''
+        name: this.organization?.contactName || this.organization?.name || '',
+        salutationName: this.organization?.contactName.trim().split(/\s+/)[0] ?? this.organization?.name
       };
     }
 
-    return { email: '', name: '' };
+    return { email: '', name: '', salutationName: '' };
   }
 
   getWorkOrderFileName(): string {

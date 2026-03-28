@@ -967,7 +967,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     // Replace contact placeholders
     if (this.contact) {
       result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
-      result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
+      result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''}`.trim());
       result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
       result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
       
@@ -1309,7 +1309,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   override async onEmail(): Promise<void> {
     const toEmail = this.contact?.email || '';
-    const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
+    const toName = `${this.contact?.fullName || ''}`.trim();
+    const salutationName = `${this.contact?.firstName || ''}`.trim();
+    const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
@@ -1318,11 +1320,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateInvoice || '') : (this.emailHtml?.invoice || '');
 
     const emailSubject = this.emailHtml?.invoiceSubject?.trim()
       .replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
-    const emailBodyHtml = (this.emailHtml?.invoice || '')
-      .replace(/\{\{toName\}\}/g, toName)
+    const emailBodyHtml = emailTemplateHtml
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{tenantName\}\}/g, tenantName)
+      .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{accountingName\}\}/g, accountingName || '')
       .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
 

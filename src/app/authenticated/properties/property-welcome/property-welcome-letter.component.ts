@@ -813,16 +813,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onEmail(): Promise<void> {
-    const recipientContact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) || null;
-    const toEmail = recipientContact?.email || '';
-
-    let toName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
-    let contactName = '';
-    if(recipientContact.entityTypeId == EntityType.Company) {
-      toName = this.selectedReservation.tenantName || '';
-      contactName = recipientContact?.fullName || `${recipientContact?.firstName || ''} ${recipientContact?.lastName || ''}`.trim();
-    }
-
+    const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) || null;
+    const toName = contact?.fullName;
+    const toEmail = contact?.email || '';
+    const salutationName = `${contact?.firstName|| ''}`.trim();
+    const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
     const agentName = currentUser.firstName + ' ' + currentUser.lastName;
     const agentPhone = this.formatterService.phoneNumber(currentUser?.phone || '') || '';
@@ -830,18 +825,16 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const plainTextContent = '';
     const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
-  
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
-    const emailTemplateHtml = recipientContact?.entityTypeId == EntityType.Company
-      ? (this.emailHtml?.corporateLetter || '')
-      : (this.emailHtml?.welcomeLetter || '');
+    const emailTemplateHtml = (contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLetter || '') : (this.emailHtml?.welcomeLetter || '');
 
     const emailBodyHtml = emailTemplateHtml
-      .replace(/\{\{toName\}\}/g, toName)
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{tenantName\}\}/g, tenantName)
+      .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{agentName\}\}/g, agentName || '')
-      .replace(/\{\{agentPhone\}\}/g, agentPhone || '')
-      .replace(/\{\{contactName\}\}/g, contactName || '');
-
+      .replace(/\{\{agentPhone\}\}/g, agentPhone || '');
+ 
     const emailConfig: EmailConfig = {
       subject: emailSubject,
       toEmail,

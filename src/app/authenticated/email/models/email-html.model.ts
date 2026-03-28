@@ -3,7 +3,9 @@ export interface EmailHtmlRequest {
   welcomeLetter: string;
   corporateLetter: string;
   lease: string;
+  corporateLease: string;
   invoice: string;
+  corporateInvoice: string;
   letterSubject: string;
   leaseSubject: string;
   invoiceSubject: string;
@@ -14,7 +16,9 @@ export interface EmailHtmlResponse {
   welcomeLetter: string;
   corporateLetter: string;
   lease: string;
+  corporateLease: string;
   invoice: string;
+  corporateInvoice: string;
   letterSubject: string;
   leaseSubject: string;
   invoiceSubject: string;

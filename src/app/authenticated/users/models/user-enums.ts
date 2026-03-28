@@ -9,17 +9,12 @@ export enum UserGroups {
   PropertyManager = 7,
   PropertyManagerAdmin = 8,
   Facilities = 9,
-  FacilitiesAdmin = 10,
-  Housekeeping = 11,
-  HousekeepingAdmin = 12,
-  Corporation = 13,
-  CorporationAdmin = 14,
-  Vendor = 15,
-  VendorAdmin = 16,
-  Tenant = 17,
-  Owner = 18,
-  Client = 19,
-  Inspector = 20
+  Housekeeping = 10,
+  Company = 11,
+  Vendor = 12,
+  Tenant = 13,
+  Owner = 14,
+  Inspector = 15
 }
 
 export function getUserGroup(userGroupId: number | undefined): string {
@@ -36,16 +31,11 @@ export function getUserGroup(userGroupId: number | undefined): string {
     [UserGroups.PropertyManager]: 'PropertyManager',
     [UserGroups.PropertyManagerAdmin]: 'PropertyManager-Admin',
     [UserGroups.Facilities]: 'Facilities',
-    [UserGroups.FacilitiesAdmin]: 'Facilities-Admin',
     [UserGroups.Housekeeping]: 'Housekeeping',
-    [UserGroups.HousekeepingAdmin]: 'Housekeeping-Admin',
-    [UserGroups.Corporation]: 'Corporation',
-    [UserGroups.CorporationAdmin]: 'Corporation-Admin',
+    [UserGroups.Company]: 'Company',
     [UserGroups.Vendor]: 'Vendor',
-    [UserGroups.VendorAdmin]: 'Vendor-Admin',
     [UserGroups.Tenant]: 'Tenant',
     [UserGroups.Owner]: 'Owner',
-    [UserGroups.Client]: 'Client',
     [UserGroups.Inspector]: 'Inspector'
   };
   
