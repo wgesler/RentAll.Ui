@@ -1308,7 +1308,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   override async onEmail(): Promise<void> {
-    const toEmail = this.contact?.email || '';
+    const toEmail = (this.contact?.entityTypeId === EntityType.Company) ? this.contact?.companyEmail : this.contact?.email;
+    const ccEmail = (this.contact?.entityTypeId === EntityType.Company) ? (this.contact?.email || '') : null;
+    const ccEmails = [ccEmail];
     const toName = `${this.contact?.fullName || ''}`.trim();
     const salutationName = `${this.contact?.firstName || ''}`.trim();
     const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
@@ -1317,7 +1319,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const accountingName = this.selectedAccountingOffice?.name;
     const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
-    const plainTextContent = '';
+     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
     const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateInvoice || '') : (this.emailHtml?.invoice || '');
@@ -1337,6 +1339,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       toName,
       fromEmail,
       fromName,
+      ccEmails,
       documentType: DocumentType.Invoice,
       emailType: EmailType.Invoice,
       plainTextContent,
