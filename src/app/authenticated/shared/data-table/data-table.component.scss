@@ -99,6 +99,24 @@ tr.mat-mdc-row.mat-no-data-row,
     padding-bottom: 0 !important;
 }
 
+/* Allow dropdown list panel to be wider than table cell for long names. */
+::ng-deep .datatable-dropdown-panel {
+    min-width: 280px !important;
+    width: max-content !important;
+    max-width: min(520px, 90vw) !important;
+}
+
+::ng-deep .datatable-dropdown-panel .mat-mdc-option .mdc-list-item__primary-text {
+    white-space: nowrap !important;
+}
+
+/* Open panel to the left for long-name dropdowns. */
+::ng-deep .datatable-dropdown-panel-open-left {
+    min-width: 190px !important;
+    width: 190px !important;
+    max-width: 190px !important;
+}
+
 .is-scrollable {
     overflow-x: auto;
 }
@@ -352,6 +370,34 @@ td.mat-mdc-cell.no-wrap {
 :host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__checkmark {
+  color: white !important;
+}
+
+/* Maintenance checkbox: red when action needed, green when current. */
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background {
+  background-color: #d32f2f !important;
+  border-color: #d32f2f !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background {
+  background-color: #f9a825 !important;
+  border-color: #f9a825 !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__background {
+  background-color: #2e7d32 !important;
+  border-color: #2e7d32 !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__checkmark {
   color: white !important;
 }
 

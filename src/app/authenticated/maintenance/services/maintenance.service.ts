@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
+import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 
 @Injectable({
   providedIn: 'root'
@@ -21,8 +21,8 @@ export class MaintenanceService {
     this.controller = this.configService.config().apiUrl + 'maintenance/';
   }
 
-  getMaintenanceList(): Observable<MaintenanceRequest[]> {
-    return this.http.get<MaintenanceRequest[]>(this.controller + 'list');
+  getMaintenanceList(): Observable<MaintenanceListResponse[]> {
+    return this.http.get<MaintenanceListResponse[]>(this.controller + 'list');
   }
 
   getMaintenanceByGuid(maintenanceId: string): Observable<MaintenanceResponse> {

@@ -5,7 +5,22 @@ export interface MaintenanceRequest {
   officeName: string;
   propertyId: string;
   inspectionCheckList: string;
-  inventoryCheckList: string;
+  cleanerUserId?: string | null;
+  cleaningDate?: string | null;
+  inspectorUserId?: string | null;
+  inspectingDate?: string | null;
+  filterDescription?: string | null;
+  lastFilterChangeDate?: string | null;
+  smokeDetectors?: string | null;
+  lastSmokeChangeDate?: string | null;
+  smokeDetectorBatteries?: string | null;
+  lastBatteryChangeDate?: string | null;
+  licenseNo?: string | null;
+  licenseDate?: string | null;
+  hvacNotes?: string | null;
+  hvacServiced?: string | null;
+  fireplaceNotes?: string | null;
+  fireplaceServiced?: string | null;
   notes?: string | null;
   isActive: boolean;
 }
@@ -17,11 +32,52 @@ export interface MaintenanceResponse {
   officeName: string;
   propertyId: string;
   inspectionCheckList: string;
-  inventoryCheckList: string;
+  cleanerUserId?: string | null;
+  cleaningDate?: string | null;
+  inspectorUserId?: string | null;
+  inspectingDate?: string | null;
+  filterDescription?: string | null;
+  lastFilterChangeDate?: string | null;
+  smokeDetectors?: string | null;
+  lastSmokeChangeDate?: string | null;
+  smokeDetectorBatteries?: string | null;
+  lastBatteryChangeDate?: string | null;
+  licenseNo?: string | null;
+  licenseDate?: string | null;
+  hvacNotes?: string | null;
+  hvacServiced?: string | null;
+  fireplaceNotes?: string | null;
+  fireplaceServiced?: string | null;
   notes?: string | null;
   isActive: boolean;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;
   modifiedBy: string;
+}
+
+export interface MaintenanceListResponse {
+  maintenanceId: string;
+  organizationId: string;
+  officeId: number;
+  officeName: string;
+  propertyId: string;
+  propertyAddress: string;
+  inspectionCheckList: string;
+  cleanerUserId?: string | null;
+  cleaningDate?: string | null;
+  inspectorUserId?: string | null;
+  inspectingDate?: string | null;
+  needsMaintenance: boolean;
+  bedroomId1: number;
+  bedroomId2: number;
+  bedroomId3: number;
+  bedroomId4: number;
+  lastFilterChangeDate?: string | null;
+  smokeDetectors?: string | null;
+  lastSmokeChangeDate?: string | null;
+  lastBatteryChangeDate?: string | null;
+  licenseDate?: string | null;
+  hvacServiced?: string | null;
+  fireplaceServiced?: string | null;
 }

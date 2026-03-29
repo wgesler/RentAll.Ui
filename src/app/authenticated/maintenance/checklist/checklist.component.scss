@@ -190,6 +190,48 @@
   min-width: 0;
 }
 
+.row-checkbox-inline {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.row-checkbox-control {
+  flex: 0 0 auto;
+}
+
+.row-checkbox-text {
+  min-width: 0;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.inline-photo-btn {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  color: #1d4ed8 !important;
+}
+
+.inline-photo-delete-btn {
+  color: #dc2626 !important;
+}
+
+.inline-photo-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  object-position: center;
+  image-rendering: auto;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  margin-left: 4px;
+  background: #fff;
+}
+
 .editable-row-content {
   flex: 1 1 auto;
   min-width: 0;
@@ -217,6 +259,25 @@
   margin-left: 0.25rem;
   font-size: 0.9rem;
   color: #0f172a;
+}
+
+.row-count-input {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  border: none;
+  border-bottom: 2px solid #1d4ed8;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #0f172a;
+  line-height: 1.1;
+  padding: 0;
+  margin-left: 4px;
+  height: 14px;
 }
 
 .checklist-row mat-checkbox {

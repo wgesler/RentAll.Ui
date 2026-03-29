@@ -8,6 +8,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
+import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
@@ -89,25 +90,8 @@ export class MappingService {
     }));
   }
 
-  /**
-   * Maps API contact DTO to ContactResponse (ensures camelCase for agreement and other fields).
-   */
   mapContactResponse(raw: Record<string, unknown>): ContactResponse {
-    const o = { ...raw } as Record<string, unknown>;
-    const copyIfMissing = (camel: string, pascal: string): void => {
-      if ((o[camel] === undefined || o[camel] === null) && o[pascal] !== undefined && o[pascal] !== null) {
-        o[camel] = o[pascal];
-      }
-    };
-    copyIfMissing('revenueSplitOwner', 'RevenueSplitOwner');
-    copyIfMissing('revenueSplitOffice', 'RevenueSplitOffice');
-    copyIfMissing('workingCapitalBalance', 'WorkingCapitalBalance');
-    copyIfMissing('linenAndTowelFee', 'LinenAndTowelFee');
-    copyIfMissing('bankName', 'BankName');
-    copyIfMissing('routingNumber', 'RoutingNumber');
-    copyIfMissing('accountNumber', 'AccountNumber');
-    copyIfMissing('companyEmail', 'CompanyEmail');
-    return o as unknown as ContactResponse;
+    return raw as unknown as ContactResponse;
   }
 
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
@@ -126,8 +110,8 @@ export class MappingService {
         contactType: getEntityType(o.entityTypeId),
         entityTypeId: o.entityTypeId,
         ownerTypeId: o.ownerTypeId ?? null,
-        companyName: o.companyName ?? (o as { CompanyName?: string })['CompanyName'] ?? null,
-        companyEmail: o.companyEmail ?? (o as { CompanyEmail?: string })['CompanyEmail'] ?? null,
+        companyName: o.companyName ?? null,
+        companyEmail: o.companyEmail ?? null,
         phone: this.formatter.phoneNumber(o.phone),
         email: o.email,
         rating: o.rating ?? 0,
@@ -179,18 +163,18 @@ export class MappingService {
 
   mapEmailHtml(emailHtml: any): EmailHtmlResponse {
     return {
-      organizationId: emailHtml?.organizationId ?? emailHtml?.OrganizationId ?? '',
-      welcomeLetter: emailHtml?.welcomeLetter ?? emailHtml?.WelcomeLetter ?? '',
-      corporateLetter: emailHtml?.corporateLetter ?? emailHtml?.CorporateLetter ?? '',
-      lease: emailHtml?.lease ?? emailHtml?.Lease ?? '',
-      corporateLease: emailHtml?.corporateLease ?? emailHtml?.CorporateLease ?? '',
-      invoice: emailHtml?.invoice ?? emailHtml?.Invoice ?? '',
-      corporateInvoice: emailHtml?.corporateInvoice ?? emailHtml?.CorporateInvoice ?? '',
-      letterSubject: emailHtml?.letterSubject ?? emailHtml?.LetterSubject ?? '',
-      leaseSubject: emailHtml?.leaseSubject ?? emailHtml?.LeaseSubject ?? '',
-      invoiceSubject: emailHtml?.invoiceSubject ?? emailHtml?.InvoiceSubject ?? '',
-      createdOn: emailHtml?.createdOn ?? emailHtml?.CreatedOn ?? '',
-      modifiedOn: emailHtml?.modifiedOn ?? emailHtml?.ModifiedOn
+      organizationId: emailHtml?.organizationId ?? '',
+      welcomeLetter: emailHtml?.welcomeLetter ?? '',
+      corporateLetter: emailHtml?.corporateLetter ?? '',
+      lease: emailHtml?.lease ?? '',
+      corporateLease: emailHtml?.corporateLease ?? '',
+      invoice: emailHtml?.invoice ?? '',
+      corporateInvoice: emailHtml?.corporateInvoice ?? '',
+      letterSubject: emailHtml?.letterSubject ?? '',
+      leaseSubject: emailHtml?.leaseSubject ?? '',
+      invoiceSubject: emailHtml?.invoiceSubject ?? '',
+      createdOn: emailHtml?.createdOn ?? '',
+      modifiedOn: emailHtml?.modifiedOn
     };
   }
 
@@ -216,37 +200,34 @@ export class MappingService {
     return emailArray.map<EmailListDisplay>((email: EmailResponse | any) => ({
       // Treat attachmentPath as the linked document identifier/path.
       // Rows without attachments cannot open a document preview.
-      emailId: email?.emailId ?? email?.EmailId ?? '',
-      officeId: String(email?.officeId ?? email?.OfficeId ?? ''),
-      propertyId: email?.propertyId ?? email?.PropertyId ?? undefined,
-      reservationId: email?.reservationId ?? email?.ReservationId ?? undefined,
-      reservationCode: email?.reservationCode ?? email?.ReservationCode ?? '',
-      officeName: email?.officeName ?? email?.OfficeName ?? '',
-      toEmail: this.getPrimaryRecipientEmail(email?.toRecipients ?? email?.ToRecipients, email?.toEmail ?? email?.ToEmail),
-      toName: this.getPrimaryRecipientName(email?.toRecipients ?? email?.ToRecipients, email?.toName ?? email?.ToName),
-      fromEmail: (email?.fromRecipient ?? email?.FromRecipient)?.email ?? email?.fromEmail ?? email?.FromEmail ?? '',
-      fromName: (email?.fromRecipient ?? email?.FromRecipient)?.name ?? email?.fromName ?? email?.FromName ?? '',
-      subject: email?.subject ?? email?.Subject ?? '',
-      attachmentName: email?.attachmentName ?? email?.AttachmentName ?? '',
-      attachmentPath: email?.attachmentPath ?? email?.AttachmentPath ?? '',
-      documentId: email?.documentId ?? email?.DocumentId ?? email?.attachmentDocumentId ?? email?.AttachmentDocumentId ?? undefined,
-      emailTypeId: Number(email?.emailTypeId ?? email?.EmailTypeId ?? 0),
+      emailId: email?.emailId ?? '',
+      officeId: String(email?.officeId ?? ''),
+      propertyId: email?.propertyId ?? undefined,
+      reservationId: email?.reservationId ?? undefined,
+      reservationCode: email?.reservationCode ?? '',
+      officeName: email?.officeName ?? '',
+      toEmail: this.getPrimaryRecipientEmail(email?.toRecipients, email?.toEmail),
+      toName: this.getPrimaryRecipientName(email?.toRecipients, email?.toName),
+      fromEmail: email?.fromRecipient?.email ?? email?.fromEmail ?? '',
+      fromName: email?.fromRecipient?.name ?? email?.fromName ?? '',
+      subject: email?.subject ?? '',
+      attachmentName: email?.attachmentName ?? '',
+      attachmentPath: email?.attachmentPath ?? '',
+      documentId: email?.documentId ?? email?.attachmentDocumentId ?? undefined,
+      emailTypeId: Number(email?.emailTypeId ?? 0),
       canView: Boolean(
         email?.documentId ??
-        email?.DocumentId ??
         email?.attachmentDocumentId ??
-        email?.AttachmentDocumentId ??
-        email?.attachmentPath ??
-        email?.AttachmentPath
+        email?.attachmentPath
       ),
-      createdOn: this.formatter.formatDateTimeString(email?.createdOn ?? email?.CreatedOn) || (email?.createdOn ?? email?.CreatedOn ?? '')
+      createdOn: this.formatter.formatDateTimeString(email?.createdOn) || (email?.createdOn ?? '')
     }));
   }
 
   private getPrimaryRecipientEmail(recipients: any, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
-      return first?.email ?? first?.Email ?? fallback ?? '';
+      return first?.email ?? fallback ?? '';
     }
 
     return fallback ?? '';
@@ -255,7 +236,7 @@ export class MappingService {
   private getPrimaryRecipientName(recipients: any, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
-      return first?.name ?? first?.Name ?? fallback ?? '';
+      return first?.name ?? fallback ?? '';
     }
 
     return fallback ?? '';
@@ -536,63 +517,112 @@ export class MappingService {
     });
   }
 
-  mapMaintenancePropertyListRows(properties: PropertyListResponse[]): Array<PropertyListDisplay & { propertyStatusText: string; propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string }; bed1Text: string; bed2Text: string; bed3Text: string; bed4Text: string }> {
-    return this.mapProperties(properties || []).map(property => {
-      const propertyStatusText = getPropertyStatus(property.propertyStatusId);
+  mapMaintenanceListRows(maintenanceRows: MaintenanceListResponse[]): MaintenanceListResponse[] {
+    return (maintenanceRows || []).map((row: MaintenanceListResponse) => ({
+      ...row
+    }));
+  }
+
+  mapMaintenancePropertyDisplayRows(
+    properties: PropertyListResponse[],
+    maintenanceRows: MaintenanceListResponse[]
+  ): Array<PropertyListDisplay & {
+    propertyAddress: string;
+    propertyStatusText: string;
+    propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string };
+    cleaner: string;
+    cleaningDate: string;
+    inspector: string;
+    inspectingDate: string;
+    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    needsMaintenance: boolean;
+    needsMaintenanceState: 'red' | 'yellow' | 'green';
+  }> {
+    const propertyRows = this.mapPropertyListRows(properties || []);
+    const maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
+    (maintenanceRows || []).forEach(row => { if (row?.propertyId) { maintenanceByPropertyId.set(row.propertyId, row);} });
+
+    return propertyRows.map(property => {
+      const maintenanceRow = maintenanceByPropertyId.get(property.propertyId);
+      const isDateMissing = (dateValue: string | null | undefined): boolean =>
+        !dateValue || String(dateValue).trim() === '';
+
+      const isDateOlderThanYears = (
+        dateValue: string | null | undefined,
+        years: number
+      ): boolean => {
+        if (isDateMissing(dateValue)) {
+          return false;
+        }
+
+        const parsedDate = new Date(dateValue);
+        if (Number.isNaN(parsedDate.getTime())) {
+          return true;
+        }
+
+        const threshold = new Date();
+        threshold.setFullYear(threshold.getFullYear() - years);
+        return parsedDate < threshold;
+      };
+
+      const hasAnyTooOldDate =
+        isDateOlderThanYears(maintenanceRow?.licenseDate, 1) ||
+        isDateOlderThanYears(maintenanceRow?.lastFilterChangeDate, 1) ||
+        isDateOlderThanYears(maintenanceRow?.lastBatteryChangeDate, 1) ||
+        isDateOlderThanYears(maintenanceRow?.hvacServiced, 1) ||
+        isDateOlderThanYears(maintenanceRow?.fireplaceServiced, 1) ||
+        isDateOlderThanYears(maintenanceRow?.lastSmokeChangeDate, 10);
+
+      const hasAnyMissingRequiredDate =
+        isDateMissing(maintenanceRow?.lastFilterChangeDate) ||
+        isDateMissing(maintenanceRow?.lastSmokeChangeDate) ||
+        isDateMissing(maintenanceRow?.lastBatteryChangeDate) ||
+        isDateMissing(maintenanceRow?.hvacServiced) ||
+        isDateMissing(maintenanceRow?.fireplaceServiced);
+
+      const needsMaintenanceState: 'red' | 'yellow' | 'green' = hasAnyTooOldDate
+        ? 'red'
+        : hasAnyMissingRequiredDate
+          ? 'yellow'
+          : 'green';
+      const needsMaintenance = needsMaintenanceState !== 'green';
+      const mapBedDropdown = (bedroomId?: number) => {
+        const value = getBedSizeType(bedroomId);
+        return {
+          value,
+          isOverridable: true,
+          panelClass: ['datatable-dropdown-panel', 'datatable-bed-dropdown-panel'],
+          toString: () => value
+        };
+      };
+
       return {
         ...property,
-        propertyStatusText,
-        propertyStatusDropdown: {
-          value: propertyStatusText,
-          isOverridable: true,
-          toString: () => propertyStatusText
-        },
-        bed1Text: property.bedroomId1 ? getBedSizeType(property.bedroomId1) : 'None',
-        bed2Text: property.bedroomId2 ? getBedSizeType(property.bedroomId2) : 'None',
-        bed3Text: property.bedroomId3 ? getBedSizeType(property.bedroomId3) : 'None',
-        bed4Text: property.bedroomId4 ? getBedSizeType(property.bedroomId4) : 'None',
-        licenseDate: this.formatter.formatDateString(property.licenseDate ?? undefined),
-        lastFilterChangeDate: this.formatter.formatDateString(property.lastFilterChangeDate ?? undefined),
-        lastSmokeChangeDate: this.formatter.formatDateString(property.lastSmokeChangeDate ?? undefined),
-        hvacServiced: this.formatter.formatDateString(property.hvacServiced ?? undefined),
-        fireplaceServiced: this.formatter.formatDateString(property.fireplaceServiced ?? undefined)
+        propertyAddress: property.shortAddress ?? '',
+        cleaner: maintenanceRow?.cleanerUserId ?? '',
+        cleaningDate: this.formatter.formatDateString(maintenanceRow?.cleaningDate ?? undefined),
+        inspector: maintenanceRow?.inspectorUserId ?? '',
+        inspectingDate: this.formatter.formatDateString(maintenanceRow?.inspectingDate ?? undefined),
+        bed1Text: mapBedDropdown(maintenanceRow?.bedroomId1),
+        bed2Text: mapBedDropdown(maintenanceRow?.bedroomId2),
+        bed3Text: mapBedDropdown(maintenanceRow?.bedroomId3),
+        bed4Text: mapBedDropdown(maintenanceRow?.bedroomId4),
+        needsMaintenance: needsMaintenance,
+        needsMaintenanceState,
+        licenseDate: this.formatter.formatDateString(maintenanceRow?.licenseDate ?? undefined),
+        lastFilterChangeDate: this.formatter.formatDateString(maintenanceRow?.lastFilterChangeDate ?? undefined),
+        lastSmokeChangeDate: this.formatter.formatDateString(maintenanceRow?.lastSmokeChangeDate ?? undefined),
+        hvacServiced: this.formatter.formatDateString(maintenanceRow?.hvacServiced ?? undefined),
+        fireplaceServiced: this.formatter.formatDateString(maintenanceRow?.fireplaceServiced ?? undefined)
       };
     });
   }
 
-  /**
-   * Maps API property DTO to PropertyResponse (camelCase + new fields may arrive as PascalCase).
-   */
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
-    const o = { ...raw } as Record<string, unknown>;
-    const copyIfMissing = (camel: string, pascal: string) => {
-      if ((o[camel] === undefined || o[camel] === null) && o[pascal] !== undefined && o[pascal] !== null) {
-        o[camel] = o[pascal];
-      }
-    };
-    copyIfMissing('gateCode', 'GateCode');
-    copyIfMissing('trashCode', 'TrashCode');
-    copyIfMissing('storageCode', 'StorageCode');
-    if ((o['storageCode'] === undefined || o['storageCode'] === null) && o['MailCode'] != null) {
-      o['storageCode'] = o['MailCode'];
-    }
-    if ((o['storageCode'] === undefined || o['storageCode'] === null) && o['mailCode'] != null) {
-      o['storageCode'] = o['mailCode'];
-    }
-    copyIfMissing('parkingNotes', 'ParkingNotes');
-    copyIfMissing('filterDescription', 'FilterDescription');
-    copyIfMissing('lastFilterChangeDate', 'LastFilterChangeDate');
-    copyIfMissing('smokeDetectors', 'SmokeDetectors');
-    copyIfMissing('lastSmokeChangeDate', 'LastSmokeChangeDate');
-    copyIfMissing('licenseNo', 'LicenseNo');
-    copyIfMissing('licenseDate', 'LicenseDate');
-    copyIfMissing('maintenanceStatusId', 'MaintenanceStatusId');
-    copyIfMissing('maintenanceNotes', 'MaintenanceNotes');
-    copyIfMissing('hvacNotes', 'HvacNotes');
-    copyIfMissing('hvacServiced', 'HvacServiced');
-    copyIfMissing('fireplaceNotes', 'FireplaceNotes');
-    copyIfMissing('fireplaceServiced', 'FireplaceServiced');
-    return o as unknown as PropertyResponse;
+    return raw as unknown as PropertyResponse;
   }
 
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {

@@ -427,23 +427,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
       const s = String(v).trim();
       return s.length > 0 ? s : null;
     };
-    const dateIsoOrNull = (v: unknown): string | null =>
-      v instanceof Date && !isNaN(v.getTime()) ? v.toISOString() : null;
 
     propertyRequest.gateCode = trimOrNull(formValue.gateCode);
     propertyRequest.trashCode = trimOrNull(formValue.trashCode);
     propertyRequest.storageCode = trimOrNull(formValue.storageCode);
-    propertyRequest.filterDescription = trimOrNull(formValue.filterDescription);
-    propertyRequest.smokeDetectors = trimOrNull(formValue.smokeDetectors);
-    propertyRequest.licenseNo = trimOrNull(formValue.licenseNo);
-    propertyRequest.hvacNotes = trimOrNull(formValue.hvacNotes);
-    propertyRequest.hvacServiced = dateIsoOrNull(formValue.hvacServiced) ?? null;
-    propertyRequest.fireplaceNotes = trimOrNull(formValue.fireplaceNotes);
-    propertyRequest.fireplaceServiced = dateIsoOrNull(formValue.fireplaceServiced) ?? null;
-    propertyRequest.maintenanceNotes = trimOrNull(formValue.maintenanceNotes);
-    propertyRequest.lastFilterChangeDate = dateIsoOrNull(formValue.lastFilterChangeDate) ?? null;
-    propertyRequest.lastSmokeChangeDate = dateIsoOrNull(formValue.lastSmokeChangeDate) ?? null;
-    propertyRequest.licenseDate = dateIsoOrNull(formValue.licenseDate) ?? null;
 
     // Explicitly set notes field from form
     propertyRequest.notes = formValue.notes || '';
@@ -674,11 +661,11 @@ export class PropertyComponent implements OnInit, OnDestroy {
         formData[field] = this.property[field] || '';
       });
 
-      formData.lastFilterChangeDate = this.parseMaintenanceDateOrNull(this.property.lastFilterChangeDate);
-      formData.lastSmokeChangeDate = this.parseMaintenanceDateOrNull(this.property.lastSmokeChangeDate);
-      formData.licenseDate = this.parseMaintenanceDateOrNull(this.property.licenseDate);
-      formData.hvacServiced = this.parseMaintenanceDateOrNull(this.property.hvacServiced);
-      formData.fireplaceServiced = this.parseMaintenanceDateOrNull(this.property.fireplaceServiced);
+      formData.lastFilterChangeDate = null;
+      formData.lastSmokeChangeDate = null;
+      formData.licenseDate = null;
+      formData.hvacServiced = null;
+      formData.fireplaceServiced = null;
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
@@ -1581,6 +1568,10 @@ export class PropertyComponent implements OnInit, OnDestroy {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === 'reservation-board') {
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
+      return;
+    }
+    if (returnTo === 'maintenance-list') {
+      this.router.navigateByUrl(RouterUrl.MaintenanceList);
       return;
     }
     this.router.navigateByUrl(RouterUrl.PropertyList);

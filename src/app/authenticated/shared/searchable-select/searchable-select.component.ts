@@ -87,7 +87,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           @if (showInstructionOption && nullOptionLabel) {
             <mat-option [value]="instructionOptionValue">{{ nullOptionLabel }}</mat-option>
           }
-          @for (option of filteredOptions; track option.value) {
+          @for (option of filteredOptions; track trackOption($index, option)) {
             <mat-option [value]="option.value">{{ option.label }}</mat-option>
           }
           @if (filteredOptions.length === 0) {
@@ -125,7 +125,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         @if (showInstructionOption && nullOptionLabel) {
           <mat-option [value]="instructionOptionValue">{{ nullOptionLabel }}</mat-option>
         }
-        @for (option of filteredOptions; track option.value) {
+        @for (option of filteredOptions; track trackOption($index, option)) {
           <mat-option [value]="option.value">{{ option.label }}</mat-option>
         }
         @if (filteredOptions.length === 0) {
@@ -209,5 +209,9 @@ export class SearchableSelectComponent {
       event.preventDefault();
       return;
     }
+  }
+
+  trackOption(index: number, option: SearchableSelectOption): string {
+    return `${option.value ?? 'null'}::${option.label ?? ''}::${index}`;
   }
 }

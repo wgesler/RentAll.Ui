@@ -39,11 +39,113 @@ body {
   .mat-mdc-select-min-line,
   .mat-mdc-select-value,
   .mat-mdc-select-value-text {
-    color: #0d47a1 !important;
+    color: #1d4ed8 !important;
     text-decoration: underline;
     font-size: inherit !important;
     line-height: inherit !important;
   }
+}
+
+/* Cleaner/Inspector dropdowns should match Status font sizing. */
+:host ::ng-deep td.mat-cell.mat-column-cleaner,
+:host ::ng-deep td.mat-mdc-cell.mat-column-cleaner,
+:host ::ng-deep td.mat-cell.mat-column-inspector,
+:host ::ng-deep td.mat-mdc-cell.mat-column-inspector,
+:host ::ng-deep td.mat-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-cell.mat-column-bed4Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
+  .mat-mdc-select-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .mat-mdc-select-arrow-wrapper {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    flex-shrink: 0 !important;
+    margin-left: 0.25rem !important;
+  }
+
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    font-size: inherit !important;
+    line-height: inherit !important;
+  }
+}
+
+/* Cleaner selected value should be pink; unselected remains default/black. */
+:host ::ng-deep td.datatable-cleaner-selected.mat-cell.mat-column-cleaner,
+:host ::ng-deep td.datatable-cleaner-selected.mat-mdc-cell.mat-column-cleaner {
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    color: #e91e63 !important;
+  }
+}
+
+/* Inspector selected value should be green; unselected remains default/black. */
+:host ::ng-deep td.datatable-inspector-selected.mat-cell.mat-column-inspector,
+:host ::ng-deep td.datatable-inspector-selected.mat-mdc-cell.mat-column-inspector {
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    color: #29b457 !important;
+  }
+}
+
+/* Bed dropdown text should be underlined. */
+:host ::ng-deep td.mat-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-cell.mat-column-bed4Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text {
+    color: #1d4ed8 !important;
+    text-decoration: underline !important;
+  }
+}
+
+/* Keep dropdown behavior but hide arrow icons in this list to reduce visual noise. */
+:host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
+:host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown,
+:host ::ng-deep td.mat-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-cell.mat-column-bed4Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
+  .mat-mdc-select-arrow-wrapper {
+    display: none !important;
+  }
+}
+
+/* Bed dropdowns can be narrower than other list dropdowns. */
+:host ::ng-deep .datatable-bed-dropdown-panel {
+  min-width: 130px !important;
+  width: 130px !important;
+  max-width: 130px !important;
 }
 
  .mat-expansion-panel-header-title {

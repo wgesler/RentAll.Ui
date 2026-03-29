@@ -20,6 +20,10 @@ export class UserService {
     return this.http.get<UserResponse[]>(this.controller);
   }
 
+  getUsersByType(roletype: string): Observable<UserResponse[]> {
+    return this.http.get<UserResponse[]>(this.controller + 'role/' + roletype);
+  }
+
   getUserByGuid(userId: string): Observable<UserResponse> {
     return this.http.get<UserResponse>(this.controller + userId);
   }

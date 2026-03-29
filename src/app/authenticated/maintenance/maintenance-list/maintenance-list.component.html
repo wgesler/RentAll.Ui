@@ -61,11 +61,15 @@
               [hasColumnIndex]="true"
               [hasFilter]="true"
               [hasActionsRowClick]="true"
+              [hasPropertyCodeLink]="true"
+              [hasActionsEdit]="true"
               [hasActionsInspect]="true"
               [itemsPerPage]="100"
-              (dropdownChangeEvent)="onPropertyStatusChange($event)"
+              (dropdownChangeEvent)="onDropdownChange($event)"
+              (editEvent)="goToProperty($event)"
               (inspectEvent)="goToInspection($event)"
               (rowClickEvent)="goToProperty($event)"
+              (propertyCodeClickEvent)="goToPropertyComponent($event)"
               (contactClickEvent)="goToContact($event)"/>
           </div>
         </div>

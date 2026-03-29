@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, filter, finalize, map, switchMap, take } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Observable, concat, concatMap, defaultIfEmpty, filter, finalize, from, map, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -13,7 +15,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ChecklistSection, INSPECTION_SECTIONS, INVENTORY_SECTIONS } from '../models/checklist-sections';
+import { ChecklistSection, INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { MaintenanceService } from '../services/maintenance.service';
 import { ChecklistComponent } from '../checklist/checklist.component';
@@ -23,6 +25,9 @@ import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { hasInspectorRole } from '../../shared/access/role-access';
+import { InventoryComponent } from '../inventory/inventory.component';
+import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
+import { ApplianceService } from '../services/appliance.service';
 
 @Component({
   standalone: true,
@@ -36,7 +41,8 @@ import { hasInspectorRole } from '../../shared/access/role-access';
     ReceiptsListComponent,
     ReceiptComponent,
     WorkOrderComponent,
-    DocumentListComponent
+    DocumentListComponent,
+    InventoryComponent
   ],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
@@ -50,6 +56,8 @@ export class MaintenanceComponent implements OnInit {
   templateMode = false;
   isServiceError = false;
   isSavingTemplate = false;
+  isSavingInventory = false;
+  isSavingAppliances = false;
   selectedTabIndex = 0;
   /** When true, Receipts tab shows receipt detail instead of list. selectedReceiptId is null for "new". */
   showReceiptDetail = false;
@@ -71,10 +79,9 @@ export class MaintenanceComponent implements OnInit {
   allProperties: PropertyListResponse[] = [];
   offices: OfficeResponse[] = [];
   availableProperties: { propertyId: string; propertyCode: string }[] = [];
-  mergedInventoryCounts: Record<string, number> = {};
-  mergedSectionSources: Record<string, { inventoryKey: string | null; inspectionKey: string | null }> = {};
+  appliances: ApplianceResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance', 'appliances']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -85,7 +92,9 @@ export class MaintenanceComponent implements OnInit {
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private applianceService: ApplianceService,
+    private toastr: ToastrService
   ) {}
 
   //#region Maintenance
@@ -112,7 +121,7 @@ export class MaintenanceComponent implements OnInit {
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
       const id = params.get('id')!;
-      this.loadProperty(id);
+      this.loadProperty(id, () => this.loadMaintenanceSections(id));
     });
   }
 
@@ -121,7 +130,6 @@ export class MaintenanceComponent implements OnInit {
 
     const user = this.authService.getUser();
     const inspectionTemplate = this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
-    const inventoryTemplate = this.buildDefaultTemplateJson(INVENTORY_SECTIONS, true);
 
     const payload: MaintenanceRequest = {
       organizationId: this.property.organizationId ?? user?.organizationId ?? '',
@@ -129,7 +137,10 @@ export class MaintenanceComponent implements OnInit {
       officeName: this.property.officeName ?? '',
       propertyId,
       inspectionCheckList: inspectionTemplate,
-      inventoryCheckList: inventoryTemplate,
+      cleanerUserId: user?.userId ?? '',
+      cleaningDate: undefined,
+      inspectorUserId: user?.userId ?? '',
+      inspectingDate: undefined,
       notes: null,
       isActive: true
     };
@@ -140,7 +151,7 @@ export class MaintenanceComponent implements OnInit {
     });
   }
 
-  onSaveTemplate(checklistJson: string, checklistType: 'inspection' | 'inventory'): void {
+  onSaveTemplate(checklistJson: string, _checklistType: 'inspection'): void {
     if (!this.property) return;
 
     const user = this.authService.getUser();
@@ -156,12 +167,11 @@ export class MaintenanceComponent implements OnInit {
           officeId: existing?.officeId ?? this.maintenanceRecord?.officeId ?? this.property!.officeId,
           officeName: existing?.officeName ?? this.maintenanceRecord?.officeName ?? this.property!.officeName ?? '',
           propertyId: this.property!.propertyId,
-          inspectionCheckList: checklistType === 'inspection'
-            ? checklistJson
-            : (existing?.inspectionCheckList ?? this.maintenanceRecord?.inspectionCheckList ?? ''),
-          inventoryCheckList: checklistType === 'inventory'
-            ? checklistJson
-            : (existing?.inventoryCheckList ?? this.maintenanceRecord?.inventoryCheckList ?? ''),
+          inspectionCheckList: checklistJson,
+          cleanerUserId: existing?.cleanerUserId ?? this.maintenanceRecord?.cleanerUserId ?? user?.userId ?? '',
+          cleaningDate: existing?.cleaningDate ?? this.maintenanceRecord?.cleaningDate ?? undefined,
+          inspectorUserId: existing?.inspectorUserId ?? this.maintenanceRecord?.inspectorUserId ?? user?.userId ?? '',
+          inspectingDate: existing?.inspectingDate ?? this.maintenanceRecord?.inspectingDate ?? undefined,
           notes: existing?.notes ?? this.maintenanceRecord?.notes ?? null,
           isActive: existing?.isActive ?? this.maintenanceRecord?.isActive ?? true
         };
@@ -184,25 +194,46 @@ export class MaintenanceComponent implements OnInit {
     });
   }
 
-  onSaveMergedTemplate(mergedChecklistJson: string): void {
-    const splitTemplates = this.splitMergedChecklistTemplate(mergedChecklistJson);
-    const user = this.authService.getUser();
-    this.isSavingTemplate = true;
+  onInventorySave(inventoryPayload: MaintenanceRequest): void {
+    if (!this.property) return;
 
-    this.maintenanceService.getByPropertyId(this.property?.propertyId ?? '').pipe(
+    const user = this.authService.getUser();
+    this.isSavingInventory = true;
+    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
       take(1),
       switchMap((latest) => {
-        const existing = latest ?? null;
+        const existing = latest ?? this.maintenanceRecord ?? null;
+        const pickValue = <T>(incoming: T | undefined, existingValue: T | undefined, fallback: T): T =>
+          incoming === undefined ? (existingValue ?? fallback) : incoming;
+        // Inventory saves must never mutate checklist content. Preserve existing checklist verbatim.
+        const checklistJson = existing?.inspectionCheckList
+          ?? this.maintenanceRecord?.inspectionCheckList
+          ?? this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
         const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId ?? this.maintenanceRecord?.maintenanceId,
-          organizationId: existing?.organizationId ?? this.maintenanceRecord?.organizationId ?? user?.organizationId ?? this.property!.organizationId,
-          officeId: existing?.officeId ?? this.maintenanceRecord?.officeId ?? this.property!.officeId,
-          officeName: existing?.officeName ?? this.maintenanceRecord?.officeName ?? this.property!.officeName ?? '',
-          propertyId: this.property!.propertyId,
-          inspectionCheckList: splitTemplates.inspectionTemplateJson,
-          inventoryCheckList: splitTemplates.inventoryTemplateJson,
-          notes: existing?.notes ?? this.maintenanceRecord?.notes ?? null,
-          isActive: existing?.isActive ?? this.maintenanceRecord?.isActive ?? true
+          maintenanceId: existing?.maintenanceId ?? inventoryPayload.maintenanceId,
+          organizationId: inventoryPayload.organizationId || existing?.organizationId || this.property!.organizationId || user?.organizationId || '',
+          officeId: inventoryPayload.officeId ?? existing?.officeId ?? this.property!.officeId ?? 0,
+          officeName: inventoryPayload.officeName || existing?.officeName || this.property!.officeName || '',
+          propertyId: inventoryPayload.propertyId || existing?.propertyId || this.property!.propertyId,
+          inspectionCheckList: checklistJson,
+          cleanerUserId: pickValue(inventoryPayload.cleanerUserId, existing?.cleanerUserId, null),
+          cleaningDate: pickValue(inventoryPayload.cleaningDate, existing?.cleaningDate, null),
+          inspectorUserId: pickValue(inventoryPayload.inspectorUserId, existing?.inspectorUserId, null),
+          inspectingDate: pickValue(inventoryPayload.inspectingDate, existing?.inspectingDate, null),
+          filterDescription: pickValue(inventoryPayload.filterDescription, existing?.filterDescription, null),
+          lastFilterChangeDate: pickValue(inventoryPayload.lastFilterChangeDate, existing?.lastFilterChangeDate, null),
+          smokeDetectors: pickValue(inventoryPayload.smokeDetectors, existing?.smokeDetectors, null),
+          lastSmokeChangeDate: pickValue(inventoryPayload.lastSmokeChangeDate, existing?.lastSmokeChangeDate, null),
+          smokeDetectorBatteries: pickValue(inventoryPayload.smokeDetectorBatteries, existing?.smokeDetectorBatteries, null),
+          lastBatteryChangeDate: pickValue(inventoryPayload.lastBatteryChangeDate, existing?.lastBatteryChangeDate, null),
+          licenseNo: pickValue(inventoryPayload.licenseNo, existing?.licenseNo, null),
+          licenseDate: pickValue(inventoryPayload.licenseDate, existing?.licenseDate, null),
+          hvacNotes: pickValue(inventoryPayload.hvacNotes, existing?.hvacNotes, null),
+          hvacServiced: pickValue(inventoryPayload.hvacServiced, existing?.hvacServiced, null),
+          fireplaceNotes: pickValue(inventoryPayload.fireplaceNotes, existing?.fireplaceNotes, null),
+          fireplaceServiced: pickValue(inventoryPayload.fireplaceServiced, existing?.fireplaceServiced, null),
+          notes: pickValue(inventoryPayload.notes, existing?.notes, null),
+          isActive: inventoryPayload.isActive ?? existing?.isActive ?? true
         };
         return payload.maintenanceId
           ? this.maintenanceService.updateMaintenance(payload)
@@ -210,35 +241,82 @@ export class MaintenanceComponent implements OnInit {
       }),
       take(1)
     ).subscribe({
-      next: () => {
-        const propertyId = this.property!.propertyId;
-        this.maintenanceRecord = null;
-        this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-        this.loadMaintenanceByProperty(propertyId);
-        this.isSavingTemplate = false;
+      next: (saved: MaintenanceResponse) => {
+        this.maintenanceRecord = saved;
+        this.templateMode = false;
+        this.isSavingInventory = false;
+        this.toastr.success('Maintenance saved.', CommonMessage.Success);
       },
       error: () => {
-        this.isSavingTemplate = false;
+        this.isSavingInventory = false;
+        this.toastr.error('Unable to save maintenance.', CommonMessage.Error);
       }
     });
   }
+
+  onAppliancesSave(payload: { upserts: ApplianceRequest[]; deleteIds: number[] }): void {
+    if (!this.property) return;
+
+    const deleteIds = (payload.deleteIds || []).filter(id => Number.isFinite(id));
+    const upserts = payload.upserts || [];
+    if (deleteIds.length === 0 && upserts.length === 0) {
+      return;
+    }
+
+    this.isSavingAppliances = true;
+
+    const deleteOperations$ = from(deleteIds).pipe(concatMap(applianceId => this.applianceService.deleteAppliance(applianceId)));
+    const upsertOperations$ = from(upserts).pipe(
+      concatMap(request => request.applianceId
+        ? this.applianceService.updateAppliance(request)
+        : this.applianceService.createAppliance(request))
+    );
+
+    concat(deleteOperations$, upsertOperations$).pipe(
+      defaultIfEmpty(null),
+      finalize(() => {
+        this.isSavingAppliances = false;
+      })
+    ).subscribe({
+      complete: () => {
+        if (this.property) {
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
+          this.loadAppliancesByProperty(this.property.propertyId);
+        }
+        this.toastr.success('Appliances saved.', CommonMessage.Success);
+      },
+      error: () => {
+        this.toastr.error('Unable to save appliances.', CommonMessage.Error);
+      }
+    });
+  }
+
   //#endregion
 
   //#region Data Load Methods
-  loadProperty(propertyId: string): void {
+  loadProperty(propertyId: string, onLoaded?: () => void): void {
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
       next: (p) => {
         this.property = p;
         this.syncTitlebarSelections();
-        this.loadMaintenanceByProperty(p.propertyId);
+        onLoaded?.();
       },
       error: () => {
         this.property = null;
         this.maintenanceRecord = null;
+        this.appliances = [];
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances');
       }
     });
+  }
+
+  loadMaintenanceSections(propertyId: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
+    this.loadMaintenanceByProperty(propertyId);
+    this.loadAppliancesByProperty(propertyId);
   }
 
   loadMaintenanceByProperty(propertyId: string): void {
@@ -253,6 +331,17 @@ export class MaintenanceComponent implements OnInit {
         }
       },
       error: () => (this.maintenanceRecord = null)
+    });
+  }
+
+  loadAppliancesByProperty(propertyId: string): void {
+    this.applianceService.getAppliancesByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances'))).subscribe({
+      next: (response: ApplianceResponse[]) => {
+        this.appliances = response || [];
+      },
+      error: () => {
+        this.appliances = [];
+      }
     });
   }
 
@@ -314,17 +403,6 @@ export class MaintenanceComponent implements OnInit {
     return this.maintenanceRecord?.inspectionCheckList ?? '';
   }
 
-  get inventoryTemplateJson(): string {
-    return this.maintenanceRecord?.inventoryCheckList ?? '';
-  }
-
-  get mergedTemplateJson(): string {
-    const mergedTemplate = this.buildMergedTemplateJson(this.inventoryTemplateJson, this.inspectionTemplateJson);
-    this.mergedInventoryCounts = mergedTemplate.inventoryCounts;
-    this.mergedSectionSources = mergedTemplate.sectionSources;
-    return mergedTemplate.templateJson;
-  }
-  
   buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
     const payload = {
       sections: sections.map(section => ({
@@ -335,6 +413,8 @@ export class MaintenanceComponent implements OnInit {
           section.items.map(item => ({
             text: item.text,
             requiresPhoto: item.requiresPhoto,
+            requiresCount: false,
+            count: null,
             isEditable: defaultIsEditable,
             photoPath: null as string | null
           }))
@@ -367,23 +447,27 @@ export class MaintenanceComponent implements OnInit {
     this.selectedWorkOrderId = null;
     this.property = null;
     this.maintenanceRecord = null;
+    this.appliances = [];
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-    this.loadProperty(this.selectedPropertyId);
+    this.loadProperty(this.selectedPropertyId, () => this.loadMaintenanceSections(this.selectedPropertyId!));
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
   }
 
+  get isLoadingAppliances(): boolean {
+    return this.itemsToLoad$.value.has('appliances');
+  }
+
   get workOrdersTabIndex(): number {
-    return 2;
+    return 3;
   }
 
   get documentsTabIndex(): number {
-    return this.showWorkOrdersTab ? 3 : 2;
+    return this.showWorkOrdersTab ? 4 : 3;
   }
 
   get receiptsTabIndex(): number {
-    return 1;
+    return 2;
   }
 
   onReceiptSelect(receiptId: number | null): void {
@@ -464,171 +548,12 @@ export class MaintenanceComponent implements OnInit {
       return null;
     }
 
-    const maxTab = this.showWorkOrdersTab ? 3 : 2;
+    const maxTab = this.showWorkOrdersTab ? 4 : 3;
     if (tabParam > maxTab) {
       return maxTab;
     }
 
     return tabParam;
-  }
-
-  private buildMergedTemplateJson(inventoryTemplateJson: string, inspectionTemplateJson: string): {
-    templateJson: string;
-    inventoryCounts: Record<string, number>;
-    sectionSources: Record<string, { inventoryKey: string | null; inspectionKey: string | null }>;
-  } {
-    const inventorySections = this.parseChecklistSections(inventoryTemplateJson, INVENTORY_SECTIONS);
-    const inspectionSections = this.parseChecklistSections(inspectionTemplateJson, INSPECTION_SECTIONS);
-    const inventoryByTitle = new Map<string, (typeof inventorySections)[number]>();
-    const inspectionByTitle = new Map<string, (typeof inspectionSections)[number]>();
-    inventorySections.forEach(section => inventoryByTitle.set(this.normalizeSectionName(section.title || section.key), section));
-    inspectionSections.forEach(section => inspectionByTitle.set(this.normalizeSectionName(section.title || section.key), section));
-
-    const orderedTitles = [
-      ...inventorySections.map(section => this.normalizeSectionName(section.title || section.key)),
-      ...inspectionSections
-        .map(section => this.normalizeSectionName(section.title || section.key))
-        .filter(title => !inventoryByTitle.has(title))
-    ];
-
-    const mergedSections = orderedTitles.map((titleKey, index) => {
-      const inventorySection = inventoryByTitle.get(titleKey);
-      const inspectionSection = inspectionByTitle.get(titleKey);
-      const sectionKey = inventorySection?.key ?? inspectionSection?.key ?? `mergedSection${index}`;
-      const sectionTitle = inventorySection?.title ?? inspectionSection?.title ?? sectionKey;
-      const maxSets = Math.max(inventorySection?.sets.length ?? 0, inspectionSection?.sets.length ?? 0, 1);
-      const inventoryDefaultSet = inventorySection?.sets[0] ?? [];
-      const inspectionDefaultSet = inspectionSection?.sets[0] ?? [];
-      const sets = Array.from({ length: maxSets }).map((_, setIndex) => {
-        const inventoryItems = inventorySection?.sets[setIndex] ?? inventoryDefaultSet;
-        const inspectionItems = inspectionSection?.sets[setIndex] ?? inspectionDefaultSet;
-        return [...inventoryItems, ...inspectionItems];
-      });
-
-      return {
-        key: sectionKey,
-        title: sectionTitle,
-        notes: inventorySection?.notes || inspectionSection?.notes || '',
-        sets
-      };
-    });
-
-    const inventoryCounts = Object.fromEntries(mergedSections.map(section => {
-      const titleKey = this.normalizeSectionName(section.title || section.key);
-      const inventorySection = inventoryByTitle.get(titleKey);
-      const inventoryCount = inventorySection?.sets[0]?.length ?? 0;
-      return [section.key, inventoryCount];
-    }));
-
-    const sectionSources = Object.fromEntries(mergedSections.map(section => {
-      const titleKey = this.normalizeSectionName(section.title || section.key);
-      const inventorySection = inventoryByTitle.get(titleKey);
-      const inspectionSection = inspectionByTitle.get(titleKey);
-      return [section.key, {
-        inventoryKey: inventorySection?.key ?? null,
-        inspectionKey: inspectionSection?.key ?? null
-      }];
-    }));
-
-    return {
-      templateJson: JSON.stringify({ sections: mergedSections }),
-      inventoryCounts,
-      sectionSources
-    };
-  }
-
-  private splitMergedChecklistTemplate(mergedChecklistJson: string): { inventoryTemplateJson: string; inspectionTemplateJson: string } {
-    const mergedSections = this.parseChecklistSections(mergedChecklistJson, []);
-    const inventorySections: Array<{ key: string; title: string; notes: string; sets: Array<Array<{ text: string; requiresPhoto: boolean; isEditable: boolean; photoPath: string | null }>> }> = [];
-    const inspectionSections: Array<{ key: string; title: string; notes: string; sets: Array<Array<{ text: string; requiresPhoto: boolean; isEditable: boolean; photoPath: string | null }>> }> = [];
-
-    mergedSections.forEach(section => {
-      const source = this.mergedSectionSources[section.key] ?? { inventoryKey: null, inspectionKey: null };
-      const inventoryCount = this.mergedInventoryCounts[section.key] ?? 0;
-      const inventorySets = section.sets.map(set => set.slice(0, inventoryCount));
-      const inspectionSets = section.sets.map(set => set.slice(inventoryCount));
-
-      if (source.inventoryKey) {
-        inventorySections.push({
-          key: source.inventoryKey,
-          title: section.title || source.inventoryKey,
-          notes: section.notes || '',
-          sets: inventorySets
-        });
-      }
-
-      if (source.inspectionKey) {
-        inspectionSections.push({
-          key: source.inspectionKey,
-          title: section.title || source.inspectionKey,
-          notes: section.notes || '',
-          sets: inspectionSets
-        });
-      }
-    });
-
-    return {
-      inventoryTemplateJson: JSON.stringify({ sections: inventorySections }),
-      inspectionTemplateJson: JSON.stringify({ sections: inspectionSections })
-    };
-  }
-
-  private parseChecklistSections(
-    checklistJson: string,
-    fallbackSections: ChecklistSection[]
-  ): Array<{
-    key: string;
-    title: string;
-    notes: string;
-    sets: Array<Array<{ text: string; requiresPhoto: boolean; isEditable: boolean; photoPath: string | null }>>;
-  }> {
-    try {
-      const parsed = JSON.parse(checklistJson || '{}') as { sections?: Array<{ key?: string; title?: string; notes?: string; sets?: Array<Array<{ text?: string; requiresPhoto?: boolean; isEditable?: boolean; photoPath?: string | null }>> }> };
-      const sections = Array.isArray(parsed.sections) ? parsed.sections : [];
-      if (sections.length === 0 && fallbackSections.length > 0) {
-        return fallbackSections.map(section => ({
-          key: section.key,
-          title: section.title,
-          notes: '',
-          sets: [section.items.map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            isEditable: false,
-            photoPath: null
-          }))]
-        }));
-      }
-
-      return sections.map((section, sectionIndex) => ({
-        key: section.key || `section${sectionIndex}`,
-        title: section.title || section.key || `Section ${sectionIndex + 1}`,
-        notes: section.notes || '',
-        sets: (section.sets && section.sets.length > 0 ? section.sets : [[]]).map(setItems =>
-          (setItems || []).map(item => ({
-            text: item?.text || '',
-            requiresPhoto: item?.requiresPhoto === true,
-            isEditable: item?.isEditable === true,
-            photoPath: item?.photoPath ?? null
-          }))
-        )
-      }));
-    } catch {
-      return fallbackSections.map(section => ({
-        key: section.key,
-        title: section.title,
-        notes: '',
-        sets: [section.items.map(item => ({
-          text: item.text,
-          requiresPhoto: item.requiresPhoto,
-          isEditable: false,
-          photoPath: null
-        }))]
-      }));
-    }
-  }
-
-  private normalizeSectionName(value: string): string {
-    return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   }
   //#endregion
 }

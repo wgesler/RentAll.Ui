@@ -264,6 +264,7 @@ export function normalizeCheckOutTimeId(value: number | null | undefined): numbe
 //#region BedSizeType
 export enum BedSizeType
 {
+    None = 0,
     King = 1,
     Queen = 2,
     Double = 3,
@@ -274,9 +275,10 @@ export enum BedSizeType
 }
 
 export function getBedSizeType(bedSizeTypeId: number | undefined): string {
-  if (bedSizeTypeId === undefined || bedSizeTypeId === null) return '';
+  if (bedSizeTypeId === undefined || bedSizeTypeId === null) return 'None';
   
   const bedSizeMap: { [key: number]: string } = {
+    [BedSizeType.None]: 'None',
     [BedSizeType.King]: 'King',
     [BedSizeType.Queen]: 'Queen',
     [BedSizeType.Double]: 'Double',

@@ -32,36 +32,5 @@
       }
     </mat-expansion-panel>
 
-    <mat-expansion-panel class="reservation-section" [expanded]="true">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          <h2 class="section-title">Inventory History</h2>
-        </mat-panel-title>
-      </mat-expansion-panel-header>
-      @if (isLoadingInventories) {
-        <div class="loading-container">
-          <mat-spinner [diameter]="40"></mat-spinner>
-          <p>Loading inventories...</p>
-        </div>
-      } @else if (isServiceErrorInventories) {
-        <p class="empty-msg">Unable to load inventories.</p>
-      } @else {
-        <div class="tableDiv">
-          <app-data-table
-            [data]="inventoriesDisplay"
-            [columns]="inventoryDisplayedColumns"
-            [hasColumnIndex]="false"
-            [hasFilter]="false"
-            [hasActionsRowClick]="true"
-            [hasActionsView]="true"
-            [hasActionsDelete]="false"
-            [hasToggleTop]="false"
-            [hasButtonTop]="false"
-            [itemsPerPage]="5"
-            (rowClickEvent)="onInventoryRowClick($event)"
-            (viewEvent)="onInventoryRowClick($event)" />
-        </div>
-      }
-    </mat-expansion-panel>
   </div>
 </div>

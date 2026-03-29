@@ -83,6 +83,9 @@
                   @if (item.requiresPhoto) {
                     <span class="readonly-item-photo-tag">(photo required)</span>
                   }
+                  @if (item.requiresCount) {
+                    <span class="readonly-item-photo-tag">(count: {{ form.get(countControlNameById(section.key, repeatIndex, item.id))?.value ?? '-' }})</span>
+                  }
                 </div>
                 @if (getItemPhotoSrc(item)) {
                   <div class="readonly-item-photo-wrap">
@@ -143,6 +146,38 @@
                             placeholder="Enter checklist item"
                             [value]="item.text"
                             (input)="updateEditableRowText(item, $any($event.target).value)" />
+                          @if (item.requiresPhoto && !isReadonlyMode) {
+                            @if (!getItemPhotoSrc(item)) {
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn"
+                                (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>photo_camera</mat-icon>
+                              </button>
+                            } @else {
+                              <img
+                                [src]="getItemPhotoSrc(item)"
+                                alt="Uploaded line item photo"
+                                class="inline-photo-thumb"
+                                (click)="openPhotoPreview(item, $event)" />
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
+                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            }
+                          }
+                          @if (item.requiresCount && !isReadonlyMode) {
+                            <input
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              class="row-count-input"
+                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                          }
                         </div>
                       } @else if (item.isEditable) {
                         <div class="editable-row-content">
@@ -152,11 +187,80 @@
                             (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
                           </mat-checkbox>
                           <span class="editable-row-text">{{ item.text }}</span>
+                          @if (item.requiresPhoto && !isReadonlyMode) {
+                            @if (!getItemPhotoSrc(item)) {
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn"
+                                (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>photo_camera</mat-icon>
+                              </button>
+                            } @else {
+                              <img
+                                [src]="getItemPhotoSrc(item)"
+                                alt="Uploaded line item photo"
+                                class="inline-photo-thumb"
+                                (click)="openPhotoPreview(item, $event)" />
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
+                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            }
+                          }
+                          @if (item.requiresCount && !isReadonlyMode) {
+                            <input
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              class="row-count-input"
+                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                          }
                         </div>
                       } @else {
-                        <mat-checkbox class="row-checkbox" [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)" (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
-                          {{ item.text }}
-                        </mat-checkbox>
+                        <div class="row-checkbox-inline">
+                          <mat-checkbox
+                            class="row-checkbox-control"
+                            [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
+                            (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
+                          </mat-checkbox>
+                          <span class="row-checkbox-text">{{ item.text }}</span>
+                          @if (item.requiresPhoto && !isReadonlyMode) {
+                            @if (!getItemPhotoSrc(item)) {
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn"
+                                (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>photo_camera</mat-icon>
+                              </button>
+                            } @else {
+                              <img
+                                [src]="getItemPhotoSrc(item)"
+                                alt="Uploaded line item photo"
+                                class="inline-photo-thumb"
+                                (click)="openPhotoPreview(item, $event)" />
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
+                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            }
+                          }
+                          @if (item.requiresCount && !isReadonlyMode) {
+                            <input
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              class="row-count-input"
+                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                          }
+                        </div>
                       }
                       @if (isTemplateMode) {
                         <button
@@ -169,36 +273,24 @@
                           (click)="toggleRequiresPhoto(item, $event)">
                           <mat-icon>photo_camera</mat-icon>
                         </button>
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="row-action-btn"
+                          [color]="item.requiresCount ? 'primary' : undefined"
+                          [style.opacity]="item.requiresCount ? '1' : '0.35'"
+                          [attr.aria-label]="item.requiresCount ? 'Count required' : 'Count not required'"
+                          (click)="toggleRequiresCount(item, $event)">
+                          <mat-icon>pin</mat-icon>
+                        </button>
                       }
-                      @if (item.requiresPhoto && !isTemplateMode && !isReadonlyMode) {
+                      @if (item.requiresPhoto && !isReadonlyMode) {
                         <input
                           class="hidden"
                           type="file"
                           accept="image/*"
                           [id]="photoInputId(section.key, repeatIndex, item.id)"
                           (change)="onPhotoSelected(section.key, repeatIndex, item.id, $event)" />
-                        @if (!getItemPhotoSrc(item)) {
-                          <button
-                            mat-button
-                            type="button"
-                            class="row-action-btn"
-                            (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
-                            Upload Photo
-                          </button>
-                        } @else {
-                          <img
-                            [src]="getItemPhotoSrc(item)"
-                            alt="Uploaded line item photo"
-                            class="h-10 w-10 object-cover rounded cursor-pointer border border-slate-300"
-                            (click)="openPhotoPreview(item, $event)" />
-                          <button
-                            mat-button
-                            type="button"
-                            class="row-action-btn"
-                            (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
-                            Delete Photo
-                          </button>
-                        }
                       }
                       @if (isTemplateMode) {
                         <button

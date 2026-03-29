@@ -117,19 +117,6 @@ export interface PropertyRequest {
   trashPickupId: number;
   trashRemoval?: string;
   
-  // Maintenance section
-  filterDescription?: string | null;
-  lastFilterChangeDate?: string | null;
-  smokeDetectors?: string | null;
-  lastSmokeChangeDate?: string | null;
-  licenseNo?: string | null;
-  licenseDate?: string | null;
-  hvacNotes?: string | null;
-  hvacServiced?: string | null;
-  fireplaceNotes?: string | null;
-  fireplaceServiced?: string | null;
-  maintenanceNotes?: string | null;
-  
   // Additional Amenities section
   amenities?: string;
   description?: string;
@@ -254,25 +241,11 @@ export interface PropertyResponse {
   trashPickupId: number;
   trashRemoval?: string;
   
-  // Maintenance section
-  filterDescription?: string;
-  lastFilterChangeDate?: string;
-  smokeDetectors?: string;
-  lastSmokeChangeDate?: string;
-  licenseNo?: string;
-  licenseDate?: string;
-  hvacNotes?: string | null;
-  hvacServiced?: string | null;
-  fireplaceNotes?: string | null;
-  fireplaceServiced?: string | null;
-  maintenanceNotes?: string;
-
   // Additional Amenities section
   amenities?: string;
   description?: string;
   notes?: string;
 }
-
 export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;

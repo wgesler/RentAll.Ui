@@ -110,6 +110,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
+  @Input() suppressRowClickOnDropdownCells: boolean = true;
+  @Input() hasPropertyCodeLink: boolean = false;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() calendarEvent = new EventEmitter<PurposefulAny>();
@@ -132,6 +134,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
   @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
@@ -404,6 +407,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.receiptClickEvent.emit(rowItem);
   }
 
+  onPropertyCodeClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.propertyCodeClickEvent.emit(rowItem);
+  }
+
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {
     rowItem.selected = event.checked;
     if (this.hasButtonSelectAll) {
@@ -415,7 +423,10 @@ export class DataTableComponent implements OnChanges, OnInit {
     }
   }
 
-  emitDropdownChangeEvent(rowItem: PurposefulAny): void {
+  emitDropdownChangeEvent(rowItem: PurposefulAny, columnName?: string): void {
+    if (columnName) {
+      rowItem.__changedDropdownColumn = columnName;
+    }
     this.dropdownChangeEvent.emit(rowItem);
   }
 
@@ -505,9 +516,9 @@ export class DataTableComponent implements OnChanges, OnInit {
   private setActions(): void {
     this.buttons = [];
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
-    if (this.hasActionsInspect)  this.buttons.push({name: 'inspect', callback: (event, rowItem) => this.emitInspectEvent(event, rowItem), color: '#1565C0', tooltip: 'Open Inspection', tooltipPosition: 'before', icon: 'search', suspendOnUpdate: false});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
+    if (this.hasActionsInspect)  this.buttons.push({name: 'inspect', callback: (event, rowItem) => this.emitInspectEvent(event, rowItem), color: '#4CAF50', tooltip: 'Open Inspection', tooltipPosition: 'before', icon: 'search', suspendOnUpdate: false});
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});
     if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#2196F3', tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});

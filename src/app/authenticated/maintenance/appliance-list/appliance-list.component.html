@@ -1,0 +1,80 @@
+@if (isLoading) {
+  <div class="appliance-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading appliances...</span>
+  </div>
+} @else {
+  <div class="appliance-actions">
+    <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="addRow()">
+      <mat-icon>add</mat-icon>
+      Add
+    </button>
+    <button mat-raised-button color="primary" type="button" (click)="onSaveChanges()" [disabled]="isSaving || !canSave">
+      <mat-icon>save</mat-icon>
+      Save
+    </button>
+  </div>
+
+  <div class="appliance-lines-wrap overflow-x-auto">
+    <table class="line-items-table appliance-lines-table">
+      <thead>
+        <tr>
+          <th>Appliance Name</th>
+          <th>Manufacturer</th>
+          <th>Model No.</th>
+          <th>Serial No.</th>
+          <th class="actions-column"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!rows || rows.length === 0) {
+          <tr>
+            <td class="appliance-empty" colspan="5">No appliances found for this property.</td>
+          </tr>
+        } @else {
+          @for (row of rows; track trackByRowId($index, row)) {
+            <tr>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.applianceName"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'appliance-name-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.manufacturer"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'appliance-make-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.modelNo"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'appliance-model-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.serialNo"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'appliance-serial-' + row.rowId" />
+              </td>
+              <td class="actions-column">
+                <button mat-icon-button type="button" class="delete-row-btn" (click)="removeRow(row)" [disabled]="isSaving">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+}

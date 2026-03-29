@@ -5,5 +5,5 @@ export interface ChecklistReadonlyDialogData {
   property: PropertyResponse | null;
   templateJson: string | null;
   answersJson: string | null;
-  checklistType: 'inspection' | 'inventory';
+  checklistType: 'inspection';
 }

@@ -77,16 +77,27 @@
 
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Inventory">
+          <mat-tab label="Maintenance">
+            <app-inventory
+              [property]="property"
+              [maintenanceRecord]="maintenanceRecord"
+              [appliances]="appliances"
+              [isLoadingAppliances]="isLoadingAppliances"
+              [isSaving]="isSavingInventory"
+              [isSavingAppliances]="isSavingAppliances"
+              (saveInventory)="onInventorySave($event)"
+              (saveAppliances)="onAppliancesSave($event)" />
+          </mat-tab>
+          <mat-tab label="Inspection">
             @if (property && maintenanceRecord) {
               <app-checklist
                 [property]="property"
-                [templateJson]="mergedTemplateJson"
+                [templateJson]="inspectionTemplateJson"
                 [maintenanceRecord]="maintenanceRecord"
-                [checklistType]="'inventory'"
+                [checklistType]="'inspection'"
                 [mode]="templateMode ? 'template' : 'answer'"
                 [isSaving]="isSavingTemplate"
-                (templateSaved)="onSaveMergedTemplate($event)" />
+                (templateSaved)="onSaveTemplate($event, 'inspection')" />
             }
           </mat-tab>
           <mat-tab label="Receipts">
