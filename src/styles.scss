@@ -564,6 +564,23 @@ mat-form-field.company-dropdown {
   }
 }
 
+.page-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 50vh;
+  padding: 3rem;
+  gap: 1rem;
+  box-sizing: border-box;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
 
 .no-data {
   display:flex;

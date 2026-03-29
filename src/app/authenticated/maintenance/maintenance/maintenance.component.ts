@@ -1,220 +1,127 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, concat, concatMap, defaultIfEmpty, filter, finalize, from, map, switchMap, take } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
-import { CommonMessage } from '../../../enums/common-message.enum';
+import { BehaviorSubject, concat, concatMap, defaultIfEmpty, finalize, from, map, Observable, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
-import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
-import { PropertyService } from '../../properties/services/property.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
-import { OfficeService } from '../../organizations/services/office.service';
+import { MappingService } from '../../../services/mapping.service';
+import { ApplianceListComponent } from '../appliance-list/appliance-list.component';
+import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
 import { ChecklistSection, INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
+import { PropertyResponse } from '../../properties/models/property.model';
+import { UserGroups } from '../../users/models/user-enums';
+import { UserResponse } from '../../users/models/user.model';
+import { UserService } from '../../users/services/user.service';
+import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceService } from '../services/maintenance.service';
-import { ChecklistComponent } from '../checklist/checklist.component';
-import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
-import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptComponent } from '../receipt/receipt.component';
-import { WorkOrderComponent } from '../work-order/work-order.component';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { hasInspectorRole } from '../../shared/access/role-access';
-import { InventoryComponent } from '../inventory/inventory.component';
-import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
 import { ApplianceService } from '../services/appliance.service';
+import { JwtUser } from '../../../public/login/models/jwt';
 
 @Component({
   standalone: true,
   selector: 'app-maintenance',
-  imports: [
-    CommonModule,
-    FormsModule,
-    MaterialModule,
-    ChecklistComponent,
-    WorkOrderListComponent,
-    ReceiptsListComponent,
-    ReceiptComponent,
-    WorkOrderComponent,
-    DocumentListComponent,
-    InventoryComponent
-  ],
+  imports: [CommonModule, ReactiveFormsModule, MaterialModule, ApplianceListComponent],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
 })
-export class MaintenanceComponent implements OnInit {
-  @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
-  @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
-  @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
-  property: PropertyResponse | null = null;
-  maintenanceRecord: MaintenanceResponse | null = null;
-  templateMode = false;
-  isServiceError = false;
-  isSavingTemplate = false;
-  isSavingInventory = false;
+export class MaintenanceComponent implements OnInit, OnDestroy {
+  @Input() property: PropertyResponse | null = null;
+  readonly today = new Date();
+  form: FormGroup;
+  isSaving = false;
   isSavingAppliances = false;
-  selectedTabIndex = 0;
-  /** When true, Receipts tab shows receipt detail instead of list. selectedReceiptId is null for "new". */
-  showReceiptDetail = false;
-  selectedReceiptId: number | null = null;
-  /** When true, Work Orders tab shows work order detail instead of list. selectedWorkOrderId is null for "new". */
-  showWorkOrderDetail = false;
-  selectedWorkOrderId: string | null = null;
-  /** Increment to tell Receipts list to refetch (e.g. after work order save). */
-  refreshReceiptsTrigger = 0;
-  showWorkOrdersTab = true;
-  userId = '';
-  organizationId = '';
-  preferredOfficeId: number | null = null;
-  isInspectorView = false;
-  inspectorPropertyIds = new Set<string>();
-  selectedOfficeId: number | null = null;
-  selectedPropertyId: string | null = null;
-  showOfficeDropdown = true;
-  allProperties: PropertyListResponse[] = [];
-  offices: OfficeResponse[] = [];
-  availableProperties: { propertyId: string; propertyCode: string }[] = [];
+  user: JwtUser | null = null;
+  
+  maintenanceRecord: MaintenanceResponse | null = null;
   appliances: ApplianceResponse[] = [];
+  housekeepingUsers: UserResponse[] = [];
+  inspectorUsers: UserResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance', 'appliances']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['maintenance', 'appliances', 'cleaners', 'inspectors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
+
 
   constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private propertyService: PropertyService,
-    private maintenanceService: MaintenanceService,
-    private authService: AuthService,
+    private fb: FormBuilder,
+    private userService: UserService,
+    private mappingService: MappingService,
     private utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private maintenanceService: MaintenanceService,
     private applianceService: ApplianceService,
+    private authService: AuthService,
     private toastr: ToastrService
-  ) {}
-
-  //#region Maintenance
-  ngOnInit(): void {
-    this.userId = this.authService.getUser()?.userId?.trim() ?? '';
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-    this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
-    this.inspectorPropertyIds = new Set(
-      (this.authService.getUser()?.properties || [])
-        .map(propertyId => propertyId.trim().toLowerCase())
-        .filter(propertyId => propertyId !== '')
-    );
-    this.showWorkOrdersTab = !this.isInspectorView;
-    this.loadTitlebarOfficeScope();
-
-    this.route.queryParamMap.pipe(take(1)).subscribe(params => {
-      const tabParam = Number(params.get('tab'));
-      const normalizedTab = this.normalizeRequestedTab(tabParam);
-      if (normalizedTab !== null) {
-        this.selectedTabIndex = normalizedTab;
-      }
-    });
-
-    this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
-      const id = params.get('id')!;
-      this.loadProperty(id, () => this.loadMaintenanceSections(id));
-    });
+  ) {
+    this.form = this.buildForm();
   }
 
-  createMaintenanceWithDefaultTemplates(propertyId: string): void {
-    if (!this.property) return;
+  //#region Inventory
+  ngOnInit(): void {
+    this.user = this.authService.getUser();
+    this.loadMaintenance();
+    this.loadAppliances();
+    this.loadHousekeepingUsers();
+    this.loadInspectorUsers();
+  }
 
-    const user = this.authService.getUser();
-    const inspectionTemplate = this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
+  onSave(): void {
+    if (!this.property) {
+      return;
+    }
 
-    const payload: MaintenanceRequest = {
-      organizationId: this.property.organizationId ?? user?.organizationId ?? '',
-      officeId: this.property.officeId ?? 0,
-      officeName: this.property.officeName ?? '',
-      propertyId,
-      inspectionCheckList: inspectionTemplate,
-      cleanerUserId: user?.userId ?? '',
-      cleaningDate: undefined,
-      inspectorUserId: user?.userId ?? '',
-      inspectingDate: undefined,
-      notes: null,
-      isActive: true
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.isSaving = true;
+    const raw = this.form.getRawValue();
+    const cleanerUserId = this.nullIfBlank(raw.cleanerUserId);
+    const inspectorUserId = this.nullIfBlank(raw.inspectorUserId);
+    const inventoryPayload: MaintenanceRequest = {
+      maintenanceId: this.maintenanceRecord?.maintenanceId || undefined,
+      organizationId: raw.organizationId || this.maintenanceRecord?.organizationId || this.property?.organizationId || '',
+      officeId: raw.officeId ?? this.maintenanceRecord?.officeId ?? this.property?.officeId ?? 0,
+      officeName: raw.officeName || this.maintenanceRecord?.officeName || this.property?.officeName || '',
+      propertyId: raw.propertyId || this.maintenanceRecord?.propertyId || this.property?.propertyId || '',
+      inspectionCheckList: this.maintenanceRecord?.inspectionCheckList || '',
+      cleanerUserId,
+      cleaningDate: cleanerUserId ? this.mappingService.toIsoDateOrNull(raw.cleaningDate) : null,
+      inspectorUserId,
+      inspectingDate: inspectorUserId ? this.mappingService.toIsoDateOrNull(raw.inspectingDate) : null,
+      filterDescription: this.nullIfBlank(raw.filterDescription),
+      lastFilterChangeDate: this.mappingService.toIsoDateOrNull(raw.lastFilterChangeDate),
+      smokeDetectors: this.nullIfBlank(raw.smokeDetectors),
+      lastSmokeChangeDate: this.mappingService.toIsoDateOrNull(raw.lastSmokeChangeDate),
+      smokeDetectorBatteries: this.nullIfBlank(raw.smokeDetectorBatteries),
+      lastBatteryChangeDate: this.mappingService.toIsoDateOrNull(raw.lastBatteryChangeDate),
+      licenseNo: this.nullIfBlank(raw.licenseNo),
+      licenseDate: this.mappingService.toIsoDateOrNull(raw.licenseDate),
+      hvacNotes: this.nullIfBlank(raw.hvacNotes),
+      hvacServiced: this.mappingService.toIsoDateOrNull(raw.hvacServiced),
+      fireplaceNotes: this.nullIfBlank(raw.fireplaceNotes),
+      fireplaceServiced: this.mappingService.toIsoDateOrNull(raw.fireplaceServiced),
+      notes: this.nullIfBlank(raw.notes),
+      isActive: raw.isActive ?? this.maintenanceRecord?.isActive ?? true
     };
 
-    this.maintenanceService.createMaintenance(payload).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
-      next: (saved) => {this.maintenanceRecord = saved;},
-      error: () => (this.maintenanceRecord = null)
-    });
-  }
-
-  onSaveTemplate(checklistJson: string, _checklistType: 'inspection'): void {
-    if (!this.property) return;
-
-    const user = this.authService.getUser();
-    this.isSavingTemplate = true;
-
-    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
-      take(1),
-      switchMap((latest) => {
-        const existing = latest ?? null;
-        const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId ?? this.maintenanceRecord?.maintenanceId,
-          organizationId: existing?.organizationId ?? this.maintenanceRecord?.organizationId ?? user?.organizationId ?? this.property!.organizationId,
-          officeId: existing?.officeId ?? this.maintenanceRecord?.officeId ?? this.property!.officeId,
-          officeName: existing?.officeName ?? this.maintenanceRecord?.officeName ?? this.property!.officeName ?? '',
-          propertyId: this.property!.propertyId,
-          inspectionCheckList: checklistJson,
-          cleanerUserId: existing?.cleanerUserId ?? this.maintenanceRecord?.cleanerUserId ?? user?.userId ?? '',
-          cleaningDate: existing?.cleaningDate ?? this.maintenanceRecord?.cleaningDate ?? undefined,
-          inspectorUserId: existing?.inspectorUserId ?? this.maintenanceRecord?.inspectorUserId ?? user?.userId ?? '',
-          inspectingDate: existing?.inspectingDate ?? this.maintenanceRecord?.inspectingDate ?? undefined,
-          notes: existing?.notes ?? this.maintenanceRecord?.notes ?? null,
-          isActive: existing?.isActive ?? this.maintenanceRecord?.isActive ?? true
-        };
-        return payload.maintenanceId
-          ? this.maintenanceService.updateMaintenance(payload)
-          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
-      }),
-      take(1)
-    ).subscribe({
-      next: (saved: MaintenanceResponse) => {
-        const propertyId = this.property!.propertyId;
-        this.maintenanceRecord = null;
-        this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-        this.loadMaintenanceByProperty(propertyId);
-        this.isSavingTemplate = false;
-      },
-      error: (_err: HttpErrorResponse) => {
-        this.isSavingTemplate = false;
-      }
-    });
-  }
-
-  onInventorySave(inventoryPayload: MaintenanceRequest): void {
-    if (!this.property) return;
-
-    const user = this.authService.getUser();
-    this.isSavingInventory = true;
-    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
-      take(1),
+    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(take(1),
       switchMap((latest) => {
         const existing = latest ?? this.maintenanceRecord ?? null;
         const pickValue = <T>(incoming: T | undefined, existingValue: T | undefined, fallback: T): T =>
           incoming === undefined ? (existingValue ?? fallback) : incoming;
-        // Inventory saves must never mutate checklist content. Preserve existing checklist verbatim.
         const checklistJson = existing?.inspectionCheckList
           ?? this.maintenanceRecord?.inspectionCheckList
           ?? this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
         const payload: MaintenanceRequest = {
           maintenanceId: existing?.maintenanceId ?? inventoryPayload.maintenanceId,
-          organizationId: inventoryPayload.organizationId || existing?.organizationId || this.property!.organizationId || user?.organizationId || '',
-          officeId: inventoryPayload.officeId ?? existing?.officeId ?? this.property!.officeId ?? 0,
-          officeName: inventoryPayload.officeName || existing?.officeName || this.property!.officeName || '',
-          propertyId: inventoryPayload.propertyId || existing?.propertyId || this.property!.propertyId,
+          organizationId: inventoryPayload.organizationId || existing?.organizationId || this.property.organizationId || this.user?.organizationId || '',
+          officeId: inventoryPayload.officeId ?? existing?.officeId ?? this.property.officeId ?? 0,
+          officeName: inventoryPayload.officeName || existing?.officeName || this.property.officeName || '',
+          propertyId: inventoryPayload.propertyId || existing?.propertyId || this.property.propertyId,
           inspectionCheckList: checklistJson,
           cleanerUserId: pickValue(inventoryPayload.cleanerUserId, existing?.cleanerUserId, null),
           cleaningDate: pickValue(inventoryPayload.cleaningDate, existing?.cleaningDate, null),
@@ -238,24 +145,24 @@ export class MaintenanceComponent implements OnInit {
         return payload.maintenanceId
           ? this.maintenanceService.updateMaintenance(payload)
           : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
-      }),
-      take(1)
-    ).subscribe({
+      }), take(1)).subscribe({
       next: (saved: MaintenanceResponse) => {
         this.maintenanceRecord = saved;
-        this.templateMode = false;
-        this.isSavingInventory = false;
+        this.populateForm();
+        this.isSaving = false;
         this.toastr.success('Maintenance saved.', CommonMessage.Success);
       },
       error: () => {
-        this.isSavingInventory = false;
+        this.isSaving = false;
         this.toastr.error('Unable to save maintenance.', CommonMessage.Error);
       }
     });
   }
 
-  onAppliancesSave(payload: { upserts: ApplianceRequest[]; deleteIds: number[] }): void {
-    if (!this.property) return;
+  onApplianceSaveChanges(payload: { upserts: ApplianceRequest[]; deleteIds: number[] }): void {
+    if (!this.property) {
+      return;
+    }
 
     const deleteIds = (payload.deleteIds || []).filter(id => Number.isFinite(id));
     const upserts = payload.upserts || [];
@@ -264,7 +171,6 @@ export class MaintenanceComponent implements OnInit {
     }
 
     this.isSavingAppliances = true;
-
     const deleteOperations$ = from(deleteIds).pipe(concatMap(applianceId => this.applianceService.deleteAppliance(applianceId)));
     const upsertOperations$ = from(upserts).pipe(
       concatMap(request => request.applianceId
@@ -279,10 +185,7 @@ export class MaintenanceComponent implements OnInit {
       })
     ).subscribe({
       complete: () => {
-        if (this.property) {
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
-          this.loadAppliancesByProperty(this.property.propertyId);
-        }
+        this.loadAppliances();
         this.toastr.success('Appliances saved.', CommonMessage.Success);
       },
       error: () => {
@@ -291,53 +194,48 @@ export class MaintenanceComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
   //#endregion
 
-  //#region Data Load Methods
-  loadProperty(propertyId: string, onLoaded?: () => void): void {
-    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
-      next: (p) => {
-        this.property = p;
-        this.syncTitlebarSelections();
-        onLoaded?.();
-      },
-      error: () => {
-        this.property = null;
-        this.maintenanceRecord = null;
-        this.appliances = [];
-        this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances');
-      }
-    });
-  }
+  //#region Data Loading Methods
+  loadMaintenance(): void {
+    const propertyId = this.property?.propertyId;
+    if (!propertyId) {
+      this.maintenanceRecord = null;
+      this.populateForm();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance');
+      return;
+    }
 
-  loadMaintenanceSections(propertyId: string): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
-    this.loadMaintenanceByProperty(propertyId);
-    this.loadAppliancesByProperty(propertyId);
-  }
-
-  loadMaintenanceByProperty(propertyId: string): void {
-    this.maintenanceService.getByPropertyId(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
-      next: (response: MaintenanceResponse | null) => {
-        if (response) {
-          this.maintenanceRecord = response;
-          this.templateMode = false;
-        } else {
-          this.createMaintenanceWithDefaultTemplates(propertyId);
-          this.templateMode = true;
-        }
+    this.maintenanceService.getByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
+      next: (maintenance: MaintenanceResponse | null) => {
+        this.maintenanceRecord = maintenance ?? null;
+        this.populateForm();
       },
-      error: () => (this.maintenanceRecord = null)
+      error: () => {
+        this.maintenanceRecord = null;
+        this.populateForm();
+      }
     });
   }
 
-  loadAppliancesByProperty(propertyId: string): void {
-    this.applianceService.getAppliancesByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances'))).subscribe({
-      next: (response: ApplianceResponse[]) => {
-        this.appliances = response || [];
+  loadAppliances(): void {
+    const propertyId = this.property?.propertyId;
+    if (!propertyId) {
+      this.appliances = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
+    this.applianceService.getAppliancesByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'appliances'))).subscribe({
+      next: (appliances: ApplianceResponse[]) => {
+        this.appliances = appliances || [];
       },
       error: () => {
         this.appliances = [];
@@ -345,64 +243,32 @@ export class MaintenanceComponent implements OnInit {
     });
   }
 
-  loadTitlebarOfficeScope(): void {
-    if (!this.organizationId) {
-      this.showOfficeDropdown = false;
-      this.selectedOfficeId = null;
-      this.loadTitlebarProperties();
-      return;
-    }
-
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
-      next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.selectedOfficeId = uiState.selectedOfficeId;
-            this.loadTitlebarProperties();
-          }
-        });
+  loadHousekeepingUsers(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'cleaners');
+    this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
+      next: (users: UserResponse[]) => {
+        this.housekeepingUsers = users || [];
       },
       error: () => {
-        this.offices = [];
-        this.showOfficeDropdown = false;
-        this.selectedOfficeId = null;
-        this.loadTitlebarProperties();
+        this.housekeepingUsers = [];
       }
     });
   }
 
-  loadTitlebarProperties(): void {
-    if (!this.userId) {
-      this.allProperties = [];
-      this.availableProperties = [];
-      this.showOfficeDropdown = false;
-      return;
-    }
-
-    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1)).subscribe({
-      next: (properties) => {
-        const propertyRows = properties || [];
-        this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
-          ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
-          : propertyRows;
-        this.syncTitlebarSelections();
+  loadInspectorUsers(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'inspectors');
+    this.userService.getUsersByType(UserGroups[UserGroups.Inspector]).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspectors'))).subscribe({
+      next: (users: UserResponse[]) => {
+        this.inspectorUsers = users || [];
       },
       error: () => {
-        this.allProperties = [];
-        this.availableProperties = [];
-        this.showOfficeDropdown = false;
+        this.inspectorUsers = [];
       }
     });
   }
   //#endregion
 
-  //#region Utility Methods
-  get inspectionTemplateJson(): string {
-    return this.maintenanceRecord?.inspectionCheckList ?? '';
-  }
-
+  //#region Form Methods
   buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
     const payload = {
       sections: sections.map(section => ({
@@ -424,136 +290,124 @@ export class MaintenanceComponent implements OnInit {
     return JSON.stringify(payload);
   }
 
-  onTabChange(event: { index: number }): void {
-    this.selectedTabIndex = event.index;
+  buildForm(): FormGroup {
+    const dateOnOrBeforeToday = this.dateOnOrBeforeTodayValidator();
+    return this.fb.group({
+      maintenanceId: new FormControl<string>(''),
+      organizationId: new FormControl<string>(''),
+      officeId: new FormControl<number | null>(null),
+      officeName: new FormControl<string>(''),
+      propertyId: new FormControl<string>(''),
+      inspectionCheckList: new FormControl<string>(''),
+      cleanerUserId: new FormControl<string | null>(null),
+      cleaningDate: new FormControl<Date | null>(null),
+      inspectorUserId: new FormControl<string | null>(null),
+      inspectingDate: new FormControl<Date | null>(null),
+      filterDescription: new FormControl<string>(''),
+      lastFilterChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      smokeDetectors: new FormControl<string>(''),
+      lastSmokeChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      smokeDetectorBatteries: new FormControl<string>(''),
+      lastBatteryChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      licenseNo: new FormControl<string>(''),
+      licenseDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      hvacNotes: new FormControl<string>(''),
+      hvacServiced: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      fireplaceNotes: new FormControl<string>(''),
+      fireplaceServiced: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
+      notes: new FormControl<string>(''),
+      isActive: new FormControl<boolean>(true)
+    });
   }
 
-  onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-    this.updateAvailableProperties();
-    if (this.property && this.selectedOfficeId !== this.property.officeId) {
-      this.selectedPropertyId = null;
-    }
-  }
-
-  onPropertyCodeChange(): void {
-    if (!this.selectedPropertyId || this.selectedPropertyId === this.property?.propertyId) {
-      return;
-    }
-
-    this.showReceiptDetail = false;
-    this.selectedReceiptId = null;
-    this.showWorkOrderDetail = false;
-    this.selectedWorkOrderId = null;
-    this.property = null;
-    this.maintenanceRecord = null;
-    this.appliances = [];
-    this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.loadProperty(this.selectedPropertyId, () => this.loadMaintenanceSections(this.selectedPropertyId!));
-    this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
+  populateForm(): void {
+    const source = this.maintenanceRecord;
+    this.form.patchValue({
+      maintenanceId: source?.maintenanceId ?? '',
+      organizationId: source?.organizationId ?? this.property?.organizationId ?? '',
+      officeId: source?.officeId ?? this.property?.officeId ?? null,
+      officeName: source?.officeName ?? this.property?.officeName ?? '',
+      propertyId: source?.propertyId ?? this.property?.propertyId ?? '',
+      inspectionCheckList: source?.inspectionCheckList ?? '',
+      cleanerUserId: source?.cleanerUserId ?? null,
+      cleaningDate: this.mappingService.parseDateOrNull(source?.cleaningDate),
+      inspectorUserId: source?.inspectorUserId ?? null,
+      inspectingDate: this.mappingService.parseDateOrNull(source?.inspectingDate),
+      filterDescription: source?.filterDescription ?? '',
+      lastFilterChangeDate: this.mappingService.parseDateOrNull(source?.lastFilterChangeDate),
+      smokeDetectors: source?.smokeDetectors ?? '',
+      lastSmokeChangeDate: this.mappingService.parseDateOrNull(source?.lastSmokeChangeDate),
+      smokeDetectorBatteries: source?.smokeDetectorBatteries ?? '',
+      lastBatteryChangeDate: this.mappingService.parseDateOrNull(source?.lastBatteryChangeDate),
+      licenseNo: source?.licenseNo ?? '',
+      licenseDate: this.mappingService.parseDateOrNull(source?.licenseDate),
+      hvacNotes: source?.hvacNotes ?? '',
+      hvacServiced: this.mappingService.parseDateOrNull(source?.hvacServiced ?? undefined),
+      fireplaceNotes: source?.fireplaceNotes ?? '',
+      fireplaceServiced: this.mappingService.parseDateOrNull(source?.fireplaceServiced ?? undefined),
+      notes: source?.notes ?? '',
+      isActive: source?.isActive ?? true
+    }, { emitEvent: false });
   }
 
   get isLoadingAppliances(): boolean {
     return this.itemsToLoad$.value.has('appliances');
   }
 
-  get workOrdersTabIndex(): number {
-    return 3;
-  }
-
-  get documentsTabIndex(): number {
-    return this.showWorkOrdersTab ? 4 : 3;
-  }
-
-  get receiptsTabIndex(): number {
-    return 2;
-  }
-
-  onReceiptSelect(receiptId: number | null): void {
-    this.showReceiptDetail = true;
-    this.selectedReceiptId = receiptId;
-  }
-
-  onReceiptBack(): void {
-    this.showReceiptDetail = false;
-    this.selectedReceiptId = null;
-  }
-
-  onReceiptSaved(): void {
-    this.showReceiptDetail = false;
-    this.selectedReceiptId = null;
-  }
-
-  onMaintenanceReceiptsInactiveChange(showInactive: boolean): void {
-    if (!this.maintenanceReceiptsList) return;
-    this.maintenanceReceiptsList.showInactive = showInactive;
-    this.maintenanceReceiptsList.applyFilters();
-  }
-
-  onWorkOrderSelect(workOrderId: string | null): void {
-    this.showWorkOrderDetail = true;
-    this.selectedWorkOrderId = workOrderId;
-  }
-
-  onWorkOrderBack(): void {
-    this.showWorkOrderDetail = false;
-    this.selectedWorkOrderId = null;
-  }
-
-  onWorkOrderSaved(): void {
-    this.showWorkOrderDetail = false;
-    this.selectedWorkOrderId = null;
-    this.refreshReceiptsTrigger++;
-  }
-
-  onMaintenanceWorkOrderInactiveChange(showInactive: boolean): void {
-    if (!this.maintenanceWorkOrderList) return;
-    this.maintenanceWorkOrderList.showInactive = showInactive;
-    this.maintenanceWorkOrderList.applyFilters();
-  }
-
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.MaintenanceList);
-  }
-
-  private syncTitlebarSelections(): void {
-    if (!this.property && !this.selectedOfficeId) {
-      this.updateAvailableProperties();
-      return;
+  getCleanerOptionsForOffice(): UserResponse[] {
+    const officeId = this.getCurrentOfficeId();
+    if (!officeId) {
+      return this.housekeepingUsers;
     }
-    if (this.property) {
-      this.selectedOfficeId = this.property.officeId ?? this.selectedOfficeId;
-      this.selectedPropertyId = this.property.propertyId ?? null;
-    }
-    this.updateAvailableProperties();
+    return this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(officeId));
   }
 
-  private updateAvailableProperties(): void {
-    const scopedProperties = this.selectedOfficeId
-      ? this.allProperties.filter(property => property.officeId === this.selectedOfficeId)
-      : this.allProperties;
-
-    this.availableProperties = scopedProperties
-      .map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }))
-      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-
-    if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
-      this.selectedPropertyId = null;
+  getInspectorOptionsForOffice(): UserResponse[] {
+    const officeId = this.getCurrentOfficeId();
+    if (!officeId) {
+      return this.inspectorUsers;
     }
+    return this.inspectorUsers.filter(user => (user.officeAccess || []).includes(officeId));
   }
 
-  private normalizeRequestedTab(tabParam: number): number | null {
-    if (Number.isNaN(tabParam) || tabParam < 0) {
-      return null;
-    }
+  getUserFullName(user: UserResponse): string {
+    return `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+  }
 
-    const maxTab = this.showWorkOrdersTab ? 4 : 3;
-    if (tabParam > maxTab) {
-      return maxTab;
-    }
+  getCurrentOfficeId(): number | null {
+    return this.form.get('officeId')?.value ?? this.maintenanceRecord?.officeId ?? this.property?.officeId ?? null;
+  }
 
-    return tabParam;
+  nullIfBlank(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return value === null || value === undefined ? null : String(value);
+    }
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
+  }
+
+  hasFutureDateError(controlName: string): boolean {
+    const control = this.form.get(controlName);
+    return Boolean(control?.hasError('futureDate') && (control.touched || control.dirty));
+  }
+
+  dateOnOrBeforeTodayValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = control.value;
+      if (!value) {
+        return null;
+      }
+
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      const selectedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const today = new Date();
+      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      return selectedDay > todayDay ? { futureDate: true } : null;
+    };
   }
   //#endregion
 }

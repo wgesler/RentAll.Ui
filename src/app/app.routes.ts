@@ -34,7 +34,7 @@ import { OrganizationComponent } from './authenticated/organizations/organizatio
 import { RegionListComponent } from './authenticated/organizations/region-list/region-list.component';
 import { RegionComponent } from './authenticated/organizations/region/region.component';
 import { MaintenanceListComponent } from './authenticated/maintenance/maintenance-list/maintenance-list.component';
-import { MaintenanceComponent } from './authenticated/maintenance/maintenance/maintenance.component';
+import { MaintenanceShellComponent } from './authenticated/maintenance/maintenance-shell/maintenance-shell.component';
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
@@ -178,7 +178,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Maintenance, component: MaintenanceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },

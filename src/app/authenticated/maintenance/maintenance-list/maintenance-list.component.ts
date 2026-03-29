@@ -9,7 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { MappingService } from '../../../services/mapping.service';
+import { MaintenanceListMappingContext, MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
@@ -167,6 +167,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.userId = this.authService.getUser()?.userId || '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+
+    // If the user is an inspector, the admin can limit the properties they view
     this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.inspectorPropertyIds = new Set(
       (this.authService.getUser()?.properties || [])
@@ -190,7 +192,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       const isMaintenanceList = /\/maintenance$/.test(path);
       const fromSelection = this.lastNavigationUrl.includes('/selection');
       if (isMaintenanceList && fromSelection) {
-        this.loadProperties();
+        this.loadPropertyMaintenance();
       }
       this.lastNavigationUrl = path;
     });
@@ -217,13 +219,13 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
   
   //#region Routing Methods
-  goToProperty(event: MaintenanceListDisplay): void {
+  goToPropertyMaintenance(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     });
   }
 
-  goToPropertyComponent(event: MaintenanceListDisplay): void {
+  goToProperty(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId])}?returnTo=maintenance-list`);
     });
@@ -259,7 +261,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
-
   //#endregion
 
   //#region Filter Methods
@@ -278,7 +279,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Load Methods
-  loadProperties(): void {
+  loadPropertyMaintenance(): void {
     this.isServiceError = false;
     if (!this.userId) {
       this.allProperties = [];
@@ -291,24 +292,19 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(take(1), map(maintenanceList => ({ properties, maintenanceList })))),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
     ).subscribe({
-      next: ({ properties, maintenanceList }) => {
-        const maintenanceRows = this.mappingService.mapMaintenancePropertyDisplayRows(properties || [], maintenanceList || []).map(property => ({
-          ...property,
-          cleanerUserId: property.cleaner ?? null,
-          inspectorUserId: property.inspector ?? null,
-          propertyStatusDropdown: this.buildStatusDropdownCell(property.propertyStatusText),
-          cleaner: this.buildUserDropdownCell(
-            this.resolveCleanerName(property.cleaner ?? '', property.officeId),
-            this.getCleanerOptionsForOffice(property.officeId)
-          ),
-          inspector: this.buildUserDropdownCell(
-            this.resolveInspectorName(property.inspector ?? '', property.officeId),
-            this.getInspectorOptionsForOffice(property.officeId)
-          )
-        }));
-        this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
-          ? maintenanceRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
-          : maintenanceRows;
+      next: (loadResponse) => {
+        const mappingContext: MaintenanceListMappingContext = {
+          housekeepingUsers: this.housekeepingUsers,
+          inspectorUsers: this.inspectorUsers,
+          housekeepingById: this.housekeepingById,
+          inspectorById: this.inspectorById,
+          isInspectorView: this.isInspectorView,
+          inspectorPropertyIds: this.inspectorPropertyIds
+        };
+        this.allProperties = this.mappingService.mapMaintenanceListDisplayRowsFromLoadResponse(
+          loadResponse,
+          mappingContext
+        ) as MaintenanceListDisplay[];
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -324,9 +320,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
       next: (users: UserResponse[]) => {
         this.housekeepingUsers = users || [];
-        this.housekeepingById = new Map(
-          this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()])
-        );
+        this.housekeepingById = new Map(this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
         const names = this.housekeepingUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Select Cleaner');
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
@@ -345,9 +339,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.userService.getUsersByType(UserGroups[UserGroups.Inspector]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspectors'))).subscribe({
       next: (users: UserResponse[]) => {
         this.inspectorUsers = users || [];
-        this.inspectorById = new Map(
-          this.inspectorUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()])
-        );
+        this.inspectorById = new Map(this.inspectorUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
         const names = this.inspectorUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Select Inspector');
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, ...names);
@@ -380,13 +372,13 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
             }
           }
         });
-        this.loadProperties();
+        this.loadPropertyMaintenance();
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
         this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-        this.loadProperties();
+        this.loadPropertyMaintenance();
       }
     });
   }
@@ -412,6 +404,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  //#region Dropdown Update Methods
   onDropdownChange(event: MaintenanceListDisplay): void {
     const changedColumn = (event as unknown as { __changedDropdownColumn?: string }).__changedDropdownColumn;
     if (changedColumn === 'propertyStatusDropdown') {
@@ -475,7 +468,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  //#region Property Status
   onPropertyStatusChange(event: MaintenanceListDisplay): void {
     const selectedLabel = event.propertyStatusDropdown?.value ?? '';
     const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
@@ -511,6 +503,99 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  onBedTypesChange(event: MaintenanceListDisplay, bed1Id: number, bed2Id: number, bed3Id: number, bed4Id: number): void {
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),switchMap((property: PropertyResponse) => {
+        const request = this.buildPropertyUpdateRequest(property);
+        request.bedroomId1 = bed1Id;
+        request.bedroomId2 = bed2Id;
+        request.bedroomId3 = bed3Id;
+        request.bedroomId4 = bed4Id;
+        return this.propertyService.updateProperty(request).pipe(take(1));
+      })
+    ).subscribe({
+      next: () => {
+        event.bedroomId1 = bed1Id;
+        event.bedroomId2 = bed2Id;
+        event.bedroomId3 = bed3Id;
+        event.bedroomId4 = bed4Id;
+        event.bed1Text = this.buildBedDropdownCell(bed1Id);
+        event.bed2Text = this.buildBedDropdownCell(bed2Id);
+        event.bed3Text = this.buildBedDropdownCell(bed3Id);
+        event.bed4Text = this.buildBedDropdownCell(bed4Id);
+        this.toastr.success('Property updated.', CommonMessage.Success);
+      },
+      error: () => {
+        event.bed1Text = this.buildBedDropdownCell(event.bedroomId1 ?? 0);
+        event.bed2Text = this.buildBedDropdownCell(event.bedroomId2 ?? 0);
+        event.bed3Text = this.buildBedDropdownCell(event.bedroomId3 ?? 0);
+        event.bed4Text = this.buildBedDropdownCell(event.bedroomId4 ?? 0);
+        this.toastr.error('Unable to update property.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onMaintenanceAssigneesChange(event: MaintenanceListDisplay, cleanerUserId: string | null, inspectorUserId: string | null): void {
+    this.maintenanceService.getByPropertyId(event.propertyId).pipe(take(1), switchMap((existing) => {
+        const payload: MaintenanceRequest = {
+          maintenanceId: existing?.maintenanceId,
+          organizationId: existing?.organizationId ?? this.organizationId,
+          officeId: existing?.officeId ?? event.officeId,
+          officeName: existing?.officeName ?? event.officeName ?? '',
+          propertyId: event.propertyId,
+          inspectionCheckList: existing?.inspectionCheckList ?? this.buildDefaultInspectionTemplateJson(),
+          cleanerUserId,
+          cleaningDate: cleanerUserId ? (existing?.cleaningDate ?? null) : null,
+          inspectorUserId,
+          inspectingDate: inspectorUserId ? (existing?.inspectingDate ?? null) : null,
+          filterDescription: existing?.filterDescription ?? null,
+          lastFilterChangeDate: existing?.lastFilterChangeDate ?? null,
+          smokeDetectors: existing?.smokeDetectors ?? null,
+          lastSmokeChangeDate: existing?.lastSmokeChangeDate ?? null,
+          smokeDetectorBatteries: existing?.smokeDetectorBatteries ?? null,
+          lastBatteryChangeDate: existing?.lastBatteryChangeDate ?? null,
+          licenseNo: existing?.licenseNo ?? null,
+          licenseDate: existing?.licenseDate ?? null,
+          hvacNotes: existing?.hvacNotes ?? null,
+          hvacServiced: existing?.hvacServiced ?? null,
+          fireplaceNotes: existing?.fireplaceNotes ?? null,
+          fireplaceServiced: existing?.fireplaceServiced ?? null,
+          notes: existing?.notes ?? null,
+          isActive: existing?.isActive ?? true
+        };
+        return payload.maintenanceId
+          ? this.maintenanceService.updateMaintenance(payload).pipe(take(1))
+          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined }).pipe(take(1));
+      })
+    ).subscribe({
+      next: (saved) => {
+        event.cleanerUserId = saved?.cleanerUserId ?? null;
+        event.inspectorUserId = saved?.inspectorUserId ?? null;
+        event.cleaner = this.buildUserDropdownCell(
+          this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
+          this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.inspector = this.buildUserDropdownCell(
+          this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
+          this.getInspectorOptionsForOffice(event.officeId)
+        );
+        this.toastr.success('Maintenance updated.', CommonMessage.Success);
+      },
+      error: () => {
+        event.cleaner = this.buildUserDropdownCell(
+          this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
+          this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.inspector = this.buildUserDropdownCell(
+          this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
+          this.getInspectorOptionsForOffice(event.officeId)
+        );
+        this.toastr.error('Unable to update maintenance.', CommonMessage.Error);
+      }
+    });
+  }
+  //#endregion
+
+  //#region Property Status Display
   buildStatusDropdownCell(label: string, isOverridable: boolean = true): MaintenanceListDisplay['propertyStatusDropdown'] {
     return {
       value: label,
@@ -557,19 +642,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
-  updateDisplayedColumns(): void {
-    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    if (this.isCompactView) {
-      this.propertiesDisplayedColumns = this.compactPropertiesDisplayedColumns;
-      return;
-    }
-
-    this.propertiesDisplayedColumns = this.isInspectorView
-      ? this.inspectorPropertiesDisplayedColumns
-      : this.fullPropertiesDisplayedColumns;
-  }
-
+  //#region Cleaner/Inspector Display
   remapCleanerInspectorDropdowns(): void {
     this.allProperties = this.allProperties.map(property => {
       const cleanerKey = (property.cleaner as unknown as { value?: string })?.value ?? (property.cleaner as unknown as string) ?? '';
@@ -627,117 +700,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     return ['Select Inspector', ...names];
   }
 
-  onBedTypesChange(event: MaintenanceListDisplay, bed1Id: number, bed2Id: number, bed3Id: number, bed4Id: number): void {
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
-      take(1),
-      switchMap((property: PropertyResponse) => {
-        const request = this.buildPropertyUpdateRequest(property);
-        request.bedroomId1 = bed1Id;
-        request.bedroomId2 = bed2Id;
-        request.bedroomId3 = bed3Id;
-        request.bedroomId4 = bed4Id;
-        return this.propertyService.updateProperty(request).pipe(take(1));
-      })
-    ).subscribe({
-      next: () => {
-        event.bedroomId1 = bed1Id;
-        event.bedroomId2 = bed2Id;
-        event.bedroomId3 = bed3Id;
-        event.bedroomId4 = bed4Id;
-        event.bed1Text = this.buildBedDropdownCell(bed1Id);
-        event.bed2Text = this.buildBedDropdownCell(bed2Id);
-        event.bed3Text = this.buildBedDropdownCell(bed3Id);
-        event.bed4Text = this.buildBedDropdownCell(bed4Id);
-        this.toastr.success('Property updated.', CommonMessage.Success);
-      },
-      error: () => {
-        event.bed1Text = this.buildBedDropdownCell(event.bedroomId1 ?? 0);
-        event.bed2Text = this.buildBedDropdownCell(event.bedroomId2 ?? 0);
-        event.bed3Text = this.buildBedDropdownCell(event.bedroomId3 ?? 0);
-        event.bed4Text = this.buildBedDropdownCell(event.bedroomId4 ?? 0);
-        this.toastr.error('Unable to update property.', CommonMessage.Error);
-      }
-    });
-  }
-
-  onMaintenanceAssigneesChange(event: MaintenanceListDisplay, cleanerUserId: string | null, inspectorUserId: string | null): void {
-    this.maintenanceService.getByPropertyId(event.propertyId).pipe(
-      take(1),
-      switchMap((existing) => {
-        const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId,
-          organizationId: existing?.organizationId ?? this.organizationId,
-          officeId: existing?.officeId ?? event.officeId,
-          officeName: existing?.officeName ?? event.officeName ?? '',
-          propertyId: event.propertyId,
-          inspectionCheckList: existing?.inspectionCheckList ?? this.buildDefaultInspectionTemplateJson(),
-          cleanerUserId,
-          cleaningDate: existing?.cleaningDate ?? null,
-          inspectorUserId,
-          inspectingDate: existing?.inspectingDate ?? null,
-          filterDescription: existing?.filterDescription ?? null,
-          lastFilterChangeDate: existing?.lastFilterChangeDate ?? null,
-          smokeDetectors: existing?.smokeDetectors ?? null,
-          lastSmokeChangeDate: existing?.lastSmokeChangeDate ?? null,
-          smokeDetectorBatteries: existing?.smokeDetectorBatteries ?? null,
-          lastBatteryChangeDate: existing?.lastBatteryChangeDate ?? null,
-          licenseNo: existing?.licenseNo ?? null,
-          licenseDate: existing?.licenseDate ?? null,
-          hvacNotes: existing?.hvacNotes ?? null,
-          hvacServiced: existing?.hvacServiced ?? null,
-          fireplaceNotes: existing?.fireplaceNotes ?? null,
-          fireplaceServiced: existing?.fireplaceServiced ?? null,
-          notes: existing?.notes ?? null,
-          isActive: existing?.isActive ?? true
-        };
-        return payload.maintenanceId
-          ? this.maintenanceService.updateMaintenance(payload).pipe(take(1))
-          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined }).pipe(take(1));
-      })
-    ).subscribe({
-      next: (saved) => {
-        event.cleanerUserId = saved?.cleanerUserId ?? null;
-        event.inspectorUserId = saved?.inspectorUserId ?? null;
-        event.cleaner = this.buildUserDropdownCell(
-          this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
-          this.getCleanerOptionsForOffice(event.officeId)
-        );
-        event.inspector = this.buildUserDropdownCell(
-          this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
-          this.getInspectorOptionsForOffice(event.officeId)
-        );
-        this.toastr.success('Maintenance updated.', CommonMessage.Success);
-      },
-      error: () => {
-        event.cleaner = this.buildUserDropdownCell(
-          this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
-          this.getCleanerOptionsForOffice(event.officeId)
-        );
-        event.inspector = this.buildUserDropdownCell(
-          this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
-          this.getInspectorOptionsForOffice(event.officeId)
-        );
-        this.toastr.error('Unable to update maintenance.', CommonMessage.Error);
-      }
-    });
-  }
-
-  buildBedDropdownCell(bedId: number): BedDropdownCell {
-    const value = getBedSizeType(bedId);
-    return {
-      value,
-      isOverridable: true,
-      toString: () => value
-    };
-  }
-
-  getBedTypeIdFromLabel(label: string | undefined): number {
-    if (!label) {
-      return 0;
-    }
-    return this.bedTypeByLabel.get(label) ?? 0;
-  }
-
   resolveCleanerIdFromLabel(label: string, officeId: number): string | null {
     if (!label || label === 'Select Cleaner') {
       return null;
@@ -775,6 +737,38 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       }))
     };
     return JSON.stringify(payload);
+  }
+ //#endregion
+
+  //#region Bedroom Display
+  buildBedDropdownCell(bedId: number): BedDropdownCell {
+    const value = getBedSizeType(bedId);
+    return {
+      value,
+      isOverridable: true,
+      toString: () => value
+    };
+  }
+
+  getBedTypeIdFromLabel(label: string | undefined): number {
+    if (!label) {
+      return 0;
+    }
+    return this.bedTypeByLabel.get(label) ?? 0;
+  }
+  //#endregion
+
+  //#region Utility Methods
+  updateDisplayedColumns(): void {
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    if (this.isCompactView) {
+      this.propertiesDisplayedColumns = this.compactPropertiesDisplayedColumns;
+      return;
+    }
+
+    this.propertiesDisplayedColumns = this.isInspectorView
+      ? this.inspectorPropertiesDisplayedColumns
+      : this.fullPropertiesDisplayedColumns;
   }
 
   ngOnDestroy(): void {

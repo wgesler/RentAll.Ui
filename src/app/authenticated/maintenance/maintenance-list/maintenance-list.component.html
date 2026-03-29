@@ -39,7 +39,7 @@
     </div>
     <mat-card>
       @if (isLoading$ | async) {
-        <div class="loading-container">
+        <div class="page-loading-container">
           <mat-spinner [diameter]="40"></mat-spinner>
           <p>Loading properties...</p>
         </div>
@@ -66,10 +66,10 @@
               [hasActionsInspect]="true"
               [itemsPerPage]="100"
               (dropdownChangeEvent)="onDropdownChange($event)"
-              (editEvent)="goToProperty($event)"
+              (editEvent)="goToPropertyMaintenance($event)"
               (inspectEvent)="goToInspection($event)"
-              (rowClickEvent)="goToProperty($event)"
-              (propertyCodeClickEvent)="goToPropertyComponent($event)"
+              (rowClickEvent)="goToPropertyMaintenance($event)"
+              (propertyCodeClickEvent)="goToProperty($event)"
               (contactClickEvent)="goToContact($event)"/>
           </div>
         </div>

@@ -1,0 +1,12 @@
+---
+description: Keep object mapping logic centralized in MappingService
+alwaysApply: true
+---
+
+# Mapping Service Ownership
+
+- All object-to-object mapping must be implemented in `MappingService`.
+- Components should not contain inline mapping blocks that shape API/domain data into display models.
+- Components may call `MappingService` methods and then handle view flow only (filters, navigation, UI state).
+- Add or extend `MappingService` methods when new mapping requirements appear.
+- Keep mapping logic reusable and composable; prefer method extraction in `MappingService` over duplicated mapping code across components.

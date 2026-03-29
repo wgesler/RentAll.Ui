@@ -1,151 +1,169 @@
 @if (isLoading$ | async) {
   <div class="loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading property and maintenance...</p>
-  </div>
-} @else if (isServiceError) {
-  <div class="loading-container">
-    <p>Unable to load property.</p>
+    <mat-spinner [diameter]="32"></mat-spinner>
+    <p>Loading maintenance...</p>
   </div>
 } @else {
-  <div class="flex content-card-wrap justify-center">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">build</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">
-              Maintenance
-            </span>
-          </span>
-          <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="titlebar-field-property-code maintenance-titlebar-property-code">
-              <mat-label>Property Code</mat-label>
-              <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyCodeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Select Property</mat-option>
-                @for (propertyOption of availableProperties; track propertyOption.propertyId) {
-                  <mat-option [value]="propertyOption.propertyId">{{ propertyOption.propertyCode }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            @if (selectedTabIndex === documentsTabIndex && maintenanceDocumentList) {
-              <mat-form-field appearance="outline" class="titlebar-field-document-type">
-                <mat-label>Document Types</mat-label>
-                <mat-select [(ngModel)]="maintenanceDocumentList.selectedDocumentTypeId" (selectionChange)="maintenanceDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Document Types</mat-option>
-                  @for (docType of maintenanceDocumentList.documentTypes; track docType.value) {
-                    <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            }
-          </div>
-        </div>
-        <div class="form-titlebar-actions-wrap">
-          @if (selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
+<section class="inventory-page">
+  <div class="info-form form-standard-top-padding">
+  <form [formGroup]="form" class="inventory-top-fields form-standard-grid">
+    <div class="inventory-top-actions">
+      <button mat-raised-button color="primary" type="button" (click)="onSave()" [disabled]="isSaving || form.invalid">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </div>
+    <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Cleaner</mat-label>
+        <mat-select formControlName="cleanerUserId" [canSelectNullableOptions]="true">
+          <mat-option [value]="null">Select Cleaner</mat-option>
+          @for (user of getCleanerOptionsForOffice(); track user.userId) {
+            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
           }
-          @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          }
-          @if (!((selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          }
-        </div>
-      </div>
+        </mat-select>
+      </mat-form-field>
 
-      <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Maintenance">
-            <app-inventory
-              [property]="property"
-              [maintenanceRecord]="maintenanceRecord"
-              [appliances]="appliances"
-              [isLoadingAppliances]="isLoadingAppliances"
-              [isSaving]="isSavingInventory"
-              [isSavingAppliances]="isSavingAppliances"
-              (saveInventory)="onInventorySave($event)"
-              (saveAppliances)="onAppliancesSave($event)" />
-          </mat-tab>
-          <mat-tab label="Inspection">
-            @if (property && maintenanceRecord) {
-              <app-checklist
-                [property]="property"
-                [templateJson]="inspectionTemplateJson"
-                [maintenanceRecord]="maintenanceRecord"
-                [checklistType]="'inspection'"
-                [mode]="templateMode ? 'template' : 'answer'"
-                [isSaving]="isSavingTemplate"
-                (templateSaved)="onSaveTemplate($event, 'inspection')" />
-            }
-          </mat-tab>
-          <mat-tab label="Receipts">
-            @if (showReceiptDetail) {
-              <app-receipt
-                [property]="property"
-                [receiptId]="selectedReceiptId"
-                [embeddedInMaintenance]="true"
-                (backEvent)="onReceiptBack()"
-                (savedEvent)="onReceiptSaved()" />
-            } @else {
-              <app-receipts-list
-                #maintenanceReceiptsList
-                [property]="property"
-                [embeddedInMaintenance]="true"
-                [refreshTrigger]="refreshReceiptsTrigger"
-                (receiptSelect)="onReceiptSelect($event)" />
-            }
-          </mat-tab>
-          @if (showWorkOrdersTab) {
-            <mat-tab label="Work Orders">
-              @if (showWorkOrderDetail) {
-                <app-work-order
-                  [property]="property"
-                  [workOrderId]="selectedWorkOrderId"
-                  [embeddedInMaintenance]="true"
-                  (backEvent)="onWorkOrderBack()"
-                  (savedEvent)="onWorkOrderSaved()" />
-              } @else {
-                <app-work-order-list
-                  #maintenanceWorkOrderList
-                  [property]="property"
-                  [embeddedInMaintenance]="true"
-                  (workOrderSelect)="onWorkOrderSelect($event)" />
-              }
-            </mat-tab>
+      <mat-form-field appearance="outline">
+        <mat-label>Cleaning Date</mat-label>
+        <input matInput [matDatepicker]="cleaningDatePicker" formControlName="cleaningDate" />
+        <mat-datepicker-toggle matSuffix [for]="cleaningDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #cleaningDatePicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Inspector</mat-label>
+        <mat-select formControlName="inspectorUserId" [canSelectNullableOptions]="true">
+          <mat-option [value]="null">Select Inspector</mat-option>
+          @for (user of getInspectorOptionsForOffice(); track user.userId) {
+            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
           }
-          <mat-tab label="Documents">
-            <app-document-list
-              #maintenanceDocumentList
-              [propertyId]="property?.propertyId ?? undefined"
-              [propertyCode]="property?.propertyCode ?? null"
-              source="maintenance"
-              [hideHeader]="true"
-              [hideFilters]="true" />
-          </mat-tab>
-        </mat-tab-group>
-      </mat-card>
-    </section>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Inspecting Date</mat-label>
+        <input matInput [matDatepicker]="inspectingDatePicker" formControlName="inspectingDate" />
+        <mat-datepicker-toggle matSuffix [for]="inspectingDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #inspectingDatePicker></mat-datepicker>
+      </mat-form-field>
+    </div>
+  </form>
+  <mat-accordion class="inventory-accordion" multi="true">
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Maintenance</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <form [formGroup]="form" class="inventory-form form-standard-grid">
+        <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>License No</mat-label>
+            <input matInput formControlName="licenseNo" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>License Date</mat-label>
+            <input matInput [matDatepicker]="licenseDatePicker" formControlName="licenseDate" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="licenseDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #licenseDatePicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('licenseDate')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Filter Description</mat-label>
+            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="filterDescription"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Last Filter Change Date</mat-label>
+            <input matInput [matDatepicker]="lastFilterChangeDatePicker" formControlName="lastFilterChangeDate" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="lastFilterChangeDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #lastFilterChangeDatePicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('lastFilterChangeDate')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Smoke Detector Description</mat-label>
+            <input matInput formControlName="smokeDetectors" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Last Smoke Change Date</mat-label>
+            <input matInput [matDatepicker]="lastSmokeChangeDatePicker" formControlName="lastSmokeChangeDate" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="lastSmokeChangeDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #lastSmokeChangeDatePicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('lastSmokeChangeDate')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Smoke Detector Battery Description</mat-label>
+            <input matInput formControlName="smokeDetectorBatteries" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Last Battery Change Date</mat-label>
+            <input matInput [matDatepicker]="lastBatteryChangeDatePicker" formControlName="lastBatteryChangeDate" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="lastBatteryChangeDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #lastBatteryChangeDatePicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('lastBatteryChangeDate')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="inventory-form-row inventory-form-row-two form-standard-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>HVAC Notes</mat-label>
+            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="hvacNotes"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>HVAC Serviced</mat-label>
+            <input matInput [matDatepicker]="hvacServicedPicker" formControlName="hvacServiced" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="hvacServicedPicker"></mat-datepicker-toggle>
+            <mat-datepicker #hvacServicedPicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('hvacServiced')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="inventory-form-row inventory-form-row-two form-standard-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Fireplace Notes</mat-label>
+            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="fireplaceNotes"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Fireplace Serviced</mat-label>
+            <input matInput [matDatepicker]="fireplaceServicedPicker" formControlName="fireplaceServiced" [max]="today" />
+            <mat-datepicker-toggle matSuffix [for]="fireplaceServicedPicker"></mat-datepicker-toggle>
+            <mat-datepicker #fireplaceServicedPicker></mat-datepicker>
+            <mat-error *ngIf="hasFutureDateError('fireplaceServiced')">Date must be today or earlier.</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="inventory-form-row form-standard-grid">
+          <mat-form-field appearance="outline" class="inventory-field-full">
+            <mat-label>Notes</mat-label>
+            <textarea matInput rows="3" formControlName="notes"></textarea>
+          </mat-form-field>
+        </div>
+
+      </form>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Appliances</mat-panel-title>
+      </mat-expansion-panel-header>
+      <app-appliance-list
+        [appliances]="appliances"
+        [isLoading]="isLoadingAppliances"
+        [isSaving]="isSavingAppliances"
+        [property]="property"
+        (saveChanges)="onApplianceSaveChanges($event)" />
+    </mat-expansion-panel>
+  </mat-accordion>
   </div>
+</section>
 }

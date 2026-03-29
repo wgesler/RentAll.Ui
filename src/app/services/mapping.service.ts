@@ -27,7 +27,22 @@ import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { UserResponse } from '../authenticated/users/models/user.model';
 import { FormatterService } from './formatter-service';
+
+export type MaintenanceListLoadResponse = {
+  properties?: PropertyListResponse[] | null;
+  maintenanceList?: MaintenanceListResponse[] | null;
+};
+
+export type MaintenanceListMappingContext = {
+  housekeepingUsers: UserResponse[];
+  inspectorUsers: UserResponse[];
+  housekeepingById: Map<string, string>;
+  inspectorById: Map<string, string>;
+  isInspectorView: boolean;
+  inspectorPropertyIds: Set<string>;
+};
 
 @Injectable({
     providedIn: 'root'
@@ -621,6 +636,83 @@ export class MappingService {
     });
   }
 
+  mapMaintenanceListDisplayRows(
+    properties: PropertyListResponse[],
+    maintenanceRows: MaintenanceListResponse[],
+    context: MaintenanceListMappingContext
+  ): Array<PropertyListDisplay & {
+    propertyAddress: string;
+    propertyStatusText: string;
+    propertyStatusDropdown: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    cleanerUserId?: string | null;
+    cleaningDate: string;
+    inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    inspectorUserId?: string | null;
+    inspectingDate: string;
+    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    needsMaintenance: boolean;
+    needsMaintenanceState: 'red' | 'yellow' | 'green';
+  }> {
+    const {
+      housekeepingUsers,
+      inspectorUsers,
+      housekeepingById,
+      inspectorById,
+      isInspectorView,
+      inspectorPropertyIds
+    } = context;
+
+    const rows = this.mapMaintenancePropertyDisplayRows(properties || [], maintenanceRows || []).map(property => ({
+      ...property,
+      cleanerUserId: property.cleaner ?? null,
+      inspectorUserId: property.inspector ?? null,
+      propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
+      cleaner: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, 'Select Cleaner'),
+        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Select Cleaner')
+      ),
+      inspector: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, 'Select Inspector'),
+        this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Select Inspector')
+      )
+    }));
+
+    return isInspectorView && inspectorPropertyIds.size > 0
+      ? rows.filter(property => inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
+      : rows;
+  }
+
+  mapMaintenanceListDisplayRowsFromLoadResponse(
+    loadResponse: MaintenanceListLoadResponse,
+    context: MaintenanceListMappingContext
+  ): Array<PropertyListDisplay & {
+    propertyAddress: string;
+    propertyStatusText: string;
+    propertyStatusDropdown: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    cleanerUserId?: string | null;
+    cleaningDate: string;
+    inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    inspectorUserId?: string | null;
+    inspectingDate: string;
+    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    needsMaintenance: boolean;
+    needsMaintenanceState: 'red' | 'yellow' | 'green';
+  }> {
+    return this.mapMaintenanceListDisplayRows(
+      loadResponse.properties || [],
+      loadResponse.maintenanceList || [],
+      context
+    );
+  }
+
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
     return raw as unknown as PropertyResponse;
   }
@@ -684,6 +776,76 @@ export class MappingService {
   //#endregion
 
   //#region Helper/Format Functions
+  private buildMaintenanceStatusDropdownCell(label: string): { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string } {
+    return {
+      value: label,
+      isOverridable: true,
+      panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
+      toString: () => label
+    };
+  }
+
+  private buildMaintenanceUserDropdownCell(label: string, options: string[]): { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string } {
+    return {
+      value: label,
+      isOverridable: true,
+      options,
+      panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
+      toString: () => label
+    };
+  }
+
+  private resolveMaintenanceUserName(
+    userIdOrName: string,
+    officeId: number,
+    users: UserResponse[],
+    userById: Map<string, string>,
+    defaultLabel: string
+  ): string {
+    if (!userIdOrName) {
+      return defaultLabel;
+    }
+    const officeUser = users.find(user => user.userId === userIdOrName && (user.officeAccess || []).includes(officeId));
+    if (officeUser) {
+      return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
+    }
+    return userById.get(userIdOrName) ?? userIdOrName;
+  }
+
+  private getMaintenanceUserOptionsForOffice(users: UserResponse[], officeId: number, defaultLabel: string): string[] {
+    const names = users
+      .filter(user => (user.officeAccess || []).includes(officeId))
+      .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
+      .filter(name => name !== '');
+    return [defaultLabel, ...names];
+  }
+
+  parseDateOrNull(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  toIsoDateOrNull(value: unknown): string | null {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value.toISOString();
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const parsed = new Date(trimmed);
+      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    }
+    return null;
+  }
+
   isViewableInBrowser(contentType: string, fileExtension: string): boolean {
     if (!contentType && !fileExtension) {
       return false;

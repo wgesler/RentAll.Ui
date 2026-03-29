@@ -1,0 +1,27 @@
+---
+description: Use shell components for tabbed section pages
+alwaysApply: true
+---
+
+# Tabbed Section Shell Pattern
+
+- For any section page that contains tabs, use a dedicated `*-shell.component` as the parent container.
+- The shell component owns:
+  - title bar layout and actions
+  - title-bar dropdowns/selection state
+  - tab selection/index and tab-level routing concerns
+  - loading orchestration for cross-tab page context
+- Child tab components own:
+  - tab-specific UI and form logic
+  - tab-specific data load/save flows unless explicitly shared
+- Avoid mixing shell responsibilities into tab child components and avoid tab-form logic in the shell.
+
+## Naming Convention
+
+- Parent container: `<section>-shell.component`
+- Main tab content component: `<section>.component` (or explicit tab feature name)
+
+## Example
+
+- `maintenance-shell.component` = title bar + property/office selectors + tab group
+- `maintenance.component` = Maintenance tab content logic/UI

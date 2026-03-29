@@ -1,0 +1,144 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading property and maintenance...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="loading-container">
+    <p>Unable to load property.</p>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">build</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              Maintenance
+            </span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of offices; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-property-code maintenance-titlebar-property-code">
+              <mat-label>Property Code</mat-label>
+              <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyCodeChange()" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">Select Property</mat-option>
+                @for (propertyOption of availableProperties; track propertyOption.propertyId) {
+                  <mat-option [value]="propertyOption.propertyId">{{ propertyOption.propertyCode }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            @if (selectedTabIndex === documentsTabIndex && maintenanceDocumentList) {
+              <mat-form-field appearance="outline" class="titlebar-field-document-type">
+                <mat-label>Document Types</mat-label>
+                <mat-select [(ngModel)]="maintenanceDocumentList.selectedDocumentTypeId" (selectionChange)="maintenanceDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Document Types</mat-option>
+                  @for (docType of maintenanceDocumentList.documentTypes; track docType.value) {
+                    <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+          </div>
+        </div>
+        <div class="form-titlebar-actions-wrap">
+          @if (selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+          @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+          @if (!((selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+        </div>
+      </div>
+
+      <mat-card>
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
+          <mat-tab label="Maintenance">
+            <app-maintenance
+              [property]="property" />
+          </mat-tab>
+          <mat-tab label="Inspection">
+            @if (property && maintenanceRecord) {
+              <app-checklist
+                [property]="property"
+                [templateJson]="inspectionTemplateJson"
+                [maintenanceRecord]="maintenanceRecord"
+                [checklistType]="'inspection'"
+                [mode]="templateMode ? 'template' : 'answer'"
+                [isSaving]="isSavingTemplate"
+                (templateSaved)="onSaveTemplate($event, 'inspection')" />
+            }
+          </mat-tab>
+          <mat-tab label="Receipts">
+            @if (showReceiptDetail) {
+              <app-receipt
+                [property]="property"
+                [receiptId]="selectedReceiptId"
+                [embeddedInMaintenance]="true"
+                (backEvent)="onReceiptBack()"
+                (savedEvent)="onReceiptSaved()" />
+            } @else {
+              <app-receipts-list
+                #maintenanceReceiptsList
+                [property]="property"
+                [embeddedInMaintenance]="true"
+                [refreshTrigger]="refreshReceiptsTrigger"
+                (receiptSelect)="onReceiptSelect($event)" />
+            }
+          </mat-tab>
+          @if (showWorkOrdersTab) {
+            <mat-tab label="Work Orders">
+              @if (showWorkOrderDetail) {
+                <app-work-order
+                  [property]="property"
+                  [workOrderId]="selectedWorkOrderId"
+                  [embeddedInMaintenance]="true"
+                  (backEvent)="onWorkOrderBack()"
+                  (savedEvent)="onWorkOrderSaved()" />
+              } @else {
+                <app-work-order-list
+                  #maintenanceWorkOrderList
+                  [property]="property"
+                  [embeddedInMaintenance]="true"
+                  (workOrderSelect)="onWorkOrderSelect($event)" />
+              }
+            </mat-tab>
+          }
+          <mat-tab label="Documents">
+            <app-document-list
+              #maintenanceDocumentList
+              [propertyId]="property?.propertyId ?? undefined"
+              [propertyCode]="property?.propertyCode ?? null"
+              source="maintenance"
+              [hideHeader]="true"
+              [hideFilters]="true" />
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card>
+    </section>
+  </div>
+}

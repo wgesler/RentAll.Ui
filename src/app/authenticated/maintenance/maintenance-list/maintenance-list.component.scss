@@ -6,22 +6,6 @@ body {
     margin-top: 30px;
 }
 
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  gap: 1rem;
-  width: 100%;
-  min-height: 50vh;
-
-  p {
-    margin-top: 1rem;
-    color: #666;
-  }
-}
-
 .mat-expansion-panel-header {
     background-color: #cbd5e1 !important;
 }
