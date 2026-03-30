@@ -686,11 +686,11 @@ export class MappingService {
       propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
       cleaner: this.buildMaintenanceUserDropdownCell(
         this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
-        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'None')
+        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
       ),
       inspector: this.buildMaintenanceUserDropdownCell(
-        this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, 'Select Inspector'),
-        this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Select Inspector')
+        this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, ''),
+        this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Clear Selection')
       )
     }));
 
@@ -816,7 +816,7 @@ export class MappingService {
     userById: Map<string, string>,
     defaultLabel: string
   ): string {
-    if (!userIdOrName) {
+    if (!userIdOrName || userIdOrName === 'Clear Selection' || userIdOrName === 'Select Cleaner' || userIdOrName === 'Select Inspector') {
       return defaultLabel;
     }
     const officeUser = users.find(user => user.userId === userIdOrName && (user.officeAccess || []).includes(officeId));

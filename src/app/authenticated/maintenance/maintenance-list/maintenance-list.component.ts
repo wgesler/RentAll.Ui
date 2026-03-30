@@ -105,8 +105,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   inspectorPropertyIds = new Set<string>();
 
   private readonly compactViewportWidth = 1024;
-  private readonly housekeepingUserOptions: string[] = ['None'];
-  private readonly inspectorUserOptions: string[] = ['Select Inspector'];
+  private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
+  private readonly inspectorUserOptions: string[] = ['Clear Selection'];
   private readonly bedTypeOptions: string[] = getBedSizeTypes().map(bed => bed.label);
   private readonly propertyStatuses = getPropertyStatuses();
   private readonly bedTypes = getBedSizeTypes();
@@ -328,14 +328,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.housekeepingUsers = users || [];
         this.housekeepingById = new Map(this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
         const names = this.housekeepingUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
-        names.unshift('None');
+        names.unshift('Clear Selection');
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
         this.remapCleanerInspectorDropdowns();
       },
       error: () => {
         this.housekeepingUsers = [];
         this.housekeepingById = new Map<string, string>();
-        this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'None');
+        this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'Clear Selection');
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -347,14 +347,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.inspectorUsers = users || [];
         this.inspectorById = new Map(this.inspectorUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
         const names = this.inspectorUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
-        names.unshift('Select Inspector');
+        names.unshift('Clear Selection');
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, ...names);
         this.remapCleanerInspectorDropdowns();
       },
       error: () => {
         this.inspectorUsers = [];
         this.inspectorById = new Map<string, string>();
-        this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, 'Select Inspector');
+        this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, 'Clear Selection');
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -427,12 +427,30 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (changedColumn === 'cleaner' || changedColumn === 'inspector') {
+      const selectedCleanerLabel = event.cleaner?.value ?? '';
+      const selectedInspectorLabel = event.inspector?.value ?? '';
       const selectedCleanerId = this.resolveCleanerIdFromLabel(event.cleaner?.value ?? '', event.officeId);
       const selectedInspectorId = this.resolveInspectorIdFromLabel(event.inspector?.value ?? '', event.officeId);
       const currentCleanerId = event.cleanerUserId ?? null;
       const currentInspectorId = event.inspectorUserId ?? null;
-      if (selectedCleanerId !== currentCleanerId || selectedInspectorId !== currentInspectorId) {
+      const shouldClearCleanerDate = selectedCleanerId === null && (event.cleaningDate ?? '').trim() !== '';
+      const shouldClearInspectorDate = selectedInspectorId === null && (event.inspectingDate ?? '').trim() !== '';
+      if (
+        selectedCleanerId !== currentCleanerId
+        || selectedInspectorId !== currentInspectorId
+        || shouldClearCleanerDate
+        || shouldClearInspectorDate
+      ) {
         this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedInspectorId);
+      } else if (selectedCleanerLabel === 'Clear Selection' || selectedInspectorLabel === 'Clear Selection') {
+        event.cleaner = this.buildUserDropdownCell(
+          this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
+          this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.inspector = this.buildUserDropdownCell(
+          this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
+          this.getInspectorOptionsForOffice(event.officeId)
+        );
       }
       return;
     }
@@ -637,9 +655,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       officeName: existing?.officeName ?? event.officeName ?? '',
       propertyId: event.propertyId,
       inspectionCheckList: existing?.inspectionCheckList ?? this.buildDefaultInspectionTemplateJson(),
-      cleanerUserId: overrides.cleanerUserId ?? existing?.cleanerUserId ?? null,
+      cleanerUserId: overrides.cleanerUserId !== undefined ? overrides.cleanerUserId : (existing?.cleanerUserId ?? null),
       cleaningDate: overrides.cleaningDate !== undefined ? overrides.cleaningDate : existing?.cleaningDate,
-      inspectorUserId: overrides.inspectorUserId ?? existing?.inspectorUserId ?? null,
+      inspectorUserId: overrides.inspectorUserId !== undefined ? overrides.inspectorUserId : (existing?.inspectorUserId ?? null),
       inspectingDate: overrides.inspectingDate !== undefined ? overrides.inspectingDate : existing?.inspectingDate,
       filterDescription: existing?.filterDescription,
       lastFilterChangeDate: existing?.lastFilterChangeDate,
@@ -727,7 +745,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveCleanerName(cleanerUserIdOrName: string, officeId: number): string {
-    if (!cleanerUserIdOrName) {
+    if (!cleanerUserIdOrName || cleanerUserIdOrName === 'Clear Selection' || cleanerUserIdOrName === 'Select Cleaner') {
       return '';
     }
     const officeUser = this.housekeepingUsers.find(user => user.userId === cleanerUserIdOrName && (user.officeAccess || []).includes(officeId));
@@ -738,8 +756,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveInspectorName(inspectorUserIdOrName: string, officeId: number): string {
-    if (!inspectorUserIdOrName) {
-      return 'Select Inspector';
+    if (!inspectorUserIdOrName || inspectorUserIdOrName === 'Select Inspector') {
+      return '';
     }
     const officeUser = this.inspectorUsers.find(user => user.userId === inspectorUserIdOrName && (user.officeAccess || []).includes(officeId));
     if (officeUser) {
@@ -753,7 +771,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       .filter(user => (user.officeAccess || []).includes(officeId))
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
       .filter(name => name !== '');
-    return ['None', ...names];
+    return ['Clear Selection', ...names];
   }
 
   getInspectorOptionsForOffice(officeId: number): string[] {
@@ -761,11 +779,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       .filter(user => (user.officeAccess || []).includes(officeId))
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
       .filter(name => name !== '');
-    return ['Select Inspector', ...names];
+    return ['Clear Selection', ...names];
   }
 
   resolveCleanerIdFromLabel(label: string, officeId: number): string | null {
-    if (!label || label === 'None' || label === 'Select Cleaner') {
+    if (!label || label === 'Clear Selection' || label === 'Select Cleaner') {
       return null;
     }
     const officeUsers = this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(officeId));
@@ -774,7 +792,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveInspectorIdFromLabel(label: string, officeId: number): string | null {
-    if (!label || label === 'Select Inspector') {
+    if (!label || label === 'Clear Selection' || label === 'Select Inspector') {
       return null;
     }
     const officeUsers = this.inspectorUsers.filter(user => (user.officeAccess || []).includes(officeId));
