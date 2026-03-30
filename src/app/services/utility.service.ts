@@ -50,7 +50,7 @@ export class UtilityService {
   }
 
   // Generates document file name for saving/downloading documents
-   generateDocumentFileName(type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection' | 'inventory', propertyCode?: string, reservationCode?: string): string {
+   generateDocumentFileName(type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection', propertyCode?: string, reservationCode?: string): string {
     let fileName = '';
 
     switch (type) {
@@ -65,9 +65,6 @@ export class UtilityService {
         break;
       case 'inspection':
         fileName = `Inspection_${propertyCode}_${this.getFilenameTimestamp()}.pdf`;
-        break;
-      case 'inventory':
-        fileName = `Inventory_${propertyCode}_${this.getFilenameTimestamp()}.pdf`;
         break;
     }
 

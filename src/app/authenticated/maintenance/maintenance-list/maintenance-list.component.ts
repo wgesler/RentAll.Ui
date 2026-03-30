@@ -224,7 +224,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Routing Methods
   goToPropertyMaintenance(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
-      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
+      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=1`);
     });
   }
 
@@ -244,7 +244,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   goToInspection(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
-      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=1`);
+      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
     });
   }
 

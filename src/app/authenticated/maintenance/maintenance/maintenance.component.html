@@ -4,16 +4,16 @@
     <p>Loading maintenance...</p>
   </div>
 } @else {
-<section class="inventory-page">
+<section class="maintenance-page">
   <div class="info-form form-standard-top-padding">
-  <form [formGroup]="form" class="inventory-top-fields form-standard-grid">
-    <div class="inventory-top-actions">
+  <form [formGroup]="form" class="maintenance-top-fields form-standard-grid">
+    <div class="maintenance-top-actions">
       <button mat-raised-button color="primary" type="button" (click)="onSave()" [disabled]="isSaving || form.invalid">
         <mat-icon>save</mat-icon>
         Save
       </button>
     </div>
-    <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+    <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
       <mat-form-field appearance="outline">
         <mat-label>Cleaner</mat-label>
         <mat-select formControlName="cleanerUserId" [canSelectNullableOptions]="true">
@@ -49,14 +49,14 @@
       </mat-form-field>
     </div>
   </form>
-  <mat-accordion class="inventory-accordion" multi="true">
+  <mat-accordion class="maintenance-accordion" multi="true">
     <mat-expansion-panel [expanded]="true">
       <mat-expansion-panel-header>
         <mat-panel-title>Maintenance</mat-panel-title>
       </mat-expansion-panel-header>
 
-      <form [formGroup]="form" class="inventory-form form-standard-grid">
-        <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+      <form [formGroup]="form" class="maintenance-form form-standard-grid">
+        <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
           <mat-form-field appearance="outline">
             <mat-label>License No</mat-label>
             <input matInput formControlName="licenseNo" />
@@ -72,7 +72,7 @@
 
           <mat-form-field appearance="outline">
             <mat-label>Filter Description</mat-label>
-            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="filterDescription"></textarea>
+            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="filterDescription"></textarea>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -84,7 +84,7 @@
           </mat-form-field>
         </div>
 
-        <div class="inventory-form-row inventory-form-row-four form-standard-grid">
+        <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
           <mat-form-field appearance="outline">
             <mat-label>Smoke Detector Description</mat-label>
             <input matInput formControlName="smokeDetectors" />
@@ -112,10 +112,10 @@
           </mat-form-field>
         </div>
 
-        <div class="inventory-form-row inventory-form-row-two form-standard-grid">
+        <div class="maintenance-form-row maintenance-form-row-two form-standard-grid">
           <mat-form-field appearance="outline">
             <mat-label>HVAC Notes</mat-label>
-            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="hvacNotes"></textarea>
+            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="hvacNotes"></textarea>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -127,10 +127,10 @@
           </mat-form-field>
         </div>
 
-        <div class="inventory-form-row inventory-form-row-two form-standard-grid">
+        <div class="maintenance-form-row maintenance-form-row-two form-standard-grid">
           <mat-form-field appearance="outline">
             <mat-label>Fireplace Notes</mat-label>
-            <textarea matInput rows="1" class="inventory-stretch-textarea" formControlName="fireplaceNotes"></textarea>
+            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="fireplaceNotes"></textarea>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -142,8 +142,8 @@
           </mat-form-field>
         </div>
 
-        <div class="inventory-form-row form-standard-grid">
-          <mat-form-field appearance="outline" class="inventory-field-full">
+        <div class="maintenance-form-row form-standard-grid">
+          <mat-form-field appearance="outline" class="maintenance-field-full">
             <mat-label>Notes</mat-label>
             <textarea matInput rows="3" formControlName="notes"></textarea>
           </mat-form-field>

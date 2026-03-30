@@ -5,8 +5,7 @@ export enum DocumentType {
   Invoice = 3,
   Attachment = 4,
   Inspection = 5,
-  Inventory = 6,
-  WorkOrder = 7
+  WorkOrder = 6
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -19,7 +18,6 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.Invoice]: 'Invoice',
     [DocumentType.Attachment]: 'Attachment',
     [DocumentType.Inspection]: 'Inspection',
-    [DocumentType.Inventory]: 'Inventory',
     [DocumentType.WorkOrder]: 'Work Order'
   };
   
@@ -38,7 +36,6 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.Invoice, label: getDocumentType(DocumentType.Invoice) },
     { value: DocumentType.Attachment, label: getDocumentType(DocumentType.Attachment) },
     { value: DocumentType.Inspection, label: getDocumentType(DocumentType.Inspection) },
-    { value: DocumentType.Inventory, label: getDocumentType(DocumentType.Inventory) },
     { value: DocumentType.WorkOrder, label: getDocumentType(DocumentType.WorkOrder) }
   ];
 }

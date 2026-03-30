@@ -56,7 +56,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'frontEntrance',
     title: 'Front Entrance',
     items: [
-      // Inventory items
+      // Checklist items
       { text: 'Unit Keys (1,2,3)', requiresPhoto: false, requiresCount: true },
       { text: 'Mail Keys (1,2,3)', requiresPhoto: false, requiresCount: true },
       { text: 'Building Keys (1,2,3)', requiresPhoto: false, requiresCount: true },
@@ -86,7 +86,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'livingRoom',
     title: 'Living Room',
     items: [
-      // Inventory items
+      // Checklist items
       { text: 'Flat Screen TV', requiresPhoto: true, requiresCount: false },
       { text: 'TV Remote', requiresPhoto: false, requiresCount: false },
       { text: 'TV Stand', requiresPhoto: false, requiresCount: false },
@@ -111,7 +111,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'office',
     title: 'Office',
     items: [
-      // Inventory items
+      // Checklist items
       { text: 'Wireless Router', requiresPhoto: false, requiresCount: false },
       { text: 'WiFi SSID', requiresPhoto: false, requiresCount: false },
       { text: 'WiFi Password', requiresPhoto: false, requiresCount: false },
@@ -127,7 +127,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     title: 'Kitchen',
     hint: 'Please take photos of the outside/inside of all appliances.',
     items: [
-      // Inventory items - Kitchen Tools & Utensils
+      // Checklist items - Kitchen Tools & Utensils
       { text: 'Baking Dish', requiresPhoto: false, requiresCount: false },
       { text: 'Broiler Pan', requiresPhoto: false, requiresCount: false },
       { text: 'Can Opener', requiresPhoto: false, requiresCount: false },
@@ -156,7 +156,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Utensil Holder (Counter)', requiresPhoto: false, requiresCount: false },
       { text: 'Utensil Holder (Drawer)', requiresPhoto: false, requiresCount: false },
       { text: 'Glass Water Pitcher', requiresPhoto: false, requiresCount: false },
-      // Inventory items - Kitchen Dishes and Glassware
+      // Checklist items - Kitchen Dishes and Glassware
       { text: '8 Large Plates', requiresPhoto: false, requiresCount: false },
       { text: '8 Small Plates', requiresPhoto: false, requiresCount: false },
       { text: '8 Bowls', requiresPhoto: false, requiresCount: false },
@@ -168,13 +168,13 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: '8 Spoons', requiresPhoto: false, requiresCount: false },
       { text: '8 Knives', requiresPhoto: false, requiresCount: false },
       { text: 'Cutlery Tray', requiresPhoto: false, requiresCount: false },
-      // Inventory items - Kitchen Pots and Cookware
+      // Checklist items - Kitchen Pots and Cookware
       { text: 'Large Frying Pan with Lid', requiresPhoto: false, requiresCount: false },
       { text: 'Small Frying Pan with Lid', requiresPhoto: false, requiresCount: false },
       { text: 'Large Sauce Pan with Lid', requiresPhoto: false, requiresCount: false },
       { text: 'Small Sauce Pan with Lid', requiresPhoto: false, requiresCount: false },
       { text: 'Pasta Pot with Lid', requiresPhoto: false, requiresCount: false },
-      // Inventory items - Kitchen Linens and Misc
+      // Checklist items - Kitchen Linens and Misc
       { text: 'Dish Towels', requiresPhoto: false, requiresCount: false },
       { text: 'Dish Cloths', requiresPhoto: false, requiresCount: false },
       { text: 'Potholders (2)', requiresPhoto: false, requiresCount: false },
@@ -198,7 +198,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'bedroom',
     title: 'Bedroom',
     items: [
-      // Inventory items
+      // Checklist items
       { text: 'Bed Frame', requiresPhoto: false, requiresCount: false },
       { text: 'Headboard', requiresPhoto: false, requiresCount: false },
       { text: 'Mattress', requiresPhoto: false, requiresCount: false },
@@ -231,7 +231,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'bathroom',
     title: 'Bathroom',
     items: [
-      // Inventory items
+      // Checklist items
       { text: 'Bath Towels (4)', requiresPhoto: false, requiresCount: false },
       { text: 'Hand Towels (4)', requiresPhoto: false, requiresCount: false },
       { text: 'Face Towels (4)', requiresPhoto: false, requiresCount: false },
@@ -255,7 +255,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     key: 'utilityRoom',
     title: 'Utility Room',
     items: [
-      // Inventory items - Filters and Bulbs
+      // Checklist items - Filters and Bulbs
       { text: 'Spare Filters in Unit', requiresPhoto: false, requiresCount: false },
       { text: 'Filters Need Replacing', requiresPhoto: false, requiresCount: false },
       { text: 'Need to Purchase More Filters', requiresPhoto: false, requiresCount: false },
@@ -264,7 +264,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Bulbs Need Replacing', requiresPhoto: false, requiresCount: false },
       { text: 'Need to Purchase More Bulbs', requiresPhoto: false, requiresCount: false },
       { text: 'Specialty Bulbs Needed', requiresPhoto: false, requiresCount: false },
-      // Inventory items - Cleaning and Laundry
+      // Checklist items - Cleaning and Laundry
       { text: 'Vacuum', requiresPhoto: false, requiresCount: false },
       { text: 'Mop', requiresPhoto: false, requiresCount: false },
       { text: 'Broom', requiresPhoto: false, requiresCount: false },

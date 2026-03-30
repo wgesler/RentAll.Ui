@@ -77,10 +77,6 @@
 
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Maintenance">
-            <app-maintenance
-              [property]="property" />
-          </mat-tab>
           <mat-tab label="Inspection">
             @if (property) {
               <app-checklist
@@ -88,6 +84,10 @@
                 [checklistType]="'inspection'"
                 (inspectionSubmitted)="onInspectionSubmitted()" />
             }
+          </mat-tab>
+          <mat-tab label="Maintenance">
+            <app-maintenance
+              [property]="property" />
           </mat-tab>
           <mat-tab label="Receipts">
             @if (showReceiptDetail) {

@@ -349,22 +349,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   loadMaintenanceDocuments(): void {
     this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inspection).pipe(take(1)).subscribe({
       next: (inspectionDocs) => {
-        this.documentService.getByPropertyType(this.propertyId!, DocumentType.Inventory).pipe(take(1)).subscribe({
-          next: (inventoryDocs) => {
-            this.documentService.getByPropertyType(this.propertyId!, DocumentType.WorkOrder).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
-              next: (workOrderDocs) => {
-                const combined = [...(inspectionDocs ?? []), ...(inventoryDocs ?? []), ...(workOrderDocs ?? [])];
-                this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(combined));
-                this.applyFilters();
-              },
-              error: () => {
-                this.isServiceError = true;
-              }
-            });
+        this.documentService.getByPropertyType(this.propertyId!, DocumentType.WorkOrder).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
+          next: (workOrderDocs) => {
+            const combined = [...(inspectionDocs ?? []), ...(workOrderDocs ?? [])];
+            this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(combined));
+            this.applyFilters();
           },
           error: () => {
             this.isServiceError = true;
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents');
           }
         });
       },
@@ -677,7 +669,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   initializeDocumentTypesForMaintenance(): void {
     this.documentTypes = [
       { value: DocumentType.Inspection, label: 'Inspection' },
-      { value: DocumentType.Inventory, label: 'Inventory' },
       { value: DocumentType.WorkOrder, label: 'Work Order' }
     ];
   }

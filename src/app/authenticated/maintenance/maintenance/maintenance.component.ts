@@ -58,7 +58,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     this.form = this.buildForm();
   }
 
-  //#region Inventory
+  //#region Maintenance
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.setupAssigneeDateSync();
@@ -82,7 +82,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     const raw = this.form.getRawValue();
     const cleanerUserId = this.nullIfBlank(raw.cleanerUserId);
     const inspectorUserId = this.nullIfBlank(raw.inspectorUserId);
-    const inventoryPayload: MaintenanceRequest = {
+    const maintenancePayload: MaintenanceRequest = {
       maintenanceId: this.maintenanceRecord?.maintenanceId || undefined,
       organizationId: raw.organizationId || this.maintenanceRecord?.organizationId || this.property?.organizationId || '',
       officeId: raw.officeId ?? this.maintenanceRecord?.officeId ?? this.property?.officeId ?? 0,
@@ -118,30 +118,30 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
           ?? this.maintenanceRecord?.inspectionCheckList
           ?? this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
         const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId ?? inventoryPayload.maintenanceId,
-          organizationId: inventoryPayload.organizationId || existing?.organizationId || this.property.organizationId || this.user?.organizationId || '',
-          officeId: inventoryPayload.officeId ?? existing?.officeId ?? this.property.officeId ?? 0,
-          officeName: inventoryPayload.officeName || existing?.officeName || this.property.officeName || '',
-          propertyId: inventoryPayload.propertyId || existing?.propertyId || this.property.propertyId,
+          maintenanceId: existing?.maintenanceId ?? maintenancePayload.maintenanceId,
+          organizationId: maintenancePayload.organizationId || existing?.organizationId || this.property.organizationId || this.user?.organizationId || '',
+          officeId: maintenancePayload.officeId ?? existing?.officeId ?? this.property.officeId ?? 0,
+          officeName: maintenancePayload.officeName || existing?.officeName || this.property.officeName || '',
+          propertyId: maintenancePayload.propertyId || existing?.propertyId || this.property.propertyId,
           inspectionCheckList: checklistJson,
-          cleanerUserId: pickValue(inventoryPayload.cleanerUserId, existing?.cleanerUserId, null),
-          cleaningDate: pickValue(inventoryPayload.cleaningDate, existing?.cleaningDate, null),
-          inspectorUserId: pickValue(inventoryPayload.inspectorUserId, existing?.inspectorUserId, null),
-          inspectingDate: pickValue(inventoryPayload.inspectingDate, existing?.inspectingDate, null),
-          filterDescription: pickValue(inventoryPayload.filterDescription, existing?.filterDescription, null),
-          lastFilterChangeDate: pickValue(inventoryPayload.lastFilterChangeDate, existing?.lastFilterChangeDate, null),
-          smokeDetectors: pickValue(inventoryPayload.smokeDetectors, existing?.smokeDetectors, null),
-          lastSmokeChangeDate: pickValue(inventoryPayload.lastSmokeChangeDate, existing?.lastSmokeChangeDate, null),
-          smokeDetectorBatteries: pickValue(inventoryPayload.smokeDetectorBatteries, existing?.smokeDetectorBatteries, null),
-          lastBatteryChangeDate: pickValue(inventoryPayload.lastBatteryChangeDate, existing?.lastBatteryChangeDate, null),
-          licenseNo: pickValue(inventoryPayload.licenseNo, existing?.licenseNo, null),
-          licenseDate: pickValue(inventoryPayload.licenseDate, existing?.licenseDate, null),
-          hvacNotes: pickValue(inventoryPayload.hvacNotes, existing?.hvacNotes, null),
-          hvacServiced: pickValue(inventoryPayload.hvacServiced, existing?.hvacServiced, null),
-          fireplaceNotes: pickValue(inventoryPayload.fireplaceNotes, existing?.fireplaceNotes, null),
-          fireplaceServiced: pickValue(inventoryPayload.fireplaceServiced, existing?.fireplaceServiced, null),
-          notes: pickValue(inventoryPayload.notes, existing?.notes, null),
-          isActive: inventoryPayload.isActive ?? existing?.isActive ?? true
+          cleanerUserId: pickValue(maintenancePayload.cleanerUserId, existing?.cleanerUserId, null),
+          cleaningDate: pickValue(maintenancePayload.cleaningDate, existing?.cleaningDate, null),
+          inspectorUserId: pickValue(maintenancePayload.inspectorUserId, existing?.inspectorUserId, null),
+          inspectingDate: pickValue(maintenancePayload.inspectingDate, existing?.inspectingDate, null),
+          filterDescription: pickValue(maintenancePayload.filterDescription, existing?.filterDescription, null),
+          lastFilterChangeDate: pickValue(maintenancePayload.lastFilterChangeDate, existing?.lastFilterChangeDate, null),
+          smokeDetectors: pickValue(maintenancePayload.smokeDetectors, existing?.smokeDetectors, null),
+          lastSmokeChangeDate: pickValue(maintenancePayload.lastSmokeChangeDate, existing?.lastSmokeChangeDate, null),
+          smokeDetectorBatteries: pickValue(maintenancePayload.smokeDetectorBatteries, existing?.smokeDetectorBatteries, null),
+          lastBatteryChangeDate: pickValue(maintenancePayload.lastBatteryChangeDate, existing?.lastBatteryChangeDate, null),
+          licenseNo: pickValue(maintenancePayload.licenseNo, existing?.licenseNo, null),
+          licenseDate: pickValue(maintenancePayload.licenseDate, existing?.licenseDate, null),
+          hvacNotes: pickValue(maintenancePayload.hvacNotes, existing?.hvacNotes, null),
+          hvacServiced: pickValue(maintenancePayload.hvacServiced, existing?.hvacServiced, null),
+          fireplaceNotes: pickValue(maintenancePayload.fireplaceNotes, existing?.fireplaceNotes, null),
+          fireplaceServiced: pickValue(maintenancePayload.fireplaceServiced, existing?.fireplaceServiced, null),
+          notes: pickValue(maintenancePayload.notes, existing?.notes, null),
+          isActive: maintenancePayload.isActive ?? existing?.isActive ?? true
         };
         return payload.maintenanceId
           ? this.maintenanceService.updateMaintenance(payload)

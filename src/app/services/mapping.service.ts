@@ -9,7 +9,6 @@ import { DocumentListDisplay, DocumentResponse } from '../authenticated/document
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
-import { InventoryDisplayList, InventoryResponse } from '../authenticated/maintenance/models/inventory.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
 import { getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -315,23 +314,6 @@ export class MappingService {
       mapped.transactionTypeId = transactionTypeId;
       
       return mapped;
-    });
-  }
-
-  mapInventories(inventories: InventoryResponse[]): InventoryDisplayList[] {
-    return inventories.map<InventoryDisplayList>((inventory: InventoryResponse) => {
-      return {
-        inventoryId: inventory.inventoryId,
-        officeId: inventory.officeId,
-        officeName: inventory.officeName,
-        propertyId: inventory.propertyId,
-        propertyCode: inventory.propertyCode,
-        maintenanceId: inventory.maintenanceId,
-        documentPath: inventory.documentPath,
-        isActive: inventory.isActive,
-        modifiedOn: this.formatter.formatDateTimeString(inventory.modifiedOn),
-        modifiedBy: inventory.modifiedBy
-      };
     });
   }
 
