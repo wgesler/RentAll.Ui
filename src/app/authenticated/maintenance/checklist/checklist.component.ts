@@ -190,6 +190,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         key: savedSection.key,
         title,
         hint,
+        selectionMode: templateSection?.selectionMode ?? savedSection.selectionMode ?? 'allRequired',
         items: [...baseItems]
       });
 
@@ -241,6 +242,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       let parsedRoot = JSON.parse(rawChecklistJson) as {
         sections?: Array<{
           key: string;
+          selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
           notes?: string;
           sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean } | boolean>>;
         }>;
@@ -254,6 +256,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         parsedRoot = JSON.parse(nestedChecklistJson) as {
           sections?: Array<{
             key: string;
+            selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
             notes?: string;
             sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean } | boolean>>;
           }>;
@@ -275,6 +278,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         const section = this.sections.find(currentSection => currentSection.key === sectionKey);
         if (!section) {
           return;
+        }
+        if (sectionObject.selectionMode === 'allRequired' || sectionObject.selectionMode === 'exactlyOne' || sectionObject.selectionMode === 'atLeastOne') {
+          section.selectionMode = sectionObject.selectionMode;
         }
 
         const sectionSets = Array.isArray(sectionObject.sets) ? sectionObject.sets : [];
@@ -495,6 +501,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       sections: this.sections.map(section => ({
         key: section.key,
         title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
         notes: this.form.get(this.notesControlName(section.key))?.value || '',
         sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
           this.getSetItems(section.key, repeatIndex).map(item => ({
@@ -519,6 +526,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       sections: this.sections.map(section => ({
         key: section.key,
         title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
         notes: this.form.get(this.notesControlName(section.key))?.value || '',
         sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
           this.getSetItems(section.key, repeatIndex).map(item =>
@@ -546,6 +554,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       sections: sections.map(section => ({
         key: section.key,
         title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
         notes: '',
         sets: [
           section.items.map(item => ({
@@ -1019,6 +1028,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     try {
       const root = JSON.parse(checklistJson) as {
         sections?: Array<{
+          key?: string;
+          selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
           sets?: Array<Array<{ checked?: boolean; requiresCount?: boolean; count?: number | null } | boolean>>;
         }>;
       };
@@ -1027,9 +1038,60 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         return false;
       }
 
-      return sections.every(section =>
-        Array.isArray(section.sets)
-        && section.sets.every(set =>
+      return sections.every(section => {
+        if (!Array.isArray(section.sets)) {
+          return false;
+        }
+
+        const selectionMode = this.sections.find(s => s.key === section.key)?.selectionMode ?? section.selectionMode ?? 'allRequired';
+        if (selectionMode === 'exactlyOne') {
+          return section.sets.every(set => {
+            if (!Array.isArray(set) || set.length === 0) {
+              return false;
+            }
+
+            const checkedItems = set.filter(item => typeof item === 'boolean' ? item === true : item?.checked === true);
+            if (checkedItems.length !== 1) {
+              return false;
+            }
+
+            const selectedItem = checkedItems[0];
+            if (typeof selectedItem === 'boolean') {
+              return true;
+            }
+
+            if (selectedItem?.requiresCount === true) {
+              return typeof selectedItem.count === 'number' && !Number.isNaN(selectedItem.count);
+            }
+
+            return true;
+          });
+        }
+
+        if (selectionMode === 'atLeastOne') {
+          return section.sets.every(set => {
+            if (!Array.isArray(set) || set.length === 0) {
+              return false;
+            }
+
+            const checkedItems = set.filter(item => typeof item === 'boolean' ? item === true : item?.checked === true);
+            if (checkedItems.length < 1) {
+              return false;
+            }
+
+            return checkedItems.every(checkedItem => {
+              if (typeof checkedItem === 'boolean') {
+                return true;
+              }
+              if (checkedItem?.requiresCount === true) {
+                return typeof checkedItem.count === 'number' && !Number.isNaN(checkedItem.count);
+              }
+              return true;
+            });
+          });
+        }
+
+        return section.sets.every(set =>
           Array.isArray(set)
           && set.every(item => {
             if (typeof item === 'boolean') {
@@ -1046,8 +1108,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
             return true;
           })
-        )
-      );
+        );
+      });
     } catch {
       return false;
     }
@@ -1283,6 +1345,20 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         event.source.checked = false;
       }
       this.openPhotoUpload(sectionKey, repeatIndex, item.id);
+      return;
+    }
+
+    if (event.checked) {
+      const section = this.sections.find(currentSection => currentSection.key === sectionKey);
+      if (section?.selectionMode === 'exactlyOne') {
+        this.getSetItems(sectionKey, repeatIndex).forEach(setItem => {
+          if (setItem.id === item.id) {
+            return;
+          }
+          const otherControl = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, setItem.id));
+          otherControl?.setValue(false, { emitEvent: false });
+        });
+      }
     }
   }
   //#endregion

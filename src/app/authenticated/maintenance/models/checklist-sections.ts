@@ -2,6 +2,7 @@ export type ChecklistSection = {
   key: string;
   title: string;
   hint?: string;
+  selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
   items: ChecklistTemplateItem[];
 };
 
@@ -42,6 +43,7 @@ export type SavedChecklistSection = {
   key: string;
   title?: string;
   notes?: string;
+  selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
   sets: SavedChecklistItem[][];
 };
 
@@ -310,6 +312,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
   {
     key: 'cleaningStatus',
     title: 'Cleaning Status',
+    selectionMode: 'exactlyOne',
     items: [
       { text: 'Cleaning Done', requiresPhoto: false, requiresCount: false },
       { text: 'Needs to be Redone', requiresPhoto: false, requiresCount: false },
