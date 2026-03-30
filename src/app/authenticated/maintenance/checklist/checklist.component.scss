@@ -344,6 +344,11 @@
   color: rgba(0, 0, 0, 0.87);
 }
 
+::ng-deep .section-accordion .mat-expansion-panel-header-description {
+  flex: 0 0 auto !important;
+  min-width: max-content !important;
+}
+
 ::ng-deep .section-accordion .mat-expansion-indicator::after {
   color: #000000 !important;
   border-color: #000000 !important;
@@ -360,14 +365,94 @@
 
 .inline-header-actions {
   display: flex;
-  gap: 0.25rem;
+  justify-content: flex-end;
+  gap: 0.35rem;
   align-items: center;
-  margin-left: 0.5rem;
+  margin-right: 2.25rem;
+  flex: 1 1 auto;
 }
 
 .action-divider {
   font-size: 14px;
   line-height: 1;
+}
+
+.inline-header-actions-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.inline-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.selection-debug-text {
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.selection-mode-trigger {
+  min-width: 8.5rem;
+  width: auto;
+  max-width: 10.5rem;
+}
+
+/* Compact, datatable-like select in accordion headers. */
+::ng-deep .selection-mode-trigger .mat-mdc-select {
+  width: 9.25rem;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  color: #0f172a !important;
+}
+
+::ng-deep .selection-mode-trigger .mat-mdc-select-trigger {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 20px !important;
+  height: 20px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+::ng-deep .selection-mode-trigger .mat-mdc-select-value {
+  display: inline-flex !important;
+  align-items: center !important;
+  max-width: 100%;
+}
+
+::ng-deep .selection-mode-trigger .mat-mdc-select-value-text {
+  color: #0f172a !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+}
+
+::ng-deep .selection-mode-trigger .mat-mdc-select-min-line {
+  color: #0f172a !important;
+  text-decoration: underline;
+}
+
+::ng-deep .selection-mode-trigger .mat-mdc-select-arrow-wrapper {
+  display: none !important;
+}
+
+::ng-deep .template-selection-panel .mat-mdc-option .mdc-list-item__primary-text {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+
+::ng-deep .template-selection-panel .mat-mdc-option {
+  min-height: 30px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 ::ng-deep .section-action-text-btn {

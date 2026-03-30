@@ -59,7 +59,7 @@
       @if (isTemplateMode) {
         <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
       }
-      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData()">
+      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
         {{ saveButtonText }}
       </button>
     }
@@ -112,13 +112,33 @@
               <mat-panel-title>
                 <span>{{ section.title }}</span>
                 @if (isTemplateMode) {
-                  <span class="inline-header-actions">
+                  <span class="inline-title-actions" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                     <button class="section-action-text-btn" mat-button type="button" (click)="addSection(i, $event)">+</button>
                     <span class="action-divider">/</span>
                     <button class="section-action-text-btn" mat-button type="button" (click)="removeSection(i, $event)">-</button>
                   </span>
                 }
               </mat-panel-title>
+              @if (isTemplateMode) {
+                <mat-panel-description class="inline-header-actions" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                  <span class="selection-debug-text">Selection Mode</span>
+                  <div class="selection-mode-trigger" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                    <mat-select
+                      [value]="section.selectionMode || 'allRequired'"
+                      [panelClass]="'template-selection-panel'"
+                      (selectionChange)="setSectionSelectionMode(section.key, $event.value)"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()">
+                      <mat-select-trigger>
+                        {{ section.selectionMode === 'exactlyOne' ? 'Exactly One' : (section.selectionMode === 'atLeastOne' ? 'At Least One' : 'All Required') }}
+                      </mat-select-trigger>
+                      @for (option of selectionModeOptions; track option.value) {
+                        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </div>
+                </mat-panel-description>
+              }
             </mat-expansion-panel-header>
 
             @if (section.hint) {

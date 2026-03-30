@@ -73,6 +73,11 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
   nextItemId = 0;
+  selectionModeOptions: Array<{ value: 'allRequired' | 'exactlyOne' | 'atLeastOne'; label: string }> = [
+    { value: 'allRequired', label: 'All Required' },
+    { value: 'exactlyOne', label: 'Exactly One' },
+    { value: 'atLeastOne', label: 'At Least One' }
+  ];
 
   constructor(
     public fb: FormBuilder,
@@ -137,6 +142,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   initializeChecklistState(): void {
     this.sections = this.sectionTemplates.map(section => ({
       ...section,
+      selectionMode: section.selectionMode ?? 'allRequired',
       items: [...section.items]
     }));
     this.sectionSetCounts = {};
@@ -470,12 +476,19 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   get saveButtonText(): string {
-    if (!this.isTemplateMode && this.totalItems > 0 && this.completedCount === this.totalItems) {
+    if (!this.isTemplateMode && this.canSubmitInspection) {
       return 'Submit';
     }
 
     return 'Save';
   } 
+
+  get canSubmitInspection(): boolean {
+    if (this.isTemplateMode || this.isReadonlyMode || !this.form || this.sections.length === 0) {
+      return false;
+    }
+    return this.isChecklistFullyComplete(this.buildChecklistAnswersJson());
+  }
   //#endregion
 
   //#region Saving Methods
@@ -483,7 +496,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
   }
 
-  saveChecklistData(): void {
+  saveChecklistData(submitRequested: boolean = false): void {
     if (this.isReadonlyMode) {
       return;
     }
@@ -493,7 +506,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    this.saveAnswersData();
+    this.saveAnswersData(submitRequested);
   }
 
   buildChecklistTemplateJson(): string {
@@ -549,6 +562,30 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return JSON.stringify(payload);
   }
 
+  buildEmptyChecklistAnswersJson(): string {
+    const payload = {
+      sections: this.sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
+        notes: '',
+        sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
+          this.getSetItems(section.key, repeatIndex).map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            requiresCount: item.requiresCount,
+            count: null,
+            checked: false,
+            photoPath: null,
+            documentId: null
+          }))
+        )
+      }))
+    };
+
+    return JSON.stringify(payload);
+  }
+
   buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
     const payload = {
       sections: sections.map(section => ({
@@ -577,24 +614,42 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     const checklistJson = this.buildChecklistTemplateJson();
+    const emptyAnswersJson = this.buildEmptyChecklistAnswersJson();
     this.isSavingTemplateInternal = true;
     this.isServiceError = false;
 
     this.deleteActiveChecklistRecords().pipe(
       take(1),
       switchMap(() => this.upsertMaintenanceTemplate(checklistJson)),
+      switchMap((savedMaintenance) => {
+        this.maintenanceRecord = savedMaintenance;
+        const createDraftPayload: InspectionRequest = {
+          organizationId: savedMaintenance.organizationId || this.user?.organizationId || this.property?.organizationId || '',
+          officeId: savedMaintenance.officeId || this.property.officeId,
+          propertyId: this.property!.propertyId,
+          maintenanceId: savedMaintenance.maintenanceId || '',
+          inspectionCheckList: emptyAnswersJson,
+          documentPath: null,
+          isActive: true
+        };
+        return this.inspectionService.createInspection(createDraftPayload).pipe(
+          take(1),
+          map((savedInspectionResponse) => ({ savedMaintenance, savedInspectionResponse }))
+        );
+      }),
       finalize(() => (this.isSavingTemplateInternal = false))
     ).subscribe({
-      next: (savedMaintenance: MaintenanceResponse) => {
+      next: ({ savedMaintenance, savedInspectionResponse }: { savedMaintenance: MaintenanceResponse; savedInspectionResponse: InspectionResponse }) => {
         this.maintenanceRecord = savedMaintenance;
+        this.activeInspection = this.mappingService.mapInspection(savedInspectionResponse);
         this.activeMode = 'answer';
         this.applyModeState();
-        this.loadChecklistAnswers(this.property!.propertyId);
+        this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
         this.toastr.success('Template saved successfully', CommonMessage.Success);
       },
       error: () => {
         this.isServiceError = true;
-        this.toastr.error('Failed to save template', CommonMessage.Error);
+        this.toastr.error('Failed to save template/inspection draft', CommonMessage.Error);
       }
     });
   }
@@ -669,7 +724,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     ).pipe(map(() => void 0));
   }
 
-  saveAnswersData(): void {
+  saveAnswersData(submitRequested: boolean = false): void {
     const inspectionChecklistJson = this.buildChecklistAnswersJson();
     if (!this.property) {
       return;
@@ -679,7 +734,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    const shouldSubmitInspection = this.isChecklistFullyComplete(inspectionChecklistJson);
+    const shouldSubmitInspection = submitRequested && this.isChecklistFullyComplete(inspectionChecklistJson);
     this.isSavingAnswersInternal = true;
     this.isServiceError = false;
 
@@ -727,18 +782,67 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.toastr.error('Unable to save inspection due to missing context.', CommonMessage.Error);
         return;
       }
-      this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
-        next: (savedInspectionResponse: InspectionResponse) => {
-          const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
-          this.activeInspection = savedInspection;
-          this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-          if (shouldSubmitInspection) {
-            this.inspectionSubmitted.emit();
+      this.inspectionService.getInspectionsByMaintenanceId(createPayload.maintenanceId).pipe(take(1)).subscribe({
+        next: (existingInspections) => {
+          const existingActiveInspection = this.getLatestInspectionRecord(existingInspections || []);
+          if (existingActiveInspection) {
+            const updatePayload: InspectionRequest = {
+              inspectionId: existingActiveInspection.inspectionId,
+              organizationId: existingActiveInspection.organizationId,
+              officeId: existingActiveInspection.officeId,
+              propertyId: existingActiveInspection.propertyId,
+              maintenanceId: existingActiveInspection.maintenanceId,
+              inspectionCheckList: inspectionChecklistJson,
+              documentPath: documentPath ?? existingActiveInspection.documentPath ?? null,
+              isActive: shouldSubmitInspection ? false : existingActiveInspection.isActive
+            };
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+              next: (savedInspectionResponse: InspectionResponse) => {
+                const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
+                this.activeInspection = savedInspection;
+                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
+                if (shouldSubmitInspection) {
+                  this.inspectionSubmitted.emit();
+                }
+              },
+              error: (_err: HttpErrorResponse) => {
+                this.isServiceError = true;
+                this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+              }
+            });
+            return;
           }
+
+          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+            next: (savedInspectionResponse: InspectionResponse) => {
+              const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
+              this.activeInspection = savedInspection;
+              this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
+              if (shouldSubmitInspection) {
+                this.inspectionSubmitted.emit();
+              }
+            },
+            error: (_err: HttpErrorResponse) => {
+              this.isServiceError = true;
+              this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+            }
+          });
         },
-        error: (_err: HttpErrorResponse) => {
-          this.isServiceError = true;
-          this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+        error: () => {
+          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+            next: (savedInspectionResponse: InspectionResponse) => {
+              const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
+              this.activeInspection = savedInspection;
+              this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
+              if (shouldSubmitInspection) {
+                this.inspectionSubmitted.emit();
+              }
+            },
+            error: (_err: HttpErrorResponse) => {
+              this.isServiceError = true;
+              this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+            }
+          });
         }
       });
     };
@@ -809,6 +913,15 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               this.applySavedChecklistJson(maintenanceTemplateJson);
             }
           }
+          this.loadChecklistAnswers(propertyId);
+          return;
+        }
+
+        const hasLocalMaintenanceForProperty =
+          this.maintenanceRecord?.propertyId === propertyId
+          && typeof this.maintenanceRecord?.maintenanceId === 'string'
+          && this.maintenanceRecord.maintenanceId.trim().length > 0;
+        if (hasLocalMaintenanceForProperty) {
           this.loadChecklistAnswers(propertyId);
           return;
         }
@@ -1129,6 +1242,32 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#endregion
 
   //#region Section Controls
+  setSectionSelectionMode(sectionKey: string, mode: 'allRequired' | 'exactlyOne' | 'atLeastOne'): void {
+    const section = this.sections.find(currentSection => currentSection.key === sectionKey);
+    if (!section) {
+      return;
+    }
+
+    section.selectionMode = mode;
+    if (mode !== 'exactlyOne') {
+      return;
+    }
+
+    // Ensure existing data immediately conforms when switching to exactly-one mode.
+    this.getRepeatIndexes(sectionKey).forEach(repeatIndex => {
+      const checkedItems = this.getSetItems(sectionKey, repeatIndex).filter(item =>
+        !!this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id))?.value
+      );
+      if (checkedItems.length <= 1) {
+        return;
+      }
+
+      checkedItems.slice(1).forEach(item => {
+        this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id))?.setValue(false, { emitEvent: false });
+      });
+    });
+  }
+
   addSection(sectionIndex: number, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
