@@ -417,6 +417,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     const applyLocalClear = (): void => {
       const patch: Record<string, unknown> = {};
       this.sections.forEach(section => {
+        patch[this.notesControlName(section.key)] = '';
         for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
           this.getSetItems(section.key, repeatIndex).forEach(item => {
             patch[this.itemControlNameById(section.key, repeatIndex, item.id)] = false;
