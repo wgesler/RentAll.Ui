@@ -535,6 +535,7 @@ export class MappingService {
     bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    petsAllowed: boolean;
     needsMaintenance: boolean;
     needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {
@@ -635,6 +636,7 @@ export class MappingService {
         bed2Text: mapBedDropdown(maintenanceRow?.bedroomId2),
         bed3Text: mapBedDropdown(maintenanceRow?.bedroomId3),
         bed4Text: mapBedDropdown(maintenanceRow?.bedroomId4),
+        petsAllowed: maintenanceRow?.petsAllowed ?? false,
         needsMaintenance: needsMaintenance,
         needsMaintenanceState,
         licenseDate: this.formatter.formatDateString(maintenanceRow?.licenseDate ?? undefined),
@@ -664,6 +666,7 @@ export class MappingService {
     bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    petsAllowed: boolean;
     needsMaintenance: boolean;
     needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {
@@ -713,6 +716,7 @@ export class MappingService {
     bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
+    petsAllowed: boolean;
     needsMaintenance: boolean;
     needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {

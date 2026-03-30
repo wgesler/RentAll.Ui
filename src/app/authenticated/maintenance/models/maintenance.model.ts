@@ -73,6 +73,7 @@ export interface MaintenanceListResponse {
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
+  petsAllowed: boolean;
   lastFilterChangeDate?: string | null;
   smokeDetectors?: string | null;
   lastSmokeChangeDate?: string | null;

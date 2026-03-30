@@ -62,6 +62,7 @@ type MaintenanceListDisplay = PropertyListDisplay & {
   bed2Text: BedDropdownCell;
   bed3Text: BedDropdownCell;
   bed4Text: BedDropdownCell;
+  petsAllowed: boolean;
   needsMaintenance: boolean;
   needsMaintenanceState?: 'red' | 'yellow' | 'green' | 'grey';
 };
@@ -120,6 +121,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'inspector': { displayAs: 'Inspector', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
     'needsMaintenance': { displayAs: 'Maintenance', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'bed1Text': { displayAs: 'Bed1', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
     'bed2Text': { displayAs: 'Bed2', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
     'bed3Text': { displayAs: 'Bed3', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
@@ -137,10 +139,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '15ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '15ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
+    'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'bed1Text': { displayAs: 'Bed1', wrap: false , maxWidth: '15ch', alignment: 'center', options: this.bedTypeOptions},
     'bed2Text': { displayAs: 'Bed2', wrap: false , maxWidth: '15ch', alignment: 'center', options: this.bedTypeOptions},
     'bed3Text': { displayAs: 'Bed3', wrap: false , maxWidth: '15ch', alignment: 'center', options: this.bedTypeOptions},
-    'bed4Text': { displayAs: 'Bed4', wrap: false , maxWidth: '15ch', alignment: 'center', options: this.bedTypeOptions}
+    'bed4Text': { displayAs: 'Bed4', wrap: false , maxWidth: '15ch', alignment: 'center', options: this.bedTypeOptions},
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
