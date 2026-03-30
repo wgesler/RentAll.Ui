@@ -414,15 +414,33 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   clearAll(): void {
-    const patch: Record<string, boolean> = {};
-    this.sections.forEach(section => {
-      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
-        this.getSetItems(section.key, repeatIndex).forEach(item => {
-          patch[this.itemControlNameById(section.key, repeatIndex, item.id)] = false;
-        });
+    const applyLocalClear = (): void => {
+      const patch: Record<string, unknown> = {};
+      this.sections.forEach(section => {
+        for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+          this.getSetItems(section.key, repeatIndex).forEach(item => {
+            patch[this.itemControlNameById(section.key, repeatIndex, item.id)] = false;
+            patch[this.countControlNameById(section.key, repeatIndex, item.id)] = null;
+            item.count = null;
+            item.photoPath = null;
+            item.documentId = null;
+            item.displayDataUrl = null;
+          });
+        }
+      });
+      this.form.patchValue(patch, { emitEvent: false });
+      this.photoBlobUrlCache.clear();
+    };
+
+    this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
+      next: () => {
+        applyLocalClear();
+      },
+      error: () => {
+        applyLocalClear();
+        this.toastr.error('Some photos could not be deleted from storage.', CommonMessage.Error);
       }
     });
-    this.form.patchValue(patch);
   }
 
   resetChecklist(): void {
