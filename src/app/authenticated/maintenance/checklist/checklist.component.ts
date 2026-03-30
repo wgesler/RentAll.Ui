@@ -432,14 +432,22 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       this.form.patchValue(patch, { emitEvent: false });
       this.photoBlobUrlCache.clear();
     };
+    const autoSaveClearedInspection = (): void => {
+      if (this.isReadonlyMode || this.isTemplateMode || this.isSavingInProgress) {
+        return;
+      }
+      this.saveAnswersData();
+    };
 
     this.deleteChecklistPhotoDocuments().pipe(take(1)).subscribe({
       next: () => {
         applyLocalClear();
+        autoSaveClearedInspection();
       },
       error: () => {
         applyLocalClear();
         this.toastr.error('Some photos could not be deleted from storage.', CommonMessage.Error);
+        autoSaveClearedInspection();
       }
     });
   }
