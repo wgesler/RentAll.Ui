@@ -435,12 +435,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       const currentInspectorId = event.inspectorUserId ?? null;
       const shouldClearCleanerDate = selectedCleanerId === null && (event.cleaningDate ?? '').trim() !== '';
       const shouldClearInspectorDate = selectedInspectorId === null && (event.inspectingDate ?? '').trim() !== '';
-      if (
-        selectedCleanerId !== currentCleanerId
-        || selectedInspectorId !== currentInspectorId
-        || shouldClearCleanerDate
-        || shouldClearInspectorDate
-      ) {
+      if (selectedCleanerId !== currentCleanerId || selectedInspectorId !== currentInspectorId || shouldClearCleanerDate || shouldClearInspectorDate) {
         this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedInspectorId);
       } else if (selectedCleanerLabel === 'Clear Selection' || selectedInspectorLabel === 'Clear Selection') {
         event.cleaner = this.buildUserDropdownCell(
