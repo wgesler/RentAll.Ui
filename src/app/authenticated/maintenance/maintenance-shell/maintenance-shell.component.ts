@@ -180,7 +180,7 @@ export class MaintenanceShellComponent implements OnInit {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Route/Reload Methods
   onTabChange(event: { index: number }): void {
     this.selectedTabIndex = event.index;
   }
@@ -268,10 +268,6 @@ export class MaintenanceShellComponent implements OnInit {
     this.maintenanceWorkOrderList.applyFilters();
   }
 
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.MaintenanceList);
-  }
-
   navigateToMaintenanceTabs(tabIndex?: number): void {
     const propertyId = this.property?.propertyId;
     let url = propertyId
@@ -283,7 +279,7 @@ export class MaintenanceShellComponent implements OnInit {
     this.router.navigateByUrl(url).then(() => window.location.reload());
   }
 
-  private syncTitlebarSelections(): void {
+  syncTitlebarSelections(): void {
     if (!this.property && !this.selectedOfficeId) {
       this.updateAvailableProperties();
       return;
@@ -295,7 +291,7 @@ export class MaintenanceShellComponent implements OnInit {
     this.updateAvailableProperties();
   }
 
-  private updateAvailableProperties(): void {
+  updateAvailableProperties(): void {
     const scopedProperties = this.selectedOfficeId
       ? this.allProperties.filter(property => property.officeId === this.selectedOfficeId)
       : this.allProperties;
@@ -309,7 +305,7 @@ export class MaintenanceShellComponent implements OnInit {
     }
   }
 
-  private normalizeRequestedTab(tabParam: number): number | null {
+  normalizeRequestedTab(tabParam: number): number | null {
     if (Number.isNaN(tabParam) || tabParam < 0) {
       return null;
     }
@@ -320,6 +316,10 @@ export class MaintenanceShellComponent implements OnInit {
     }
 
     return tabParam;
+  }
+
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.MaintenanceList);
   }
   //#endregion
 }

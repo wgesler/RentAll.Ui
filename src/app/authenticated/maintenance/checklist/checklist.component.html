@@ -43,7 +43,7 @@
 
   <div class="controls-row">
   <div class="controls-left-group">
-    @if (!isReadonlyMode) {
+    @if (!isReadonlyMode && isAdmin) {
       <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
         Template
       </mat-slide-toggle>

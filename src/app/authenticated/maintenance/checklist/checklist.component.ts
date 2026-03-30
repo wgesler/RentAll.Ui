@@ -27,6 +27,7 @@ import { PhotoService } from '../../documents/services/photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { MissingCountDialogComponent } from './missing-count-dialog.component';
+import { UserGroups } from '../../users/models/user-enums';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection';
@@ -66,6 +67,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   inspectorName: string = '';
   todayDate: string = '';
   user: JwtUser | null = null;
+  isAdmin = false;
   sectionTemplates: ChecklistSection[] = INSPECTION_SECTIONS;
   sections: ChecklistSection[] = [];
   sectionSetCounts: Record<string, number> = {};
@@ -90,6 +92,10 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#region Checklist
   ngOnInit(): void {
     this.user = this.authService.getUser();
+    this.isAdmin =
+      this.utilityService.hasRole(this.user?.userGroups, UserGroups.SuperAdmin) ||
+      this.utilityService.hasRole(this.user?.userGroups, UserGroups.Admin) ||
+      this.utilityService.hasRole(this.user?.userGroups, UserGroups.PropertyManagerAdmin);
     this.todayDate = new Date().toLocaleDateString();
     this.inspectorName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'Unknown User';
     this.sectionTemplates = INSPECTION_SECTIONS;
@@ -1706,7 +1712,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   toggleTemplateMode(): void {
-    if (this.isReadonlyMode) return;
+    if (this.isReadonlyMode || !this.isAdmin) return;
     this.activeMode = this.isTemplateMode ? 'answer' : 'template';
     this.applyModeState();
   }
