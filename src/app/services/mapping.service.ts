@@ -583,6 +583,24 @@ export class MappingService {
         return parsedDate < threshold;
       };
 
+      const isDateOlderThanMonths = (
+        dateValue: string | null | undefined,
+        months: number
+      ): boolean => {
+        if (isDateMissing(dateValue)) {
+          return false;
+        }
+
+        const parsedDate = new Date(dateValue);
+        if (Number.isNaN(parsedDate.getTime())) {
+          return true;
+        }
+
+        const threshold = new Date();
+        threshold.setMonth(threshold.getMonth() - months);
+        return parsedDate <= threshold;
+      };
+
       const hasAnyTooOldDate =
         isDateOlderThanYears(maintenanceRow?.licenseDate, 1) ||
         isDateOlderThanYears(maintenanceRow?.lastFilterChangeDate, 1) ||
@@ -598,9 +616,17 @@ export class MappingService {
         isDateMissing(maintenanceRow?.hvacServiced) ||
         isDateMissing(maintenanceRow?.fireplaceServiced);
 
+      const hasAnyNearDueDate =
+        isDateOlderThanMonths(maintenanceRow?.licenseDate, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.lastFilterChangeDate, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.lastBatteryChangeDate, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.hvacServiced, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.fireplaceServiced, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.lastSmokeChangeDate, 119);
+
       const needsMaintenanceState: 'red' | 'yellow' | 'green' = hasAnyTooOldDate
         ? 'red'
-        : hasAnyMissingRequiredDate
+        : (hasAnyMissingRequiredDate || hasAnyNearDueDate)
           ? 'yellow'
           : 'green';
       const needsMaintenance = needsMaintenanceState !== 'green';
@@ -672,8 +698,8 @@ export class MappingService {
       inspectorUserId: property.inspector ?? null,
       propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
       cleaner: this.buildMaintenanceUserDropdownCell(
-        this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, 'Select Cleaner'),
-        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Select Cleaner')
+        this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
+        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'None')
       ),
       inspector: this.buildMaintenanceUserDropdownCell(
         this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, 'Select Inspector'),

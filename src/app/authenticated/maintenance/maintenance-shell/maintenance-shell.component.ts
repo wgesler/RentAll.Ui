@@ -1,9 +1,8 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, filter, finalize, map, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -13,9 +12,6 @@ import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ChecklistSection, INSPECTION_SECTIONS } from '../models/checklist-sections';
-import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
-import { MaintenanceService } from '../services/maintenance.service';
 import { ChecklistComponent } from '../checklist/checklist.component';
 import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
@@ -48,10 +44,7 @@ export class MaintenanceShellComponent implements OnInit {
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
   property: PropertyResponse | null = null;
-  maintenanceRecord: MaintenanceResponse | null = null;
-  templateMode = false;
   isServiceError = false;
-  isSavingTemplate = false;
   selectedTabIndex = 0;
 
   userId = '';
@@ -75,14 +68,13 @@ export class MaintenanceShellComponent implements OnInit {
   allProperties: PropertyListResponse[] = [];
   inspectorPropertyIds = new Set<string>();
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'maintenance']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
-    private maintenanceService: MaintenanceService,
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
@@ -115,114 +107,23 @@ export class MaintenanceShellComponent implements OnInit {
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
       const id = params.get('id')!;
-      this.loadProperty(id, () => this.loadMaintenanceSections(id));
-    });
-  }
-
-  createMaintenanceWithDefaultTemplates(propertyId: string): void {
-    if (!this.property) return;
-
-    const user = this.authService.getUser();
-    const inspectionTemplate = this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false);
-
-    const payload: MaintenanceRequest = {
-      organizationId: this.property.organizationId ?? user?.organizationId ?? '',
-      officeId: this.property.officeId ?? 0,
-      officeName: this.property.officeName ?? '',
-      propertyId,
-      inspectionCheckList: inspectionTemplate,
-      cleanerUserId: user?.userId ?? '',
-      cleaningDate: undefined,
-      inspectorUserId: user?.userId ?? '',
-      inspectingDate: undefined,
-      notes: null,
-      isActive: true
-    };
-
-    this.maintenanceService.createMaintenance(payload).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
-      next: (saved) => {this.maintenanceRecord = saved;},
-      error: () => (this.maintenanceRecord = null)
-    });
-  }
-
-  onSaveTemplate(checklistJson: string, _checklistType: 'inspection'): void {
-    if (!this.property) return;
-
-    const user = this.authService.getUser();
-    this.isSavingTemplate = true;
-
-    this.maintenanceService.getByPropertyId(this.property.propertyId).pipe( take(1),
-      switchMap((latest) => {
-        const existing = latest ?? null;
-        const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId ?? this.maintenanceRecord?.maintenanceId,
-          organizationId: existing?.organizationId ?? this.maintenanceRecord?.organizationId ?? user?.organizationId ?? this.property!.organizationId,
-          officeId: existing?.officeId ?? this.maintenanceRecord?.officeId ?? this.property!.officeId,
-          officeName: existing?.officeName ?? this.maintenanceRecord?.officeName ?? this.property!.officeName ?? '',
-          propertyId: this.property!.propertyId,
-          inspectionCheckList: checklistJson,
-          cleanerUserId: existing?.cleanerUserId ?? this.maintenanceRecord?.cleanerUserId ?? user?.userId ?? '',
-          cleaningDate: existing?.cleaningDate ?? this.maintenanceRecord?.cleaningDate ?? undefined,
-          inspectorUserId: existing?.inspectorUserId ?? this.maintenanceRecord?.inspectorUserId ?? user?.userId ?? '',
-          inspectingDate: existing?.inspectingDate ?? this.maintenanceRecord?.inspectingDate ?? undefined,
-          notes: existing?.notes ?? this.maintenanceRecord?.notes ?? null,
-          isActive: existing?.isActive ?? this.maintenanceRecord?.isActive ?? true
-        };
-        return payload.maintenanceId
-          ? this.maintenanceService.updateMaintenance(payload)
-          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
-      }),
-      take(1)
-    ).subscribe({
-      next: (saved: MaintenanceResponse) => {
-        const propertyId = this.property!.propertyId;
-        this.maintenanceRecord = null;
-        this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-        this.loadMaintenanceByProperty(propertyId);
-        this.isSavingTemplate = false;
-      },
-      error: (_err: HttpErrorResponse) => {
-        this.isSavingTemplate = false;
-      }
+      this.loadProperty(id);
     });
   }
 
   //#endregion
 
   //#region Data Load Methods
-  loadProperty(propertyId: string, onLoaded?: () => void): void {
+  loadProperty(propertyId: string): void {
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
       next: (property) => {
         this.property = property;
         this.syncTitlebarSelections();
-        onLoaded?.();
       },
       error: () => {
         this.property = null;
-        this.maintenanceRecord = null;
         this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance');
       }
-    });
-  }
-
-  loadMaintenanceSections(propertyId: string): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-    this.loadMaintenanceByProperty(propertyId);
-  }
-
-  loadMaintenanceByProperty(propertyId: string): void {
-    this.maintenanceService.getByPropertyId(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
-      next: (response: MaintenanceResponse | null) => {
-        if (response) {
-          this.maintenanceRecord = response;
-          this.templateMode = false;
-        } else {
-          this.createMaintenanceWithDefaultTemplates(propertyId);
-          this.templateMode = true;
-        }
-      },
-      error: () => (this.maintenanceRecord = null)
     });
   }
 
@@ -280,33 +181,12 @@ export class MaintenanceShellComponent implements OnInit {
   //#endregion
 
   //#region Utility Methods
-  get inspectionTemplateJson(): string {
-    return this.maintenanceRecord?.inspectionCheckList ?? '';
-  }
-
-  buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
-    const payload = {
-      sections: sections.map(section => ({
-        key: section.key,
-        title: section.title,
-        notes: '',
-        sets: [
-          section.items.map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            requiresCount: false,
-            count: null,
-            isEditable: defaultIsEditable,
-            photoPath: null as string | null
-          }))
-        ]
-      }))
-    };
-    return JSON.stringify(payload);
-  }
-
   onTabChange(event: { index: number }): void {
     this.selectedTabIndex = event.index;
+  }
+
+  onInspectionSubmitted(): void {
+    this.navigateToMaintenanceTabs(0);
   }
 
   onOfficeChange(): void {
@@ -327,10 +207,9 @@ export class MaintenanceShellComponent implements OnInit {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.property = null;
-    this.maintenanceRecord = null;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.loadProperty(this.selectedPropertyId, () => this.loadMaintenanceSections(this.selectedPropertyId!));
+    this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
   }
 
@@ -391,6 +270,17 @@ export class MaintenanceShellComponent implements OnInit {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.MaintenanceList);
+  }
+
+  navigateToMaintenanceTabs(tabIndex?: number): void {
+    const propertyId = this.property?.propertyId;
+    let url = propertyId
+      ? RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])
+      : RouterUrl.MaintenanceList;
+    if (tabIndex !== undefined && tabIndex >= 0) {
+      url += (url.includes('?') ? '&' : '?') + `tab=${tabIndex}`;
+    }
+    this.router.navigateByUrl(url).then(() => window.location.reload());
   }
 
   private syncTitlebarSelections(): void {

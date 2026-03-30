@@ -14,6 +14,7 @@ export interface ColumnData {
     options?: string[];
     buttonText?: string;
     sortType?: 'default' | 'natural'; // 'natural' for codes with numbers (e.g., "CODE1", "CODE2", "CODE10")
+    editableType?: 'text' | 'date';
 }
 
 export const defaultColumnData: ColumnData = {
@@ -26,4 +27,5 @@ export const defaultColumnData: ColumnData = {
     isCheckbox: false,
     options: undefined,
     buttonText: undefined,
+    editableType: undefined,
 };

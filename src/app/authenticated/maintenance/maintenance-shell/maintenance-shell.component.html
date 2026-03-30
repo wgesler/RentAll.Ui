@@ -1,7 +1,7 @@
 @if (isLoading$ | async) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading property and maintenance...</p>
+    <p>Loading property...</p>
   </div>
 } @else if (isServiceError) {
   <div class="loading-container">
@@ -82,15 +82,11 @@
               [property]="property" />
           </mat-tab>
           <mat-tab label="Inspection">
-            @if (property && maintenanceRecord) {
+            @if (property) {
               <app-checklist
                 [property]="property"
-                [templateJson]="inspectionTemplateJson"
-                [maintenanceRecord]="maintenanceRecord"
                 [checklistType]="'inspection'"
-                [mode]="templateMode ? 'template' : 'answer'"
-                [isSaving]="isSavingTemplate"
-                (templateSaved)="onSaveTemplate($event, 'inspection')" />
+                (inspectionSubmitted)="onInspectionSubmitted()" />
             }
           </mat-tab>
           <mat-tab label="Receipts">

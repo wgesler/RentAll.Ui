@@ -256,6 +256,8 @@ th.mat-mdc-header-cell {
 th.mat-header-cell[data-alignment="center"],
 th.mat-mdc-header-cell[data-alignment="center"] {
   text-align: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-container,
@@ -382,8 +384,8 @@ td.mat-mdc-cell.no-wrap {
 
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background {
-  background-color: #f9a825 !important;
-  border-color: #f9a825 !important;
+  background-color: #9ca3af !important;
+  border-color: #9ca3af !important;
 }
 
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__background,
@@ -417,6 +419,22 @@ td.mat-mdc-cell.align-center {
   display: block !important;
   text-align: center !important;
   width: 100% !important;
+}
+
+.datatable-editable-date-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  text-align: center;
+  background: #fff;
+}
+
+/* Keep empty date cells visually blank while still showing picker icon. */
+.datatable-editable-date-input-empty::-webkit-datetime-edit {
+  color: transparent;
 }
 
 .datatable-checkbox-cell {

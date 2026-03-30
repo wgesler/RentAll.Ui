@@ -135,6 +135,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
   @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
@@ -428,6 +429,27 @@ export class DataTableComponent implements OnChanges, OnInit {
       rowItem.__changedDropdownColumn = columnName;
     }
     this.dropdownChangeEvent.emit(rowItem);
+  }
+
+  emitInlineEditChangeEvent(rowItem: PurposefulAny, columnName: string, value: string): void {
+    rowItem[columnName] = value;
+    rowItem.__changedInlineColumn = columnName;
+    rowItem.__inlineValue = value;
+    this.inlineEditChangeEvent.emit(rowItem);
+  }
+
+  getDateInputValue(value: unknown): string {
+    if (!value) {
+      return '';
+    }
+    const parsed = new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    const year = parsed.getFullYear();
+    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+    const day = `${parsed.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   openDropdown(event: Event, dropdown: { open: () => void } | undefined): void {

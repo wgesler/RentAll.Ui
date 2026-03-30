@@ -61,6 +61,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   //#region Inventory
   ngOnInit(): void {
     this.user = this.authService.getUser();
+    this.setupAssigneeDateSync();
     this.loadMaintenance();
     this.loadAppliances();
     this.loadHousekeepingUsers();
@@ -348,6 +349,28 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });
+  }
+
+  setupAssigneeDateSync(): void {
+    this.form.get('cleanerUserId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.nullIfBlank(value) !== null) {
+        return;
+      }
+      const cleaningDateControl = this.form.get('cleaningDate');
+      if (cleaningDateControl?.value !== null) {
+        cleaningDateControl.setValue(null, { emitEvent: false });
+      }
+    });
+
+    this.form.get('inspectorUserId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.nullIfBlank(value) !== null) {
+        return;
+      }
+      const inspectingDateControl = this.form.get('inspectingDate');
+      if (inspectingDateControl?.value !== null) {
+        inspectingDateControl.setValue(null, { emitEvent: false });
+      }
+    });
   }
 
   get isLoadingAppliances(): boolean {

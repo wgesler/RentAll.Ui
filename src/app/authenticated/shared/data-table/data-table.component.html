@@ -98,7 +98,7 @@
             (click)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
             (mousedown)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
                 [ngClass]="{
-                'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth,
+                'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth && column.editableType !== 'date',
                 'align-center': getColumnAlignment(column) === 'center', 'align-right': getColumnAlignment(column) === 'right',
                 '!text-left': getColumnAlignment(column) === 'left', '!text-justify': getColumnAlignment(column) === 'justify',
                 '!text-center': getColumnAlignment(column) === 'center', '!text-right': getColumnAlignment(column) === 'right',
@@ -242,7 +242,15 @@
                       {{item[column.name]}}
                     }
                   } @default {
-                  @if (column.obfuscate) {
+                  @if (column.editableType === 'date') {
+                    <input type="date"
+                      [ngModel]="getDateInputValue(item[column.name])"
+                      [class.datatable-editable-date-input-empty]="getDateInputValue(item[column.name]) === ''"
+                      (ngModelChange)="emitInlineEditChangeEvent(item, column.name ?? '', $event)"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      class="datatable-editable-date-input" />
+                  } @else if (column.obfuscate) {
                     <span>
                       {{item.obfuscate ? obfuscateValue(item[column.name]) : item[column.name]}}
                       <button mat-icon-button id="acct-no-btn-{{i}}" (click)="item.obfuscate = !item.obfuscate">

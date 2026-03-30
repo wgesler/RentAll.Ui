@@ -1,12 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { finalize, forkJoin, map, of, switchMap, take } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -21,12 +19,14 @@ import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
-import { MaintenanceResponse } from '../models/maintenance.model';
+import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
 import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model';
 import { PhotoService } from '../../documents/services/photo.service';
 import { UtilityService } from '../../../services/utility.service';
+import { JwtUser } from '../../../public/login/models/jwt';
+import { MissingCountDialogComponent } from './missing-count-dialog.component';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection';
@@ -40,36 +40,37 @@ export type ChecklistType = 'inspection';
 })
 export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   @Input() property: PropertyResponse | null = null;
-  @Input() maintenanceRecord: MaintenanceResponse | null = null;
   @Input() templateJson: string | null = null;
   @Input() answersJson: string | null = null;
   @Input() mode: ChecklistMode = 'answer';
   @Input() checklistType: ChecklistType = 'inspection';
-  @Input() isSaving: boolean = false;
-  @Output() templateSaved = new EventEmitter<string>();
+  @Output() inspectionSubmitted = new EventEmitter<void>();
 
-
+  /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
+  readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
+  readonly maxUploadedImageBytes = 1.5 * 1024 * 1024; // 1.5 MB target
+  readonly maxImageDimension = 1920;
+  photoBlobUrlCache = new Map<string, string>();
 
   form: FormGroup;
+  isServiceError: boolean = false;
+  hasInitialized = false;
+  activeMode: ChecklistMode = 'template';
+  activeInspection: InspectionResponse | null = null;
+  isSavingTemplateInternal: boolean = false;
+  isSavingAnswersInternal: boolean = false;
+
+  lastPropertyIdLoaded: string | null = null;
+  maintenanceRecord: MaintenanceResponse | null = null;
+
   inspectorName: string = '';
   todayDate: string = '';
+  user: JwtUser | null = null;
   sectionTemplates: ChecklistSection[] = INSPECTION_SECTIONS;
   sections: ChecklistSection[] = [];
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
   nextItemId = 0;
-  activeMode: ChecklistMode = 'template';
-  activeInspection: InspectionResponse | null = null;
-  lastPropertyIdLoaded: string | null = null;
-  isSavingTemplateInternal: boolean = false;
-  isSavingAnswersInternal: boolean = false;
-  isServiceError: boolean = false;
-  hasInitialized = false;
-  /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
-  private photoBlobUrlCache = new Map<string, string>();
-  private readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
-  private readonly maxUploadedImageBytes = 1.5 * 1024 * 1024; // 1.5 MB target
-  private readonly maxImageDimension = 1920;
 
   constructor(
     public fb: FormBuilder,
@@ -79,37 +80,24 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     public photoService: PhotoService,
     public toastr: ToastrService,
     public dialog: MatDialog,
-    public router: Router,
     public maintenanceService: MaintenanceService,
     public inspectionService: InspectionService,
     public mappingService: MappingService,
     private cdr: ChangeDetectorRef
   ) {
-
-    const user = this.authService.getUser();
-    this.inspectorName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown User';
-    this.todayDate = new Date().toLocaleDateString();
   }
 
   //#region Checklist
   ngOnInit(): void {
+    this.user = this.authService.getUser();
+    this.todayDate = new Date().toLocaleDateString();
+    this.inspectorName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'Unknown User';
     this.sectionTemplates = INSPECTION_SECTIONS;
     this.activeMode = this.mode;
 
     this.initializeChecklistState();
     this.syncPropertyDrivenSections();
-
-    const templateJson = this.templateJson?.trim() ?? '';
-    if (templateJson.length > 0) {
-      this.applySavedChecklistJson(templateJson);
-    }
-
-    const propertyId = this.property?.propertyId ?? null;
-    if (propertyId) {
-      this.lastPropertyIdLoaded = propertyId;
-      this.loadChecklistAnswers(propertyId);
-    }
-
+    this.loadChecklistContext();
     this.hasInitialized = true;
   }
 
@@ -122,6 +110,15 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       const answersJson = this.answersJson?.trim() ?? '';
       if (answersJson.length > 0) {
         this.applySavedAnswersJson(answersJson);
+      }
+    }
+
+    if (changes['property']) {
+      const propertyId = this.property?.propertyId ?? null;
+      if (propertyId && propertyId !== this.lastPropertyIdLoaded) {
+        this.initializeChecklistState();
+        this.syncPropertyDrivenSections();
+        this.loadChecklistContext();
       }
     }
 
@@ -330,7 +327,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   /** Load viewable image URLs for saved photos via photo API (getPhotoByGuid), not document API. Same pattern as user profile picture. */
-  private loadPhotoBlobUrls(): void {
+  loadPhotoBlobUrls(): void {
     const documentIdsToLoad = new Set<string>();
     Object.values(this.sectionSetItems).forEach(sets => {
       sets.forEach(items => {
@@ -393,7 +390,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
   //#endregion
 
-  //#region Top Buttons
+  //#region CheckList Top Buttons
   get totalItems(): number {
     return this.sections.reduce((total, section) => {
       return total + this.getRepeatIndexes(section.key).reduce((setTotal, repeatIndex) => {
@@ -444,8 +441,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
   //#region Saving Methods
   get isSavingInProgress(): boolean {
-    return this.isSaving || this.isSavingTemplateInternal || this.isSavingAnswersInternal;
+    return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
   }
+
   saveChecklistData(): void {
     if (this.isReadonlyMode) {
       return;
@@ -510,24 +508,84 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return JSON.stringify(payload);
   }
 
+  buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
+    const payload = {
+      sections: sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        notes: '',
+        sets: [
+          section.items.map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            requiresCount: false,
+            count: null,
+            isEditable: defaultIsEditable,
+            photoPath: null as string | null
+          }))
+        ]
+      }))
+    };
+    return JSON.stringify(payload);
+  }
+
   saveTemplate(): void {
+    if (!this.property) {
+      return;
+    }
+
     const checklistJson = this.buildChecklistTemplateJson();
     this.isSavingTemplateInternal = true;
     this.isServiceError = false;
 
     this.deleteActiveChecklistRecords().pipe(
       take(1),
+      switchMap(() => this.upsertMaintenanceTemplate(checklistJson)),
       finalize(() => (this.isSavingTemplateInternal = false))
     ).subscribe({
-      next: () => {
+      next: (savedMaintenance: MaintenanceResponse) => {
+        this.maintenanceRecord = savedMaintenance;
+        this.activeMode = 'answer';
+        this.applyModeState();
+        this.loadChecklistAnswers(this.property!.propertyId);
         this.toastr.success('Template saved successfully', CommonMessage.Success);
-        this.templateSaved.emit(checklistJson);
       },
       error: () => {
         this.isServiceError = true;
         this.toastr.error('Failed to save template', CommonMessage.Error);
       }
     });
+  }
+
+  upsertMaintenanceTemplate(checklistJson: string) {
+    if (!this.property) {
+      return of(null);
+    }
+
+    return this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
+      take(1),
+      switchMap((latest) => {
+        const existing = latest ?? this.maintenanceRecord ?? null;
+        const payload: MaintenanceRequest = {
+          maintenanceId: existing?.maintenanceId,
+          organizationId: existing?.organizationId ?? this.user?.organizationId ?? this.property!.organizationId,
+          officeId: existing?.officeId ?? this.property!.officeId,
+          officeName: existing?.officeName ?? this.property!.officeName ?? '',
+          propertyId: this.property!.propertyId,
+          inspectionCheckList: checklistJson,
+          cleanerUserId: existing?.cleanerUserId ?? this.user?.userId ?? '',
+          cleaningDate: existing?.cleaningDate ?? undefined,
+          inspectorUserId: existing?.inspectorUserId ?? this.user?.userId ?? '',
+          inspectingDate: existing?.inspectingDate ?? undefined,
+          notes: existing?.notes ?? null,
+          isActive: existing?.isActive ?? true
+        };
+
+        return payload.maintenanceId
+          ? this.maintenanceService.updateMaintenance(payload)
+          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
+      })
+    );
   }
 
   deleteActiveChecklistRecords() {
@@ -569,29 +627,16 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     ).pipe(map(() => void 0));
   }
 
-  /** Navigate to maintenance component (tabs) for this property and refresh to clear settings. tabIndex: 0=Inspection */
-  private navigateToMaintenanceTabs(tabIndex?: number): void {
-    const propertyId = this.property?.propertyId;
-    let url = propertyId
-      ? RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])
-      : RouterUrl.MaintenanceList;
-    if (tabIndex !== undefined && tabIndex >= 0) {
-      url += (url.includes('?') ? '&' : '?') + `tab=${tabIndex}`;
-    }
-    this.router.navigateByUrl(url).then(() => window.location.reload());
-  }
-
   saveAnswersData(): void {
-    const answersJson = this.buildChecklistAnswersJson();
-    this.saveInspectionAnswers(answersJson);
-  }
-
-  saveInspectionAnswers(inspectionChecklistJson: string): void {
+    const inspectionChecklistJson = this.buildChecklistAnswersJson();
     if (!this.property) {
       return;
     }
+    if (!this.maintenanceRecord?.maintenanceId) {
+      this.toastr.error('Unable to save inspection.', CommonMessage.Error);
+      return;
+    }
 
-    const currentUser = this.authService.getUser();
     const shouldSubmitInspection = this.isChecklistFullyComplete(inspectionChecklistJson);
     this.isSavingAnswersInternal = true;
     this.isServiceError = false;
@@ -614,38 +659,44 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             this.activeInspection = savedInspection;
             this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
             if (shouldSubmitInspection) {
-              this.navigateToMaintenanceTabs(0);
+              this.inspectionSubmitted.emit();
             }
           },
           error: (_err: HttpErrorResponse) => {
             this.isServiceError = true;
-            this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Success);
+            this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
           }
         });
         return;
       }
 
       const createPayload: InspectionRequest = {
-        organizationId: currentUser?.organizationId || this.property?.organizationId || '',
-        officeId: this.property.officeId,
+        organizationId: this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property?.organizationId || '',
+        officeId: this.maintenanceRecord?.officeId || this.property.officeId,
         propertyId: this.property.propertyId,
         maintenanceId: this.maintenanceRecord?.maintenanceId || '',
         inspectionCheckList: inspectionChecklistJson,
         documentPath,
         isActive: shouldSubmitInspection ? false : true
       };
+      if (!createPayload.organizationId || !createPayload.officeId || !createPayload.maintenanceId) {
+        this.isSavingAnswersInternal = false;
+        this.isServiceError = true;
+        this.toastr.error('Unable to save inspection due to missing context.', CommonMessage.Error);
+        return;
+      }
       this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
         next: (savedInspectionResponse: InspectionResponse) => {
           const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
           this.activeInspection = savedInspection;
           this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
           if (shouldSubmitInspection) {
-            this.navigateToMaintenanceTabs(0);
+            this.inspectionSubmitted.emit();
           }
         },
         error: (_err: HttpErrorResponse) => {
           this.isServiceError = true;
-          this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Success);
+          this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
         }
       });
     };
@@ -657,8 +708,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
     const inspectionDto = this.buildChecklistGenerateDto(
       inspectionChecklistJson,
-      currentUser?.organizationId || this.property.organizationId || '',
-      this.property.officeId,
+      this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property.organizationId || '',
+      this.maintenanceRecord?.officeId || this.property.officeId,
       this.property.propertyId,
       this.utilityService.generateDocumentFileName('inspection', this.property.propertyCode, null),
       'Inspection Checklist',
@@ -691,7 +742,86 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#endregion
 
   //#region Data Load Methods
-  loadChecklistAnswers(_propertyId: string): void {
+  loadChecklistContext(): void {
+    const propertyId = this.property?.propertyId ?? null;
+    if (!propertyId) {
+      this.lastPropertyIdLoaded = null;
+      this.maintenanceRecord = null;
+      return;
+    }
+
+    this.lastPropertyIdLoaded = propertyId;
+
+    const providedTemplateJson = this.templateJson?.trim() ?? '';
+    if (providedTemplateJson.length > 0) {
+      this.applySavedChecklistJson(providedTemplateJson);
+    }
+
+    this.maintenanceService.getByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: (maintenance) => {
+        if (maintenance) {
+          this.maintenanceRecord = maintenance;
+          if (providedTemplateJson.length === 0) {
+            const maintenanceTemplateJson = maintenance.inspectionCheckList?.trim() ?? '';
+            if (maintenanceTemplateJson.length > 0) {
+              this.applySavedChecklistJson(maintenanceTemplateJson);
+            }
+          }
+          this.loadChecklistAnswers(propertyId);
+          return;
+        }
+
+        this.createMaintenanceWithDefaultTemplate(propertyId);
+      },
+      error: () => {
+        this.maintenanceRecord = null;
+      }
+    });
+  }
+
+  createMaintenanceWithDefaultTemplate(propertyId: string): void {
+    if (!this.property) {
+      return;
+    }
+
+    const payload: MaintenanceRequest = {
+      organizationId: this.property.organizationId ?? this.user?.organizationId ?? '',
+      officeId: this.property.officeId ?? 0,
+      officeName: this.property.officeName ?? '',
+      propertyId,
+      inspectionCheckList: this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false),
+      cleanerUserId: this.user?.userId ?? '',
+      cleaningDate: undefined,
+      inspectorUserId: this.user?.userId ?? '',
+      inspectingDate: undefined,
+      notes: null,
+      isActive: true
+    };
+
+    this.maintenanceService.createMaintenance(payload).pipe(take(1)).subscribe({
+      next: (saved) => {
+        this.maintenanceRecord = saved;
+        const savedTemplateJson = saved?.inspectionCheckList?.trim() ?? '';
+        if (savedTemplateJson.length > 0) {
+          this.applySavedChecklistJson(savedTemplateJson);
+        }
+        this.activeMode = 'template';
+        this.applyModeState();
+        this.loadChecklistAnswers(propertyId);
+      },
+      error: () => {
+        this.maintenanceRecord = null;
+      }
+    });
+  }
+
+  loadChecklistAnswers(propertyId: string): void {
+    const maintenanceId = this.maintenanceRecord?.maintenanceId ?? '';
+    if (!maintenanceId) {
+      this.activeInspection = null;
+      return;
+    }
+
     const answersProvided = (this.answersJson?.trim() ?? '').length > 0;
     if (answersProvided) {
       const providedAnswersJson = this.answersJson!.trim();
@@ -699,7 +829,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    this.inspectionService.getInspectionsByMaintenanceId(this.maintenanceRecord?.maintenanceId).pipe(take(1)).subscribe({
+    this.inspectionService.getInspectionsByMaintenanceId(maintenanceId).pipe(take(1)).subscribe({
       next: (result) => {
         this.activeInspection = this.getLatestInspectionRecord(result || []);
         const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
@@ -733,7 +863,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return currentTimestamp > latestTimestamp ? current : latest;
     });
   }
-
   //#endregion
 
   //#region Document Building
@@ -768,7 +897,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     };
   }
 
-  /** Build PDF HTML from component state so images are embedded as data URLs (no photo API calls when viewing the document). */
   buildChecklistPdfHtml(checklistJson: string, checklistTitle: string): string | null {
     try {
       if (!this.sections.length) {
@@ -903,8 +1031,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   notesControlName(sectionKey: string): string {
     return `${sectionKey}_notes`;
   }
-  
-
   //#endregion
 
   //#region Section Controls
@@ -1100,19 +1226,18 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         if (event.source) {
           event.source.checked = false;
         }
-        const dialogData: GenericModalData = {
-          title: 'Count Required',
-          message: 'Please indicate the number identified.',
-          icon: 'warning' as any,
-          iconColor: 'warn',
-          no: '',
-          yes: 'OK',
-          callback: (dialogRef) => dialogRef.close(true),
-          useHTML: false
-        };
-        this.dialog.open(GenericModalComponent, {
-          data: dialogData,
-          width: '35rem'
+        this.openMissingCountDialog().afterClosed().pipe(take(1)).subscribe((result: number | null | undefined) => {
+          if (typeof result !== 'number' || Number.isNaN(result)) {
+            return;
+          }
+
+          const countControl = this.form.get(this.countControlNameById(sectionKey, repeatIndex, item.id));
+          countControl?.setValue(result, { emitEvent: false });
+          item.count = result;
+          control?.setValue(true, { emitEvent: false });
+          if (event.source) {
+            event.source.checked = true;
+          }
         });
         return;
       }
@@ -1126,6 +1251,57 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       }
       this.openPhotoUpload(sectionKey, repeatIndex, item.id);
     }
+  }
+  //#endregion
+
+  //#region Dialog Methods
+  openMissingCountDialog() {
+    return this.dialog.open(MissingCountDialogComponent, {
+      width: '24rem'
+    });
+  }
+
+  openUploadFailedDialog(): void {
+    const dialogData: GenericModalData = {
+      title: 'Upload Failed',
+      message: 'Unable to upload photo for this line item.',
+      icon: 'error' as any,
+      iconColor: 'warn',
+      no: '',
+      yes: 'OK',
+      callback: (dialogRef) => dialogRef.close(true),
+      useHTML: false
+    };
+    this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+  }
+
+  openPhotoPreview(item: ChecklistItem, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const imageSrc = this.getItemPhotoSrc(item);
+    if (!imageSrc) {
+      return;
+    }
+
+    const dialogData: ImageViewDialogData = {
+      imageSrc,
+      title: 'Photo Preview'
+    };
+
+    this.dialog.open(ImageViewDialogComponent, {
+      data: dialogData,
+      width: '90vmin',
+      height: '90vmin',
+      minWidth: '320px',
+      minHeight: '320px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'image-view-dialog-panel'
+    });
   }
   //#endregion
 
@@ -1190,9 +1366,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
     try {
       const optimizedImage = await this.optimizePhotoForUpload(file, sectionKey, repeatIndex, item.id);
-      const currentUser = this.authService.getUser();
       const photoRequest: PhotoRequest = {
-        organizationId: this.property?.organizationId || currentUser?.organizationId || '',
+        organizationId: this.property?.organizationId || this.user?.organizationId || '',
         officeId: this.property?.officeId || 0,
         maintenanceId: this.maintenanceRecord?.maintenanceId || null,
         fileDetails: {
@@ -1214,20 +1389,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           }
         },
         error: () => {
-          const dialogData: GenericModalData = {
-            title: 'Upload Failed',
-            message: 'Unable to upload photo for this line item.',
-            icon: 'error' as any,
-            iconColor: 'warn',
-            no: '',
-            yes: 'OK',
-            callback: (dialogRef) => dialogRef.close(true),
-            useHTML: false
-          };
-          this.dialog.open(GenericModalComponent, {
-            data: dialogData,
-            width: '35rem'
-          });
+          this.openUploadFailedDialog();
         }
       });
     } catch (error) {
@@ -1256,7 +1418,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     }
   }
 
-  /** Image src: in-session data URL, or blob URL from download API. Never use photoPath (private blob URL) in browser. */
   getItemPhotoSrc(item: ChecklistItem): string | null {
     if (item.displayDataUrl) {
       return item.displayDataUrl;
@@ -1269,36 +1430,10 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     }
     return null;
   }
-
-  openPhotoPreview(item: ChecklistItem, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const imageSrc = this.getItemPhotoSrc(item);
-    if (!imageSrc) {
-      return;
-    }
-
-    const dialogData: ImageViewDialogData = {
-      imageSrc,
-      title: 'Photo Preview'
-    };
-
-    this.dialog.open(ImageViewDialogComponent, {
-      data: dialogData,
-      width: '90vmin',
-      height: '90vmin',
-      minWidth: '320px',
-      minHeight: '320px',
-      maxWidth: '95vw',
-      maxHeight: '95vh',
-      panelClass: 'image-view-dialog-panel'
-    });
-  }
   //#endregion
 
   //#region Photo Optimization
-  private async optimizePhotoForUpload(file: File, sectionKey: string, repeatIndex: number, itemId: string): Promise<{ dataUrl: string; base64: string; fileName: string; contentType: string; previewDataUrl: string }> {
+  async optimizePhotoForUpload(file: File, sectionKey: string, repeatIndex: number, itemId: string): Promise<{ dataUrl: string; base64: string; fileName: string; contentType: string; previewDataUrl: string }> {
     if (!file.type.startsWith('image/') && !this.isHeicLikeFile(file)) {
       throw new Error('Only image uploads are supported for checklist photos.');
     }
@@ -1370,13 +1505,13 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     throw new Error('Unable to process the selected image.');
   }
 
-  private isHeicLikeFile(file: File): boolean {
+  isHeicLikeFile(file: File): boolean {
     const fileType = (file.type || '').toLowerCase();
     const fileName = (file.name || '').toLowerCase();
     return fileType.includes('heic') || fileType.includes('heif') || fileName.endsWith('.heic') || fileName.endsWith('.heif');
   }
 
-  private async convertHeicToJpegIfNeeded(file: File): Promise<File> {
+  async convertHeicToJpegIfNeeded(file: File): Promise<File> {
     if (!this.isHeicLikeFile(file)) {
       return file;
     }
@@ -1400,7 +1535,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     }
   }
 
-  private buildCompressedPhotoName(originalName: string, sectionKey: string, repeatIndex: number, itemId: string): string {
+  buildCompressedPhotoName(originalName: string, sectionKey: string, repeatIndex: number, itemId: string): string {
     const baseName = (originalName || '').replace(/\.[^/.]+$/, '').trim();
     if (baseName.length > 0) {
       return `${baseName}.jpg`;
@@ -1408,7 +1543,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return `${sectionKey}-${repeatIndex + 1}-${itemId}.jpg`;
   }
 
-  private getScaledDimensions(width: number, height: number, maxDimension: number): { width: number; height: number } {
+  getScaledDimensions(width: number, height: number, maxDimension: number): { width: number; height: number } {
     if (width <= 0 || height <= 0) {
       return { width: maxDimension, height: maxDimension };
     }
@@ -1423,7 +1558,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return { width: Math.max(1, Math.round(width * scale)), height: maxDimension };
   }
 
-  private readFileAsDataUrl(file: File): Promise<string> {
+  readFileAsDataUrl(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -1432,7 +1567,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
-  private readBlobAsDataUrl(blob: Blob): Promise<string> {
+  readBlobAsDataUrl(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -1441,7 +1576,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
-  private loadImageElement(dataUrl: string): Promise<HTMLImageElement> {
+  loadImageElement(dataUrl: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
@@ -1450,7 +1585,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
-  private canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob | null> {
+  canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob | null> {
     return new Promise(resolve => {
       canvas.toBlob(blob => resolve(blob), mimeType, quality);
     });
