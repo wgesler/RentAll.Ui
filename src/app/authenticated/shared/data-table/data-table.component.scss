@@ -375,7 +375,7 @@ td.mat-mdc-cell.no-wrap {
   color: white !important;
 }
 
-/* Maintenance checkbox: red when action needed, green when current. */
+/* Maintenance checkbox states: red, yellow, grey, green. */
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background {
   background-color: #d32f2f !important;
@@ -384,6 +384,12 @@ td.mat-mdc-cell.no-wrap {
 
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__background {
+  background-color: #f59e0b !important;
+  border-color: #f59e0b !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-missing .mdc-checkbox__background,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-missing .mdc-checkbox__background {
   background-color: #9ca3af !important;
   border-color: #9ca3af !important;
 }
@@ -398,6 +404,8 @@ td.mat-mdc-cell.no-wrap {
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-warning .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-missing .mdc-checkbox__checkmark,
+:host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-missing .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__checkmark,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-ok .mdc-checkbox__checkmark {
   color: white !important;

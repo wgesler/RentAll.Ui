@@ -281,6 +281,7 @@
                         [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
                         [class.needs-maintenance-alert]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'red' || (!item?.needsMaintenanceState && item[column.name]))"
                         [class.needs-maintenance-warning]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'yellow'"
+                        [class.needs-maintenance-missing]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'grey'"
                         [class.needs-maintenance-ok]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'green' || (!item?.needsMaintenanceState && !item[column.name]))"
                         disabled/>
                     </div>

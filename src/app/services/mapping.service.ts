@@ -536,7 +536,7 @@ export class MappingService {
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green';
+    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {
     const propertyRows = this.mapPropertyListRows(properties || []);
     const maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
@@ -606,11 +606,13 @@ export class MappingService {
         isDateOlderThanMonths(maintenanceRow?.fireplaceServiced, 11) ||
         isDateOlderThanMonths(maintenanceRow?.lastSmokeChangeDate, 119);
 
-      const needsMaintenanceState: 'red' | 'yellow' | 'green' = hasAnyTooOldDate
-        ? 'red'
-        : (hasAnyMissingRequiredDate || hasAnyNearDueDate)
-          ? 'yellow'
-          : 'green';
+      const needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey' = hasAnyMissingRequiredDate
+        ? 'grey'
+        : hasAnyTooOldDate
+          ? 'red'
+          : hasAnyNearDueDate
+            ? 'yellow'
+            : 'green';
       const needsMaintenance = needsMaintenanceState !== 'green';
       const mapBedDropdown = (bedroomId?: number) => {
         const value = getBedSizeType(bedroomId);
@@ -663,7 +665,7 @@ export class MappingService {
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green';
+    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {
     const {
       housekeepingUsers,
@@ -712,7 +714,7 @@ export class MappingService {
     bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
     needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green';
+    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
   }> {
     return this.mapMaintenanceListDisplayRows(
       loadResponse.properties || [],

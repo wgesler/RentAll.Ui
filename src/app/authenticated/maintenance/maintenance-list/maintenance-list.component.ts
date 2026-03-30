@@ -63,7 +63,7 @@ type MaintenanceListDisplay = PropertyListDisplay & {
   bed3Text: BedDropdownCell;
   bed4Text: BedDropdownCell;
   needsMaintenance: boolean;
-  needsMaintenanceState?: 'red' | 'yellow' | 'green';
+  needsMaintenanceState?: 'red' | 'yellow' | 'green' | 'grey';
 };
 
 @Component({
