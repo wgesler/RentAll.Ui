@@ -112,6 +112,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
+  @Input() subheaderLabel: string = '';
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() calendarEvent = new EventEmitter<PurposefulAny>();

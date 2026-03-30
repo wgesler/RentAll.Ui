@@ -41,6 +41,7 @@ export type MaintenanceListMappingContext = {
   inspectorById: Map<string, string>;
   isInspectorView: boolean;
   inspectorPropertyIds: Set<string>;
+  currentReservationHasPetsByPropertyId: Map<string, boolean>;
 };
 
 @Injectable({
@@ -676,7 +677,8 @@ export class MappingService {
       housekeepingById,
       inspectorById,
       isInspectorView,
-      inspectorPropertyIds
+      inspectorPropertyIds,
+      currentReservationHasPetsByPropertyId
     } = context;
 
     const rows = this.mapMaintenancePropertyDisplayRows(properties || [], maintenanceRows || []).map(property => ({
@@ -691,12 +693,23 @@ export class MappingService {
       inspector: this.buildMaintenanceUserDropdownCell(
         this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, ''),
         this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Clear Selection')
-      )
+      ),
+      petsAllowed: this.getCurrentReservationHasPetsValue(property.propertyId, currentReservationHasPetsByPropertyId)
     }));
 
     return isInspectorView && inspectorPropertyIds.size > 0
       ? rows.filter(property => inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
       : rows;
+  }
+
+  mapMaintenancePetsFromCurrentReservations<T extends { propertyId: string; petsAllowed: boolean }>(
+    rows: T[],
+    currentReservationHasPetsByPropertyId: Map<string, boolean>
+  ): T[] {
+    return (rows || []).map(row => ({
+      ...row,
+      petsAllowed: this.getCurrentReservationHasPetsValue(row.propertyId, currentReservationHasPetsByPropertyId)
+    }));
   }
 
   mapMaintenanceListDisplayRowsFromLoadResponse(
@@ -773,7 +786,7 @@ export class MappingService {
         contactId: o.contactId,
         contactName: o.contactName,
         tenantName: o.tenantName,
-        companyName: o.companyName || 'N/A',
+        companyName: (o.displayName || o.companyName || '').trim() || 'N/A',
         agentId: o.agentId ?? null,
         agentCode: o.agentCode,
         monthlyRate: o.monthlyRate,
@@ -832,6 +845,17 @@ export class MappingService {
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
       .filter(name => name !== '');
     return [defaultLabel, ...names];
+  }
+
+  private getCurrentReservationHasPetsValue(
+    propertyId: string | null | undefined,
+    currentReservationHasPetsByPropertyId: Map<string, boolean>
+  ): boolean {
+    const normalizedPropertyId = String(propertyId || '').trim().toLowerCase();
+    if (!normalizedPropertyId) {
+      return false;
+    }
+    return currentReservationHasPetsByPropertyId.get(normalizedPropertyId) === true;
   }
 
   parseDateOrNull(value: string | null | undefined): Date | null {

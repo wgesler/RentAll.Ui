@@ -411,6 +411,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#region CheckList Top Buttons
   get totalItems(): number {
     return this.sections.reduce((total, section) => {
+      if (this.isSectionCountedAsSingleUnit(section)) {
+        return total + 1;
+      }
       return total + this.getRepeatIndexes(section.key).reduce((setTotal, repeatIndex) => {
         return setTotal + this.getSetItems(section.key, repeatIndex).length;
       }, 0);
@@ -420,6 +423,13 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   get completedCount(): number {
     let completed = 0;
     this.sections.forEach(section => {
+      if (this.isSectionCountedAsSingleUnit(section)) {
+        if (this.isSelectionModeSectionComplete(section)) {
+          completed += 1;
+        }
+        return;
+      }
+
       for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
         this.getSetItems(section.key, repeatIndex).forEach(item => {
           if (this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value) {
@@ -429,6 +439,46 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       }
     });
     return completed;
+  }
+
+  isSectionCountedAsSingleUnit(section: ChecklistSection): boolean {
+    return section.selectionMode === 'exactlyOne' || section.selectionMode === 'atLeastOne';
+  }
+
+  isSelectionModeSectionComplete(section: ChecklistSection): boolean {
+    for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+      const setItems = this.getSetItems(section.key, repeatIndex);
+      if (!setItems.length) {
+        return false;
+      }
+
+      const checkedItems = setItems.filter(item =>
+        !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value
+      );
+
+      if (section.selectionMode === 'exactlyOne') {
+        if (checkedItems.length !== 1) {
+          return false;
+        }
+      } else if (section.selectionMode === 'atLeastOne') {
+        if (checkedItems.length < 1) {
+          return false;
+        }
+      }
+
+      const allCheckedItemsHaveValidCount = checkedItems.every(item => {
+        if (!item.requiresCount) {
+          return true;
+        }
+        const countValue = this.getCountValue(section.key, repeatIndex, item.id);
+        return typeof countValue === 'number' && !Number.isNaN(countValue);
+      });
+      if (!allCheckedItemsHaveValidCount) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   clearAll(): void {
@@ -618,9 +668,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     this.isSavingTemplateInternal = true;
     this.isServiceError = false;
 
-    this.deleteActiveChecklistRecords().pipe(
+    this.upsertMaintenanceTemplate(checklistJson).pipe(
       take(1),
-      switchMap(() => this.upsertMaintenanceTemplate(checklistJson)),
       switchMap((savedMaintenance) => {
         this.maintenanceRecord = savedMaintenance;
         const createDraftPayload: InspectionRequest = {
@@ -686,12 +735,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   deleteActiveChecklistRecords() {
-    const maintenanceId = this.maintenanceRecord?.maintenanceId ?? '';
-    if (!maintenanceId) {
+    const propertyId = this.property?.propertyId ?? '';
+    if (!propertyId) {
       return of(void 0);
     }
 
-    return this.inspectionService.getInspectionsByMaintenanceId(maintenanceId).pipe(
+    return this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(
       take(1),
       map((inspections) => (inspections || [])
         .filter(inspection => inspection.isActive == true)
@@ -782,7 +831,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.toastr.error('Unable to save inspection due to missing context.', CommonMessage.Error);
         return;
       }
-      this.inspectionService.getInspectionsByMaintenanceId(createPayload.maintenanceId).pipe(take(1)).subscribe({
+      this.inspectionService.getInspectionsByPropertyId(createPayload.propertyId).pipe(take(1)).subscribe({
         next: (existingInspections) => {
           const existingActiveInspection = this.getLatestInspectionRecord(existingInspections || []);
           if (existingActiveInspection) {
@@ -971,12 +1020,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   loadChecklistAnswers(propertyId: string): void {
-    const maintenanceId = this.maintenanceRecord?.maintenanceId ?? '';
-    if (!maintenanceId) {
-      this.activeInspection = null;
-      return;
-    }
-
     const answersProvided = (this.answersJson?.trim() ?? '').length > 0;
     if (answersProvided) {
       const providedAnswersJson = this.answersJson!.trim();
@@ -984,7 +1027,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
-    this.inspectionService.getInspectionsByMaintenanceId(maintenanceId).pipe(take(1)).subscribe({
+    this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (result) => {
         this.activeInspection = this.getLatestInspectionRecord(result || []);
         const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';

@@ -101,6 +101,7 @@ export interface ReservationListResponse {
   contactId: string;
   entityId?: string | null;
   contactName: string;
+  displayName?: string | null;
   tenantName: string;
   companyName: string;
   agentId?: string | null;
@@ -111,6 +112,7 @@ export interface ReservationListResponse {
   reservationStatusId: number;
   currentInvoiceNo: number;
   creditDue: number;
+  hasPets?: boolean;
   isActive: boolean;
   createdOn: string;
 }

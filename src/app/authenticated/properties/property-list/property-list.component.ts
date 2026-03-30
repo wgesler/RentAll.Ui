@@ -73,7 +73,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '15ch', wrap: false },
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '23ch', sort: true, options: this.propertyStatusLabels },

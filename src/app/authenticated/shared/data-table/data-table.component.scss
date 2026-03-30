@@ -74,6 +74,14 @@ tr.mat-mdc-row.mat-no-data-row,
     overflow: visible;
 }
 
+.datatable-subheader-label {
+    margin: 0 0 8px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
 .datatable-search-field {
     min-width: 20em !important;
     width: auto;
@@ -286,7 +294,7 @@ th.mat-mdc-header-cell[data-alignment="center"] {
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-arrow {
   grid-column: 3 !important;
   justify-self: end !important;
-  position: static !important;
+  position: relative !important;
 }
 
 :host ::ng-deep th.mat-header-cell[data-alignment="left"] .mat-sort-header-container,

@@ -1,10 +1,25 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-      <span class="flex flex-column items-center gap-3 py-4">
-        <mat-icon class="flex-shrink-0">dashboard</mat-icon>
-        <span class="flex-shrink-0 text-xl font-medium dashboard-title">Dashboard</span>
-      </span>
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">dashboard</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium dashboard-title">Dashboard</span>
+        </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          @if (showOfficeDropdown) {
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of offices; track office.officeId) {
+                  <mat-option [value]="office">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+        </div>
+      </div>
     </div>
     <mat-card>
       <div class="dashboard-content">
@@ -30,13 +45,13 @@
         <div class="dashboard-main-content">
           <!-- Reservation Tables -->
           <div class="reservation-tables">
-            <!-- Upcoming Arrivals Table -->
-            <mat-expansion-panel 
+            <!-- Upcoming Properties Table -->
+            <mat-expansion-panel
               class="reservation-section"
-              [(expanded)]="expandedSections.arrivals">
+              [(expanded)]="expandedSections.properties">
               <mat-expansion-panel-header>
                 <mat-panel-title>
-                  <h2 class="section-title">Upcoming Arrivals (Next 15 Days)</h2>
+                  <span class="section-title">Reservation Turnover</span>
                 </mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingReservations) {
@@ -49,6 +64,7 @@
                   <app-data-table
                     [data]="upcomingArrivals"
                     [columns]="reservationsDisplayedColumns"
+                    [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
                     [hasColumnIndex]="false"
                     [hasFilter]="false"
                     [hasToggleTop]="false"
@@ -59,39 +75,23 @@
                     [itemsPerPage]="50"
                     (rowClickEvent)="goToReservation($event)"
                     (contactClickEvent)="goToContact($event)"/>
-                </div>
-              }
-            </mat-expansion-panel>
 
-            <!-- Upcoming Departures Table -->
-            <mat-expansion-panel 
-              class="reservation-section"
-              [(expanded)]="expandedSections.departures">
-              <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <h2 class="section-title">Upcoming Departures (Next 15 Days)</h2>
-                </mat-panel-title>
-              </mat-expansion-panel-header>
-              @if (isLoadingReservations) {
-                <div class="loading-container">
-                  <mat-spinner [diameter]="40"></mat-spinner>
-                  <p>Loading reservations...</p>
-                </div>
-              } @else {
-                <div class="tableDiv">
-                  <app-data-table
-                    [data]="upcomingDepartures"
-                    [columns]="reservationsDisplayedColumns"
-                    [hasColumnIndex]="false"
-                    [hasFilter]="false"
-                    [hasToggleTop]="false"
-                    [hasButtonTop]="false"
-                    [hasActionsRowClick]="true"
-                    [hasActionsEdit]="false"
-                    [hasActionsDelete]="false"
-                    [itemsPerPage]="50"
-                    (rowClickEvent)="goToReservation($event)"
-                    (contactClickEvent)="goToContact($event)"/>
+                  @if (upcomingDepartures.length > 0) {
+                    <div class="dashboard-split-label">Upcoming Departures (Next 15 Days)</div>
+                    <app-data-table
+                      [data]="upcomingDepartures"
+                      [columns]="reservationsDisplayedColumns"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="false"
+                      [hasActionsDelete]="false"
+                      [itemsPerPage]="50"
+                      (rowClickEvent)="goToReservation($event)"
+                      (contactClickEvent)="goToContact($event)"/>
+                  }
                 </div>
               }
             </mat-expansion-panel>
@@ -102,12 +102,12 @@
               [(expanded)]="expandedSections.monthlyCommissions">
               <mat-expansion-panel-header>
                 <mat-panel-title>
-                  <h2 class="section-title">
+                  <span class="section-title">
                     Monthly Commissions
                     @if (currentUserAgentCode) {
                       <span> - {{ currentUserAgentCode }}</span>
                     }
-                  </h2>
+                  </span>
                 </mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingReservations) {
@@ -138,13 +138,13 @@
               }
             </mat-expansion-panel>
 
-            <!-- Properties by Vacancy Table -->
-            <mat-expansion-panel 
+            <!-- Vacant Properties Table -->
+            <mat-expansion-panel
               class="reservation-section"
-              [(expanded)]="expandedSections.properties">
+              [(expanded)]="expandedSections.vacantProperties">
               <mat-expansion-panel-header>
                 <mat-panel-title>
-                  <h2 class="section-title">Properties by Vacancy Duration</h2>
+                  <span class="section-title">Vacant Properties</span>
                 </mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingProperties || isLoadingReservations) {
@@ -169,6 +169,7 @@
                 </div>
               }
             </mat-expansion-panel>
+
           </div>
 
           <!-- Right Sidebar -->

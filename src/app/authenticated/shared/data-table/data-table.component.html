@@ -39,6 +39,10 @@
     </div>
   }
 
+  @if (subheaderLabel) {
+    <div class="datatable-subheader-label">{{ subheaderLabel }}</div>
+  }
+
   <div class="is-scrollable">
     <table class="data-table" mat-table [dataSource]="dataSource" matSort [multiTemplateDataRows]="hasDetailRow">
       <ng-container>

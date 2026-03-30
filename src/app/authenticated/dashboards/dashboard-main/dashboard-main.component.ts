@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, finalize, map, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
@@ -17,6 +17,10 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
+import { FormsModule } from '@angular/forms';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
   vacancyDays: number | null;
@@ -37,7 +41,7 @@ export interface MonthlyCommissionTileRow {
 @Component({
     standalone: true,
     selector: 'app-dashboard-main',
-    imports: [MaterialModule, DataTableComponent],
+    imports: [MaterialModule, DataTableComponent, FormsModule],
     templateUrl: './dashboard-main.component.html',
     styleUrl: './dashboard-main.component.scss'
 })
@@ -47,6 +51,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   private userSubscription?: Subscription;
   private usersSubscription?: Subscription;
   private agentsSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
 
   allReservations: ReservationListDisplay[] = [];
   upcomingArrivals: ReservationListDisplay[] = [];
@@ -75,13 +80,17 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   vacantCount: number = 0;
   isLoadingProperties: boolean = false;
   propertiesByVacancy: PropertyVacancyDisplay[] = [];
+  offices: OfficeResponse[] = [];
+  selectedOffice: OfficeResponse | null = null;
+  showOfficeDropdown = true;
+  organizationId = '';
+  preferredOfficeId: number | null = null;
 
-  expandedSections = { arrivals: true, departures: true, monthlyCommissions: true, properties: true };
+  expandedSections = { arrivals: true, departures: true, monthlyCommissions: true, properties: true, vacantProperties: true };
 
   reservationsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '20ch' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
@@ -90,18 +99,16 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   };
 
   propertiesDisplayedColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '30ch' },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch' },
-    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch' },
-    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch' },
+    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
+    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
     'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '18ch' },
     'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '20ch' },
   };
 
   monthlyCommissionsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '20ch' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -119,18 +126,23 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     private router: Router,
     private propertyService: PropertyService,
     private agentService: AgentService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private officeService: OfficeService,
+    private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) { }
 
   //#region Dashboard-Main
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
+    this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.setTodayDate();
     if (!this.user?.userId) {
       return;
     }
 
+    this.loadOffices();
     this.loadCurrentUser(this.user.userId);
     if (this.isAdmin) {
       this.adminUsers = [];
@@ -143,10 +155,34 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
     this.loadReservations();
     this.loadProperties();
+
+    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      if (this.offices.length > 0) {
+        this.resolveOfficeScope(officeId);
+      }
+    });
   }
   //#endregion
 
   //#region Data Loading Methods
+  loadOffices(): void {
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+      }
+    });
+  }
+
   loadCurrentUser(userId: string): void {
     this.userSubscription = this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'); if (this.isAdmin) { this.tryResolveAdminProfilePictureAndCommissions(); } })).subscribe({
       next: (userResponse: UserResponse) => {
@@ -196,12 +232,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     this.reservationService.getReservationList().pipe(take(1)).subscribe({
       next: (response: ReservationListResponse[]) => {
         this.allReservations = this.mappingService.mapReservationList(response);
-        this.filterUpcomingReservations();
-        this.filterMonthlyCommissions();
+        this.recomputeDashboardData();
         this.isLoadingReservations = false;
-        if (this.allProperties.length > 0) {
-          this.calculatePropertyStatus();
-        }
       },
       error: () => {
         this.allReservations = [];
@@ -218,9 +250,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: (response: PropertyListResponse[]) => {
         this.allProperties = response.filter(p => p.isActive);
-        if (this.allReservations.length > 0) {
-          this.calculatePropertyStatus();
-        }
+        this.recomputeDashboardData();
         this.isLoadingProperties = false;
       },
       error: () => {
@@ -234,6 +264,42 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Setting and Filtering
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.recomputeDashboardData();
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.recomputeDashboardData();
+  }
+
+  recomputeDashboardData(): void {
+    this.filterUpcomingReservations();
+    this.filterMonthlyCommissions();
+    if (this.allProperties.length > 0) {
+      this.calculatePropertyStatus();
+    } else {
+      this.rentedCount = 0;
+      this.vacantCount = 0;
+      this.propertiesByVacancy = [];
+    }
+  }
+
+  getOfficeFilteredReservations(): ReservationListDisplay[] {
+    if (!this.selectedOffice) {
+      return this.allReservations;
+    }
+    return this.allReservations.filter(reservation => reservation.officeId === this.selectedOffice?.officeId);
+  }
+
+  getOfficeFilteredProperties(): PropertyListResponse[] {
+    if (!this.selectedOffice) {
+      return this.allProperties;
+    }
+    return this.allProperties.filter(property => property.officeId === this.selectedOffice?.officeId);
+  }
+
   tryResolveAdminProfilePictureAndCommissions(): void {
     const pendingAdminItems = this.itemsToLoad$.value;
     if (pendingAdminItems.has('currentUser') || pendingAdminItems.has('users') || pendingAdminItems.has('agents')) {
@@ -338,6 +404,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   filterUpcomingReservations(): void {
+    const officeFilteredReservations = this.getOfficeFilteredReservations();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -348,7 +415,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     fifteenDaysFromNow.setDate(today.getDate() + 15);
     fifteenDaysFromNow.setHours(23, 59, 59, 999);
 
-    this.todayArrivals = this.allReservations.filter(reservation => {
+    this.todayArrivals = officeFilteredReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
       }
@@ -357,7 +424,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return arrivalDate.getTime() === today.getTime();
     });
 
-    this.todayDepartures = this.allReservations.filter(reservation => {
+    this.todayDepartures = officeFilteredReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
       }
@@ -366,7 +433,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return departureDate.getTime() === today.getTime();
     });
 
-    this.tomorrowArrivals = this.allReservations.filter(reservation => {
+    this.tomorrowArrivals = officeFilteredReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
       }
@@ -375,7 +442,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return arrivalDate.getTime() === tomorrow.getTime();
     });
 
-    this.tomorrowDepartures = this.allReservations.filter(reservation => {
+    this.tomorrowDepartures = officeFilteredReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
       }
@@ -384,7 +451,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return departureDate.getTime() === tomorrow.getTime();
     });
 
-    this.upcomingArrivals = this.allReservations.filter(reservation => {
+    this.upcomingArrivals = officeFilteredReservations.filter(reservation => {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
       }
@@ -396,7 +463,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
              arrivalDate.getTime() <= fifteenDaysFromNow.getTime();
     });
 
-    this.upcomingDepartures = this.allReservations.filter(reservation => {
+    this.upcomingDepartures = officeFilteredReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
       }
@@ -491,7 +558,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     };
 
     const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
-    this.monthlyCommissions = this.allReservations
+    this.monthlyCommissions = this.getOfficeFilteredReservations()
       .filter(reservation =>
         this.isAdmin
           ? (reservation.agentCode || '').trim().length > 0
@@ -538,68 +605,52 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   calculatePropertyStatus(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const activeReservations = this.allReservations.filter(r => r.isActive);
+    const officeFilteredProperties = this.getOfficeFilteredProperties();
+    const officeFilteredReservations = this.getOfficeFilteredReservations();
+    const activeReservations = officeFilteredReservations.filter(reservation => reservation.isActive);
     const rentedPropertyIds = new Set<string>();
-    const propertyLastDeparture = new Map<string, Date>();
+    const latestPastDepartureByProperty = new Map<string, Date>();
 
     activeReservations.forEach(reservation => {
-      if (reservation.arrivalDate && reservation.departureDate) {
-        const arrivalDate = new Date(reservation.arrivalDate);
-        arrivalDate.setHours(0, 0, 0, 0);
-        const departureDate = new Date(reservation.departureDate);
-        departureDate.setHours(0, 0, 0, 0);
-        if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
-          rentedPropertyIds.add(reservation.propertyId);
-        }
-
-        if (reservation.propertyId) {
-          const existingDate = propertyLastDeparture.get(reservation.propertyId);
-          if (!existingDate || departureDate.getTime() > existingDate.getTime()) {
-            propertyLastDeparture.set(reservation.propertyId, departureDate);
-          }
-        }
+      const arrivalDate = this.parseDateAtMidnight(reservation.arrivalDate);
+      const departureDate = this.parseDateAtMidnight(reservation.departureDate);
+      if (!arrivalDate || !departureDate || !reservation.propertyId) {
+        return;
+      }
+      if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
+        rentedPropertyIds.add(reservation.propertyId);
       }
     });
-    
-    this.rentedCount = rentedPropertyIds.size;
-    this.vacantCount = this.allProperties.length - this.rentedCount;
-    this.calculateVacancyDuration(rentedPropertyIds, propertyLastDeparture, today);
-  }
 
-  calculateVacancyDuration(rentedPropertyIds: Set<string>, propertyLastDeparture: Map<string, Date>, today: Date): void {
-    const propertiesWithVacancy: PropertyVacancyDisplay[] = [];
-    
-    this.allProperties.forEach(property => {
+    officeFilteredReservations.forEach(reservation => {
+      if (!reservation.propertyId) {
+        return;
+      }
+      const departureDate = this.parseDateAtMidnight(reservation.departureDate);
+      if (!departureDate || departureDate.getTime() > today.getTime()) {
+        return;
+      }
+      const existingLatestDeparture = latestPastDepartureByProperty.get(reservation.propertyId);
+      if (!existingLatestDeparture || departureDate.getTime() > existingLatestDeparture.getTime()) {
+        latestPastDepartureByProperty.set(reservation.propertyId, departureDate);
+      }
+    });
+
+    this.propertiesByVacancy = officeFilteredProperties.map(property => {
       const isCurrentlyRented = rentedPropertyIds.has(property.propertyId);
-      const lastDeparture = propertyLastDeparture.get(property.propertyId);
-      
-      let vacancyDays: number | null = null;
-      let lastDepartureDate: string | null = null;
-      
-      if (isCurrentlyRented) {
-        vacancyDays = 0;
-        lastDepartureDate = null;
-      } else if (lastDeparture) {
-        const daysDiff = Math.floor((today.getTime() - lastDeparture.getTime()) / (1000 * 60 * 60 * 24));
-        vacancyDays = Math.max(daysDiff, 0);
-        lastDepartureDate = lastDeparture.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric' 
-        });
-      } else {
-        vacancyDays = null;
-        lastDepartureDate = 'Never rented';
-      }
+      const latestPastDeparture = latestPastDepartureByProperty.get(property.propertyId);
 
-      let vacancyDaysDisplay: string | number;
-      if (vacancyDays === null) {
-        vacancyDaysDisplay = 'Never rented';
-      } else {
-        vacancyDaysDisplay = vacancyDays;
-      }
-      
-      propertiesWithVacancy.push({
+      const vacancyDays = isCurrentlyRented
+        ? 0
+        : latestPastDeparture
+          ? Math.max(Math.floor((today.getTime() - latestPastDeparture.getTime()) / (1000 * 60 * 60 * 24)), 0)
+          : null;
+      const vacancyDaysDisplay: string | number = vacancyDays === null ? 'Never rented' : vacancyDays;
+      const lastDepartureDate = latestPastDeparture
+        ? latestPastDeparture.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'Never rented';
+
+      return {
         propertyId: property.propertyId,
         propertyCode: property.propertyCode,
         shortAddress: property.shortAddress,
@@ -623,29 +674,31 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         bedroomId3: property.bedroomId3,
         bedroomId4: property.bedroomId4,
         isActive: property.isActive,
-        vacancyDays: vacancyDays,
-        vacancyDaysDisplay: vacancyDaysDisplay,
-        lastDepartureDate: lastDepartureDate
-      });
+        vacancyDays,
+        vacancyDaysDisplay,
+        lastDepartureDate
+      };
+    }).filter(property => {
+      if (property.vacancyDays === null) {
+        return true;
+      }
+      return typeof property.vacancyDays === 'number' && property.vacancyDays > 0;
     });
 
-    const vacantProperties = propertiesWithVacancy.filter(p => !rentedPropertyIds.has(p.propertyId));
+    this.rentedCount = rentedPropertyIds.size;
+    this.vacantCount = this.propertiesByVacancy.length;
+  }
 
-    vacantProperties.sort((a, b) => {
-      if (a.vacancyDays === null && b.vacancyDays === null) {
-        return a.propertyCode.localeCompare(b.propertyCode);
-      }
-      if (a.vacancyDays === null) return 1;
-      if (b.vacancyDays === null) return -1;
-
-      if (b.vacancyDays !== a.vacancyDays) {
-        return b.vacancyDays - a.vacancyDays;
-      }
-
-      return a.propertyCode.localeCompare(b.propertyCode);
-    });
-
-    this.propertiesByVacancy = vacantProperties;
+  parseDateAtMidnight(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
   }
   //#endregion
 
@@ -654,6 +707,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     this.userSubscription?.unsubscribe();
     this.usersSubscription?.unsubscribe();
     this.agentsSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
   }
   //#endregion
 }

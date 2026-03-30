@@ -56,10 +56,11 @@
           <div class="tableDiv">
             <app-data-table
               [class.compact-code-only-table]="isCompactView"
-              [data]="propertiesDisplay"
+              [data]="upcomingDeparturePropertiesDisplay.length > 0 ? upcomingDeparturePropertiesDisplay : propertiesDisplay"
               [columns]="propertiesDisplayedColumns"
               [hasColumnIndex]="true"
               [hasFilter]="true"
+              [subheaderLabel]="upcomingDeparturePropertiesDisplay.length > 0 && remainingPropertiesDisplay.length > 0 ? 'Upcoming Departures (Next 15 Days)' : ''"
               [hasActionsRowClick]="true"
               [hasPropertyCodeLink]="true"
               [hasActionsEdit]="true"
@@ -72,6 +73,30 @@
               (rowClickEvent)="goToInspection($event)"
               (propertyCodeClickEvent)="goToProperty($event)"
               (contactClickEvent)="goToContact($event)"/>
+
+            @if (upcomingDeparturePropertiesDisplay.length > 0 && remainingPropertiesDisplay.length > 0) {
+              <div class="maintenance-list-group-divider">
+                <span class="maintenance-list-group-title">Other Properties</span>
+              </div>
+              <app-data-table
+                [class.compact-code-only-table]="isCompactView"
+                [data]="remainingPropertiesDisplay"
+                [columns]="propertiesDisplayedColumns"
+                [hasColumnIndex]="true"
+                [hasFilter]="false"
+                [hasActionsRowClick]="true"
+                [hasPropertyCodeLink]="true"
+                [hasActionsEdit]="true"
+                [hasActionsInspect]="true"
+                [itemsPerPage]="100"
+                (dropdownChangeEvent)="onDropdownChange($event)"
+                (inlineEditChangeEvent)="onInlineEditChange($event)"
+                (editEvent)="goToPropertyMaintenance($event)"
+                (inspectEvent)="goToInspection($event)"
+                (rowClickEvent)="goToInspection($event)"
+                (propertyCodeClickEvent)="goToProperty($event)"
+                (contactClickEvent)="goToContact($event)"/>
+            }
           </div>
         </div>
       }

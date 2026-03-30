@@ -149,6 +149,19 @@ body {
     border-width: 0 3px 3px 0 !important;
 }
 
+.maintenance-list-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin: 10px 0 8px;
+}
+
+.maintenance-list-group-divider {
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(71, 85, 105, 0.25);
+}
+
 
  .mat-expansion-panel-body {
     padding: 0 !important;

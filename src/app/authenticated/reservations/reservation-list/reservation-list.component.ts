@@ -62,9 +62,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   private readonly compactViewportWidth = 1024;
   private readonly fullReservationsDisplayedColumns: ColumnSet = {
-    'office': { displayAs: 'Office', maxWidth: '15ch' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },

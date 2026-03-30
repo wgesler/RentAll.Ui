@@ -29,6 +29,8 @@ import { MaintenanceService } from '../services/maintenance.service';
 import { UserService } from '../../users/services/user.service';
 import { UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 
 type UserDropdownCell = {
   value: string;
@@ -82,6 +84,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   isServiceError: boolean = false;
   allProperties: MaintenanceListDisplay[] = [];
   propertiesDisplay: MaintenanceListDisplay[] = [];
+  upcomingDeparturePropertiesDisplay: MaintenanceListDisplay[] = [];
+  remainingPropertiesDisplay: MaintenanceListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -103,8 +107,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   isCompactView = false;
   isInspectorView = false;
   inspectorPropertyIds = new Set<string>();
+  upcomingDeparturePropertyIds = new Set<string>();
+  currentReservationHasPetsByPropertyId = new Map<string, boolean>();
 
   private readonly compactViewportWidth = 1024;
+  private readonly upcomingDepartureWindowDays = 14;
   private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
   private readonly inspectorUserOptions: string[] = ['Clear Selection'];
   private readonly bedTypeOptions: string[] = getBedSizeTypes().map(bed => bed.label);
@@ -147,7 +154,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope', 'cleaners', 'inspectors']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope', 'cleaners', 'inspectors', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -164,7 +171,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public ngZone: NgZone,
     public propertySelectionFilterService: PropertySelectionFilterService,
     public maintenanceService: MaintenanceService,
-    public userService: UserService
+    public userService: UserService,
+    public reservationService: ReservationService
   ) {
   }
 
@@ -183,6 +191,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     );
     this.loadHousekeepingUsers();
     this.loadInspectorUsers();
+    this.loadActiveReservations();
     this.updateDisplayedColumns();
     this.loadOffices();
 
@@ -281,10 +290,34 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.propertiesDisplay = filtered;
+    this.splitPropertiesByUpcomingDepartures();
   }
   //#endregion
 
   //#region Data Load Methods
+  loadActiveReservations(): void {
+    this.reservationService.getActiveReservationList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
+      next: (reservations: ReservationListResponse[]) => {
+        this.upcomingDeparturePropertyIds = this.buildUpcomingDeparturePropertyIds(reservations || []);
+        this.currentReservationHasPetsByPropertyId = this.buildCurrentReservationHasPetsByPropertyId(reservations || []);
+        this.allProperties = this.mappingService.mapMaintenancePetsFromCurrentReservations(
+          this.allProperties,
+          this.currentReservationHasPetsByPropertyId
+        );
+        this.applyFilters();
+      },
+      error: () => {
+        this.upcomingDeparturePropertyIds = new Set<string>();
+        this.currentReservationHasPetsByPropertyId = new Map<string, boolean>();
+        this.allProperties = this.mappingService.mapMaintenancePetsFromCurrentReservations(
+          this.allProperties,
+          this.currentReservationHasPetsByPropertyId
+        );
+        this.applyFilters();
+      }
+    });
+  }
+
   loadPropertyMaintenance(): void {
     this.isServiceError = false;
     if (!this.userId) {
@@ -305,7 +338,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           housekeepingById: this.housekeepingById,
           inspectorById: this.inspectorById,
           isInspectorView: this.isInspectorView,
-          inspectorPropertyIds: this.inspectorPropertyIds
+          inspectorPropertyIds: this.inspectorPropertyIds,
+          currentReservationHasPetsByPropertyId: this.currentReservationHasPetsByPropertyId
         };
         this.allProperties = this.mappingService.mapMaintenanceListDisplayRowsFromLoadResponse(
           loadResponse,
@@ -846,6 +880,99 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertiesDisplayedColumns = this.isInspectorView
       ? this.inspectorPropertiesDisplayedColumns
       : this.fullPropertiesDisplayedColumns;
+  }
+
+  splitPropertiesByUpcomingDepartures(): void {
+    if (!this.propertiesDisplay?.length) {
+      this.upcomingDeparturePropertiesDisplay = [];
+      this.remainingPropertiesDisplay = [];
+      return;
+    }
+
+    const upcomingProperties: MaintenanceListDisplay[] = [];
+    const remainingProperties: MaintenanceListDisplay[] = [];
+    this.propertiesDisplay.forEach(property => {
+      const normalizedPropertyId = this.normalizePropertyId(property.propertyId);
+      if (normalizedPropertyId && this.upcomingDeparturePropertyIds.has(normalizedPropertyId)) {
+        upcomingProperties.push(property);
+        return;
+      }
+      remainingProperties.push(property);
+    });
+
+    this.upcomingDeparturePropertiesDisplay = upcomingProperties;
+    this.remainingPropertiesDisplay = remainingProperties;
+  }
+
+  buildUpcomingDeparturePropertyIds(reservations: ReservationListResponse[]): Set<string> {
+    const propertyIds = new Set<string>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const windowEnd = new Date(today);
+    windowEnd.setDate(today.getDate() + this.upcomingDepartureWindowDays);
+    windowEnd.setHours(23, 59, 59, 999);
+
+    reservations.forEach(reservation => {
+      if (!reservation.isActive || !reservation.departureDate) {
+        return;
+      }
+
+      const departureDate = new Date(reservation.departureDate);
+      if (Number.isNaN(departureDate.getTime())) {
+        return;
+      }
+
+      departureDate.setHours(0, 0, 0, 0);
+      const departureTime = departureDate.getTime();
+      if (departureTime >= today.getTime() && departureTime <= windowEnd.getTime()) {
+        const normalizedPropertyId = this.normalizePropertyId(reservation.propertyId);
+        if (normalizedPropertyId) {
+          propertyIds.add(normalizedPropertyId);
+        }
+      }
+    });
+
+    return propertyIds;
+  }
+
+  buildCurrentReservationHasPetsByPropertyId(reservations: ReservationListResponse[]): Map<string, boolean> {
+    const propertyHasPetsById = new Map<string, boolean>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    reservations.forEach(reservation => {
+      if (!reservation.isActive || !reservation.propertyId || !reservation.arrivalDate || !reservation.departureDate) {
+        return;
+      }
+
+      const arrivalDate = new Date(reservation.arrivalDate);
+      const departureDate = new Date(reservation.departureDate);
+      if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+        return;
+      }
+      arrivalDate.setHours(0, 0, 0, 0);
+      departureDate.setHours(0, 0, 0, 0);
+
+      const isCurrentReservation = today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime();
+      if (!isCurrentReservation) {
+        return;
+      }
+
+      const normalizedPropertyId = this.normalizePropertyId(reservation.propertyId);
+      if (!normalizedPropertyId) {
+        return;
+      }
+
+      const hasPets = reservation.hasPets === true;
+      const existingValue = propertyHasPetsById.get(normalizedPropertyId) === true;
+      propertyHasPetsById.set(normalizedPropertyId, existingValue || hasPets);
+    });
+
+    return propertyHasPetsById;
+  }
+
+  normalizePropertyId(propertyId: string | null | undefined): string {
+    return (propertyId ?? '').trim().toLowerCase();
   }
 
   ngOnDestroy(): void {
