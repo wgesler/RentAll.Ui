@@ -489,7 +489,7 @@ export class UserComponent implements OnInit, OnDestroy {
       firstName: new FormControl('', [Validators.required]),
       lastName: new FormControl('', [Validators.required]),
       email: new FormControl('', [Validators.required, Validators.email]),
-      phone: new FormControl(''),
+      phone: new FormControl('', [Validators.required]),
       password: new FormControl('', [this.passwordStrengthValidator]),
       confirmPassword: new FormControl('', [this.passwordStrengthValidator, this.passwordMatchValidator.bind(this)]),
       userGroups: new FormControl([], [Validators.required, this.userGroupsRequiredValidator]),
@@ -676,7 +676,7 @@ export class UserComponent implements OnInit, OnDestroy {
     });
 
     this.form.get('userGroups')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((groups: string[]) => {
-      if (!Array.isArray(groups) || !groups.includes('Inspector')) {
+      if (!Array.isArray(groups) || !groups.some(group => ['Inspector', 'Housekeeping', 'Facilities'].includes(group))) {
         this.form.get('properties')?.setValue([], { emitEvent: false });
       }
     });
@@ -894,7 +894,12 @@ export class UserComponent implements OnInit, OnDestroy {
 
   get showInspectorPropertiesField(): boolean {
     const selectedGroups = this.form?.get('userGroups')?.value || [];
-    return Array.isArray(selectedGroups) && selectedGroups.includes('Inspector');
+    return Array.isArray(selectedGroups) && selectedGroups.some(group => ['Inspector', 'Housekeeping', 'Facilities'].includes(group));
+  }
+
+  get showAgentCommissionFields(): boolean {
+    const selectedGroups = this.form?.get('userGroups')?.value || [];
+    return Array.isArray(selectedGroups) && selectedGroups.some(group => ['Agent', 'AgentAdmin'].includes(group));
   }
   //#endregion
 
