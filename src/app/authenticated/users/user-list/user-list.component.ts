@@ -35,7 +35,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
-  includeOwners: boolean = false;
+  selectedTabIndex: number = 0;
   allUsers: UserListDisplay[] = [];
   usersDisplay: UserListDisplay[] = [];
   offices: OfficeResponse[] = [];
@@ -132,18 +132,14 @@ export class UserListComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(user => user.organizationName === this.selectedOrganization?.name);
     }
 
-    if (!this.includeOwners) {
-      const ownerGroupId = UserGroups.Owner;
-      filtered = filtered.filter(user => !(user.userGroups || []).some(g =>
-        g === 'Owner' || Number(g) === ownerGroupId
-      ));
-    }
+    const category = this.getSelectedCategory();
+    filtered = filtered.filter(user => this.matchesCategory(user, category));
 
     this.usersDisplay = filtered;
   }
 
-  onIncludeOwnersChange(checked: boolean): void {
-    this.includeOwners = checked;
+  onTabChange(event: { index: number }): void {
+    this.selectedTabIndex = event.index;
     this.applyFilters();
   }
 
@@ -334,6 +330,56 @@ export class UserListComponent implements OnInit, OnDestroy {
     });
 
     this.applyFilters();
+  }
+
+  private getSelectedCategory(): 'employees' | 'owners' | 'cleaners' | 'inspectors' | 'vendors' {
+    switch (this.selectedTabIndex) {
+      case 1:
+        return 'owners';
+      case 2:
+        return 'cleaners';
+      case 3:
+        return 'inspectors';
+      case 4:
+        return 'vendors';
+      case 0:
+      default:
+        return 'employees';
+    }
+  }
+
+  private hasUserGroup(user: UserListDisplay, group: UserGroups): boolean {
+    const groups = user.userGroups || [];
+    return groups.some(g => {
+      const value = String(g || '').trim();
+      if (!value) {
+        return false;
+      }
+      if (value === UserGroups[group]) {
+        return true;
+      }
+      const parsed = Number(value);
+      return !Number.isNaN(parsed) && parsed === group;
+    });
+  }
+
+  private matchesCategory(user: UserListDisplay, category: 'employees' | 'owners' | 'cleaners' | 'inspectors' | 'vendors'): boolean {
+    switch (category) {
+      case 'owners':
+        return this.hasUserGroup(user, UserGroups.Owner);
+      case 'cleaners':
+        return this.hasUserGroup(user, UserGroups.Housekeeping);
+      case 'inspectors':
+        return this.hasUserGroup(user, UserGroups.Inspector);
+      case 'vendors':
+        return this.hasUserGroup(user, UserGroups.Vendor);
+      case 'employees':
+      default:
+        return !this.hasUserGroup(user, UserGroups.Owner)
+          && !this.hasUserGroup(user, UserGroups.Housekeeping)
+          && !this.hasUserGroup(user, UserGroups.Inspector)
+          && !this.hasUserGroup(user, UserGroups.Vendor);
+    }
   }
 
   ngOnDestroy(): void {

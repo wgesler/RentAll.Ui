@@ -33,41 +33,68 @@
         </div>
       </div>
       <mat-card>
-        <div class="mat list-layout-standard">
-          <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-            <div class="table-filter-row-actions form-titlebar-actions-wrap">
-              <mat-slide-toggle color="primary" [checked]="includeOwners" (change)="onIncludeOwnersChange($event.checked)">
-                Include Owners
-              </mat-slide-toggle>
-              <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-                Inactive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addUser()">
-                <mat-icon>add</mat-icon>
-                Add
-              </button>
-            </div>
-            <app-data-table
-              [data]="usersDisplay"
-              [columns]="usersDisplayedColumns"
-              [hasColumnIndex]="false"
-              [hasFilter]="true"
-              [hasToggleTop]="false"
-              [hasToggleTop2]="false"
-              [hasButtonTop]="false"
-              [hasActionsRowClick]="true"
-              [hasActionsEdit]="true"
-              [hasActionsDelete]="true"
-              [deleteConfirmTitle]="'Delete User'"
-              [deleteConfirmMessage]="'Are you sure you want to delete this user?'"
-              [itemsPerPage]="100"
-              (editEvent)="goToUser($event)"
-              (rowClickEvent)="goToUser($event)"
-              (deleteEvent)="deleteUser($event)"/>
-          </div>
-        </div>
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="users-tabs" (selectedTabChange)="onTabChange($event)">
+          <mat-tab label="Employees">
+            <ng-template matTabContent>
+              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
+            </ng-template>
+          </mat-tab>
+          <mat-tab label="Owners">
+            <ng-template matTabContent>
+              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
+            </ng-template>
+          </mat-tab>
+          <mat-tab label="Cleaners">
+            <ng-template matTabContent>
+              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
+            </ng-template>
+          </mat-tab>
+          <mat-tab label="Inspectors">
+            <ng-template matTabContent>
+              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
+            </ng-template>
+          </mat-tab>
+          <mat-tab label="Vendors">
+            <ng-template matTabContent>
+              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
+            </ng-template>
+          </mat-tab>
+        </mat-tab-group>
       </mat-card>
     </section>
   </div>
 }
+
+<ng-template #usersTableTemplate>
+  <div class="mat list-layout-standard">
+    <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
+      <div class="table-filter-row-actions form-titlebar-actions-wrap">
+        <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+          Inactive
+        </mat-slide-toggle>
+        <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addUser()">
+          <mat-icon>add</mat-icon>
+          Add
+        </button>
+      </div>
+      <app-data-table
+        [data]="usersDisplay"
+        [columns]="usersDisplayedColumns"
+        [hasColumnIndex]="false"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasToggleTop2]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="true"
+        [deleteConfirmTitle]="'Delete User'"
+        [deleteConfirmMessage]="'Are you sure you want to delete this user?'"
+        [itemsPerPage]="100"
+        (editEvent)="goToUser($event)"
+        (rowClickEvent)="goToUser($event)"
+        (deleteEvent)="deleteUser($event)"/>
+    </div>
+  </div>
+</ng-template>
 
