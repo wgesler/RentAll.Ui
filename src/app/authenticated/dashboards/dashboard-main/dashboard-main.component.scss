@@ -232,12 +232,45 @@
   color: rgba(0, 0, 0, 0.87);
 }
 
-.dashboard-split-label {
-  margin: 22px 0 12px;
-  padding: 0 10px;
+.dashboard-group-title {
+  margin: 0 0 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: #1e40af;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+.dashboard-group-title::before {
+  content: "★";
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.dashboard-group-divider {
+  margin: 0;
+  padding-top: 26px;
+  border-top: 1px solid rgba(71, 85, 105, 0.25);
+}
+
+/* Keep first table subheader aligned with dashboard section heading color. */
+:host ::ng-deep .reservation-tables app-data-table .datatable-subheader-label {
+  margin: 0 0 12px;
+  color: #1e40af;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+:host ::ng-deep .reservation-tables app-data-table .datatable-subheader-label::before {
+  content: "★";
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* Match property list status dropdown appearance in table rows. */
@@ -251,7 +284,7 @@
   .mat-mdc-select-min-line,
   .mat-mdc-select-value,
   .mat-mdc-select-value-text {
-    color: #0d47a1 !important;
+    color: #1d4ed8 !important;
     text-decoration: underline;
     font-size: inherit !important;
     line-height: inherit !important;

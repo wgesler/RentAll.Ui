@@ -55,20 +55,13 @@
               }
 
               <!-- Cost Code -->
-              @if (isAddMode) {
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Cost Code</mat-label>
-                  <input matInput formControlName="costCode" type="text" required>
-                  @if (form.get('costCode')?.hasError('required') && form.get('costCode')?.touched) {
-                    <mat-error>Cost Code is required</mat-error>
-                  }
-                </mat-form-field>
-              } @else {
-                <mat-form-field appearance="outline" class="flex-1">
-                  <mat-label>Cost Code</mat-label>
-                  <input matInput formControlName="costCode" readonly class="readonly-field">
-                </mat-form-field>
-              }
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Cost Code</mat-label>
+                <input matInput formControlName="costCode" type="text" required>
+                @if (form.get('costCode')?.hasError('required') && form.get('costCode')?.touched) {
+                  <mat-error>Cost Code is required</mat-error>
+                }
+              </mat-form-field>
 
               <!-- Transaction Type -->
               <mat-form-field appearance="outline" class="flex-1">

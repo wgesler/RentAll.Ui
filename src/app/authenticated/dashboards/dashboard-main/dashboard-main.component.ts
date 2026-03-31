@@ -604,6 +604,22 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
           daysRented: daysRented,
           commission: getCommission(daysRented, commissionRate)
         };
+      })
+      .sort((a, b) => {
+        const agentA = (a.agentCode || '').trim().toLowerCase();
+        const agentB = (b.agentCode || '').trim().toLowerCase();
+        const agentCompare = agentA.localeCompare(agentB);
+        if (agentCompare !== 0) {
+          return agentCompare;
+        }
+
+        const arrivalA = this.parseDateAtMidnight(a.arrivalDate)?.getTime() ?? 0;
+        const arrivalB = this.parseDateAtMidnight(b.arrivalDate)?.getTime() ?? 0;
+        if (arrivalA !== arrivalB) {
+          return arrivalA - arrivalB;
+        }
+
+        return (a.reservationCode || '').localeCompare(b.reservationCode || '');
       });
   }
 

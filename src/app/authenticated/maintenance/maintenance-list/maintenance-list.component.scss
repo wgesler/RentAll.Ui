@@ -71,38 +71,6 @@ body {
   }
 }
 
-/* Cleaner selected value should be pink; unselected remains default/black. */
-:host ::ng-deep td.datatable-cleaner-selected.mat-cell.mat-column-cleaner,
-:host ::ng-deep td.datatable-cleaner-selected.mat-mdc-cell.mat-column-cleaner {
-  .mat-mdc-select,
-  .mat-mdc-select-min-line,
-  .mat-mdc-select-value,
-  .mat-mdc-select-value-text {
-    color: #e91e63 !important;
-  }
-}
-
-:host ::ng-deep td.datatable-cleaner-selected.mat-cell.mat-column-carpet,
-:host ::ng-deep td.datatable-cleaner-selected.mat-mdc-cell.mat-column-carpet {
-  .mat-mdc-select,
-  .mat-mdc-select-min-line,
-  .mat-mdc-select-value,
-  .mat-mdc-select-value-text {
-    color: #e91e63 !important;
-  }
-}
-
-/* Inspector selected value should be green; unselected remains default/black. */
-:host ::ng-deep td.datatable-inspector-selected.mat-cell.mat-column-inspector,
-:host ::ng-deep td.datatable-inspector-selected.mat-mdc-cell.mat-column-inspector {
-  .mat-mdc-select,
-  .mat-mdc-select-min-line,
-  .mat-mdc-select-value,
-  .mat-mdc-select-value-text {
-    color: #29b457 !important;
-  }
-}
-
 /* Bed dropdown text should be underlined. */
 :host ::ng-deep td.mat-cell.mat-column-bed1Text,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
@@ -164,14 +132,41 @@ body {
 .maintenance-list-group-title {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
-  margin: 10px 0 8px;
+  color: #1e40af;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+.maintenance-list-group-title::before {
+  content: "★";
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .maintenance-list-group-divider {
-  margin: 18px 0 8px;
-  padding-top: 12px;
+  margin: 0 0 8px;
+  padding-top: 24px;
   border-top: 1px solid rgba(71, 85, 105, 0.25);
+}
+
+:host ::ng-deep app-data-table .datatable-subheader-label {
+  margin: 0 0 8px !important;
+  color: #1e40af;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+:host ::ng-deep app-data-table .datatable-subheader-label::before {
+  content: "★";
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 1;
 }
 
 

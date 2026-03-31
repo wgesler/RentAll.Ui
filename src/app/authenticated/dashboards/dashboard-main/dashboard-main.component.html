@@ -78,7 +78,9 @@
                     (contactClickEvent)="goToContact($event)"/>
 
                   @if (upcomingDepartures.length > 0) {
-                    <div class="dashboard-split-label">Upcoming Departures (Next 15 Days)</div>
+                    <div class="dashboard-group-divider">
+                      <span class="dashboard-group-title">Upcoming Departures (Next 15 Days)</span>
+                    </div>
                     <app-data-table
                       [data]="upcomingDepartures"
                       [columns]="reservationsDisplayedColumns"
@@ -95,21 +97,21 @@
                       (contactClickEvent)="goToContact($event)"/>
                   }
 
-                  @if (propertiesByVacancy.length > 0) {
-                    <div class="dashboard-split-label">Vacant Properties</div>
-                    <app-data-table
-                      [data]="propertiesByVacancy"
-                      [columns]="propertiesDisplayedColumns"
-                      [hasColumnIndex]="false"
-                      [hasFilter]="false"
-                      [hasToggleTop]="false"
-                      [hasButtonTop]="false"
-                      [hasActionsRowClick]="true"
-                      [hasActionsEdit]="false"
-                      [hasActionsDelete]="false"
-                      [itemsPerPage]="50"
-                      (rowClickEvent)="goToProperty($event)"/>
-                  }
+                  <div class="dashboard-group-divider">
+                    <span class="dashboard-group-title">Vacant Properties</span>
+                  </div>
+                  <app-data-table
+                    [data]="propertiesByVacancy"
+                    [columns]="propertiesDisplayedColumns"
+                    [hasColumnIndex]="false"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasActionsEdit]="false"
+                    [hasActionsDelete]="false"
+                    [itemsPerPage]="50"
+                    (rowClickEvent)="goToProperty($event)"/>
                 </div>
               }
             </mat-expansion-panel>

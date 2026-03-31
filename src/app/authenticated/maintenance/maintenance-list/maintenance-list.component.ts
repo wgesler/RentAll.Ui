@@ -99,8 +99,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   housekeepingUsers: UserResponse[] = [];
+  carpetUsers: UserResponse[] = [];
   inspectorUsers: UserResponse[] = [];
   housekeepingById = new Map<string, string>();
+  carpetById = new Map<string, string>();
   inspectorById = new Map<string, string>();
   userId: string = '';
   organizationId: string = '';
@@ -116,6 +118,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly compactViewportWidth = 1024;
   private readonly upcomingDepartureWindowDays = 14;
   private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
+  private readonly carpetUserOptions: string[] = ['Clear Selection'];
   private readonly inspectorUserOptions: string[] = ['Clear Selection'];
   private readonly bedTypeOptions: string[] = getBedSizeTypes().map(bed => bed.label);
   private readonly propertyStatuses = getPropertyStatuses();
@@ -129,11 +132,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'cleaner': { displayAs: 'Cleaner', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'cleaner': { displayAs: 'Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
     'carpetDate': { displayAs: 'Carpet Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.carpetUserOptions },
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'inspector': { displayAs: 'Inspector', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
+    'inspector': { displayAs: 'Inspector', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
     
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
@@ -155,7 +158,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope', 'cleaners', 'inspectors', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope', 'cleaners', 'carpetUsers', 'inspectors', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -191,6 +194,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         .filter(propertyId => propertyId !== '')
     );
     this.loadHousekeepingUsers();
+    this.loadCarpetUsers();
     this.loadInspectorUsers();
     this.loadActiveReservations();
     this.updateDisplayedColumns();
@@ -346,7 +350,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           loadResponse,
           mappingContext
         ) as MaintenanceListDisplay[];
-        this.applyFilters();
+        this.remapCleanerInspectorDropdowns();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -371,6 +375,25 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.housekeepingUsers = [];
         this.housekeepingById = new Map<string, string>();
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'Clear Selection');
+        this.remapCleanerInspectorDropdowns();
+      }
+    });
+  }
+
+  loadCarpetUsers(): void {
+    this.userService.getUsersByType(UserGroups[UserGroups.Vendor]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'carpetUsers'))).subscribe({
+      next: (users: UserResponse[]) => {
+        this.carpetUsers = users || [];
+        this.carpetById = new Map(this.carpetUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
+        const names = this.carpetUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
+        names.unshift('Clear Selection');
+        this.carpetUserOptions.splice(0, this.carpetUserOptions.length, ...names);
+        this.remapCleanerInspectorDropdowns();
+      },
+      error: () => {
+        this.carpetUsers = [];
+        this.carpetById = new Map<string, string>();
+        this.carpetUserOptions.splice(0, this.carpetUserOptions.length, 'Clear Selection');
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -431,7 +454,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       this.officeIdChange.emit(null);
     }
-    this.applyFilters();
+    this.remapCleanerInspectorDropdowns();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
@@ -441,7 +464,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
-    this.applyFilters();
+    this.remapCleanerInspectorDropdowns();
   }
   //#endregion
 
@@ -827,9 +850,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!cleanerUserIdOrName || cleanerUserIdOrName === 'Clear Selection' || cleanerUserIdOrName === 'Select Cleaner') {
       return '';
     }
-    const officeUser = this.housekeepingUsers.find(user => user.userId === cleanerUserIdOrName && (user.officeAccess || []).includes(officeId));
-    if (officeUser) {
-      return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
+    const matchingUser = this.getHousekeepingUsersForScope(officeId).find(user => user.userId === cleanerUserIdOrName);
+    if (matchingUser) {
+      return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
     return this.housekeepingById.get(cleanerUserIdOrName) ?? cleanerUserIdOrName;
   }
@@ -838,9 +861,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!inspectorUserIdOrName || inspectorUserIdOrName === 'Select Inspector') {
       return '';
     }
-    const officeUser = this.inspectorUsers.find(user => user.userId === inspectorUserIdOrName && (user.officeAccess || []).includes(officeId));
-    if (officeUser) {
-      return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
+    const matchingUser = this.getInspectorUsersForScope(officeId).find(user => user.userId === inspectorUserIdOrName);
+    if (matchingUser) {
+      return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
     return this.inspectorById.get(inspectorUserIdOrName) ?? inspectorUserIdOrName;
   }
@@ -849,39 +872,39 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!carpetUserIdOrName || carpetUserIdOrName === 'Clear Selection' || carpetUserIdOrName === 'Select Carpet Cleaner') {
       return '';
     }
-    const officeUser = this.housekeepingUsers.find(user => user.userId === carpetUserIdOrName && (user.officeAccess || []).includes(officeId));
-    if (officeUser) {
-      return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
+    const matchingUser = this.getCarpetUsersForScope(officeId).find(user => user.userId === carpetUserIdOrName);
+    if (matchingUser) {
+      return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
-    return this.housekeepingById.get(carpetUserIdOrName) ?? carpetUserIdOrName;
+    return this.carpetById.get(carpetUserIdOrName) ?? carpetUserIdOrName;
   }
 
   getCleanerOptionsForOffice(officeId: number): string[] {
-    const names = this.housekeepingUsers
-      .filter(user => (user.officeAccess || []).includes(officeId))
+    const names = this.getHousekeepingUsersForScope(officeId)
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
       .filter(name => name !== '');
     return ['Clear Selection', ...names];
   }
 
   getInspectorOptionsForOffice(officeId: number): string[] {
-    const names = this.inspectorUsers
-      .filter(user => (user.officeAccess || []).includes(officeId))
+    const names = this.getInspectorUsersForScope(officeId)
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
       .filter(name => name !== '');
     return ['Clear Selection', ...names];
   }
 
   getCarpetOptionsForOffice(officeId: number): string[] {
-    return this.getCleanerOptionsForOffice(officeId);
+    const names = this.getCarpetUsersForScope(officeId)
+      .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
+      .filter(name => name !== '');
+    return ['Clear Selection', ...names];
   }
 
   resolveCleanerIdFromLabel(label: string, officeId: number): string | null {
     if (!label || label === 'Clear Selection' || label === 'Select Cleaner') {
       return null;
     }
-    const officeUsers = this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(officeId));
-    const user = officeUsers.find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
+    const user = this.getHousekeepingUsersForScope(officeId).find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
     return user?.userId ?? null;
   }
 
@@ -889,8 +912,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!label || label === 'Clear Selection' || label === 'Select Inspector') {
       return null;
     }
-    const officeUsers = this.inspectorUsers.filter(user => (user.officeAccess || []).includes(officeId));
-    const user = officeUsers.find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
+    const user = this.getInspectorUsersForScope(officeId).find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
     return user?.userId ?? null;
   }
 
@@ -898,9 +920,32 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     if (!label || label === 'Clear Selection' || label === 'Select Carpet Cleaner') {
       return null;
     }
-    const officeUsers = this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(officeId));
-    const user = officeUsers.find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
+    const user = this.getCarpetUsersForScope(officeId).find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
     return user?.userId ?? null;
+  }
+
+  getHousekeepingUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.housekeepingUsers;
+    }
+    return this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
+  }
+
+  getInspectorUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.inspectorUsers;
+    }
+    return this.inspectorUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
+  }
+
+  getCarpetUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.carpetUsers;
+    }
+    return this.carpetUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
   }
 
   buildDefaultInspectionTemplateJson(): string {

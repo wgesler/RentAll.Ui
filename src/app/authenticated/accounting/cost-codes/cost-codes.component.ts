@@ -209,10 +209,8 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           
-          // Refresh cost codes for the office
-          if (this.selectedOffice) {
-            this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
-          }
+          // Refresh all cached cost codes so all list views are current.
+          this.costCodesService.loadAllCostCodes();
           
           // Clear form for another entry (don't navigate back)
           this.resetFormForNewEntry();
@@ -230,6 +228,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         next: (response: CostCodesResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.costCodesService.loadAllCostCodes();
           this.savedEvent.emit();
           this.back();
         },
@@ -335,11 +334,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   updateCostCodeValidators(): void {
     const costCodeControl = this.form.get('costCode');
     if (costCodeControl) {
-      if (this.isAddMode) {
-        costCodeControl.setValidators([Validators.required]);
-      } else {
-        costCodeControl.clearValidators();
-      }
+      costCodeControl.setValidators([Validators.required]);
       costCodeControl.updateValueAndValidity();
     }
   }
