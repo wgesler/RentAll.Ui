@@ -13,7 +13,7 @@
         Save
       </button>
     </div>
-    <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
+    <div class="maintenance-form-row maintenance-form-row-six form-standard-grid">
       <mat-form-field appearance="outline">
         <mat-label>Cleaner</mat-label>
         <mat-select formControlName="cleanerUserId" [canSelectNullableOptions]="true">
@@ -32,25 +32,6 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Inspector</mat-label>
-        <mat-select formControlName="inspectorUserId" [canSelectNullableOptions]="true">
-          <mat-option [value]="null">Select Inspector</mat-option>
-          @for (user of getInspectorOptionsForOffice(); track user.userId) {
-            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Inspecting Date</mat-label>
-        <input matInput [matDatepicker]="inspectingDatePicker" formControlName="inspectingDate" />
-        <mat-datepicker-toggle matSuffix [for]="inspectingDatePicker"></mat-datepicker-toggle>
-        <mat-datepicker #inspectingDatePicker></mat-datepicker>
-      </mat-form-field>
-    </div>
-
-    <div class="maintenance-form-row maintenance-form-row-two form-standard-grid">
-      <mat-form-field appearance="outline">
         <mat-label>Carpet Cleaner</mat-label>
         <mat-select formControlName="carpetUserId" [canSelectNullableOptions]="true">
           <mat-option [value]="null">Select Carpet Cleaner</mat-option>
@@ -65,6 +46,23 @@
         <input matInput [matDatepicker]="carpetDatePicker" formControlName="carpetDate" />
         <mat-datepicker-toggle matSuffix [for]="carpetDatePicker"></mat-datepicker-toggle>
         <mat-datepicker #carpetDatePicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Inspector</mat-label>
+        <mat-select formControlName="inspectorUserId" [canSelectNullableOptions]="true">
+          <mat-option [value]="null">Select Inspector</mat-option>
+          @for (user of getInspectorOptionsForOffice(); track user.userId) {
+            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Inspecting Date</mat-label>
+        <input matInput [matDatepicker]="inspectingDatePicker" formControlName="inspectingDate" />
+        <mat-datepicker-toggle matSuffix [for]="inspectingDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #inspectingDatePicker></mat-datepicker>
       </mat-form-field>
     </div>
   </form>

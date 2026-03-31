@@ -668,7 +668,8 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   onCostCodeChange(index: number, costCodeId: string | null): void {
-    if (costCodeId === null || costCodeId === undefined) {
+    const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : String(costCodeId);
+    if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
       // Clear transactionTypeId when cost code is cleared
@@ -679,9 +680,9 @@ export class BillingComponent implements OnInit, OnDestroy {
       const previousTransactionTypeId = (line as any).transactionTypeId;
       const currentAmount = line.amount || 0;
       
-      this.updateLedgerLineField(index, 'costCodeId', costCodeId);
+      this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.billingCostCodes.find(c => c.costCodeId === costCodeId);
+      const matchingCostCode = this.billingCostCodes.find(c => String(c.costCodeId) === normalizedCostCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
@@ -729,6 +730,10 @@ export class BillingComponent implements OnInit, OnDestroy {
             }, 0);
           }
         }
+      } else {
+        this.updateLedgerLineField(index, 'costCode', null);
+        (this.ledgerLines[index] as any).transactionTypeId = undefined;
+        this.updateLedgerLineField(index, 'transactionType', '');
       }
     }
   }

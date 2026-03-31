@@ -1081,7 +1081,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === normalizedCostCodeId);
+      const matchingCostCode = this.officeCostCodes.find(c => String(c.costCodeId) === normalizedCostCodeId)
+        ?? this.allCostCodes.find(c =>
+          String(c.costCodeId) === normalizedCostCodeId
+          && (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
+        );
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
@@ -1129,6 +1133,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
             }, 0);
           }
         }
+      } else {
+        this.updateLedgerLineField(index, 'costCode', null);
+        (this.ledgerLines[index] as any).transactionTypeId = undefined;
+        this.updateLedgerLineField(index, 'transactionType', '');
       }
     }
   }

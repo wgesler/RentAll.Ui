@@ -48,6 +48,10 @@
   grid-template-columns: repeat(4, minmax(200px, 1fr));
 }
 
+.maintenance-form-row-six {
+  grid-template-columns: repeat(6, minmax(160px, 1fr));
+}
+
 .maintenance-field-full {
   grid-column: 1 / -1;
 }
@@ -66,7 +70,8 @@
 
 @media screen and (max-width: 959px) {
   .maintenance-form-row-two,
-  .maintenance-form-row-four {
+  .maintenance-form-row-four,
+  .maintenance-form-row-six {
     grid-template-columns: 1fr;
   }
 }
