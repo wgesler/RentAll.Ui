@@ -93,7 +93,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
     title: 'Living Room',
     items: [
       // Checklist items
-      { text: 'Flat Screen TV', requiresPhoto: true, requiresCount: false },
+      { text: 'Flat Screen TV', requiresPhoto: false, requiresCount: false },
       { text: 'TV Remote', requiresPhoto: false, requiresCount: false },
       { text: 'TV Stand', requiresPhoto: false, requiresCount: false },
       { text: 'Couch', requiresPhoto: false, requiresCount: false },
@@ -110,7 +110,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Furniture setup, clean and dusted.', requiresPhoto: false, requiresCount: false },
       { text: 'Lamps and overhead lights/fan working and clean.', requiresPhoto: false, requiresCount: false },
       { text: 'Television and remotes working.', requiresPhoto: true, requiresCount: false },
-      { text: 'Carpet/flooring clean and in good condition.', requiresPhoto: true, requiresCount: false }
+      { text: 'Carpet/flooring clean and in good condition.', requiresPhoto: true, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -125,7 +126,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Furniture setup, clean and dusted.', requiresPhoto: true, requiresCount: false },
       { text: 'Chair is sturdy. If it has wheels, they roll properly.', requiresPhoto: false, requiresCount: false },
       { text: 'Lamps and overhead lights/fan working and clean.', requiresPhoto: false, requiresCount: false },
-      { text: 'Shelves clean and free of dust.', requiresPhoto: false, requiresCount: false }
+      { text: 'Shelves clean and free of dust.', requiresPhoto: false, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -197,7 +199,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Oven clean and working.', requiresPhoto: true, requiresCount: false },
       { text: 'Dishwasher and disposal working, no leaks.', requiresPhoto: false, requiresCount: false },
       { text: 'Kitchen faucet works with hot/cold water.', requiresPhoto: false, requiresCount: false },
-      { text: 'Starter kit provided.', requiresPhoto: true, requiresCount: false }
+      { text: 'Starter kit provided.', requiresPhoto: true, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -230,7 +233,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Bedroom furniture in good condition.', requiresPhoto: false, requiresCount: false },
       { text: 'Television and remotes working.', requiresPhoto: true, requiresCount: false },
       { text: 'Lights/fans and remotes working.', requiresPhoto: false, requiresCount: false },
-      { text: 'Closet and drawers clean and organized.', requiresPhoto: false, requiresCount: false }
+      { text: 'Closet and drawers clean and organized.', requiresPhoto: false, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -254,7 +258,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Sink hot/cold tested and no leaks.', requiresPhoto: true, requiresCount: false },
       { text: 'Toilet clean, flushes properly, and no leaks.', requiresPhoto: true, requiresCount: false },
       { text: 'Towels/liner/rug clean and in good condition.', requiresPhoto: false, requiresCount: false },
-      { text: 'Starter kit provided.', requiresPhoto: false, requiresCount: false }
+      { text: 'Starter kit provided.', requiresPhoto: false, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -287,7 +292,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Washer and dryer working with no leaks/odor.', requiresPhoto: true, requiresCount: false },
       { text: 'HVAC working', requiresPhoto: true, requiresCount: false },
       { text: 'Water Heater working', requiresPhoto: true, requiresCount: false },
-      { text: 'Thermostat working', requiresPhoto: false, requiresCount: false }
+      { text: 'Thermostat working', requiresPhoto: false, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {
@@ -297,7 +303,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Clean and swept of all debris.', requiresPhoto: false, requiresCount: false },
       { text: 'Trash cans inside and emptied.', requiresPhoto: false, requiresCount: false },
       { text: 'Garage door openers accounted for and ready for tenants.', requiresPhoto: false, requiresCount: false },
-      { text: 'Garage door working', requiresPhoto: false, requiresCount: false }
+      { text: 'Garage door working', requiresPhoto: false, requiresCount: false },
+      { text: 'Photo: Full view.', requiresPhoto: true, requiresCount: false }
     ]
   },
   {

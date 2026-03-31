@@ -5,7 +5,7 @@ import { MaterialModule } from '../../../material.module';
 
 export type DialogIssueItemResult = {
   issueText: string;
-  photoFile: File;
+  photoFile: File | null;
 };
 
 @Component({
@@ -21,7 +21,7 @@ export type DialogIssueItemResult = {
         </span>
       </div>
       <mat-dialog-content class="flex-shrink-0 w-full pt-4">
-        <p>Issue details and a photo are required.</p>
+        <p>Issue details are required. Photo is optional.</p>
 
         <mat-form-field appearance="outline" class="w-full">
           <mat-label>Issue</mat-label>
@@ -54,9 +54,6 @@ export type DialogIssueItemResult = {
           }
         </div>
         <p class="mb-2">Allowed File Types (jpg, png, or gif image types)</p>
-        @if (photoTouched && !photoFile) {
-          <div class="text-red-700 text-sm mt-2">Photo is required.</div>
-        }
         <input
           #photoInput
           class="hidden"
@@ -89,7 +86,7 @@ export class DialogIssueItemComponent {
 
   get canConfirm(): boolean {
     const issueText = (this.issueControl.value || '').trim();
-    return issueText.length > 0 && this.photoFile !== null;
+    return issueText.length > 0;
   }
 
   openPhotoPicker(): void {
@@ -128,9 +125,8 @@ export class DialogIssueItemComponent {
 
   confirm(): void {
     const issueText = (this.issueControl.value || '').trim();
-    if (!issueText || !this.photoFile) {
+    if (!issueText) {
       this.issueControl.markAsTouched();
-      this.photoTouched = true;
       return;
     }
     this.dialogRef.close({ issueText, photoFile: this.photoFile });

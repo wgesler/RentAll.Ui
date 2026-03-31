@@ -1701,7 +1701,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         }
 
         try {
-          await this.uploadIssuePhoto(sectionKey, repeatIndex, item, result.photoFile);
+          if (result.photoFile) {
+            await this.uploadIssuePhoto(sectionKey, repeatIndex, item, result.photoFile);
+          }
           this.setItemIssueState(sectionKey, repeatIndex, item, true);
           this.updateItemIssue(sectionKey, repeatIndex, item, result.issueText);
           control.setValue(true, { emitEvent: false });
