@@ -400,9 +400,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     if (this.showMonthlyCommissionAmount) {
       return `$${amount.toFixed(2)}`;
     }
-    if (amount <= 0) {
-      return '$0.00';
-    }
     return '$******';
   }
 

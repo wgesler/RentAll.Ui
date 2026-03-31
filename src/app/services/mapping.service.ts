@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
-import { getEntityType } from '../authenticated/contacts/models/contact-enum';
+import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
@@ -789,6 +789,9 @@ export class MappingService {
 
   mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
+      const isCompanyContact = Number(o.entityTypeId) === EntityType.Company;
+      const companyName = String(o.displayName || o.companyName || '').trim();
+
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
@@ -799,9 +802,11 @@ export class MappingService {
         officeName: o.officeName,
         office: o.officeName || undefined,
         contactId: o.contactId,
+        entityId: o.entityId ?? null,
+        entityTypeId: o.entityTypeId ?? null,
         contactName: o.contactName,
         tenantName: o.tenantName,
-        companyName: (o.displayName || o.companyName || '').trim() || 'N/A',
+        companyName: companyName,
         agentId: o.agentId ?? null,
         agentCode: o.agentCode,
         monthlyRate: o.monthlyRate,

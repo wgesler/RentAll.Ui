@@ -94,6 +94,22 @@
                       (rowClickEvent)="goToReservation($event)"
                       (contactClickEvent)="goToContact($event)"/>
                   }
+
+                  @if (propertiesByVacancy.length > 0) {
+                    <div class="dashboard-split-label">Vacant Properties</div>
+                    <app-data-table
+                      [data]="propertiesByVacancy"
+                      [columns]="propertiesDisplayedColumns"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="false"
+                      [hasActionsDelete]="false"
+                      [itemsPerPage]="50"
+                      (rowClickEvent)="goToProperty($event)"/>
+                  }
                 </div>
               }
             </mat-expansion-panel>
@@ -106,7 +122,7 @@
                 <mat-panel-title>
                   <span class="section-title">
                     Monthly Commissions
-                    @if (currentUserAgentCode) {
+                    @if (currentUserAgentCode && currentUserAgentCode.toUpperCase() !== 'ALL') {
                       <span> - {{ currentUserAgentCode }}</span>
                     }
                   </span>
@@ -136,38 +152,6 @@
                     [itemsPerPage]="50"
                     (rowClickEvent)="goToReservation($event)"
                     (contactClickEvent)="goToContact($event)"/>
-                </div>
-              }
-            </mat-expansion-panel>
-
-            <!-- Vacant Properties Table -->
-            <mat-expansion-panel
-              class="reservation-section"
-              [(expanded)]="expandedSections.vacantProperties">
-              <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Vacant Properties</span>
-                </mat-panel-title>
-              </mat-expansion-panel-header>
-              @if (isLoadingProperties || isLoadingReservations) {
-                <div class="loading-container">
-                  <mat-spinner [diameter]="40"></mat-spinner>
-                  <p>Loading properties...</p>
-                </div>
-              } @else {
-                <div class="tableDiv">
-                  <app-data-table
-                    [data]="propertiesByVacancy"
-                    [columns]="propertiesDisplayedColumns"
-                    [hasColumnIndex]="false"
-                    [hasFilter]="false"
-                    [hasToggleTop]="false"
-                    [hasButtonTop]="false"
-                    [hasActionsRowClick]="true"
-                    [hasActionsEdit]="false"
-                    [hasActionsDelete]="false"
-                    [itemsPerPage]="50"
-                    (rowClickEvent)="goToProperty($event)"/>
                 </div>
               }
             </mat-expansion-panel>

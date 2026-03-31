@@ -100,6 +100,7 @@ export interface ReservationListResponse {
   officeName: string;
   contactId: string;
   entityId?: string | null;
+  entityTypeId?: number | null;
   contactName: string;
   displayName?: string | null;
   tenantName: string;
@@ -128,6 +129,7 @@ export interface ReservationListDisplay {
   office?: string;
   contactId: string;
   entityId?: string | null;
+  entityTypeId?: number | null;
   contactName: string;
   tenantName: string;
   companyName: string;
