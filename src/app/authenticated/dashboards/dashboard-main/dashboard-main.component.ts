@@ -534,6 +534,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (!this.isAdmin && Number(this.currentUserCommissionRate ?? 0) <= 0) {
+      this.monthlyCommissions = [];
+      return;
+    }
+
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -584,20 +589,26 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     };
 
     const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
+    const resolveCommissionRate = (reservation: ReservationListDisplay): number => {
+      if (this.isAdmin) {
+        const normalizedReservationAgentCode = (reservation.agentCode || '').trim().toLowerCase();
+        return Number(this.adminCommissionRatesByAgentCode.get(normalizedReservationAgentCode) ?? 0);
+      }
+      return Number(this.currentUserCommissionRate ?? 0);
+    };
+
     this.monthlyCommissions = this.getOfficeFilteredReservations()
       .filter(reservation =>
         this.isAdmin
           ? (reservation.agentCode || '').trim().length > 0
           : (reservation.agentCode || '').trim().toLowerCase() === agentCode
       )
+      .filter(reservation => resolveCommissionRate(reservation) > 0)
       .filter(reservation =>
         overlapsCurrentMonth(reservation.arrivalDate, reservation.departureDate)
       )
       .map(reservation => {
-        const normalizedReservationAgentCode = (reservation.agentCode || '').trim().toLowerCase();
-        const commissionRate = this.isAdmin
-          ? Number(this.adminCommissionRatesByAgentCode.get(normalizedReservationAgentCode) ?? 0)
-          : this.currentUserCommissionRate;
+        const commissionRate = resolveCommissionRate(reservation);
         const daysRented = getDaysRentedInCurrentMonth(reservation.arrivalDate, reservation.departureDate);
         return {
           ...reservation,
@@ -605,6 +616,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
           commission: getCommission(daysRented, commissionRate)
         };
       })
+      .filter(reservation => Number(reservation.commission ?? 0) > 0)
       .sort((a, b) => {
         const agentA = (a.agentCode || '').trim().toLowerCase();
         const agentB = (b.agentCode || '').trim().toLowerCase();
