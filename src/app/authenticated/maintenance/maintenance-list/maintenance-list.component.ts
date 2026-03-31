@@ -2,9 +2,9 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -17,8 +17,6 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { getBedSizeType, getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
-import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -93,8 +91,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   globalOfficeSubscription?: Subscription;
-  navigationSubscription?: Subscription;
-  lastNavigationUrl = '';
   destroy$ = new Subject<void>();
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
@@ -107,7 +103,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   userId: string = '';
   organizationId: string = '';
   preferredOfficeId: number | null = null;
-  propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
   isInspectorView = false;
@@ -132,11 +127,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'cleaner': { displayAs: 'Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'cleaner': { displayAs: 'Cleaner', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
     'carpetDate': { displayAs: 'Carpet Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.carpetUserOptions },
+    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.carpetUserOptions },
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'inspector': { displayAs: 'Inspector', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
+    'inspector': { displayAs: 'Inspector', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
     
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
@@ -173,7 +168,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public route: ActivatedRoute,
     public utilityService: UtilityService,
     public ngZone: NgZone,
-    public propertySelectionFilterService: PropertySelectionFilterService,
     public maintenanceService: MaintenanceService,
     public userService: UserService,
     public reservationService: ReservationService
@@ -199,22 +193,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadActiveReservations();
     this.updateDisplayedColumns();
     this.loadOffices();
-
-    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
-    });
-
-    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
-      const path = e.urlAfterRedirects.split('?')[0];
-      const isMaintenanceList = /\/maintenance$/.test(path);
-      const fromSelection = this.lastNavigationUrl.includes('/selection');
-      if (isMaintenanceList && fromSelection) {
-        this.loadPropertyMaintenance();
-      }
-      this.lastNavigationUrl = path;
     });
   }
 
@@ -265,22 +247,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  goToPropertySelection(): void {
-    if (!this.userId) {
-      this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'maintenance-list' } });
-      return;
-    }
-    this.propertyService.getPropertySelection(this.userId).pipe(take(1)).subscribe({
-      next: (selection: PropertySelectionResponse) => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, {
-          state: { source: 'maintenance-list', selection }
-        });
-      },
-      error: () => {
-        this.router.navigateByUrl(RouterUrl.ReservationBoardSelection, { state: { source: 'maintenance-list' } });
-      }
-    });
-  }
   //#endregion
 
   //#region Filter Methods
@@ -1097,7 +1063,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.navigationSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
