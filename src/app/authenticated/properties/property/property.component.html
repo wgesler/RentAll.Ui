@@ -546,6 +546,7 @@
                     [required]="isAddMode"
                     [value]="form.get('owner1Id')?.value || ''"
                     [options]="ownerOptions"
+                    [triggerValueClickable]="hasOwnerSelected('owner1Id')"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
                     [hideSearchText]="true"
@@ -553,7 +554,8 @@
                     [noResultsText]="'No owners match your search'"
                     [showError]="!!(isAddMode && form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
                     [errorText]="'Owner is required'"
-                    (valueChange)="onOwnerDropdownChange('owner1Id', $event)">
+                    (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
+                    (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
                   </app-searchable-select>
                   <app-searchable-select
                     class="owner-select-field owner-select-field-secondary"
@@ -561,12 +563,14 @@
                     [formFieldLabel]="'Owner 2 (Optional)'"
                     [value]="form.get('owner2Id')?.value ?? null"
                     [options]="ownerOptions"
+                    [triggerValueClickable]="hasOwnerSelected('owner2Id')"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No owners match your search'"
-                    (valueChange)="onOwnerDropdownChange('owner2Id', $event)">
+                    (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
+                    (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
                   </app-searchable-select>
                   <app-searchable-select
                     class="owner-select-field owner-select-field-secondary"
@@ -574,12 +578,14 @@
                     [formFieldLabel]="'Owner 3 (Optional)'"
                     [value]="form.get('owner3Id')?.value ?? null"
                     [options]="ownerOptions"
+                    [triggerValueClickable]="hasOwnerSelected('owner3Id')"
                     [showSearchInput]="true"
                     [hideSearchHint]="true"
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No owners match your search'"
-                    (valueChange)="onOwnerDropdownChange('owner3Id', $event)">
+                    (valueChange)="onOwnerDropdownChange('owner3Id', $event)"
+                    (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
                   </app-searchable-select>
                 </div>
               </div>

@@ -51,6 +51,18 @@ export interface SearchableSelectOption<TValue = string | number | null> {
     :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-placeholder {
       line-height: 34px !important;
     }
+
+    .searchable-trigger-value {
+      display: inline-block;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .searchable-trigger-value.searchable-trigger-value--clickable {
+      cursor: pointer;
+    }
   `],
   template: `
     @if (renderInFormField) {
@@ -71,6 +83,17 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           (selectionChange)="valueChange.emit($event.value)"
           (keydown)="onSelectKeydown($event)"
           (openedChange)="onOpenedChange($event)">
+          @if (triggerValueClickable) {
+            <mat-select-trigger>
+              <span
+                class="searchable-trigger-value"
+                [class.searchable-trigger-value--clickable]="hasConcreteSelection"
+                (mousedown)="onTriggerValueMouseDown($event)"
+                (click)="onTriggerValueClick($event)">
+                {{ selectedOptionLabel || nullOptionLabel }}
+              </span>
+            </mat-select-trigger>
+          }
           @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
             <mat-option>
               <input
@@ -109,6 +132,17 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         (selectionChange)="valueChange.emit($event.value)"
         (keydown)="onSelectKeydown($event)"
         (openedChange)="onOpenedChange($event)">
+        @if (triggerValueClickable) {
+          <mat-select-trigger>
+            <span
+              class="searchable-trigger-value"
+              [class.searchable-trigger-value--clickable]="hasConcreteSelection"
+              (mousedown)="onTriggerValueMouseDown($event)"
+              (click)="onTriggerValueClick($event)">
+              {{ selectedOptionLabel || nullOptionLabel }}
+            </span>
+          </mat-select-trigger>
+        }
         @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
           <mat-option>
             <input
@@ -157,7 +191,9 @@ export class SearchableSelectComponent {
   @Input() formFieldAppearance: 'fill' | 'outline' = 'outline';
   @Input() showError = false;
   @Input() errorText = 'Required';
+  @Input() triggerValueClickable = false;
   @Output() valueChange = new EventEmitter<string | number | null>();
+  @Output() triggerValueClick = new EventEmitter<Event>();
 
   searchText = '';
   isPanelOpen = false;
@@ -169,6 +205,21 @@ export class SearchableSelectComponent {
       return this.instructionOptionValue;
     }
     return this.value;
+  }
+
+  get hasConcreteSelection(): boolean {
+    if (this.normalizedValue === null || this.normalizedValue === undefined || this.normalizedValue === '') {
+      return false;
+    }
+    if (this.showInstructionOption && this.compareValues(this.normalizedValue, this.instructionOptionValue)) {
+      return false;
+    }
+    return true;
+  }
+
+  get selectedOptionLabel(): string {
+    const selected = this.options.find(option => this.compareValues(option.value, this.normalizedValue));
+    return selected?.label ?? '';
   }
   compareValues = (left: string | number | null, right: string | number | null): boolean => {
     if (left === right) {
@@ -209,6 +260,23 @@ export class SearchableSelectComponent {
       event.preventDefault();
       return;
     }
+  }
+
+  onTriggerValueMouseDown(event: MouseEvent): void {
+    if (!this.triggerValueClickable || !this.hasConcreteSelection) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  onTriggerValueClick(event: MouseEvent): void {
+    if (!this.triggerValueClickable || !this.hasConcreteSelection) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.triggerValueClick.emit(event);
   }
 
   trackOption(index: number, option: SearchableSelectOption): string {

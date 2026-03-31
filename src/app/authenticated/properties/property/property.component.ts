@@ -853,12 +853,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     });
   }
 
-  onOwnerSelectionChange(value: string | null): void {
-    if (value && value !== this.newOwnerOptionValue) {
-      this.openEditOwnerDialog(value);
-    }
-  }
-
   onPropertyTypeDropdownChange(value: string | number | null): void {
     this.form.get('propertyType')?.setValue(value == null ? null : Number(value));
     this.form.get('propertyType')?.markAsTouched();
@@ -868,7 +862,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const normalizedValue = value === null || value === undefined ? (ownerField === 'owner1Id' ? '' : null) : String(value);
     this.form.get(ownerField)?.setValue(normalizedValue);
     this.form.get(ownerField)?.markAsTouched();
-    this.onOwnerSelectionChange(normalizedValue === null ? null : String(normalizedValue));
   }
 
   get ownerOptions(): SearchableSelectOption[] {
@@ -925,6 +918,11 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (value && value !== this.newOwnerOptionValue) {
       this.openEditOwnerDialog(value);
     }
+  }
+
+  hasOwnerSelected(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): boolean {
+    const value = this.form?.get(ownerField)?.value;
+    return !!value && value !== this.newOwnerOptionValue;
   }
   //#endregion
  
