@@ -73,6 +73,7 @@
                     [hasActionsEdit]="false"
                     [hasActionsDelete]="false"
                     [itemsPerPage]="50"
+                    (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
                     (rowClickEvent)="goToReservation($event)"
                     (contactClickEvent)="goToContact($event)"/>
 
@@ -89,6 +90,7 @@
                       [hasActionsEdit]="false"
                       [hasActionsDelete]="false"
                       [itemsPerPage]="50"
+                      (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
                       (rowClickEvent)="goToReservation($event)"
                       (contactClickEvent)="goToContact($event)"/>
                   }

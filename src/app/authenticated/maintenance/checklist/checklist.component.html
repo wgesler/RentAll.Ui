@@ -50,18 +50,26 @@
     }
   </div>
 
-  <div class="controls-right-group">
-    <span class="text-sm">{{ completedCount }} / {{ totalItems }} complete</span>
+  <div class="controls-right-group form-titlebar-actions-wrap uniform-gap">
+    @if (errorsCount > 0) {
+      <span class="errors-count-text">{{ errorsCount }} issues</span>
+    }
+    <span class="text-sm completion-count-text">{{ completedCount }}/{{ totalItems }} complete</span>
     @if (!isReadonlyMode) {
       @if (!isTemplateMode) {
-        <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="clearAll()">Clear</button>
+        <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">Clear</button>
       }
       @if (isTemplateMode) {
-        <button class="standard-action-btn" mat-raised-button color="primary" type="button" (click)="resetChecklist()">Reset</button>
+        <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="resetChecklist()">Reset</button>
       }
-      <button class="standard-action-btn" mat-raised-button color="primary" type="button" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
+      <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
         {{ saveButtonText }}
       </button>
+      @if (errorsCount > 0) {
+        <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="openIssuesDialog()">
+          Issues
+        </button>
+      }
     }
   </div>
 </div>
@@ -80,7 +88,10 @@
                 <div class="readonly-item-row">
                   <span class="readonly-item-check">{{ form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value ? '☑' : '☐' }}</span>
                   <span class="readonly-item-text">{{ item.text }}</span>
-                  @if (item.requiresPhoto) {
+                  @if (item.hasIssue && form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value) {
+                    <span class="readonly-item-photo-tag issue-text">Issue: {{ item.issue || 'Not specified' }}</span>
+                  }
+                  @if (item.requiresPhoto || (item.hasIssue && form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value)) {
                     <span class="readonly-item-photo-tag">(photo required)</span>
                   }
                   @if (item.requiresCount) {
@@ -157,6 +168,7 @@
                         <div class="editable-row-content">
                           <mat-checkbox
                             class="editable-row-checkbox"
+                            [ngClass]="getCheckboxStateClass(section.key, repeatIndex, item)"
                             [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
                             (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
                           </mat-checkbox>
@@ -181,13 +193,6 @@
                                 alt="Uploaded line item photo"
                                 class="inline-photo-thumb"
                                 (click)="openPhotoPreview(item, $event)" />
-                              <button
-                                mat-icon-button
-                                type="button"
-                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
-                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
-                                <mat-icon>delete</mat-icon>
-                              </button>
                             }
                           }
                           @if (item.requiresCount && !isReadonlyMode) {
@@ -203,11 +208,20 @@
                         <div class="editable-row-content">
                           <mat-checkbox
                             class="editable-row-checkbox"
+                            [ngClass]="getCheckboxStateClass(section.key, repeatIndex, item)"
                             [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
                             (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
                           </mat-checkbox>
                           <span class="editable-row-text">{{ item.text }}</span>
-                          @if (item.requiresPhoto && !isReadonlyMode) {
+                          @if (item.requiresCount && !isReadonlyMode) {
+                            <input
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              class="row-count-input"
+                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                          }
+                          @if (item.hasIssue && form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value && !isReadonlyMode) {
                             @if (!getItemPhotoSrc(item)) {
                               <button
                                 mat-icon-button
@@ -222,33 +236,52 @@
                                 alt="Uploaded line item photo"
                                 class="inline-photo-thumb"
                                 (click)="openPhotoPreview(item, $event)" />
+                            }
+                            <span class="issue-label">Issue:</span>
+                            <input
+                              class="issue-input"
+                              [ngClass]="{ 'issue-input-invalid': isIssueTextMissing(section.key, repeatIndex, item) }"
+                              type="text"
+                              placeholder="Describe issue"
+                              [value]="item.issue || ''"
+                              (input)="updateItemIssue(section.key, repeatIndex, item, $any($event.target).value)" />
+                          }
+                          @if (item.requiresPhoto && !item.hasIssue && !isReadonlyMode) {
+                            @if (!getItemPhotoSrc(item)) {
                               <button
                                 mat-icon-button
                                 type="button"
-                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
-                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
-                                <mat-icon>delete</mat-icon>
+                                class="row-action-btn inline-photo-btn"
+                                (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>photo_camera</mat-icon>
                               </button>
+                            } @else {
+                              <img
+                                [src]="getItemPhotoSrc(item)"
+                                alt="Uploaded line item photo"
+                                class="inline-photo-thumb"
+                                (click)="openPhotoPreview(item, $event)" />
                             }
-                          }
-                          @if (item.requiresCount && !isReadonlyMode) {
-                            <input
-                              type="text"
-                              inputmode="numeric"
-                              pattern="[0-9]*"
-                              class="row-count-input"
-                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
                           }
                         </div>
                       } @else {
                         <div class="row-checkbox-inline">
                           <mat-checkbox
                             class="row-checkbox-control"
+                            [ngClass]="getCheckboxStateClass(section.key, repeatIndex, item)"
                             [formControlName]="itemControlNameById(section.key, repeatIndex, item.id)"
                             (change)="onItemCheckChange(section.key, repeatIndex, item, $event)">
                           </mat-checkbox>
                           <span class="row-checkbox-text">{{ item.text }}</span>
-                          @if (item.requiresPhoto && !isReadonlyMode) {
+                          @if (item.requiresCount && !isReadonlyMode) {
+                            <input
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              class="row-count-input"
+                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
+                          }
+                          @if (item.hasIssue && form.get(itemControlNameById(section.key, repeatIndex, item.id))?.value && !isReadonlyMode) {
                             @if (!getItemPhotoSrc(item)) {
                               <button
                                 mat-icon-button
@@ -263,22 +296,32 @@
                                 alt="Uploaded line item photo"
                                 class="inline-photo-thumb"
                                 (click)="openPhotoPreview(item, $event)" />
+                            }
+                            <span class="issue-label">Issue:</span>
+                            <input
+                              class="issue-input"
+                              [ngClass]="{ 'issue-input-invalid': isIssueTextMissing(section.key, repeatIndex, item) }"
+                              type="text"
+                              placeholder="Describe issue"
+                              [value]="item.issue || ''"
+                              (input)="updateItemIssue(section.key, repeatIndex, item, $any($event.target).value)" />
+                          }
+                          @if (item.requiresPhoto && !item.hasIssue && !isReadonlyMode) {
+                            @if (!getItemPhotoSrc(item)) {
                               <button
                                 mat-icon-button
                                 type="button"
-                                class="row-action-btn inline-photo-btn inline-photo-delete-btn"
-                                (click)="deletePhoto(section.key, repeatIndex, item.id, $event)">
-                                <mat-icon>delete</mat-icon>
+                                class="row-action-btn inline-photo-btn"
+                                (click)="openPhotoUpload(section.key, repeatIndex, item.id, $event)">
+                                <mat-icon>photo_camera</mat-icon>
                               </button>
+                            } @else {
+                              <img
+                                [src]="getItemPhotoSrc(item)"
+                                alt="Uploaded line item photo"
+                                class="inline-photo-thumb"
+                                (click)="openPhotoPreview(item, $event)" />
                             }
-                          }
-                          @if (item.requiresCount && !isReadonlyMode) {
-                            <input
-                              type="text"
-                              inputmode="numeric"
-                              pattern="[0-9]*"
-                              class="row-count-input"
-                              [formControlName]="countControlNameById(section.key, repeatIndex, item.id)" />
                           }
                         </div>
                       }
@@ -304,7 +347,7 @@
                           <mat-icon>pin</mat-icon>
                         </button>
                       }
-                      @if (item.requiresPhoto && !isReadonlyMode) {
+                      @if (isPhotoRequiredForItem(item) && !isReadonlyMode) {
                         <input
                           class="hidden"
                           type="file"

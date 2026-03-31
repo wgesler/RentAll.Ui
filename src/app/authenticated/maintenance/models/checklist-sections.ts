@@ -26,6 +26,8 @@ export type ChecklistItem = {
   documentId?: string | null;
   isEditable: boolean;
   checked?: boolean;
+  issue?: string | null;
+  hasIssue?: boolean;
 };
 
 export type SavedChecklistItem = {
@@ -37,6 +39,8 @@ export type SavedChecklistItem = {
   documentId?: string | null;
   checked: boolean;
   isEditable: boolean;
+  issue?: string | null;
+  hasIssue?: boolean;
 };
 
 export type SavedChecklistSection = {

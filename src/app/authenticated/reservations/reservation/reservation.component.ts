@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, firstValueFrom, map, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -63,7 +64,7 @@ interface ExtraFeeLineDisplay {
     styleUrl: './reservation.component.scss'
 })
 
-export class ReservationComponent implements OnInit, OnDestroy {
+export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   
@@ -131,6 +132,8 @@ export class ReservationComponent implements OnInit, OnDestroy {
     documents: 4
   };
   readonly newContactOptionValue = '__new_contact__';
+  lastSavedStateSignature = '';
+  hasSavedStateSignature = false;
 
   constructor(
     public reservationService: ReservationService,
@@ -229,6 +232,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
         if (copyFrom) {
           this.applyCopyFromReservation(copyFrom);
         }
+        this.captureSavedStateSignature();
       } else {
         this.getReservation();
         this.loadReservationOptions();
@@ -502,11 +506,13 @@ export class ReservationComponent implements OnInit, OnDestroy {
         
         // If in add mode, navigate back to reservation list
         if (this.isAddMode && response) {
+          this.captureSavedStateSignature();
           this.router.navigateByUrl(RouterUrl.ReservationList);
         } else if (!this.isAddMode && response) {
           // Update the reservation data with the response
           this.reservation = response;
           this.populateForm();
+          this.captureSavedStateSignature();
         }
         
         // Trigger lease reload event
@@ -659,6 +665,7 @@ export class ReservationComponent implements OnInit, OnDestroy {
     this.loadExtraFeeLines();
     this.updateMaidStartDate();
     this.updatePropertyIdEditState();
+    this.captureSavedStateSignature();
   }
 
   /** True when editing an existing reservation whose arrival date is in the future (property can be changed). */
@@ -1582,10 +1589,17 @@ export class ReservationComponent implements OnInit, OnDestroy {
     }
   }
 
-  onHeaderReservationChange(): void {
+  async onHeaderReservationChange(): Promise<void> {
     if (this.selectedTabIndex === 0) {
       if (!this.selectedHeaderReservationId) {
         return;
+      }
+      if (this.selectedHeaderReservationId !== this.reservation?.reservationId) {
+        const canLeave = await this.confirmNavigationWithUnsavedChanges();
+        if (!canLeave) {
+          this.selectedHeaderReservationId = this.reservation?.reservationId ?? this.reservationId ?? null;
+          return;
+        }
       }
       this.loadReservationFromHeaderSelection(this.selectedHeaderReservationId);
       return;
@@ -2010,12 +2024,81 @@ export class ReservationComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   back(): void {
-    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
-    if (returnTo === 'reservation-board') {
-      this.router.navigateByUrl(RouterUrl.ReservationBoard);
+    this.confirmNavigationWithUnsavedChanges().then(canLeave => {
+      if (!canLeave) {
+        return;
+      }
+      const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+      if (returnTo === 'reservation-board') {
+        this.router.navigateByUrl(RouterUrl.ReservationBoard);
+        return;
+      }
+      this.router.navigateByUrl(RouterUrl.ReservationList);
+    });
+  }
+
+  canDeactivate(): Promise<boolean> | boolean {
+    return this.confirmNavigationWithUnsavedChanges();
+  }
+
+  getCurrentStateSignature(): string {
+    const formSignature = this.form ? JSON.stringify(this.form.getRawValue()) : '';
+    const feesSignature = JSON.stringify(this.extraFeeLines || []);
+    return `${formSignature}|${feesSignature}`;
+  }
+
+  captureSavedStateSignature(): void {
+    this.lastSavedStateSignature = this.getCurrentStateSignature();
+    this.hasSavedStateSignature = true;
+    this.form?.markAsPristine();
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (!this.form || this.isSubmitting) {
+      return false;
+    }
+    const currentSignature = this.getCurrentStateSignature();
+    if (!this.hasSavedStateSignature) {
+      this.lastSavedStateSignature = currentSignature;
+      this.hasSavedStateSignature = true;
+      return false;
+    }
+    return currentSignature !== this.lastSavedStateSignature;
+  }
+
+  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+    const dialogData: GenericModalData = {
+      title: 'Unsaved Changes',
+      message: 'You have unsaved changes. Do you want to save before leaving this page?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'No',
+      yes: 'Yes',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
+    if (shouldSave === true) {
+      this.saveReservation();
+    }
+    return true;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.hasUnsavedChanges()) {
       return;
     }
-    this.router.navigateByUrl(RouterUrl.ReservationList);
+    event.preventDefault();
+    event.returnValue = '';
   }
   
   ngOnDestroy(): void {

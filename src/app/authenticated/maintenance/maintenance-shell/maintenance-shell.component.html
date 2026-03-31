@@ -80,6 +80,7 @@
           <mat-tab label="Inspection">
             @if (property) {
               <app-checklist
+                #inspectionChecklist
                 [property]="property"
                 [checklistType]="'inspection'"
                 (inspectionSubmitted)="onInspectionSubmitted()" />

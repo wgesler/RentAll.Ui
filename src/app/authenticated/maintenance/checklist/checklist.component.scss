@@ -17,11 +17,14 @@
   gap: 0.5rem;
 }
 
-::ng-deep .standard-action-btn {
-  --mdc-protected-button-container-height: 36px;
-  --mdc-protected-button-label-text-size: 14px;
-  padding: 0 16px !important;
-  min-width: 64px;
+.errors-count-text {
+  color: #b91c1c;
+  font-weight: 600;
+  margin-right: 1.75rem;
+}
+
+.completion-count-text {
+  margin-right: 0.6rem;
 }
 
 .meta-form {
@@ -208,6 +211,36 @@
   color: #0f172a;
 }
 
+.issue-input {
+  flex: 1 1 auto;
+  min-width: 180px;
+  border: none;
+  border-bottom: 2px solid #dc2626;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  line-height: 1.25;
+  padding: 1px 0;
+  margin-left: 4px;
+}
+
+.issue-label {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.issue-input-invalid {
+  border-bottom-color: #991b1b;
+  box-shadow: inset 0 -1px 0 #991b1b;
+}
+
+.issue-text {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .inline-photo-btn {
   width: 24px;
   height: 24px;
@@ -292,6 +325,16 @@
 
 ::ng-deep .checklist-row .mdc-checkbox {
   margin: 0 !important;
+}
+
+:host ::ng-deep .issue-checkbox-green .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  border-color: #16a34a !important;
+  background-color: #16a34a !important;
+}
+
+:host ::ng-deep .issue-checkbox-red .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  border-color: #dc2626 !important;
+  background-color: #dc2626 !important;
 }
 
 .row-actions-wrap {

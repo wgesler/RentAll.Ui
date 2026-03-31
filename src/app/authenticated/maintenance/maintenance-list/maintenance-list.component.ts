@@ -57,6 +57,9 @@ type MaintenanceListDisplay = PropertyListDisplay & {
   cleaner: UserDropdownCell;
   cleanerUserId?: string | null;
   cleaningDate: string;
+  carpet: UserDropdownCell;
+  carpetUserId?: string | null;
+  carpetDate: string;
   inspector: UserDropdownCell;
   inspectorUserId?: string | null;
   inspectingDate: string;
@@ -122,17 +125,15 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
-    'cleaner': { displayAs: 'Cleaner', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
-    'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'inspector': { displayAs: 'Inspector', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
-    'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'needsMaintenance': { displayAs: 'Maintenance', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '13ch', sort: true, options: this.propertyStatusLabels },
+    'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    'bed1Text': { displayAs: 'Bed1', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
-    'bed2Text': { displayAs: 'Bed2', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
-    'bed3Text': { displayAs: 'Bed3', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
-    'bed4Text': { displayAs: 'Bed4', wrap: false, maxWidth: '10ch', alignment: 'center', options: this.bedTypeOptions },
+    'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
+    'cleaner': { displayAs: 'Cleaner', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'carpetDate': { displayAs: 'Carpet Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
+    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
+    'inspector': { displayAs: 'Inspector', maxWidth: '23ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
     
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
@@ -447,10 +448,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Dropdown Update Methods
   onInlineEditChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
     const changedColumn = event.__changedInlineColumn;
-    if (changedColumn !== 'cleaningDate' && changedColumn !== 'inspectingDate') {
+    if (changedColumn !== 'cleaningDate' && changedColumn !== 'carpetDate' && changedColumn !== 'inspectingDate') {
       return;
     }
-    this.onMaintenanceDateChange(event, changedColumn, event.__inlineValue ?? '');
+    this.onMaintenanceDateChange(event, changedColumn as 'cleaningDate' | 'carpetDate' | 'inspectingDate', event.__inlineValue ?? '');
   }
 
   onDropdownChange(event: MaintenanceListDisplay): void {
@@ -460,21 +461,29 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    if (changedColumn === 'cleaner' || changedColumn === 'inspector') {
+    if (changedColumn === 'cleaner' || changedColumn === 'carpet' || changedColumn === 'inspector') {
       const selectedCleanerLabel = event.cleaner?.value ?? '';
+      const selectedCarpetLabel = event.carpet?.value ?? '';
       const selectedInspectorLabel = event.inspector?.value ?? '';
       const selectedCleanerId = this.resolveCleanerIdFromLabel(event.cleaner?.value ?? '', event.officeId);
+      const selectedCarpetId = this.resolveCarpetIdFromLabel(event.carpet?.value ?? '', event.officeId);
       const selectedInspectorId = this.resolveInspectorIdFromLabel(event.inspector?.value ?? '', event.officeId);
       const currentCleanerId = event.cleanerUserId ?? null;
+      const currentCarpetId = event.carpetUserId ?? null;
       const currentInspectorId = event.inspectorUserId ?? null;
       const shouldClearCleanerDate = selectedCleanerId === null && (event.cleaningDate ?? '').trim() !== '';
+      const shouldClearCarpetDate = selectedCarpetId === null && (event.carpetDate ?? '').trim() !== '';
       const shouldClearInspectorDate = selectedInspectorId === null && (event.inspectingDate ?? '').trim() !== '';
-      if (selectedCleanerId !== currentCleanerId || selectedInspectorId !== currentInspectorId || shouldClearCleanerDate || shouldClearInspectorDate) {
-        this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedInspectorId);
-      } else if (selectedCleanerLabel === 'Clear Selection' || selectedInspectorLabel === 'Clear Selection') {
+      if (selectedCleanerId !== currentCleanerId || selectedCarpetId !== currentCarpetId || selectedInspectorId !== currentInspectorId || shouldClearCleanerDate || shouldClearCarpetDate || shouldClearInspectorDate) {
+        this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedCarpetId, selectedInspectorId);
+      } else if (selectedCleanerLabel === 'Clear Selection' || selectedCarpetLabel === 'Clear Selection' || selectedInspectorLabel === 'Clear Selection') {
         event.cleaner = this.buildUserDropdownCell(
           this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
           this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.carpet = this.buildUserDropdownCell(
+          this.resolveCarpetName(event.carpetUserId ?? '', event.officeId),
+          this.getCarpetOptionsForOffice(event.officeId)
         );
         event.inspector = this.buildUserDropdownCell(
           this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
@@ -516,11 +525,13 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       selectedBed3Id !== (event.bedroomId3 ?? 0) ||
       selectedBed4Id !== (event.bedroomId4 ?? 0);
     const selectedCleanerId = this.resolveCleanerIdFromLabel(event.cleaner?.value ?? '', event.officeId);
+    const selectedCarpetId = this.resolveCarpetIdFromLabel(event.carpet?.value ?? '', event.officeId);
     const selectedInspectorId = this.resolveInspectorIdFromLabel(event.inspector?.value ?? '', event.officeId);
     const currentCleanerId = event.cleanerUserId ?? null;
+    const currentCarpetId = event.carpetUserId ?? null;
     const currentInspectorId = event.inspectorUserId ?? null;
-    if (selectedCleanerId !== currentCleanerId || selectedInspectorId !== currentInspectorId) {
-      this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedInspectorId);
+    if (selectedCleanerId !== currentCleanerId || selectedCarpetId !== currentCarpetId || selectedInspectorId !== currentInspectorId) {
+      this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedCarpetId, selectedInspectorId);
       return;
     }
 
@@ -529,19 +540,36 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  onMaintenanceDateChange(event: MaintenanceListDisplay, columnName: 'cleaningDate' | 'inspectingDate', dateValue: string): void {
+  onMaintenanceDateChange(event: MaintenanceListDisplay, columnName: 'cleaningDate' | 'carpetDate' | 'inspectingDate', dateValue: string): void {
     const isoDate = this.mappingService.toIsoDateOrNull(dateValue);
     const cleanerUserId = event.cleanerUserId ?? null;
+    const carpetUserId = event.carpetUserId ?? null;
     const inspectorUserId = event.inspectorUserId ?? null;
     const dateOverrides = columnName === 'cleaningDate'
-      ? { cleaningDate: cleanerUserId ? isoDate : null as string | null, inspectingDate: undefined as string | null | undefined }
-      : { cleaningDate: undefined as string | null | undefined, inspectingDate: inspectorUserId ? isoDate : null as string | null };
+      ? {
+          cleaningDate: cleanerUserId ? isoDate : null as string | null,
+          carpetDate: undefined as string | null | undefined,
+          inspectingDate: undefined as string | null | undefined
+        }
+      : columnName === 'carpetDate'
+        ? {
+            cleaningDate: undefined as string | null | undefined,
+            carpetDate: carpetUserId ? isoDate : null as string | null,
+            inspectingDate: undefined as string | null | undefined
+          }
+        : {
+            cleaningDate: undefined as string | null | undefined,
+            carpetDate: undefined as string | null | undefined,
+            inspectingDate: inspectorUserId ? isoDate : null as string | null
+          };
 
     this.maintenanceService.getByPropertyId(event.propertyId).pipe(take(1), switchMap((existing) => {
       const payload = this.buildMaintenancePayload(event, existing, {
         cleanerUserId,
+        carpetUserId,
         inspectorUserId,
         cleaningDate: dateOverrides.cleaningDate,
+        carpetDate: dateOverrides.carpetDate,
         inspectingDate: dateOverrides.inspectingDate
       });
       return payload.maintenanceId
@@ -550,6 +578,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     })).subscribe({
       next: (saved) => {
         event.cleaningDate = this.formatterService.formatDateString(saved?.cleaningDate ?? undefined) || '';
+        event.carpetDate = this.formatterService.formatDateString(saved?.carpetDate ?? undefined) || '';
         event.inspectingDate = this.formatterService.formatDateString(saved?.inspectingDate ?? undefined) || '';
         this.toastr.success('Maintenance updated.', CommonMessage.Success);
       },
@@ -625,12 +654,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  onMaintenanceAssigneesChange(event: MaintenanceListDisplay, cleanerUserId: string | null, inspectorUserId: string | null): void {
+  onMaintenanceAssigneesChange(event: MaintenanceListDisplay, cleanerUserId: string | null, carpetUserId: string | null, inspectorUserId: string | null): void {
     this.maintenanceService.getByPropertyId(event.propertyId).pipe(take(1), switchMap((existing) => {
         const payload = this.buildMaintenancePayload(event, existing, {
           cleanerUserId,
+          carpetUserId,
           inspectorUserId,
           cleaningDate: cleanerUserId ? existing?.cleaningDate : null,
+          carpetDate: carpetUserId ? existing?.carpetDate : null,
           inspectingDate: inspectorUserId ? existing?.inspectingDate : null
         });
         return payload.maintenanceId
@@ -640,12 +671,18 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     ).subscribe({
       next: (saved) => {
         event.cleanerUserId = saved?.cleanerUserId ?? null;
+        event.carpetUserId = saved?.carpetUserId ?? null;
         event.inspectorUserId = saved?.inspectorUserId ?? null;
         event.cleaningDate = this.formatterService.formatDateString(saved?.cleaningDate ?? undefined) || '';
+        event.carpetDate = this.formatterService.formatDateString(saved?.carpetDate ?? undefined) || '';
         event.inspectingDate = this.formatterService.formatDateString(saved?.inspectingDate ?? undefined) || '';
         event.cleaner = this.buildUserDropdownCell(
           this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
           this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.carpet = this.buildUserDropdownCell(
+          this.resolveCarpetName(event.carpetUserId ?? '', event.officeId),
+          this.getCarpetOptionsForOffice(event.officeId)
         );
         event.inspector = this.buildUserDropdownCell(
           this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
@@ -657,6 +694,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         event.cleaner = this.buildUserDropdownCell(
           this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
           this.getCleanerOptionsForOffice(event.officeId)
+        );
+        event.carpet = this.buildUserDropdownCell(
+          this.resolveCarpetName(event.carpetUserId ?? '', event.officeId),
+          this.getCarpetOptionsForOffice(event.officeId)
         );
         event.inspector = this.buildUserDropdownCell(
           this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
@@ -673,6 +714,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     overrides: {
       cleanerUserId?: string | null;
       cleaningDate?: string | null;
+      carpetUserId?: string | null;
+      carpetDate?: string | null;
       inspectorUserId?: string | null;
       inspectingDate?: string | null;
     }
@@ -686,6 +729,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       inspectionCheckList: existing?.inspectionCheckList ?? this.buildDefaultInspectionTemplateJson(),
       cleanerUserId: overrides.cleanerUserId !== undefined ? overrides.cleanerUserId : (existing?.cleanerUserId ?? null),
       cleaningDate: overrides.cleaningDate !== undefined ? overrides.cleaningDate : existing?.cleaningDate,
+      carpetUserId: overrides.carpetUserId !== undefined ? overrides.carpetUserId : (existing?.carpetUserId ?? null),
+      carpetDate: overrides.carpetDate !== undefined ? overrides.carpetDate : existing?.carpetDate,
       inspectorUserId: overrides.inspectorUserId !== undefined ? overrides.inspectorUserId : (existing?.inspectorUserId ?? null),
       inspectingDate: overrides.inspectingDate !== undefined ? overrides.inspectingDate : existing?.inspectingDate,
       filterDescription: existing?.filterDescription,
@@ -757,12 +802,17 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   remapCleanerInspectorDropdowns(): void {
     this.allProperties = this.allProperties.map(property => {
       const cleanerKey = (property.cleaner as unknown as { value?: string })?.value ?? (property.cleaner as unknown as string) ?? '';
+      const carpetKey = (property.carpet as unknown as { value?: string })?.value ?? (property.carpet as unknown as string) ?? '';
       const inspectorKey = (property.inspector as unknown as { value?: string })?.value ?? (property.inspector as unknown as string) ?? '';
       return {
         ...property,
         cleaner: this.buildUserDropdownCell(
           this.resolveCleanerName(property.cleanerUserId ?? cleanerKey, property.officeId),
           this.getCleanerOptionsForOffice(property.officeId)
+        ),
+        carpet: this.buildUserDropdownCell(
+          this.resolveCarpetName(property.carpetUserId ?? carpetKey, property.officeId),
+          this.getCarpetOptionsForOffice(property.officeId)
         ),
         inspector: this.buildUserDropdownCell(
           this.resolveInspectorName(property.inspectorUserId ?? inspectorKey, property.officeId),
@@ -795,6 +845,17 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     return this.inspectorById.get(inspectorUserIdOrName) ?? inspectorUserIdOrName;
   }
 
+  resolveCarpetName(carpetUserIdOrName: string, officeId: number): string {
+    if (!carpetUserIdOrName || carpetUserIdOrName === 'Clear Selection' || carpetUserIdOrName === 'Select Carpet Cleaner') {
+      return '';
+    }
+    const officeUser = this.housekeepingUsers.find(user => user.userId === carpetUserIdOrName && (user.officeAccess || []).includes(officeId));
+    if (officeUser) {
+      return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
+    }
+    return this.housekeepingById.get(carpetUserIdOrName) ?? carpetUserIdOrName;
+  }
+
   getCleanerOptionsForOffice(officeId: number): string[] {
     const names = this.housekeepingUsers
       .filter(user => (user.officeAccess || []).includes(officeId))
@@ -811,6 +872,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     return ['Clear Selection', ...names];
   }
 
+  getCarpetOptionsForOffice(officeId: number): string[] {
+    return this.getCleanerOptionsForOffice(officeId);
+  }
+
   resolveCleanerIdFromLabel(label: string, officeId: number): string | null {
     if (!label || label === 'Clear Selection' || label === 'Select Cleaner') {
       return null;
@@ -825,6 +890,15 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return null;
     }
     const officeUsers = this.inspectorUsers.filter(user => (user.officeAccess || []).includes(officeId));
+    const user = officeUsers.find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
+    return user?.userId ?? null;
+  }
+
+  resolveCarpetIdFromLabel(label: string, officeId: number): string | null {
+    if (!label || label === 'Clear Selection' || label === 'Select Carpet Cleaner') {
+      return null;
+    }
+    const officeUsers = this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(officeId));
     const user = officeUsers.find(candidate => `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim() === label);
     return user?.userId ?? null;
   }

@@ -75,12 +75,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
-    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '23ch', sort: true, options: this.propertyStatusLabels },
+    'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'accomodates': { displayAs: 'Accom', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
-    'propertyType': { displayAs: 'Type', maxWidth: '10ch', wrap: false },
+    'propertyType': { displayAs: 'Type', maxWidth: '13ch', wrap: false },
     'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };

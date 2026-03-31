@@ -81,6 +81,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     this.isSaving = true;
     const raw = this.form.getRawValue();
     const cleanerUserId = this.nullIfBlank(raw.cleanerUserId);
+    const carpetUserId = this.nullIfBlank(raw.carpetUserId);
     const inspectorUserId = this.nullIfBlank(raw.inspectorUserId);
     const maintenancePayload: MaintenanceRequest = {
       maintenanceId: this.maintenanceRecord?.maintenanceId || undefined,
@@ -91,6 +92,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       inspectionCheckList: this.maintenanceRecord?.inspectionCheckList || '',
       cleanerUserId,
       cleaningDate: cleanerUserId ? this.mappingService.toIsoDateOrNull(raw.cleaningDate) : null,
+      carpetUserId,
+      carpetDate: carpetUserId ? this.mappingService.toIsoDateOrNull(raw.carpetDate) : null,
       inspectorUserId,
       inspectingDate: inspectorUserId ? this.mappingService.toIsoDateOrNull(raw.inspectingDate) : null,
       filterDescription: this.nullIfBlank(raw.filterDescription),
@@ -126,6 +129,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
           inspectionCheckList: checklistJson,
           cleanerUserId: pickValue(maintenancePayload.cleanerUserId, existing?.cleanerUserId, null),
           cleaningDate: pickValue(maintenancePayload.cleaningDate, existing?.cleaningDate, null),
+          carpetUserId: pickValue(maintenancePayload.carpetUserId, existing?.carpetUserId, null),
+          carpetDate: pickValue(maintenancePayload.carpetDate, existing?.carpetDate, null),
           inspectorUserId: pickValue(maintenancePayload.inspectorUserId, existing?.inspectorUserId, null),
           inspectingDate: pickValue(maintenancePayload.inspectingDate, existing?.inspectingDate, null),
           filterDescription: pickValue(maintenancePayload.filterDescription, existing?.filterDescription, null),
@@ -302,6 +307,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       inspectionCheckList: new FormControl<string>(''),
       cleanerUserId: new FormControl<string | null>(null),
       cleaningDate: new FormControl<Date | null>(null),
+      carpetUserId: new FormControl<string | null>(null),
+      carpetDate: new FormControl<Date | null>(null),
       inspectorUserId: new FormControl<string | null>(null),
       inspectingDate: new FormControl<Date | null>(null),
       filterDescription: new FormControl<string>(''),
@@ -332,6 +339,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       inspectionCheckList: source?.inspectionCheckList ?? '',
       cleanerUserId: source?.cleanerUserId ?? null,
       cleaningDate: this.mappingService.parseDateOrNull(source?.cleaningDate),
+      carpetUserId: source?.carpetUserId ?? null,
+      carpetDate: this.mappingService.parseDateOrNull(source?.carpetDate),
       inspectorUserId: source?.inspectorUserId ?? null,
       inspectingDate: this.mappingService.parseDateOrNull(source?.inspectingDate),
       filterDescription: source?.filterDescription ?? '',
@@ -359,6 +368,16 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       const cleaningDateControl = this.form.get('cleaningDate');
       if (cleaningDateControl?.value !== null) {
         cleaningDateControl.setValue(null, { emitEvent: false });
+      }
+    });
+
+    this.form.get('carpetUserId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.nullIfBlank(value) !== null) {
+        return;
+      }
+      const carpetDateControl = this.form.get('carpetDate');
+      if (carpetDateControl?.value !== null) {
+        carpetDateControl.setValue(null, { emitEvent: false });
       }
     });
 

@@ -5,7 +5,7 @@ import { MaterialModule } from '../../../material.module';
 
 @Component({
   standalone: true,
-  selector: 'app-missing-count-dialog',
+  selector: 'app-dialog-missing-count',
   imports: [MaterialModule, ReactiveFormsModule],
   template: `
     <div class="flex flex-row flex-wrap">
@@ -37,10 +37,10 @@ import { MaterialModule } from '../../../material.module';
     </div>
   `
 })
-export class MissingCountDialogComponent {
+export class DialogMissingCountComponent {
   countControl = new FormControl<number | null>(null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]);
 
-  constructor(public dialogRef: MatDialogRef<MissingCountDialogComponent>) {}
+  constructor(public dialogRef: MatDialogRef<DialogMissingCountComponent>) {}
 
   confirm(): void {
     if (this.countControl.invalid) {

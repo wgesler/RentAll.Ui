@@ -35,6 +35,10 @@ body {
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
+  .mat-mdc-select-arrow-wrapper {
+    display: none !important;
+  }
+
   .mat-mdc-select,
   .mat-mdc-select-min-line,
   .mat-mdc-select-value,

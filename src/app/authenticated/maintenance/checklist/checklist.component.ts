@@ -1,14 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { finalize, forkJoin, map, of, switchMap, take } from 'rxjs';
+import { finalize, firstValueFrom, forkJoin, map, of, switchMap, take } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { ConfigService } from '../../../services/config.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
@@ -26,7 +27,9 @@ import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model'
 import { PhotoService } from '../../documents/services/photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
-import { MissingCountDialogComponent } from './missing-count-dialog.component';
+import { DialogMissingCountComponent } from './dialog-missing-count.component';
+import { DialogIssueItemComponent, DialogIssueItemResult } from './dialog-issue-item.component';
+import { ChecklistIssueEntry, DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
 import { UserGroups } from '../../users/models/user-enums';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
@@ -73,6 +76,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
   nextItemId = 0;
+  lastSavedStateSignature = '';
+  hasSavedStateSignature = false;
   selectionModeOptions: Array<{ value: 'allRequired' | 'exactlyOne' | 'atLeastOne'; label: string }> = [
     { value: 'allRequired', label: 'All Required' },
     { value: 'exactlyOne', label: 'Exactly One' },
@@ -90,6 +95,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     public maintenanceService: MaintenanceService,
     public inspectionService: InspectionService,
     public mappingService: MappingService,
+    private configService: ConfigService,
     private cdr: ChangeDetectorRef
   ) {
   }
@@ -189,7 +195,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           count: item.count ?? null,
           photoPath: null,
           checked: false,
-          isEditable: this.getDefaultItemEditable()
+          isEditable: this.getDefaultItemEditable(),
+          issue: null,
+          hasIssue: false
         }))];
 
       this.sections.push({
@@ -211,7 +219,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             setItems[index]?.checked || false,
             setItems[index]?.photoPath ?? null,
             setItems[index]?.documentId || null,
-            setItems[index]?.count ?? item.count ?? null
+            setItems[index]?.count ?? item.count ?? null,
+            setItems[index]?.issue ?? null,
+            setItems[index]?.hasIssue === true
           ));
         }
 
@@ -225,7 +235,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           item.checked,
           item.photoPath ?? null,
           item.documentId || null,
-          item.count ?? null
+          item.count ?? null,
+          item.issue ?? null,
+          item.hasIssue === true
         ));
       });
 
@@ -250,7 +262,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           key: string;
           selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
           notes?: string;
-          sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean } | boolean>>;
+          sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
         }>;
         inspectionCheckList?: string;
       };
@@ -264,7 +276,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             key: string;
             selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
             notes?: string;
-            sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean } | boolean>>;
+            sets?: Array<Array<{ checked?: boolean; photoPath?: string | null; documentId?: string | null; count?: number | null; requiresCount?: boolean; issue?: string | null; hasIssue?: boolean } | boolean>>;
           }>;
         };
       }
@@ -319,9 +331,20 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             item.count = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.count === 'number'
               ? answerValue.count
               : null;
+            const rawIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.issue === 'string'
+              ? answerValue.issue
+              : null;
+            item.issue = rawIssue;
+            item.hasIssue = typeof answerValue === 'object' && answerValue !== null && typeof answerValue.hasIssue === 'boolean'
+              ? answerValue.hasIssue
+              : !!(rawIssue && rawIssue.trim().length > 0);
             const countControl = this.form.get(this.countControlNameById(section.key, repeatIndex, item.id));
             if (countControl) {
               countControl.setValue(item.count, { emitEvent: false });
+            }
+            const issueControl = this.form.get(this.issueControlNameById(section.key, repeatIndex, item.id));
+            if (issueControl) {
+              issueControl.setValue(item.issue ?? '', { emitEvent: false });
             }
             control.setValue(isChecked, { emitEvent: false });
           });
@@ -350,7 +373,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     Object.values(this.sectionSetItems).forEach(sets => {
       sets.forEach(items => {
         items.forEach(item => {
-          if (item.documentId && !item.displayDataUrl && !this.photoBlobUrlCache.has(item.documentId)) {
+          if (item.documentId && this.isLikelyGuid(item.documentId) && !item.displayDataUrl && !this.photoBlobUrlCache.has(item.documentId)) {
             documentIdsToLoad.add(item.documentId);
           }
         });
@@ -365,8 +388,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             viewUrl = `data:${contentType};base64,${response.fileDetails.file}`;
           } else if (response.fileDetails?.dataUrl) {
             viewUrl = response.fileDetails.dataUrl;
-          } else if (response.photoPath && response.photoPath.startsWith('http')) {
-            viewUrl = response.photoPath;
+          } else if (response.photoPath) {
+            viewUrl = this.normalizePhotoPath(response.photoPath);
           }
           if (viewUrl) {
             this.photoBlobUrlCache.set(photoId, viewUrl);
@@ -432,13 +455,49 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
       for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
         this.getSetItems(section.key, repeatIndex).forEach(item => {
-          if (this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value) {
+          if (this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value && item.hasIssue !== true) {
             completed += 1;
           }
         });
       }
     });
     return completed;
+  }
+
+  get errorsCount(): number {
+    let errors = 0;
+    this.sections.forEach(section => {
+      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
+          if (isChecked && item.hasIssue === true) {
+            errors += 1;
+          }
+        });
+      }
+    });
+    return errors;
+  }
+
+  get issueEntries(): ChecklistIssueEntry[] {
+    const issues: ChecklistIssueEntry[] = [];
+    this.sections.forEach(section => {
+      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
+          if (!isChecked || item.hasIssue !== true) {
+            return;
+          }
+          issues.push({
+            sectionTitle: section.title,
+            setLabel: this.getSetInstruction(section.key, repeatIndex) || undefined,
+            issueText: (item.issue || '').trim() || 'No issue text provided',
+            photoSrc: this.getItemPhotoSrc(item)
+          });
+        });
+      }
+    });
+    return issues;
   }
 
   isSectionCountedAsSingleUnit(section: ChecklistSection): boolean {
@@ -455,6 +514,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       const checkedItems = setItems.filter(item =>
         !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value
       );
+      if (checkedItems.some(item => item.hasIssue === true)) {
+        return false;
+      }
 
       if (section.selectionMode === 'exactlyOne') {
         if (checkedItems.length !== 1) {
@@ -490,10 +552,13 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           this.getSetItems(section.key, repeatIndex).forEach(item => {
             patch[this.itemControlNameById(section.key, repeatIndex, item.id)] = false;
             patch[this.countControlNameById(section.key, repeatIndex, item.id)] = null;
+            patch[this.issueControlNameById(section.key, repeatIndex, item.id)] = '';
             item.count = null;
             item.photoPath = null;
             item.documentId = null;
             item.displayDataUrl = null;
+            item.issue = null;
+            item.hasIssue = false;
           });
         }
       });
@@ -546,6 +611,71 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
   }
 
+  getCurrentStateSignature(): string {
+    if (!this.form || this.sections.length === 0) {
+      return '';
+    }
+    return this.isTemplateMode
+      ? this.buildChecklistTemplateJson()
+      : this.buildChecklistAnswersJson();
+  }
+
+  captureSavedStateSignature(): void {
+    this.lastSavedStateSignature = this.getCurrentStateSignature();
+    this.hasSavedStateSignature = true;
+    this.form?.markAsPristine();
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (this.isReadonlyMode || this.isSavingInProgress || !this.form) {
+      return false;
+    }
+    const currentSignature = this.getCurrentStateSignature();
+    if (!this.hasSavedStateSignature) {
+      this.lastSavedStateSignature = currentSignature;
+      this.hasSavedStateSignature = true;
+      return false;
+    }
+    return currentSignature !== this.lastSavedStateSignature;
+  }
+
+  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Unsaved Changes',
+      message: 'You have unsaved changes. Do you want to save before leaving this page?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'No',
+      yes: 'Yes',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
+    if (shouldSave === true) {
+      this.saveChecklistData(this.canSubmitInspection);
+    }
+    return true;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.hasUnsavedChanges()) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = '';
+  }
+
   saveChecklistData(submitRequested: boolean = false): void {
     if (this.isReadonlyMode) {
       return;
@@ -575,7 +705,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               ? this.getCountValue(section.key, repeatIndex, item.id)
               : null,
             isEditable: item.isEditable,
-            photoPath: item.photoPath ?? null
+            photoPath: item.photoPath ?? null,
+            issue: item.issue ?? null,
+            hasIssue: item.hasIssue === true
           }))
         )
       }))
@@ -602,7 +734,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
                 : null,
               checked: !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value,
               photoPath: item.photoPath ?? null,
-              documentId: item.documentId ?? null
+              documentId: item.documentId ?? null,
+              issue: item.issue ?? null,
+              hasIssue: item.hasIssue === true
             })
           )
         )
@@ -627,7 +761,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             count: null,
             checked: false,
             photoPath: null,
-            documentId: null
+            documentId: null,
+            issue: null,
+            hasIssue: false
           }))
         )
       }))
@@ -650,7 +786,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             requiresCount: false,
             count: null,
             isEditable: defaultIsEditable,
-            photoPath: null as string | null
+            photoPath: null as string | null,
+            issue: null as string | null,
+            hasIssue: false
           }))
         ]
       }))
@@ -694,6 +832,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.activeMode = 'answer';
         this.applyModeState();
         this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
+        this.captureSavedStateSignature();
         this.toastr.success('Template saved successfully', CommonMessage.Success);
       },
       error: () => {
@@ -708,8 +847,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return of(null);
     }
 
-    return this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(
-      take(1),
+    return this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(take(1),
       switchMap((latest) => {
         const existing = latest ?? this.maintenanceRecord ?? null;
         const payload: MaintenanceRequest = {
@@ -803,6 +941,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           next: (savedInspectionResponse: InspectionResponse) => {
             const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
             this.activeInspection = savedInspection;
+            this.captureSavedStateSignature();
             this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
             if (shouldSubmitInspection) {
               this.inspectionSubmitted.emit();
@@ -849,6 +988,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
                   this.inspectionSubmitted.emit();
@@ -866,6 +1006,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
                 this.inspectionSubmitted.emit();
@@ -882,6 +1023,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
                 this.inspectionSubmitted.emit();
@@ -933,7 +1075,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       }
     });
   }
-
   //#endregion
 
   //#region Data Load Methods
@@ -1024,6 +1165,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (answersProvided) {
       const providedAnswersJson = this.answersJson!.trim();
       this.applySavedAnswersJson(providedAnswersJson);
+      this.captureSavedStateSignature();
       return;
     }
 
@@ -1033,10 +1175,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
         if (answersJson.length > 0) {
           this.applySavedAnswersJson(answersJson);
+          this.captureSavedStateSignature();
+          return;
         }
+        this.captureSavedStateSignature();
       },
       error: () => {
         this.activeInspection = null;
+        this.captureSavedStateSignature();
       }
     });
   }
@@ -1186,7 +1332,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         sections?: Array<{
           key?: string;
           selectionMode?: 'allRequired' | 'exactlyOne' | 'atLeastOne';
-          sets?: Array<Array<{ checked?: boolean; requiresCount?: boolean; count?: number | null } | boolean>>;
+          sets?: Array<Array<{ checked?: boolean; requiresCount?: boolean; count?: number | null; hasIssue?: boolean; issue?: string | null; photoPath?: string | null; documentId?: string | null } | boolean>>;
         }>;
       };
       const sections = Array.isArray(root.sections) ? root.sections : [];
@@ -1216,6 +1362,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               return true;
             }
 
+            if (selectedItem?.hasIssue === true) {
+              return false;
+            }
             if (selectedItem?.requiresCount === true) {
               return typeof selectedItem.count === 'number' && !Number.isNaN(selectedItem.count);
             }
@@ -1239,6 +1388,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               if (typeof checkedItem === 'boolean') {
                 return true;
               }
+              if (checkedItem?.hasIssue === true) {
+                return false;
+              }
               if (checkedItem?.requiresCount === true) {
                 return typeof checkedItem.count === 'number' && !Number.isNaN(checkedItem.count);
               }
@@ -1258,6 +1410,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               return false;
             }
 
+            if (item?.hasIssue === true) {
+              return false;
+            }
             if (item?.requiresCount === true) {
               return typeof item?.count === 'number' && !Number.isNaN(item.count);
             }
@@ -1277,6 +1432,10 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
   countControlNameById(sectionKey: string, repeatIndex: number, itemId: string): string {
     return `${sectionKey}_${repeatIndex}_${itemId}_count`;
+  }
+
+  issueControlNameById(sectionKey: string, repeatIndex: number, itemId: string): string {
+    return `${sectionKey}_${repeatIndex}_${itemId}_issue`;
   }
 
   notesControlName(sectionKey: string): string {
@@ -1367,7 +1526,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     checked: boolean = false,
     photoPath: string | null = null,
     documentId: string | null = null,
-    count: number | null = null
+    count: number | null = null,
+    issue: string | null = null,
+    hasIssue: boolean = false
   ): ChecklistItem {
     const id = `item_${this.nextItemId++}`;
     const templateItem = typeof item === 'string'
@@ -1382,7 +1543,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       photoPath,
       documentId,
       isEditable: isEditable ?? this.getDefaultItemEditable(),
-      checked
+      checked,
+      issue,
+      hasIssue
     };
   }
     
@@ -1406,6 +1569,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     this.getSetItems(sectionKey, repeatIndex).forEach(item => {
       this.form.addControl(this.itemControlNameById(sectionKey, repeatIndex, item.id), new FormControl(item.checked || false));
       this.form.addControl(this.countControlNameById(sectionKey, repeatIndex, item.id), new FormControl(item.count ?? null));
+      this.form.addControl(this.issueControlNameById(sectionKey, repeatIndex, item.id), new FormControl(item.issue ?? ''));
     });
     if (!this.form.contains(this.notesControlName(sectionKey))) {
       this.form.addControl(this.notesControlName(sectionKey), new FormControl(''));
@@ -1416,6 +1580,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     this.getSetItems(sectionKey, repeatIndex).forEach(item => {
       this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, item.id));
       this.form.removeControl(this.countControlNameById(sectionKey, repeatIndex, item.id));
+      this.form.removeControl(this.issueControlNameById(sectionKey, repeatIndex, item.id));
     });
   }
 
@@ -1470,6 +1635,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     setItems.push(newItem);
     this.form.addControl(this.itemControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.checked || false));
     this.form.addControl(this.countControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.count ?? null));
+    this.form.addControl(this.issueControlNameById(sectionKey, repeatIndex, newItem.id), new FormControl(newItem.issue ?? ''));
     this.applyModeState();
   }
 
@@ -1484,6 +1650,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     setItems.splice(itemIndex, 1);
     this.form.removeControl(this.itemControlNameById(sectionKey, repeatIndex, itemId));
     this.form.removeControl(this.countControlNameById(sectionKey, repeatIndex, itemId));
+    this.form.removeControl(this.issueControlNameById(sectionKey, repeatIndex, itemId));
   }
 
   updateEditableRowText(item: ChecklistItem, value: string): void {
@@ -1494,15 +1661,75 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (this.isTemplateMode || this.isReadonlyMode) {
       return;
     }
+    const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+    if (!control) {
+      return;
+    }
 
-    if (event.checked && item.requiresCount) {
+    if (event.checked) {
+      // First click: checked green state (no issue).
+      this.setItemIssueState(sectionKey, repeatIndex, item, false);
+      this.trySetItemCheckedTrue(sectionKey, repeatIndex, item);
+      return;
+    }
+
+    // Checked item clicked again: cycle green -> red -> green while remaining checked.
+    if (item.hasIssue === true) {
+      this.clearIssueStateAndPhoto(sectionKey, repeatIndex, item);
+      control.setValue(true, { emitEvent: false });
+      if (event.source) {
+        event.source.checked = true;
+      }
+      return;
+    }
+
+    this.setItemIssueState(sectionKey, repeatIndex, item, true);
+    control.setValue(true, { emitEvent: false });
+    if (event.source) {
+      event.source.checked = true;
+    }
+
+    this.openIssueItemDialog().afterClosed().pipe(take(1)).subscribe({
+      next: async (result: DialogIssueItemResult | null) => {
+        if (!result) {
+          this.setItemIssueState(sectionKey, repeatIndex, item, false);
+          control.setValue(false, { emitEvent: false });
+          if (event.source) {
+            event.source.checked = false;
+          }
+          return;
+        }
+
+        try {
+          await this.uploadIssuePhoto(sectionKey, repeatIndex, item, result.photoFile);
+          this.setItemIssueState(sectionKey, repeatIndex, item, true);
+          this.updateItemIssue(sectionKey, repeatIndex, item, result.issueText);
+          control.setValue(true, { emitEvent: false });
+          if (event.source) {
+            event.source.checked = true;
+          }
+        } catch {
+          this.setItemIssueState(sectionKey, repeatIndex, item, false);
+          control.setValue(false, { emitEvent: false });
+          if (event.source) {
+            event.source.checked = false;
+          }
+          this.openUploadFailedDialog();
+        }
+      }
+    });
+  }
+
+  trySetItemCheckedTrue(sectionKey: string, repeatIndex: number, item: ChecklistItem): void {
+    const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+    if (!control) {
+      return;
+    }
+
+    if (item.requiresCount) {
       const countValue = this.getCountValue(sectionKey, repeatIndex, item.id);
       if (countValue === null) {
-        const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
         control?.setValue(false, { emitEvent: false });
-        if (event.source) {
-          event.source.checked = false;
-        }
         this.openMissingCountDialog().afterClosed().pipe(take(1)).subscribe((result: number | null | undefined) => {
           if (typeof result !== 'number' || Number.isNaN(result)) {
             return;
@@ -1512,43 +1739,125 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           countControl?.setValue(result, { emitEvent: false });
           item.count = result;
           control?.setValue(true, { emitEvent: false });
-          if (event.source) {
-            event.source.checked = true;
-          }
+          this.applySelectionModeOnCheck(sectionKey, repeatIndex, item.id);
         });
         return;
       }
     }
 
-    if (event.checked && item.requiresPhoto && !this.getItemPhotoSrc(item)) {
-      const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
+    if (this.isPhotoRequiredForItem(item) && !this.getItemPhotoSrc(item)) {
       control?.setValue(false, { emitEvent: false });
-      if (event.source) {
-        event.source.checked = false;
-      }
       this.openPhotoUpload(sectionKey, repeatIndex, item.id);
       return;
     }
 
-    if (event.checked) {
-      const section = this.sections.find(currentSection => currentSection.key === sectionKey);
-      if (section?.selectionMode === 'exactlyOne') {
-        this.getSetItems(sectionKey, repeatIndex).forEach(setItem => {
-          if (setItem.id === item.id) {
-            return;
-          }
-          const otherControl = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, setItem.id));
-          otherControl?.setValue(false, { emitEvent: false });
-        });
-      }
+    control.setValue(true, { emitEvent: false });
+    this.applySelectionModeOnCheck(sectionKey, repeatIndex, item.id);
+  }
+
+  applySelectionModeOnCheck(sectionKey: string, repeatIndex: number, selectedItemId: string): void {
+    const section = this.sections.find(currentSection => currentSection.key === sectionKey);
+    if (section?.selectionMode !== 'exactlyOne') {
+      return;
     }
+    this.getSetItems(sectionKey, repeatIndex).forEach(setItem => {
+      if (setItem.id === selectedItemId) {
+        return;
+      }
+      const otherControl = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, setItem.id));
+      otherControl?.setValue(false, { emitEvent: false });
+    });
+  }
+
+  setItemIssueState(sectionKey: string, repeatIndex: number, item: ChecklistItem, hasIssue: boolean): void {
+    item.hasIssue = hasIssue;
+    if (!hasIssue) {
+      item.issue = null;
+    } else if (item.issue == null) {
+      item.issue = '';
+    }
+    const issueControl = this.form.get(this.issueControlNameById(sectionKey, repeatIndex, item.id));
+    issueControl?.setValue(item.issue ?? '', { emitEvent: false });
+  }
+
+  clearIssueStateAndPhoto(sectionKey: string, repeatIndex: number, item: ChecklistItem): void {
+    const photoIdToDelete = item.documentId;
+    this.setItemIssueState(sectionKey, repeatIndex, item, false);
+    item.photoPath = null;
+    item.displayDataUrl = null;
+    item.documentId = null;
+    if (photoIdToDelete) {
+      this.photoBlobUrlCache.delete(photoIdToDelete);
+      this.photoService.deletePhoto(photoIdToDelete).pipe(take(1)).subscribe({
+        error: () => {
+          this.toastr.error('Unable to delete issue photo from storage.', CommonMessage.Error);
+        }
+      });
+    }
+  }
+
+  updateItemIssue(sectionKey: string, repeatIndex: number, item: ChecklistItem, value: string): void {
+    item.issue = value;
+    item.hasIssue = true;
+    const issueControl = this.form.get(this.issueControlNameById(sectionKey, repeatIndex, item.id));
+    issueControl?.setValue(value, { emitEvent: false });
+  }
+
+  hasIssueText(value: string | null | undefined): boolean {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  isIssueTextMissing(sectionKey: string, repeatIndex: number, item: ChecklistItem): boolean {
+    const isChecked = !!this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id))?.value;
+    return isChecked && item.hasIssue === true && !this.hasIssueText(item.issue);
+  }
+
+  isPhotoRequiredForItem(item: ChecklistItem): boolean {
+    return item.requiresPhoto || item.hasIssue === true;
+  }
+
+  getCheckboxStateClass(sectionKey: string, repeatIndex: number, item: ChecklistItem): string {
+    const isChecked = !!this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id))?.value;
+    if (!isChecked) {
+      return '';
+    }
+    return item.hasIssue === true ? 'issue-checkbox-red' : 'issue-checkbox-green';
   }
   //#endregion
 
   //#region Dialog Methods
   openMissingCountDialog() {
-    return this.dialog.open(MissingCountDialogComponent, {
+    return this.dialog.open(DialogMissingCountComponent, {
       width: '24rem'
+    });
+  }
+
+  openIssueItemDialog() {
+    return this.dialog.open(DialogIssueItemComponent, {
+      width: '40rem',
+      maxWidth: '95vw'
+    });
+  }
+
+  openIssuesDialog(): void {
+    const fromName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'RentAll User';
+    const fromEmail = this.user?.email || '';
+    this.dialog.open(DialogChecklistIssuesComponent, {
+      width: '55rem',
+      maxWidth: '95vw',
+      data: {
+        issues: this.issueEntries,
+        propertyCode: this.property?.propertyCode ?? this.property?.propertyId ?? null,
+        dateText: this.todayDate,
+        organizationId: this.property?.organizationId ?? this.user?.organizationId ?? null,
+        officeId: this.property?.officeId ?? null,
+        officeName: this.property?.officeName ?? null,
+        propertyId: this.property?.propertyId ?? null,
+        fromEmail,
+        fromName,
+        toEmail: fromEmail,
+        toName: fromName
+      }
     });
   }
 
@@ -1597,6 +1906,26 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#endregion
 
   //#region Photo controls
+  async uploadIssuePhoto(sectionKey: string, repeatIndex: number, item: ChecklistItem, file: File): Promise<void> {
+    const optimizedImage = await this.optimizePhotoForUpload(file, sectionKey, repeatIndex, item.id);
+    const photoRequest: PhotoRequest = {
+      organizationId: this.property?.organizationId || this.user?.organizationId || '',
+      officeId: this.property?.officeId || 0,
+      maintenanceId: this.maintenanceRecord?.maintenanceId || null,
+      fileDetails: {
+        fileName: optimizedImage.fileName,
+        contentType: optimizedImage.contentType,
+        file: optimizedImage.base64,
+        dataUrl: optimizedImage.dataUrl
+      }
+    };
+
+    const photoResponse = await firstValueFrom(this.photoService.uploadPhoto(photoRequest).pipe(take(1)));
+    item.photoPath = photoResponse.photoPath || null;
+    item.documentId = photoResponse.photoId || null;
+    item.displayDataUrl = optimizedImage.previewDataUrl;
+  }
+
   toggleRequiresPhoto(item: ChecklistItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1674,7 +2003,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           item.photoPath = photoResponse.photoPath || null;
           item.documentId = photoResponse.photoId || null;
           item.displayDataUrl = optimizedImage.previewDataUrl;
-          if (item.requiresPhoto) {
+          if (this.isPhotoRequiredForItem(item)) {
             const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
             control?.setValue(!!(item.photoPath || item.displayDataUrl));
           }
@@ -1703,7 +2032,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     item.photoPath = null;
     item.displayDataUrl = null;
     item.documentId = null;
-    if (item.requiresPhoto) {
+    if (this.isPhotoRequiredForItem(item)) {
       const control = this.form.get(this.itemControlNameById(sectionKey, repeatIndex, item.id));
       control?.setValue(false);
     }
@@ -1719,7 +2048,58 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         return cached;
       }
     }
+    if (item.photoPath && item.photoPath.trim().length > 0) {
+      return this.normalizePhotoPath(item.photoPath);
+    }
     return null;
+  }
+
+  normalizePhotoPath(photoPath: string | null | undefined): string | null {
+    const rawPath = String(photoPath || '').trim();
+    if (!rawPath) {
+      return null;
+    }
+
+    if (rawPath.startsWith('data:') || rawPath.startsWith('blob:')) {
+      return rawPath;
+    }
+
+    if (/^https?:\/\//i.test(rawPath)) {
+      return this.isAllowedDirectPhotoUrl(rawPath) ? rawPath : null;
+    }
+
+    const apiUrl = this.configService.config().apiUrl || '';
+    if (!apiUrl) {
+      return rawPath;
+    }
+
+    const normalizedApiUrl = apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`;
+    if (rawPath.startsWith('/')) {
+      return `${normalizedApiUrl.replace(/\/$/, '')}${rawPath}`;
+    }
+
+    return `${normalizedApiUrl}${rawPath}`;
+  }
+
+  isAllowedDirectPhotoUrl(url: string): boolean {
+    const value = String(url || '').trim();
+    if (!value) {
+      return false;
+    }
+
+    // Prevent unauthenticated direct fetches to private Azure Blob URLs.
+    const isAzureBlobHost = /:\/\/[^/]*blob\.core\.windows\.net\//i.test(value);
+    if (!isAzureBlobHost) {
+      return true;
+    }
+
+    // Allow only signed blob URLs (SAS) when direct URL is used.
+    return /[?&]sig=/i.test(value);
+  }
+
+  isLikelyGuid(value: string | null | undefined): boolean {
+    const text = String(value || '').trim();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text);
   }
   //#endregion
 

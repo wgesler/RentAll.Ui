@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -39,7 +40,8 @@ import { MaintenanceComponent } from '../maintenance/maintenance.component';
   templateUrl: './maintenance-shell.component.html',
   styleUrl: './maintenance-shell.component.scss'
 })
-export class MaintenanceShellComponent implements OnInit {
+export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate {
+  @ViewChild('inspectionChecklist') inspectionChecklist?: ChecklistComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
@@ -181,8 +183,17 @@ export class MaintenanceShellComponent implements OnInit {
   //#endregion
 
   //#region Route/Reload Methods
-  onTabChange(event: { index: number }): void {
-    this.selectedTabIndex = event.index;
+  async onTabChange(event: { index: number }): Promise<void> {
+    const nextTabIndex = event.index;
+    if (nextTabIndex === this.selectedTabIndex) {
+      return;
+    }
+
+    const canLeaveCurrentTab = await this.confirmChecklistNavigation();
+    if (!canLeaveCurrentTab) {
+      return;
+    }
+    this.selectedTabIndex = nextTabIndex;
   }
 
   onInspectionSubmitted(): void {
@@ -197,8 +208,14 @@ export class MaintenanceShellComponent implements OnInit {
     }
   }
 
-  onPropertyCodeChange(): void {
+  async onPropertyCodeChange(): Promise<void> {
     if (!this.selectedPropertyId || this.selectedPropertyId === this.property?.propertyId) {
+      return;
+    }
+
+    const canLeave = await this.confirmChecklistNavigation();
+    if (!canLeave) {
+      this.selectedPropertyId = this.property?.propertyId ?? null;
       return;
     }
 
@@ -318,8 +335,20 @@ export class MaintenanceShellComponent implements OnInit {
     return tabParam;
   }
 
-  back(): void {
+  async back(): Promise<void> {
+    const canLeave = await this.confirmChecklistNavigation();
+    if (!canLeave) {
+      return;
+    }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);
+  }
+
+  async canDeactivate(): Promise<boolean> {
+    return this.confirmChecklistNavigation();
+  }
+
+  async confirmChecklistNavigation(): Promise<boolean> {
+    return this.inspectionChecklist?.confirmNavigationWithUnsavedChanges() ?? true;
   }
   //#endregion
 }

@@ -107,7 +107,7 @@
                 '!text-left': getColumnAlignment(column) === 'left', '!text-justify': getColumnAlignment(column) === 'justify',
                 '!text-center': getColumnAlignment(column) === 'center', '!text-right': getColumnAlignment(column) === 'right',
                 'datatable-checkbox-td': column.isCheckbox,
-                'datatable-cleaner-selected': column.name === 'cleaner' && !!item[column.name]?.value && item[column.name]?.value !== 'Select Cleaner',
+                'datatable-cleaner-selected': (column.name === 'cleaner' || column.name === 'carpet') && !!item[column.name]?.value && item[column.name]?.value !== 'Select Cleaner' && item[column.name]?.value !== 'Select Carpet Cleaner',
                 'datatable-inspector-selected': column.name === 'inspector' && !!item[column.name]?.value && item[column.name]?.value !== 'Select Inspector',
                 }"
             appMatTooltipShowIfTruncated [matTooltip]="item[column.name]?.value">

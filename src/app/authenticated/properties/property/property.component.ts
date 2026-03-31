@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, firstValueFrom, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -44,6 +45,8 @@ import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 
 @Component({
     selector: 'app-property',
@@ -64,7 +67,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./property.component.scss']
 })
 
-export class PropertyComponent implements OnInit, OnDestroy {
+export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild('propertyWelcomeLetter') propertyWelcomeLetterComponent?: PropertyWelcomeLetterComponent;
@@ -122,6 +125,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
   
   // Accordion expansion states - will be initialized based on isAddMode
   expandedSections = { basic: false, features: false, trash: false, maintenance: false, description: false };
+  lastSavedStateSignature = '';
+  hasSavedStateSignature = false;
 
   constructor(
     public propertyService: PropertyService,
@@ -221,6 +226,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
             }
           });
         }
+        this.captureSavedStateSignature();
       }
     });
     
@@ -443,6 +449,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
           this.propertyId = response.propertyId;
           this.isAddMode = false;
           this.populateForm();
+          this.captureSavedStateSignature();
           
           // If this is a copy, get the property information as well
           if (this.propertyInformationComponent) {
@@ -465,7 +472,8 @@ export class PropertyComponent implements OnInit, OnDestroy {
         next: (response: PropertyResponse) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
-          this.populateForm();          
+          this.populateForm();
+          this.captureSavedStateSignature();
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
         },
@@ -714,6 +722,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       this.syncConditionalFieldState();
       this.form.markAsUntouched();
       this.form.markAsPristine();
+      this.captureSavedStateSignature();
 
       // Log any invalid fields after load so you can fix defaults or API mapping (check browser console)
       this.logInvalidFormControlsAfterLoad();
@@ -748,6 +757,7 @@ export class PropertyComponent implements OnInit, OnDestroy {
       tv: true,
       fastInternet: true
     }, { emitEvent: false });
+    this.captureSavedStateSignature();
   }
 
   /** Call after loading a saved property. Logs field names (and errors) for any control that is invalid. */
@@ -1565,16 +1575,86 @@ export class PropertyComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
-    if (returnTo === 'reservation-board') {
-      this.router.navigateByUrl(RouterUrl.ReservationBoard);
+    this.confirmNavigationWithUnsavedChanges().then(canLeave => {
+      if (!canLeave) {
+        return;
+      }
+      const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+      if (returnTo === 'reservation-board') {
+        this.router.navigateByUrl(RouterUrl.ReservationBoard);
+        return;
+      }
+      if (returnTo === 'maintenance-list') {
+        this.router.navigateByUrl(RouterUrl.MaintenanceList);
+        return;
+      }
+      this.router.navigateByUrl(RouterUrl.PropertyList);
+    });
+  }
+
+  canDeactivate(): Promise<boolean> | boolean {
+    return this.confirmNavigationWithUnsavedChanges();
+  }
+
+  getCurrentStateSignature(): string {
+    if (!this.form) {
+      return '';
+    }
+    return JSON.stringify(this.form.getRawValue());
+  }
+
+  captureSavedStateSignature(): void {
+    this.lastSavedStateSignature = this.getCurrentStateSignature();
+    this.hasSavedStateSignature = true;
+    this.form?.markAsPristine();
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (!this.form || this.isSubmitting) {
+      return false;
+    }
+    const currentSignature = this.getCurrentStateSignature();
+    if (!this.hasSavedStateSignature) {
+      this.lastSavedStateSignature = currentSignature;
+      this.hasSavedStateSignature = true;
+      return false;
+    }
+    return currentSignature !== this.lastSavedStateSignature;
+  }
+
+  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+    const dialogData: GenericModalData = {
+      title: 'Unsaved Changes',
+      message: 'You have unsaved changes. Do you want to save before leaving this page?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'No',
+      yes: 'Yes',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
+    if (shouldSave === true) {
+      this.saveProperty();
+    }
+    return true;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.hasUnsavedChanges()) {
       return;
     }
-    if (returnTo === 'maintenance-list') {
-      this.router.navigateByUrl(RouterUrl.MaintenanceList);
-      return;
-    }
-    this.router.navigateByUrl(RouterUrl.PropertyList);
+    event.preventDefault();
+    event.returnValue = '';
   }
   //#endregion
 }

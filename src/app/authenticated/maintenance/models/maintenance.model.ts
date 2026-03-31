@@ -9,6 +9,8 @@ export interface MaintenanceRequest {
   cleaningDate?: string | null;
   inspectorUserId?: string | null;
   inspectingDate?: string | null;
+  carpetUserId?: string | null;
+  carpetDate?: string | null;
   filterDescription?: string | null;
   lastFilterChangeDate?: string | null;
   smokeDetectors?: string | null;
@@ -36,6 +38,8 @@ export interface MaintenanceResponse {
   cleaningDate?: string | null;
   inspectorUserId?: string | null;
   inspectingDate?: string | null;
+  carpetUserId?: string | null;
+  carpetDate?: string | null;
   filterDescription?: string | null;
   lastFilterChangeDate?: string | null;
   smokeDetectors?: string | null;
@@ -67,7 +71,9 @@ export interface MaintenanceListResponse {
   cleanerUserId?: string | null;
   cleaningDate?: string | null;
   inspectorUserId?: string | null;
-  inspectingDate?: string | null;
+  inspectingDate?: string | null;  
+  carpetUserId?: string | null;
+  carpetDate?: string | null;
   needsMaintenance: boolean;
   bedroomId1: number;
   bedroomId2: number;

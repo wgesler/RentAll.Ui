@@ -530,6 +530,8 @@ export class MappingService {
     propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string };
     cleaner: string;
     cleaningDate: string;
+    carpet: string;
+    carpetDate: string;
     inspector: string;
     inspectingDate: string;
     bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
@@ -631,6 +633,8 @@ export class MappingService {
         propertyAddress: property.shortAddress ?? '',
         cleaner: maintenanceRow?.cleanerUserId ?? '',
         cleaningDate: this.formatter.formatDateString(maintenanceRow?.cleaningDate ?? undefined),
+        carpet: maintenanceRow?.carpetUserId ?? '',
+        carpetDate: this.formatter.formatDateString(maintenanceRow?.carpetDate ?? undefined),
         inspector: maintenanceRow?.inspectorUserId ?? '',
         inspectingDate: this.formatter.formatDateString(maintenanceRow?.inspectingDate ?? undefined),
         bed1Text: mapBedDropdown(maintenanceRow?.bedroomId1),
@@ -660,6 +664,9 @@ export class MappingService {
     cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
     cleanerUserId?: string | null;
     cleaningDate: string;
+    carpet: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    carpetUserId?: string | null;
+    carpetDate: string;
     inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
     inspectorUserId?: string | null;
     inspectingDate: string;
@@ -684,10 +691,15 @@ export class MappingService {
     const rows = this.mapMaintenancePropertyDisplayRows(properties || [], maintenanceRows || []).map(property => ({
       ...property,
       cleanerUserId: property.cleaner ?? null,
+      carpetUserId: property.carpet ?? null,
       inspectorUserId: property.inspector ?? null,
       propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
       cleaner: this.buildMaintenanceUserDropdownCell(
         this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
+        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
+      ),
+      carpet: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(property.carpet ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
         this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
       ),
       inspector: this.buildMaintenanceUserDropdownCell(
@@ -722,6 +734,9 @@ export class MappingService {
     cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
     cleanerUserId?: string | null;
     cleaningDate: string;
+    carpet: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
+    carpetUserId?: string | null;
+    carpetDate: string;
     inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
     inspectorUserId?: string | null;
     inspectingDate: string;

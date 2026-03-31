@@ -1,13 +1,13 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
@@ -21,6 +21,9 @@ import { FormsModule } from '@angular/forms';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { getPropertyStatus, getPropertyStatuses } from '../../properties/models/property-enums';
+import { ToastrService } from 'ngx-toastr';
+import { CommonMessage } from '../../../enums/common-message.enum';
 
 export interface PropertyVacancyDisplay extends PropertyListResponse {
   vacancyDays: number | null;
@@ -38,6 +41,16 @@ export interface MonthlyCommissionTileRow {
   amount: number;
 }
 
+type TurnoverReservationDisplay = ReservationListDisplay & {
+  propertyStatusId?: number;
+  propertyStatusText: string;
+  propertyStatusDropdown: {
+    value: string;
+    isOverridable: boolean;
+    toString: () => string;
+  };
+};
+
 @Component({
     standalone: true,
     selector: 'app-dashboard-main',
@@ -54,8 +67,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   globalOfficeSubscription?: Subscription;
 
   allReservations: ReservationListDisplay[] = [];
-  upcomingArrivals: ReservationListDisplay[] = [];
-  upcomingDepartures: ReservationListDisplay[] = [];
+  upcomingArrivals: TurnoverReservationDisplay[] = [];
+  upcomingDepartures: TurnoverReservationDisplay[] = [];
   isLoadingReservations: boolean = false;
   
   todayArrivals: ReservationListDisplay[] = [];
@@ -87,11 +100,15 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   preferredOfficeId: number | null = null;
 
   expandedSections = { arrivals: true, departures: true, monthlyCommissions: true, properties: true, vacantProperties: true };
+  private readonly propertyStatuses = getPropertyStatuses();
+  private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
+  private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
 
   reservationsDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
+    'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '15ch', options: this.propertyStatusLabels },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
@@ -128,7 +145,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     private agentService: AgentService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private toastr: ToastrService
   ) { }
 
   //#region Dashboard-Main
@@ -405,6 +423,9 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   filterUpcomingReservations(): void {
     const officeFilteredReservations = this.getOfficeFilteredReservations();
+    const propertyStatusByPropertyId = new Map<string, number>(
+      this.getOfficeFilteredProperties().map(property => [property.propertyId, property.propertyStatusId])
+    );
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -461,7 +482,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       
       return arrivalDate.getTime() >= today.getTime() && 
              arrivalDate.getTime() <= fifteenDaysFromNow.getTime();
-    });
+    }).sort((a, b) => {
+      const aDate = this.parseDateAtMidnight(a.arrivalDate);
+      const bDate = this.parseDateAtMidnight(b.arrivalDate);
+      return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
+    }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
 
     this.upcomingDepartures = officeFilteredReservations.filter(reservation => {
       if (!reservation.departureDate || !reservation.isActive) {
@@ -473,7 +498,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       
       return departureDate.getTime() >= today.getTime() && 
              departureDate.getTime() <= fifteenDaysFromNow.getTime();
-    });
+    }).sort((a, b) => {
+      const aDate = this.parseDateAtMidnight(a.departureDate);
+      const bDate = this.parseDateAtMidnight(b.departureDate);
+      return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
+    }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
   }
 
   resolveCurrentAgentAndFilter(): void {
@@ -601,6 +630,67 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Property Status Methods
+  onTurnoverPropertyStatusChange(event: TurnoverReservationDisplay): void {
+    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
+    const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
+    const previousStatusId = event.propertyStatusId;
+    const previousLabel = event.propertyStatusText;
+
+    if (selectedStatusId === undefined) {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+      return;
+    }
+
+    if (selectedStatusId === previousStatusId) {
+      return;
+    }
+
+    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
+
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
+      take(1),
+      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
+      finalize(() => {
+        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
+      })
+    ).subscribe({
+      next: () => {
+        this.allProperties = this.allProperties.map(property =>
+          property.propertyId === event.propertyId
+            ? { ...property, propertyStatusId: selectedStatusId }
+            : property
+        );
+        this.recomputeDashboardData();
+        this.toastr.success('Property status updated.', CommonMessage.Success);
+      },
+      error: () => {
+        event.propertyStatusId = previousStatusId;
+        event.propertyStatusText = previousLabel;
+        event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+        this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      }
+    });
+  }
+
+  buildStatusDropdownCell(label: string, isOverridable: boolean = true): TurnoverReservationDisplay['propertyStatusDropdown'] {
+    return {
+      value: label,
+      isOverridable,
+      toString: () => label
+    };
+  }
+
+  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      propertyStatusId,
+      parkingnotes: parkingNotes
+    };
+  }
+  //#endregion
+
   //#region Table Calculations
   calculatePropertyStatus(): void {
     const today = new Date();
@@ -699,6 +789,20 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     }
     parsed.setHours(0, 0, 0, 0);
     return parsed;
+  }
+
+  mapTurnoverReservationStatus(
+    reservation: ReservationListDisplay,
+    propertyStatusByPropertyId: Map<string, number>
+  ): TurnoverReservationDisplay {
+    const propertyStatusId = propertyStatusByPropertyId.get(reservation.propertyId);
+    const propertyStatusText = getPropertyStatus(propertyStatusId);
+    return {
+      ...reservation,
+      propertyStatusId,
+      propertyStatusText,
+      propertyStatusDropdown: this.buildStatusDropdownCell(propertyStatusText)
+    };
   }
   //#endregion
 

@@ -48,6 +48,7 @@ import { LayoutComponent } from './authenticated/shared/layout/layout/layout.com
 import { UserListComponent } from './authenticated/users/user-list/user-list.component';
 import { UserComponent } from './authenticated/users/user/user.component';
 import { authRouteGuard } from './guards/auth-guard';
+import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
 import { LoginComponent } from './public/login/login.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
@@ -178,9 +179,9 @@ export const authRoutes: Routes = [
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Property, component: PropertyComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
@@ -195,7 +196,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationBoardSelection, component: PropertySelectionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
