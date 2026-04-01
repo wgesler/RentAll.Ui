@@ -202,9 +202,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onCostCodesSaved(): void {
-    if (this.selectedOffice?.officeId) {
-      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
-    }
+    this.costCodesService.refreshAllCostCodes();
     this.filterCostCodes();
   }
   //#endregion
@@ -229,6 +227,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(codes => {

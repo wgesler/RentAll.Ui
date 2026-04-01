@@ -20,6 +20,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
+import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
     selector: 'app-accounting',
@@ -63,11 +64,14 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private authService: AuthService,
     private utilityService: UtilityService,
-    private organizationService: OrganizationService
+    private organizationService: OrganizationService,
+    private costCodesService: CostCodesService
   ) { }
 
   //#region Accounting
   ngOnInit(): void {
+    // Shared accounting reference data: load once for all accounting tabs/components.
+    this.costCodesService.ensureCostCodesLoaded();
     this.initializeSuperAdminFilters();
     this.applyQueryParamState(this.route.snapshot.queryParams);
     
@@ -209,6 +213,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
+    this.costCodesService.ensureCostCodesLoaded();
     const queryParams: any = { tab: event.index.toString() };
     this.router.navigate([], { 
       relativeTo: this.route,

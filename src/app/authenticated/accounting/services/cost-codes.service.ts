@@ -14,6 +14,7 @@ export class CostCodesService {
   private readonly controller = this.configService.config().apiUrl + 'accounting/cost-code/';
   private allCostCodes$ = new BehaviorSubject<CostCodesResponse[]>([]);
   private costCodesLoaded$ = new BehaviorSubject<boolean>(false);
+  private isCostCodesLoading = false;
 
   constructor(
     private http: HttpClient,
@@ -77,18 +78,42 @@ export class CostCodesService {
 
   // Load all cost codes for all offices on startup
   loadAllCostCodes(): void {
+    if (this.costCodesLoaded$.value || this.isCostCodesLoading) {
+      return;
+    }
+    this.fetchAllCostCodes();
+  }
+
+  refreshAllCostCodes(): void {
+    if (this.isCostCodesLoading) {
+      return;
+    }
+    this.fetchAllCostCodes();
+  }
+
+  private fetchAllCostCodes(): void {
+    this.isCostCodesLoading = true;
     // Call the API endpoint that gets cost codes for all offices
     this.getCostCodesForAllOffices().subscribe({
       next: (costCodes) => {
         this.allCostCodes$.next(costCodes || []);
         this.costCodesLoaded$.next(true);
+        this.isCostCodesLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Cost Codes Service - Error loading all cost codes:', err);
         this.allCostCodes$.next([]);
         this.costCodesLoaded$.next(true); // Mark as loaded even on error
+        this.isCostCodesLoading = false;
       }
     });
+  }
+
+  ensureCostCodesLoaded(): void {
+    if (this.costCodesLoaded$.value || this.isCostCodesLoading) {
+      return;
+    }
+    this.loadAllCostCodes();
   }
 
   // Check if cost codes have been loaded
@@ -100,6 +125,7 @@ export class CostCodesService {
   clearCostCodes(): void {
     this.allCostCodes$.next([]);
     this.costCodesLoaded$.next(false);
+    this.isCostCodesLoading = false;
   }
 
   // Get all cost codes as observable

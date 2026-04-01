@@ -46,7 +46,7 @@
         </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
-            class="scale-90 text-nowrap flex-shrink-0">
+            class="text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
@@ -108,7 +108,7 @@
         </div>
         <div class="flex gap-2">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
-            class="scale-90 text-nowrap flex-shrink-0">
+            class="text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
@@ -119,7 +119,7 @@
           <form [formGroup]="form" class="invoice-create-form">
             
             <!-- Action Buttons Section - First Row -->
-            <div class="flex gap-2 mt-8 px-4 justify-end">
+            <div class="form-titlebar-actions-wrap uniform-gap mt-8 px-4 justify-end">
               <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
                 [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
                 <mat-icon>print</mat-icon>
@@ -137,7 +137,7 @@
               </button>
               <button mat-raised-button type="button" color="primary" id="save-button" 
                 (click)="saveInvoice()"
-                class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
                 <mat-icon>save</mat-icon>
                 Save
               </button>

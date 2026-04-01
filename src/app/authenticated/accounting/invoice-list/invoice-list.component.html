@@ -44,7 +44,7 @@
 
 @if (!(isLoading$ | async)) {
   <div class="mat list-layout-tabbed">
-      @if (!showPaymentForm && source === null) {
+      @if (source === null) {
         <div class="list-top-controls list-top-controls--tabbed flex justify-between items-center gap-3 mt-3 px-4">
           @if (!hideFilters) {
             <div class="header-title form-titlebar-fields-wrap">
@@ -71,84 +71,134 @@
             </div>
           }
           <div class="form-titlebar-actions-wrap">
-            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-              Inactive
-            </mat-slide-toggle>
-            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((!selectedReservation && !selectedCompanyContact && !hideFilters) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
-              Apply Payment
-            </button>
-            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">add</mat-icon>
-              <span>Add</span>
-            </button>
-          </div>
-        </div>
-      }
-      @if (showPaymentForm) {
-        <!-- Payment form fields - Second Row (right justified) -->
-        <div class="flex justify-end mt-0 px-4">
-          <div class="payment-form-box" style="font-size: 11px !important;">
-            <div class="flex gap-2 items-center">
-              <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-                <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
-                <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
-                  <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
-                  @for (costCode of creditCostCodes; track costCode.value) {
-                    <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
-                <mat-label style="font-size: 11px !important;">Type</mat-label>
-                <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
-                <mat-label style="font-size: 11px !important;">Description</mat-label>
-                <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
-                <mat-label style="font-size: 11px !important;">Amount</mat-label>
-                <input matInput 
-                  type="text"
-                  [value]="paymentAmountDisplay"
-                  (input)="onPaymentAmountInput($event)"
-                  (focus)="onPaymentAmountFocus($event)"
-                  (blur)="onPaymentAmountBlur($event)"
-                  (keydown.enter)="onPaymentAmountEnter($event)"
-                  placeholder="0.00"
-                  style="font-size: 11px !important;">
-              </mat-form-field>
-              @if (isManualApplyMode) {
-                <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
-                  <mat-label style="font-size: 11px !important;">Remaining</mat-label>
-                  <input matInput [value]="remainingAmountDisplay" readonly 
-                         [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
-                         style="font-size: 11px !important; text-align: right;">
-                </mat-form-field>
+            @if (!showPaymentForm) {
+              <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                Inactive
+              </mat-slide-toggle>
+              @if (canShowApplyPaymentButton) {
+                <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                  Apply Payment
+                </button>
               }
-              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
+              <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            } @else {
+              <div class="payment-form-box" style="font-size: 11px !important;">
+                <div class="flex gap-2 items-center payment-inline-row">
+                  <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+                    <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
+                    <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
+                      <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
+                      @for (costCode of creditCostCodes; track costCode.value) {
+                        <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
+                    <mat-label style="font-size: 11px !important;">Type</mat-label>
+                    <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
+                    <mat-label style="font-size: 11px !important;">Description</mat-label>
+                    <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
+                    <mat-label style="font-size: 11px !important;">Amount</mat-label>
+                    <input matInput
+                      type="text"
+                      [value]="paymentAmountDisplay"
+                      (input)="onPaymentAmountInput($event)"
+                      (focus)="onPaymentAmountFocus($event)"
+                      (blur)="onPaymentAmountBlur($event)"
+                      (keydown.enter)="onPaymentAmountEnter($event)"
+                      placeholder="0.00"
+                      style="font-size: 11px !important;">
+                  </mat-form-field>
+                  @if (isManualApplyMode) {
+                    <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
+                      <mat-label style="font-size: 11px !important;">Remaining</mat-label>
+                      <input matInput [value]="remainingAmountDisplay" readonly
+                             [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
+                             style="font-size: 11px !important; text-align: right;">
+                    </mat-form-field>
+                  }
+                </div>
+              </div>
+              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
                 Submit
               </button>
-              <button mat-raised-button type="button" color="accent" (click)="applyManually()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
-                Apply Manually
-              </button>
-              <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1" style="font-size: 11px !important;">
+              <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
                 Cancel
               </button>
-            </div>
+            }
           </div>
         </div>
       }
       <!-- Filter and data table below -->
       <div class="tableDiv table-filter-row-actions-wrap">
+        @if (showPaymentForm && source !== null) {
+          <div class="table-filter-row-actions form-titlebar-actions-wrap">
+            <div class="payment-form-box" style="font-size: 11px !important;">
+              <div class="flex gap-2 items-center payment-inline-row">
+                <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+                  <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
+                  <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
+                    <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
+                    @for (costCode of creditCostCodes; track costCode.value) {
+                      <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
+                  <mat-label style="font-size: 11px !important;">Type</mat-label>
+                  <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
+                  <mat-label style="font-size: 11px !important;">Description</mat-label>
+                  <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
+                  <mat-label style="font-size: 11px !important;">Amount</mat-label>
+                  <input matInput
+                    type="text"
+                    [value]="paymentAmountDisplay"
+                    (input)="onPaymentAmountInput($event)"
+                    (focus)="onPaymentAmountFocus($event)"
+                    (blur)="onPaymentAmountBlur($event)"
+                    (keydown.enter)="onPaymentAmountEnter($event)"
+                    placeholder="0.00"
+                    style="font-size: 11px !important;">
+                </mat-form-field>
+                @if (isManualApplyMode) {
+                  <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
+                    <mat-label style="font-size: 11px !important;">Remaining</mat-label>
+                    <input matInput [value]="remainingAmountDisplay" readonly
+                           [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
+                           style="font-size: 11px !important; text-align: right;">
+                  </mat-form-field>
+                }
+              </div>
+            </div>
+            <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
+              Submit
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
+              Cancel
+            </button>
+          </div>
+        }
         @if (!showPaymentForm && (source === 'accounting' || source === 'reservation')) {
           <div class="table-filter-row-actions form-titlebar-actions-wrap">
             <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
               Inactive
             </mat-slide-toggle>
-            <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" [disabled]="((source === 'accounting' ? (!selectedReservation && !selectedCompanyContact) : !selectedReservation) || invoicesDisplay.length === 0)" class="whitespace-nowrap items-center flex gap-1">
-              Apply Payment
-            </button>
+            @if (canShowApplyPaymentButton) {
+              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                Apply Payment
+              </button>
+            }
             <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
               <mat-icon class="text-base">add</mat-icon>
               <span>Add</span>

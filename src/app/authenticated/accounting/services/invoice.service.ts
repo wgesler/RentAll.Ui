@@ -75,6 +75,6 @@ export class InvoiceService {
 
   // PUT: Apply payment to invoices
   applyPayment(payment: InvoicePaymentRequest): Observable<InvoicePaymentResponse> {
-    return this.http.put<InvoicePaymentResponse>(this.controller + 'payment', payment);
+    return this.http.put<InvoicePaymentResponse>(this.controller + 'invoice/payment', payment);
   }
 }

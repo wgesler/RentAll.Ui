@@ -277,7 +277,7 @@ export class MappingService {
       const costCodeId = line.costCodeId || null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
       let costCode: string | null = null;
-      let transactionTypeId: number | undefined = undefined;
+      let transactionTypeId: number | undefined = line.transactionTypeId;
       
       if (costCodeId && costCodes && costCodes.length > 0) {
         // Find cost code by costCodeId (costCodes array is already filtered by office if needed)
@@ -289,7 +289,8 @@ export class MappingService {
         }
       }
       
-      // Translate transactionTypeId from CostCode to transactionType label for display
+      // Translate transactionTypeId to transactionType label for display.
+      // Prefer CostCode-derived value when available, otherwise use API line.transactionTypeId.
       const transactionTypeLabel = transactionTypeId !== undefined && transactionTypeId !== null 
         ? getTransactionTypeLabel(transactionTypeId, transactionTypes)
         : '';

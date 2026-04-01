@@ -361,6 +361,11 @@ mat-form-field.reservation-dropdown {
     align-items: center !important;
   }
 
+  .mat-mdc-select-trigger {
+    padding: 0 !important;
+    line-height: 1.2 !important;
+  }
+
   /* Keep title-bar placeholder/value text vertically centered. */
   .mat-mdc-select-value {
     height: 100% !important;
@@ -380,6 +385,21 @@ mat-form-field.reservation-dropdown {
     line-height: 1.2 !important;
     display: inline-flex !important;
     align-items: center !important;
+  }
+
+  .mat-mdc-select-arrow-wrapper {
+    height: 100% !important;
+    min-height: 100% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: center !important;
+    margin-top: 0 !important;
+    transform: none !important;
+  }
+
+  .mat-mdc-select-arrow {
+    margin-top: 0 !important;
   }
 }
 

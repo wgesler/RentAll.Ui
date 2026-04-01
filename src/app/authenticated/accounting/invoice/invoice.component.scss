@@ -1,3 +1,14 @@
+:host {
+  --invoice-ledger-border: var(--mat-sys-outline-variant, #e0e0e0);
+  --invoice-ledger-header-bg: var(--mat-sys-surface-container-low, #f5f5f5);
+  --invoice-ledger-row-hover-bg: var(--mat-sys-surface-container, #fafafa);
+  --invoice-ledger-payment-bg: var(--mat-sys-secondary-container, #e8f5e9);
+  --invoice-ledger-payment-hover-bg: var(--mat-sys-secondary-container, #c8e6c9);
+  --invoice-ledger-input-border: var(--mat-sys-outline, #ccc);
+  --invoice-ledger-input-focus: var(--mat-sys-primary, #1976d2);
+  --invoice-readonly-color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.38));
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -8,7 +19,7 @@
   
   p {
     margin-top: 1rem;
-    color: #666;
+    color: var(--invoice-readonly-color);
   }
 }
 
@@ -21,14 +32,44 @@
   line-height: 1.25;
   border-collapse: collapse;
   width: 100%;
+
+  .ledger-col-no {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+  }
+
+  .ledger-col-cost-center {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
+  }
+
+  .ledger-col-type {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+  }
+
+  .ledger-col-amount {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+  }
+
+  .ledger-col-actions {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+  }
   
   th, td {
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--invoice-ledger-border);
   }
   
   th {
-    background-color: #f5f5f5;
+    background-color: var(--invoice-ledger-header-bg);
     font-weight: 500;
     font-size: 14px !important;
   }
@@ -56,14 +97,14 @@
   }
   
   tr:hover {
-    background-color: #fafafa;
+    background-color: var(--invoice-ledger-row-hover-bg);
   }
   
   tr.payment-line {
-    background-color: #E8F5E9; // Very light version of #4caf50 (the $ green)
+    background-color: var(--invoice-ledger-payment-bg);
     
     &:hover {
-      background-color: #C8E6C9; // Slightly darker light green on hover
+      background-color: var(--invoice-ledger-payment-hover-bg);
     }
   }
   
@@ -101,12 +142,12 @@
   
   /* Editable inputs with borders - override border: none */
   input[type="text"].editable-input {
-    border: 1px solid #ccc !important;
+    border: 1px solid var(--invoice-ledger-input-border) !important;
     border-radius: 4px;
-    background-color: white;
+    background-color: var(--mat-sys-surface, #fff);
     
     &:focus {
-      border-color: #1976d2 !important;
+      border-color: var(--invoice-ledger-input-focus) !important;
       outline: none;
     }
   }
@@ -129,14 +170,8 @@
   }
   
   .delete-ledger-line-btn {
-    color: #ae1f66 !important;
-    
-    mat-icon {
-      color: #ae1f66 !important;
-    }
-    
     &:hover {
-      background-color: rgba(174, 31, 102, 0.1);
+      background-color: rgba(126, 105, 180, 0.1);
     }
   }
 
@@ -150,9 +185,9 @@
     &.editable-select {
       ::ng-deep {
         .mat-mdc-text-field-wrapper {
-          border: 1px solid #ccc !important;
+          border: 1px solid var(--invoice-ledger-input-border) !important;
           border-radius: 4px;
-          background-color: white;
+          background-color: var(--mat-sys-surface, #fff);
         }
         
         .mat-mdc-form-field-focus-overlay {
@@ -163,7 +198,7 @@
       &:focus-within {
         ::ng-deep {
           .mat-mdc-text-field-wrapper {
-            border-color: #1976d2 !important;
+            border-color: var(--invoice-ledger-input-focus) !important;
           }
         }
       }
@@ -301,7 +336,7 @@
     // This preserves visibility of text content like Type column
     
     .readonly-input {
-      color: rgba(0, 0, 0, 0.38);
+      color: var(--invoice-readonly-color);
       background-color: transparent;
       cursor: default;
     }
@@ -309,18 +344,18 @@
   
   // Apply grey color specifically to Type column text when readonly
   .type-cell.readonly-cell {
-    color: rgba(0, 0, 0, 0.38);
+    color: var(--invoice-readonly-color);
   }
   
   // Grey out disabled mat-select in payment mode - match Material disabled styling
   mat-select[disabled] {
     ::ng-deep {
       .mat-mdc-select-value {
-        color: rgba(0, 0, 0, 0.38) !important;
+        color: var(--invoice-readonly-color) !important;
       }
       
       .mat-mdc-select-trigger {
-        color: rgba(0, 0, 0, 0.38) !important;
+        color: var(--invoice-readonly-color) !important;
       }
     }
   }

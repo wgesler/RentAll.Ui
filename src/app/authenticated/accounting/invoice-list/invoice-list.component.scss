@@ -55,11 +55,14 @@
 .payment-form-box {
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  padding: 6px 10px;
+  padding: 0 8px;
   background-color: #fafafa;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-size: 11px !important;
   margin-bottom: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   
   ::ng-deep {
     * {
@@ -360,6 +363,73 @@
     .mat-mdc-form-field-subscript-wrapper {
       display: none !important;
     }
+  }
+}
+
+/* Single-source alignment rules for the inline payment row. */
+.payment-inline-row {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+
+  :host ::ng-deep & .mat-mdc-form-field {
+    margin-bottom: 0 !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-text-field-wrapper {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-form-field-flex {
+    height: 32px !important;
+    min-height: 32px !important;
+    align-items: center !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-form-field-infix {
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-select-trigger {
+    min-height: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    line-height: 1 !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-select-value,
+  :host ::ng-deep & .mat-mdc-select-value-text {
+    display: inline-flex !important;
+    align-items: center !important;
+    line-height: 1 !important;
+  }
+
+  :host ::ng-deep & .mat-mdc-select-arrow-wrapper {
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: center !important;
+    transform: none !important;
+    margin-left: 6px !important;
+  }
+
+  :host ::ng-deep & .payment-amount-field .mdc-text-field__input {
+    height: 32px !important;
+    min-height: 32px !important;
+    line-height: 32px !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    text-align: right !important;
+    vertical-align: middle !important;
   }
 }
 

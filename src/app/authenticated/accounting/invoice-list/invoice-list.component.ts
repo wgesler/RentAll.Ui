@@ -23,7 +23,6 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
-import { ApplyPaymentDialogComponent, ApplyPaymentDialogData } from '../../shared/modals/apply-payment/apply-payment-dialog.component';
 import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
@@ -100,18 +99,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   paymentAmountDisplay: string = '$0.00';
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
+  paymentTargetInvoiceId: string | null = null;
+  restoreTopbarAfterPayment: boolean = false;
+  originalPaymentOfficeId: number | null = null;
+  originalPaymentReservationId: string | null = null;
+  originalPaymentCompanyId: string | null = null;
   creditCostCodes: { value: number, label: string }[] = [];
   baseInvoicesDisplayedColumns: ColumnSet = {
-    expand: { displayAs: ' ', maxWidth: '50px', sort: false },
-    officeName: { displayAs: 'Office', maxWidth: '15ch' },
+    expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    responsibleParty: { displayAs: 'Responsible Party', maxWidth: '28ch' },
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '20ch', alignment: 'center' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '20ch', alignment: 'center' },
+    responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '25ch' },
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    paidAmount: { displayAs: '  Paid', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
-    dueAmount: { displayAs: 'Due', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     applyAmount: { displayAs: 'Apply', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
 
@@ -126,6 +129,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     return columns;
+  }
+
+  get dueInvoicesCount(): number {
+    return this.invoicesDisplay.filter(invoice => (invoice?.dueAmountValue || 0) > 0).length;
+  }
+
+  get canShowApplyPaymentButton(): boolean {
+    const hasReservationOrCompanySelection = !!this.selectedReservation || !!this.selectedCompanyContact;
+    return hasReservationOrCompanySelection && this.dueInvoicesCount > 1;
   }
 
   ledgerLinesDisplayedColumns: ColumnSet = {
@@ -482,6 +494,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       };
       this.dialog.open(InvoicePaidFullDialogComponent, dialogConfig);
     } else {
+      // Preserve current top-bar selections so refresh returns to the original user context.
+      this.captureTopbarSelectionsForPayment();
+
       // Auto-select the invoice's office and reservation
       const invoiceOfficeId = event.officeId;
       const invoiceReservationId = event.reservationId;
@@ -516,8 +531,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
       
-      // Open Apply Payment dialog
-      this.openApplyPaymentDialogForInvoice(event.invoiceId);
+      // Open inline Apply Payment row and scope submit to the clicked invoice row.
+      this.openApplyPaymentDialog(event.invoiceId);
     }
   }
   //#endregion
@@ -878,6 +893,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
         this.allCostCodes = accounts || [];
@@ -1109,66 +1125,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     input.blur();
   }
 
-  openApplyPaymentDialogForInvoice(invoiceId: string): void {
+  openApplyPaymentDialog(targetInvoiceId: string | null = null): void {
     if (!this.selectedOffice) {
       this.toastr.warning('Please select an office first');
       return;
     }
 
-    if (!invoiceId) {
-      this.toastr.warning('Invalid invoice ID');
-      return;
-    }
-
-    // Find the invoice in the display data to get the due amount
-    const invoiceDisplay = this.invoicesDisplay.find(inv => inv.invoiceId === invoiceId);
-    const dueAmount = invoiceDisplay?.dueAmountValue !== undefined 
-      ? invoiceDisplay.dueAmountValue 
-      : (invoiceDisplay ? ((invoiceDisplay.totalAmountValue || 0) - Math.abs(invoiceDisplay.paidAmountValue || 0)) : undefined);
-    
-    // Format due amount for display
-    const dueAmountDisplay = dueAmount !== undefined && dueAmount !== null 
-      ? '$' + this.formatter.currency(dueAmount) 
-      : undefined;
-
-    // Wait for cost codes to be loaded before opening dialog
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      const dialogData: ApplyPaymentDialogData = {
-        costCodes: this.costCodes,
-        transactionTypes: this.transactionTypes,
-        officeId: this.selectedOffice!.officeId,
-        invoiceId: invoiceId,
-        dueAmountDisplay: dueAmountDisplay
-      };
-
-      const dialogConfig: MatDialogConfig<ApplyPaymentDialogData> = {
-        width: '600px',
-        autoFocus: true,
-        restoreFocus: true,
-        disableClose: false,
-        hasBackdrop: true,
-        data: dialogData
-      };
-
-      const dialogRef = this.dialog.open(ApplyPaymentDialogComponent, dialogConfig);
-
-      dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
-        if (result) {
-          // Apply payment to the invoice
-          this.applyPaymentFromDialog(result, invoiceId);
-        }
-      });
-    });
-  }
-
-  openApplyPaymentDialog(): void {
-    if (!this.selectedOffice) {
-      this.toastr.warning('Please select an office first');
-      return;
-    }
-
+    this.paymentTargetInvoiceId = targetInvoiceId;
+    this.restoreTopbarAfterPayment = !!targetInvoiceId;
+    this.isManualApplyMode = !targetInvoiceId;
+    this.remainingAmount = this.isManualApplyMode ? Math.max(0, this.paymentAmount) : 0;
+    this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
     // Show payment form fields
     this.showPaymentForm = true;
+    this.applyFilters();
   }
 
   cancelPaymentForm(): void {
@@ -1195,17 +1165,19 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Get list of visible invoice IDs from invoicesDisplay
-    const visibleInvoiceIds: string[] = this.invoicesDisplay
-      .map(invoice => invoice.invoiceId)
-      .filter((id): id is string => id !== null && id !== undefined && id !== '');
+    // If launched from the $ action, apply to that one row only.
+    const invoiceIdsToApply: string[] = this.paymentTargetInvoiceId
+      ? [this.paymentTargetInvoiceId]
+      : this.invoicesDisplay
+          .map(invoice => invoice.invoiceId)
+          .filter((id): id is string => id !== null && id !== undefined && id !== '');
 
-    if (visibleInvoiceIds.length === 0) {
+    if (invoiceIdsToApply.length === 0) {
       this.toastr.warning('No invoices available to apply payment to');
       return;
     }
 
-    this.applyPayment(visibleInvoiceIds);
+    this.applyPayment(invoiceIdsToApply);
   }
 
   submitManualPayments(): void {
@@ -1253,6 +1225,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       finalize(() => {
         // Clear payment form after all payments are processed
         this.clearPaymentForm();
+        this.refreshInvoicesForCurrentScope();
         // Refresh the display to show updated paid amounts
         this.applyFilters();
       })
@@ -1296,31 +1269,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Only clear payment form if there's no credit remaining (credit dialog will handle clearing if needed)
         if (response.creditRemaining <= 0) {
           this.clearPaymentForm();
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toastr.error('Failed to apply payment', CommonMessage.Error);
-      }
-    });
-  }
-
-  applyPaymentFromDialog(paymentData: { costCodeId: number, description: string, amount: number }, invoiceId: string): void {
-    const paymentRequest: InvoicePaymentRequest = {
-      costCodeId: paymentData.costCodeId,
-      description: paymentData.description || '',
-      amount: Math.abs(paymentData.amount), // Payment should be positive
-      invoices: [invoiceId]
-    };
-
-    this.accountingService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
-      next: (response: InvoicePaymentResponse) => {
-        this.handlePaymentResponse(response, paymentRequest);
-        // Check if there's a credit amount remaining from the InvoicePaymentResponse
-        if (response.creditRemaining > 0) {
-          this.openCreditDialog(response, paymentRequest);
-        } else {
-          // Reload invoices after successful payment
-          this.loadAllInvoices();
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -1428,12 +1376,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
     this.remainingAmount = 0;
     this.remainingAmountDisplay = '$' + this.formatter.currency(0);
+    this.paymentTargetInvoiceId = null;
     // Clear apply amounts from all invoices
     this.invoicesDisplay.forEach(invoice => {
       invoice.applyAmountValue = 0;
       invoice.applyAmount = '';
       invoice.applyAmountDisplay = '';
     });
+
+    if (this.restoreTopbarAfterPayment) {
+      this.restoreTopbarSelectionsAfterPayment();
+    }
   }
 
   get isPaymentFormValid(): boolean {
@@ -1463,6 +1416,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     // Refresh the display to show updated paid amounts
     this.applyFilters();
+    this.refreshInvoicesForCurrentScope();
   }
 
   openCreditDialog(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
@@ -1571,6 +1525,68 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedCompanyContact = null;
       this.applyFilters();
     }
+  }
+
+  captureTopbarSelectionsForPayment(): void {
+    this.originalPaymentOfficeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+    this.originalPaymentReservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
+    this.originalPaymentCompanyId = this.selectedCompanyContact?.contactId ?? this.companyId ?? null;
+  }
+
+  restoreTopbarSelectionsAfterPayment(): void {
+    const officeIdToRestore = this.originalPaymentOfficeId ?? this.officeId ?? null;
+    const reservationIdToRestore = this.originalPaymentReservationId ?? this.reservationId ?? null;
+    const companyIdToRestore = this.originalPaymentCompanyId ?? this.companyId ?? null;
+
+    const restoredOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeIdToRestore);
+    this.selectedOffice = restoredOffice;
+    this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+
+    this.filterCostCodes();
+    this.filterCompanyContacts();
+    this.filterReservations();
+
+    if (companyIdToRestore) {
+      this.selectedCompanyContact = this.companyContacts.find(c =>
+        c.contactId === companyIdToRestore &&
+        (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
+      ) || null;
+    } else {
+      this.selectedCompanyContact = null;
+    }
+    this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
+
+    if (reservationIdToRestore) {
+      this.selectedReservation = this.reservations.find(r =>
+        r.reservationId === reservationIdToRestore &&
+        (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
+      ) || null;
+    }
+
+    if (!this.selectedReservation && reservationIdToRestore) {
+      this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdToRestore) || null;
+    }
+
+    if (!reservationIdToRestore) {
+      this.selectedReservation = null;
+    }
+    this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);
+
+    this.applyFilters();
+
+    this.restoreTopbarAfterPayment = false;
+    this.originalPaymentOfficeId = null;
+    this.originalPaymentReservationId = null;
+    this.originalPaymentCompanyId = null;
+  }
+
+  refreshInvoicesForCurrentScope(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+    if (this.selectedOffice?.officeId) {
+      this.getInvoices();
+      return;
+    }
+    this.loadAllInvoices();
   }
 
   ngOnDestroy(): void {

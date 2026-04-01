@@ -273,6 +273,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription?.unsubscribe();
       this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
