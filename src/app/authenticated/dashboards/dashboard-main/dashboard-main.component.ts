@@ -17,6 +17,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
+import { UserGroups } from '../../users/models/user-enums';
 import { FormsModule } from '@angular/forms';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -80,6 +81,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   currentUserAgentCode: string | null = null;
   currentUserCommissionRate: number = 0;
   isAdmin: boolean = false;
+  canViewCommissions: boolean = false;
   adminUsers: UserResponse[] = [];
   adminAgents: AgentResponse[] = [];
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser']));
@@ -153,6 +155,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
+    this.canViewCommissions =
+      this.utilityService.hasRole(this.user?.userGroups, UserGroups.SuperAdmin)
+      || this.utilityService.hasRole(this.user?.userGroups, UserGroups.Admin)
+      || this.utilityService.hasRole(this.user?.userGroups, UserGroups.Agent);
     this.organizationId = this.user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.setTodayDate();
@@ -529,6 +535,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   filterMonthlyCommissions(): void {
+    if (!this.canViewCommissions) {
+      this.monthlyCommissions = [];
+      return;
+    }
+
     if (!this.isAdmin && !this.currentUserAgentCode) {
       this.monthlyCommissions = [];
       return;
