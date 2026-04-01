@@ -111,6 +111,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '15ch', options: this.propertyStatusLabels },
+    'tenantName': { displayAs: 'Occupant', maxWidth: '20ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
     'companyName': { displayAs: 'Company', maxWidth: '20ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
@@ -119,12 +120,12 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   propertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'shortAddress': { displayAs: 'Address', maxWidth: '30ch' },
+    'shortAddress': { displayAs: 'Address', maxWidth: '25ch' },
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch' },
-    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
-    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
-    'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '18ch' },
-    'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '20ch' },
+    'bedrooms': { displayAs: 'Beds', maxWidth: '15ch', alignment: 'center' },
+    'bathrooms': { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' },
+    'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '15ch', alignment: 'center' },
+    'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '20ch', alignment: 'center' },
   };
 
   monthlyCommissionsDisplayedColumns: ColumnSet = {

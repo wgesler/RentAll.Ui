@@ -793,6 +793,8 @@ export class MappingService {
       const isCompanyContact = Number(o.entityTypeId) === EntityType.Company;
       const companyName = String(o.displayName || o.companyName || '').trim();
 
+      const tenantName = String(o.tenantName || o.contactName || '').trim();
+
       return {
         reservationId: o.reservationId,
         reservationCode: o.reservationCode,
@@ -806,7 +808,7 @@ export class MappingService {
         entityId: o.entityId ?? null,
         entityTypeId: o.entityTypeId ?? null,
         contactName: o.contactName,
-        tenantName: o.tenantName,
+        tenantName: tenantName,
         companyName: companyName,
         agentId: o.agentId ?? null,
         agentCode: o.agentCode,
