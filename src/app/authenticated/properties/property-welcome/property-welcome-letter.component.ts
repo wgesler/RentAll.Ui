@@ -506,9 +506,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
       result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
-      result = result.replace(/\{\{lockBoxCode\}\}/g, this.selectedReservation.lockBoxCode || '');
-      result = result.replace(/\{\{unitAccessCode\}\}/g, this.selectedReservation.unitTenantCode || '');
-      result = result.replace(/\{\{unitTenantCode\}\}/g, this.selectedReservation.unitTenantCode || '');
+      result = this.applyOptionalCodePlaceholder(result, 'lockBoxCode', this.selectedReservation.lockBoxCode);
+      result = this.applyOptionalCodePlaceholder(result, 'unitAccessCode', this.selectedReservation.unitTenantCode);
+      result = this.applyOptionalCodePlaceholder(result, 'unitTenantCode', this.selectedReservation.unitTenantCode);
     }
 
     if (this.property) {
@@ -523,12 +523,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
-      result = result.replace(/\{\{alarmCode\}\}/g, this.property.alarmCode || '');
-      result = result.replace(/\{\{bldgcode\}\}/g, this.property.bldgMstrCode || '');
-      result = result.replace(/\{\{garageCode\}\}/g, this.property.garageCode || '');
-      result = result.replace(/\{\{gateCode\}\}/g, this.property.gateCode || '');
-      result = result.replace(/\{\{trashCode\}\}/g, this.property.trashCode || '');
-      result = result.replace(/\{\{mailcode\}\}/g, this.property.mailRoomCode || '');
+      result = this.applyOptionalCodePlaceholder(result, 'alarmCode', this.property.alarmCode);
+      result = this.applyOptionalCodePlaceholder(result, 'bldgcode', this.property.bldgMstrCode);
+      result = this.applyOptionalCodePlaceholder(result, 'garageCode', this.property.garageCode);
+      result = this.applyOptionalCodePlaceholder(result, 'gateCode', this.property.gateCode);
+      result = this.applyOptionalCodePlaceholder(result, 'trashCode', this.property.trashCode);
+      result = this.applyOptionalCodePlaceholder(result, 'mailcode', this.property.mailRoomCode);
 
     }
 
@@ -592,6 +592,52 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
     return result;
+  }
+
+  applyOptionalCodePlaceholder(html: string, placeholder: string, value: string | null | undefined): string {
+    const normalizedValue = (value || '').trim();
+    const tokenRegex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
+
+    if (normalizedValue) {
+      const escapedValue = this.escapeHtml(normalizedValue);
+
+      // Keep span-label + value on the same visual line.
+      const labeledSpanTokenRegex = new RegExp(`(<span[^>]*>[^<]*:<\\/span>)\\s*\\{\\{${placeholder}\\}\\}`, 'gi');
+      let result = html.replace(
+        labeledSpanTokenRegex,
+        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+      );
+
+      // Keep plain-text label + value together when no span label is used.
+      const plainLabelTokenRegex = new RegExp(`([A-Za-z][A-Za-z\\s/]*:)\\s*\\{\\{${placeholder}\\}\\}`, 'g');
+      result = result.replace(
+        plainLabelTokenRegex,
+        `<span style="white-space: nowrap; display: inline-block;">$1 ${escapedValue}</span>`
+      );
+
+      return result.replace(tokenRegex, escapedValue);
+    }
+
+    // Remove a preceding label span tied to this placeholder (e.g. "<span ...>Garage:</span> {{garageCode}}").
+    const labeledTokenRegex = new RegExp(`<span[^>]*>[^<]*:<\\/span>\\s*\\{\\{${placeholder}\\}\\}`, 'gi');
+    let result = html.replace(labeledTokenRegex, '');
+
+    // If template uses plain text labels instead of span wrappers, remove those too.
+    const plainLabelTokenRegex = new RegExp(`[A-Za-z\\s/]+:\\s*\\{\\{${placeholder}\\}\\}`, 'g');
+    result = result.replace(plainLabelTokenRegex, '');
+
+    // Finally remove any remaining token.
+    result = result.replace(tokenRegex, '');
+    return result;
+  }
+
+  escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   getOrganizationName(): string {
