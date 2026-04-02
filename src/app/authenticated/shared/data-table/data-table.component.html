@@ -2,8 +2,10 @@
   <div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4">
     @if (hasFilter) {
       <mat-form-field id="datatable-search-field-{{templateTableId}}"
+        floatLabel="always"
         class="mobile-view-full datatable-search-field">
-        <mat-label><mat-icon class="datatable-filter-label-icon">filter_list</mat-icon> Filter</mat-label>
+        <mat-label>Filter</mat-label>
+        <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
         <input matInput (input)="applyFilter()" placeholder="Filter table by word or value..." #dataTableSearch autocomplete="off" id="datatable-search-input-{{templateTableId}}"
           class="datatable-search-input"
           [(ngModel)]="filterVal" />

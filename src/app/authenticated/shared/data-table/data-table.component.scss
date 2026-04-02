@@ -104,18 +104,27 @@ tr.mat-mdc-row.mat-no-data-row,
     padding-bottom: 0 !important;
 }
 
-:host ::ng-deep .datatable-search-field .mdc-floating-label {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px;
+:host ::ng-deep .datatable-search-field input.mat-mdc-input-element {
+    padding-top: 16px !important;
+    padding-bottom: 1px !important;
 }
 
-.datatable-filter-label-icon {
+:host ::ng-deep .datatable-search-field .mdc-floating-label {
+    top: 0 !important;
+}
+
+:host ::ng-deep .datatable-search-field .mdc-floating-label--float-above {
+    transform: translateY(0) scale(0.75) !important;
+    transform-origin: left top !important;
+}
+
+.datatable-filter-prefix-icon {
     font-size: 16px !important;
     width: 16px !important;
     height: 16px !important;
     line-height: 16px !important;
-    vertical-align: middle;
+    margin-right: 6px;
+    color: #64748b;
 }
 
 .datatable-add-btn {
