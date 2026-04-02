@@ -507,6 +507,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = result.replace(/\{\{lockBoxCode\}\}/g, this.selectedReservation.lockBoxCode || '');
+      result = result.replace(/\{\{unitAccessCode\}\}/g, this.selectedReservation.unitTenantCode || '');
       result = result.replace(/\{\{unitTenantCode\}\}/g, this.selectedReservation.unitTenantCode || '');
     }
 
@@ -523,6 +524,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
       result = result.replace(/\{\{alarmCode\}\}/g, this.property.alarmCode || '');
+      result = result.replace(/\{\{bldgcode\}\}/g, this.property.bldgMstrCode || '');
+      result = result.replace(/\{\{garageCode\}\}/g, this.property.garageCode || '');
+      result = result.replace(/\{\{gateCode\}\}/g, this.property.gateCode || '');
+      result = result.replace(/\{\{trashCode\}\}/g, this.property.trashCode || '');
+      result = result.replace(/\{\{mailcode\}\}/g, this.property.mailRoomCode || '');
 
     }
 
