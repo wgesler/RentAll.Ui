@@ -29,6 +29,7 @@ import { OfficeComponent } from '../office/office.component';
 import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
 import { OrganizationService } from '../services/organization.service';
+import { OfficeService } from '../services/office.service';
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -89,7 +90,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   // Organization dropdown (SuperAdmin only)
   isSuperAdmin: boolean = false;
+  isAdminLikeSettingsUser: boolean = false;
+  isLimitedSettingsUser: boolean = false;
   organizations: OrganizationResponse[] = [];
+  offices: OfficeResponse[] = [];
   selectedOrganizationId: string | null = null;
 
   currentUserOrganizationId: string | null = null;
@@ -99,6 +103,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private navigationContext: NavigationContextService,
     private organizationService: OrganizationService,
+    private officeService: OfficeService,
     private authService: AuthService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService
   ) {
@@ -129,11 +134,23 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       }).filter(num => num !== null) as number[];
       
       this.isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
+      this.isAdminLikeSettingsUser =
+        userGroupNumbers.includes(UserGroups.Admin) ||
+        userGroupNumbers.includes(UserGroups.SuperAdmin);
+      this.isLimitedSettingsUser =
+        !this.isAdminLikeSettingsUser &&
+        (
+          userGroupNumbers.includes(UserGroups.Agent) ||
+          userGroupNumbers.includes(UserGroups.AgentAdmin) ||
+          userGroupNumbers.includes(UserGroups.PropertyManager) ||
+          userGroupNumbers.includes(UserGroups.PropertyManagerAdmin)
+        );
       
       if (this.isSuperAdmin) {
         this.loadOrganizations();
       }
     }
+    this.loadSettingsOffices();
   }
   //#endregion
 
@@ -170,15 +187,34 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onOrganizationChange(): void {
+    this.loadSettingsOffices();
   }
 
   get effectiveOrganizationId(): string | null {
     return this.selectedOrganizationId || this.currentUserOrganizationId;
   }
 
+  get officeTitlebarOptions(): { value: number; label: string }[] {
+    return (this.offices || []).map((office) => ({
+      value: office.officeId,
+      label: office.name || ''
+    }));
+  }
+
+  get shouldShowOfficeTitlebarDropdown(): boolean {
+    return (this.offices || []).length > 1;
+  }
+
+  onSettingsOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.selectedCostCodesOfficeId = Number.isFinite(officeId as number) ? officeId : null;
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+  }
+
   onCostCodesOfficeChangeFromList(officeId: number | null): void {
     // Handle office change from cost-codes-list component
     this.selectedCostCodesOfficeId = officeId;
+    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
   }
 
   onOfficeSelected(officeId: string | number | null): void {
@@ -300,6 +336,33 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  loadSettingsOffices(): void {
+    const organizationId = this.effectiveOrganizationId;
+    if (!organizationId) {
+      this.offices = [];
+      this.selectedCostCodesOfficeId = null;
+      return;
+    }
+
+    this.globalOfficeSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
+      next: (selectedOfficeId) => {
+        this.offices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
+        if (this.offices.length === 1) {
+          this.selectedCostCodesOfficeId = this.offices[0].officeId;
+          this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+          return;
+        }
+
+        const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
+        this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
+      },
+      error: () => {
+        this.offices = [];
+        this.selectedCostCodesOfficeId = null;
+      }
+    });
+  }
+
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }

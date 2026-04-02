@@ -83,7 +83,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
         this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.selectedOffice = uiState.selectedOffice;
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
+            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId);
           }
         });

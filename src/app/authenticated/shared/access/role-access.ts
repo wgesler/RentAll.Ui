@@ -61,6 +61,18 @@ const adminOnly: AccessRule = {
   excludedRoles: []
 };
 
+const settingsAccess: AccessRule = {
+  requiredRoles: [
+    UserGroups.Admin,
+    UserGroups.SuperAdmin,
+    UserGroups.Agent,
+    UserGroups.AgentAdmin,
+    UserGroups.PropertyManager,
+    UserGroups.PropertyManagerAdmin
+  ],
+  excludedRoles: []
+};
+
 const superAdminOnly: AccessRule = {
   requiredRoles: [UserGroups.SuperAdmin],
   excludedRoles: []
@@ -90,7 +102,7 @@ export const NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
-  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...adminOnly }
+  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
 ];
 
 const routeRulesBySegment: Record<string, AccessRule> = {
@@ -112,7 +124,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.InvoiceCreate]: accountingOnly,
   [ROUTER_TOKEN.CostCodesList]: accountingOnly,
 
-  [ROUTER_TOKEN.OrganizationConfiguration]: adminOnly,
+  [ROUTER_TOKEN.OrganizationConfiguration]: settingsAccess,
   [ROUTER_TOKEN.OfficeList]: adminOnly,
   [ROUTER_TOKEN.AccountingOfficeList]: adminOnly,
   [ROUTER_TOKEN.AgentList]: adminOnly,

@@ -21,148 +21,177 @@
             </app-titlebar-select>
           </div>
         }
+        @if (shouldShowOfficeTitlebarDropdown) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedCostCodesOfficeId"
+              [options]="officeTitlebarOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onSettingsOfficeDropdownChange($event)">
+            </app-titlebar-select>
+          </div>
+        }
       </div>
     </div>
 
     <mat-card>
       <div class="info-form mb-8 pt-5 tableDiv">
         <mat-accordion multi="true">
-          <!-- Offices Section -->
-          <mat-expansion-panel [expanded]="expandedSections.offices" 
-            (opened)="onPanelOpened('offices')" 
-            (closed)="onPanelClosed('offices')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Offices</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingOffice && officeId) {
-                <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (backEvent)="onOfficeBack()"></app-office>
-              } @else {
-                <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser) {
+            <!-- Offices Section -->
+            <mat-expansion-panel [expanded]="expandedSections.offices" 
+              (opened)="onPanelOpened('offices')" 
+              (closed)="onPanelClosed('offices')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Offices</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingOffice && officeId) {
+                  <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (backEvent)="onOfficeBack()"></app-office>
+                } @else {
+                  <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Agents Section -->
-          <mat-expansion-panel [expanded]="expandedSections.agents" 
-            (opened)="onPanelOpened('agents')" 
-            (closed)="onPanelClosed('agents')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Agents</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingAgent && agentId) {
-                <app-agent [agentId]="agentId" (backEvent)="onAgentBack()"></app-agent>
-              } @else {
-                <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser) {
+            <!-- Agents Section -->
+            <mat-expansion-panel [expanded]="expandedSections.agents" 
+              (opened)="onPanelOpened('agents')" 
+              (closed)="onPanelClosed('agents')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Agents</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingAgent && agentId) {
+                  <app-agent [agentId]="agentId" (backEvent)="onAgentBack()"></app-agent>
+                } @else {
+                  <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Regions Section -->
-          <mat-expansion-panel [expanded]="expandedSections.regions" 
-            (opened)="onPanelOpened('regions')" 
-            (closed)="onPanelClosed('regions')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Regions</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingRegion && regionId) {
-                <app-region [id]="regionId" (backEvent)="onRegionBack()"></app-region>
-              } @else {
-                <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
+            <!-- Regions Section -->
+            <mat-expansion-panel [expanded]="expandedSections.regions" 
+              (opened)="onPanelOpened('regions')" 
+              (closed)="onPanelClosed('regions')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Regions</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingRegion && regionId) {
+                  <app-region [id]="regionId" (backEvent)="onRegionBack()"></app-region>
+                } @else {
+                  <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Area Section -->
-          <mat-expansion-panel [expanded]="expandedSections.area" 
-            (opened)="onPanelOpened('area')" 
-            (closed)="onPanelClosed('area')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Areas</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingArea && areaId) {
-                <app-area [id]="areaId" (backEvent)="onAreaBack()"></app-area>
-              } @else {
-                <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
+            <!-- Area Section -->
+            <mat-expansion-panel [expanded]="expandedSections.area" 
+              (opened)="onPanelOpened('area')" 
+              (closed)="onPanelClosed('area')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Areas</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingArea && areaId) {
+                  <app-area [id]="areaId" (backEvent)="onAreaBack()"></app-area>
+                } @else {
+                  <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Building Section -->
-          <mat-expansion-panel [expanded]="expandedSections.building" 
-            (opened)="onPanelOpened('building')" 
-            (closed)="onPanelClosed('building')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Buildings</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingBuilding && buildingId) {
-                <app-building [id]="buildingId" (backEvent)="onBuildingBack()"></app-building>
-              } @else {
-                <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
+            <!-- Building Section -->
+            <mat-expansion-panel [expanded]="expandedSections.building" 
+              (opened)="onPanelOpened('building')" 
+              (closed)="onPanelClosed('building')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Buildings</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingBuilding && buildingId) {
+                  <app-building [id]="buildingId" (backEvent)="onBuildingBack()"></app-building>
+                } @else {
+                  <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Accounting Offices Section -->
-          <mat-expansion-panel [expanded]="expandedSections.accountingOffices" 
-            (opened)="onPanelOpened('accountingOffices')" 
-            (closed)="onPanelClosed('accountingOffices')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Accounting</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingAccountingOffice && accountingOfficeId) {
-                <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
-              } @else {
-                <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser) {
+            <!-- Accounting Offices Section -->
+            <mat-expansion-panel [expanded]="expandedSections.accountingOffices" 
+              (opened)="onPanelOpened('accountingOffices')" 
+              (closed)="onPanelClosed('accountingOffices')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Accounting</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingAccountingOffice && accountingOfficeId) {
+                  <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                } @else {
+                  <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Cost Codes Section -->
-          <mat-expansion-panel [expanded]="expandedSections.costCodes" 
-            (opened)="onPanelOpened('costCodes')" 
-            (closed)="onPanelClosed('costCodes')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Cost Codes</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              <app-cost-codes-list 
-                [officeId]="selectedCostCodesOfficeId"
-                [embeddedInSettings]="true"
-                [showOfficeDropdownInEmbedded]="true"
-                (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
-              </app-cost-codes-list>
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser) {
+            <!-- Cost Codes Section -->
+            <mat-expansion-panel [expanded]="expandedSections.costCodes" 
+              (opened)="onPanelOpened('costCodes')" 
+              (closed)="onPanelClosed('costCodes')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Cost Codes</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                <app-cost-codes-list 
+                  [officeId]="selectedCostCodesOfficeId"
+                  [embeddedInSettings]="true"
+                  [showOfficeDropdownInEmbedded]="false"
+                  (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
+                </app-cost-codes-list>
+              </div>
+            </mat-expansion-panel>
+          }
 
-          <!-- Color Section -->
-          <mat-expansion-panel [expanded]="expandedSections.color" 
-            (opened)="onPanelOpened('color')" 
-            (closed)="onPanelClosed('color')" 
-            class="mb-4">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Colors</mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="agents-container">
-              @if (isEditingColor && colorId) {
-                <app-color [id]="colorId" (backEvent)="onColorBack()"></app-color>
-              } @else {
-                <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
-              }
-            </div>
-          </mat-expansion-panel>
+          @if (isAdminLikeSettingsUser) {
+            <!-- Color Section -->
+            <mat-expansion-panel [expanded]="expandedSections.color" 
+              (opened)="onPanelOpened('color')" 
+              (closed)="onPanelClosed('color')" 
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Colors</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                @if (isEditingColor && colorId) {
+                  <app-color [id]="colorId" (backEvent)="onColorBack()"></app-color>
+                } @else {
+                  <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
         </mat-accordion>
       </div>
     </mat-card>
