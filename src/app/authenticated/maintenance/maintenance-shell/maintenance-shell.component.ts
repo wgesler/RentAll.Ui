@@ -184,14 +184,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   //#endregion
 
   //#region Route/Reload Methods
-  async onTabChange(event: { index: number }): Promise<void> {
+  onTabChange(event: { index: number }): void {
     const nextTabIndex = event.index;
     if (nextTabIndex === this.selectedTabIndex) {
-      return;
-    }
-
-    const canLeaveCurrentTab = await this.confirmChecklistNavigation();
-    if (!canLeaveCurrentTab) {
       return;
     }
     this.selectedTabIndex = nextTabIndex;
