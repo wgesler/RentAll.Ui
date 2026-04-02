@@ -285,7 +285,16 @@
 }
 
 .reservation-first-row-toggles {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
   white-space: nowrap;
+}
+
+.reservation-toggle-cell {
+  justify-self: end;
+  padding-right: 8px;
 }
 
 .reservation-mobile-toggle-row {

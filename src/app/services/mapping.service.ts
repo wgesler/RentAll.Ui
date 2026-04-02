@@ -591,7 +591,7 @@ export class MappingService {
 
       const hasAnyTooOldDate =
         isDateOlderThanYears(maintenanceRow?.licenseDate, 1) ||
-        isDateOlderThanYears(maintenanceRow?.lastFilterChangeDate, 1) ||
+        isDateOlderThanMonths(maintenanceRow?.lastFilterChangeDate, 4) ||
         isDateOlderThanYears(maintenanceRow?.lastBatteryChangeDate, 1) ||
         isDateOlderThanYears(maintenanceRow?.hvacServiced, 1) ||
         isDateOlderThanYears(maintenanceRow?.fireplaceServiced, 1) ||
@@ -601,12 +601,11 @@ export class MappingService {
         isDateMissing(maintenanceRow?.lastFilterChangeDate) ||
         isDateMissing(maintenanceRow?.lastSmokeChangeDate) ||
         isDateMissing(maintenanceRow?.lastBatteryChangeDate) ||
-        isDateMissing(maintenanceRow?.hvacServiced) ||
-        isDateMissing(maintenanceRow?.fireplaceServiced);
+        isDateMissing(maintenanceRow?.hvacServiced);
 
       const hasAnyNearDueDate =
         isDateOlderThanMonths(maintenanceRow?.licenseDate, 11) ||
-        isDateOlderThanMonths(maintenanceRow?.lastFilterChangeDate, 11) ||
+        isDateOlderThanMonths(maintenanceRow?.lastFilterChangeDate, 3) ||
         isDateOlderThanMonths(maintenanceRow?.lastBatteryChangeDate, 11) ||
         isDateOlderThanMonths(maintenanceRow?.hvacServiced, 11) ||
         isDateOlderThanMonths(maintenanceRow?.fireplaceServiced, 11) ||
