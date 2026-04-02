@@ -277,7 +277,6 @@ export class UserComponent implements OnInit, OnDestroy {
       userRequest.userGroups = this.user.userGroups || [];
       userRequest.officeAccess = this.user.officeAccess || [];
       userRequest.properties = this.user.properties || [];
-      userRequest.startupPageId = this.user.startupPageId ?? userRequest.startupPageId;
       userRequest.defaultOfficeId = this.user.defaultOfficeId ?? userRequest.defaultOfficeId;
       userRequest.agentId = this.user.agentId || null;
       userRequest.commissionRate = this.user.commissionRate ?? null;
@@ -336,13 +335,14 @@ export class UserComponent implements OnInit, OnDestroy {
       // Handle password change and user update
       if (this.selfEdit) {
         const requests: Observable<any>[] = [];
+        const shouldForceUserUpdate = this.isDialog;
         
         // Only add password change request if toggle is enabled and request was created
         if (changePassword === true && passwordChangeRequest) {
           requests.push(passwordChangeRequest);
         }
         
-        if (hasUserUpdates) {
+        if (hasUserUpdates || shouldForceUserUpdate) {
           requests.push(this.userService.updateUser(userRequest));
         }
 
@@ -358,8 +358,8 @@ export class UserComponent implements OnInit, OnDestroy {
             const messages = [];
             // Only show password updated message if toggle was enabled and request was made
             if (changePassword === true && passwordChangeRequest) messages.push('Password updated');
-            if (hasUserUpdates) messages.push('User information updated');
-            this.toastr.success(messages.join(' and ') + ' successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            if (hasUserUpdates || shouldForceUserUpdate) messages.push('User updated');
+            this.toastr.success((messages.length > 0 ? messages.join(' and ') + ' successfully' : 'User updated successfully'), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
             if (this.isDialog && this.dialogRef) {
               this.dialogRef.close(true);
             } else {
@@ -517,7 +517,6 @@ export class UserComponent implements OnInit, OnDestroy {
       this.form.get('userGroups')?.disable({ emitEvent: false });
       this.form.get('officeAccess')?.disable({ emitEvent: false });
       this.form.get('properties')?.disable({ emitEvent: false });
-      this.form.get('startupPageId')?.disable({ emitEvent: false });
       this.form.get('defaultOffice')?.disable({ emitEvent: false });
       this.form.get('agentId')?.disable({ emitEvent: false });
       this.form.get('commissionRate')?.disable({ emitEvent: false });

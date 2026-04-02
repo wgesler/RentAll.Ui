@@ -60,18 +60,6 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Startup Page</mat-label>
-                  <mat-select formControlName="startupPageId" required>
-                    @for (page of availableStartupPages; track page.value) {
-                      <mat-option [value]="page.value">{{ page.label }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
-                    <mat-error>Startup Page is required</mat-error>
-                  }
-                </mat-form-field>
-
                 <mat-form-field appearance="outline" class="col-span-3">
                   <mat-label>Office Access</mat-label>
                   <mat-select formControlName="officeAccess" multiple required>
@@ -178,6 +166,18 @@
 
               @if (isPrivilegedOfficeEditor || isAddMode) {
               }
+
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Startup Page</mat-label>
+                <mat-select formControlName="startupPageId" required>
+                  @for (page of availableStartupPages; track page.value) {
+                    <mat-option [value]="page.value">{{ page.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
+                  <mat-error>Startup Page is required</mat-error>
+                }
+              </mat-form-field>
 
               <!-- Profile Picture Section -->
               <div class="col-span-4">
