@@ -369,7 +369,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         reservationId: reservation.reservationId,
         organizationId: reservation.organizationId,
         officeId: reservation.officeId,
-        agentId: reservation.agentId || '',
+        agentId: reservation.agentId ?? null,
         propertyId: reservation.propertyId,
         contactId: reservation.contactId,
         reservationCode: reservation.reservationCode,

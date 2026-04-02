@@ -508,8 +508,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
+    const reservationTypeId = formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined
+      ? Number(formValue.reservationTypeId)
+      : ReservationType.Individual;
+    const isOwnerReservationType = reservationTypeId === ReservationType.Owner;
+
     const agentId = formValue.agentId;
-    if (!agentId || agentId === '' || agentId === 'null' || agentId === null) {
+    if (!isOwnerReservationType && (!agentId || agentId === '' || agentId === 'null' || agentId === null)) {
       this.toastr.error('Agent is required', CommonMessage.Error);
       this.isSubmitting = false;
       return;
@@ -519,9 +524,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       organizationId: user?.organizationId || '',
       officeId: officeId,
       propertyId: formValue.propertyId,
-      agentId: agentId,
+      agentId: isOwnerReservationType
+        ? null
+        : (agentId == null || agentId === '' || agentId === 'null' ? null : String(agentId)),
       contactId: formValue.contactId,
-      reservationTypeId: formValue.reservationTypeId !== null && formValue.reservationTypeId !== undefined ? Number(formValue.reservationTypeId) : ReservationType.Individual,
+      reservationTypeId: reservationTypeId,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
       reservationNoticeId: formValue.reservationNoticeId !== null && formValue.reservationNoticeId !== undefined ? Number(formValue.reservationNoticeId) : ReservationNotice.ThirtyDays,
       numberOfPeople: formValue.numberOfPeople ? Number(formValue.numberOfPeople) : 1,
@@ -1053,6 +1060,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     if (reservationTypeId === ReservationType.Owner) {
       // Make billing and fee fields readonly for Owner type
+      this.form.get('agentId')?.setValue(null, { emitEvent: false });
+      this.disableFieldWithValidation('agentId');
       this.disableFieldWithValidation('billingTypeId');
       this.disableFieldWithValidation('billingMethodId');
       this.disableFieldWithValidation('prorateTypeId');
@@ -1070,6 +1079,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.disableFieldWithValidation('taxes');
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
+      this.enableFieldWithValidation('agentId', [Validators.required]);
       this.enableFieldWithValidation('billingTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingMethodId', [Validators.required]);
       this.enableFieldWithValidation('prorateTypeId');
@@ -1165,6 +1175,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     const entityId = (this.selectedContact.entityId ?? '').trim().toLowerCase();
     return entityId === 'company';
+  }
+
+  get isOwnerReservationType(): boolean {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    return reservationTypeId === ReservationType.Owner;
   }
 
   openNewContactDialog(): void {
@@ -1823,8 +1838,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
 
     // Get all reservations for this property
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1), catchError(() => of([] as ReservationListResponse[]))
-    ).subscribe(reservations => {
+    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: (reservations) => {
       // Filter out the current reservation if editing
       const otherReservations = reservations.filter(r => 
         !this.reservation || r.reservationId !== this.reservation.reservationId
@@ -1860,6 +1875,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       } else if (offendingField === 'save') {
         // No overlap, proceed with save
         this.performSave();
+      }
+      },
+      error: () => {
+        if (offendingField === 'save') {
+          this.toastr.error('Unable to validate reservation dates. Please try again.', CommonMessage.Error);
+        }
       }
     });
   }

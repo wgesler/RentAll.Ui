@@ -96,7 +96,7 @@ export class ApplyCreditDialogComponent implements OnInit {
           reservationId: reservation.reservationId,
           organizationId: reservation.organizationId,
           officeId: reservation.officeId,
-          agentId: reservation.agentId || '', // Required field, use empty string if null
+          agentId: reservation.agentId ?? null,
           propertyId: reservation.propertyId,
           contactId: reservation.contactId,
           reservationCode: reservation.reservationCode,

@@ -4,7 +4,7 @@ export interface ReservationRequest {
   reservationId?: string | null;
   organizationId: string;
   officeId: number;
-  agentId: string;
+  agentId?: string | null;
   propertyId: string;
   contactId: string;
   reservationCode?: string | null;
@@ -49,7 +49,7 @@ export interface ReservationResponse {
   organizationId: string;
   officeId: number;
   officeName: string;
-  agentId: string | null;
+  agentId?: string | null;
   propertyId: string;
   contactId: string;
   contactName: string;
@@ -109,8 +109,7 @@ export interface ReservationListResponse {
   displayName?: string | null;
   tenantName: string;
   companyName: string;
-  agentId?: string | null;
-  agentCode: string;
+  agentCode?: string | null;
   monthlyRate: number;
   arrivalDate: string;
   departureDate: string;
@@ -137,8 +136,7 @@ export interface ReservationListDisplay {
   contactName: string;
   tenantName: string;
   companyName: string;
-  agentId?: string | null;
-  agentCode: string;
+  agentCode?: string | null;
   monthlyRate: number;
   arrivalDate: string;
   departureDate: string;
