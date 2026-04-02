@@ -19,7 +19,7 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { getStartupPage, UserGroups } from '../models/user-enums';
+import { EMPLOYEE_USER_GROUPS, getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -49,7 +49,6 @@ export class UserListComponent implements OnInit, OnDestroy {
   selectedOrganization: OrganizationResponse | null = null;
   users: UserResponse[] = [];
   officeScopeResolved: boolean = false;
-
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
@@ -132,8 +131,15 @@ export class UserListComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(user => user.organizationName === this.selectedOrganization?.name);
     }
 
-    const category = this.getSelectedCategory();
-    filtered = filtered.filter(user => this.matchesCategory(user, category));
+    const tabPredicates: Array<(user: UserListDisplay) => boolean> = [
+      (user) => this.hasAnyUserGroup(user, EMPLOYEE_USER_GROUPS),
+      (user) => this.hasUserGroup(user, UserGroups.Owner),
+      (user) => this.hasUserGroup(user, UserGroups.Housekeeping),
+      (user) => this.hasUserGroup(user, UserGroups.Inspector),
+      (user) => this.hasUserGroup(user, UserGroups.Vendor)
+    ];
+    const selectedTabPredicate = tabPredicates[this.selectedTabIndex] ?? tabPredicates[0];
+    filtered = filtered.filter(selectedTabPredicate);
 
     this.usersDisplay = filtered;
   }
@@ -250,7 +256,7 @@ export class UserListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  private hasRole(role: UserGroups): boolean {
+  hasRole(role: UserGroups): boolean {
     const userGroups = this.authService.getUser()?.userGroups || [];
     if (!userGroups.length) {
       return false;
@@ -270,7 +276,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     });
   }
 
-  private getDefaultOfficeName(defaultOfficeId: number | null): string {
+  getDefaultOfficeName(defaultOfficeId: number | null): string {
     if (defaultOfficeId === null || defaultOfficeId === undefined) {
       return '';
     }
@@ -278,7 +284,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     return office?.name || String(defaultOfficeId);
   }
 
-  private refreshDefaultOfficeDisplay(): void {
+  refreshDefaultOfficeDisplay(): void {
     if (!this.allUsers?.length) {
       return;
     }
@@ -297,7 +303,7 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
-  private rebuildUsersDisplay(): void {
+  rebuildUsersDisplay(): void {
     const orgMap = new Map<string, string>();
     this.organizations.forEach(org => {
       orgMap.set(org.organizationId, org.name);
@@ -332,54 +338,14 @@ export class UserListComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
-  private getSelectedCategory(): 'employees' | 'owners' | 'cleaners' | 'inspectors' | 'vendors' {
-    switch (this.selectedTabIndex) {
-      case 1:
-        return 'owners';
-      case 2:
-        return 'cleaners';
-      case 3:
-        return 'inspectors';
-      case 4:
-        return 'vendors';
-      case 0:
-      default:
-        return 'employees';
-    }
-  }
-
-  private hasUserGroup(user: UserListDisplay, group: UserGroups): boolean {
+  hasUserGroup(user: UserListDisplay, group: UserGroups): boolean {
     const groups = user.userGroups || [];
-    return groups.some(g => {
-      const value = String(g || '').trim();
-      if (!value) {
-        return false;
-      }
-      if (value === UserGroups[group]) {
-        return true;
-      }
-      const parsed = Number(value);
-      return !Number.isNaN(parsed) && parsed === group;
-    });
+    const targetGroup = UserGroups[group];
+    return groups.some(userGroup => String(userGroup) === targetGroup);
   }
 
-  private matchesCategory(user: UserListDisplay, category: 'employees' | 'owners' | 'cleaners' | 'inspectors' | 'vendors'): boolean {
-    switch (category) {
-      case 'owners':
-        return this.hasUserGroup(user, UserGroups.Owner);
-      case 'cleaners':
-        return this.hasUserGroup(user, UserGroups.Housekeeping);
-      case 'inspectors':
-        return this.hasUserGroup(user, UserGroups.Inspector);
-      case 'vendors':
-        return this.hasUserGroup(user, UserGroups.Vendor);
-      case 'employees':
-      default:
-        return !this.hasUserGroup(user, UserGroups.Owner)
-          && !this.hasUserGroup(user, UserGroups.Housekeeping)
-          && !this.hasUserGroup(user, UserGroups.Inspector)
-          && !this.hasUserGroup(user, UserGroups.Vendor);
-    }
+  hasAnyUserGroup(user: UserListDisplay, groups: UserGroups[]): boolean {
+    return groups.some(group => this.hasUserGroup(user, group));
   }
 
   ngOnDestroy(): void {

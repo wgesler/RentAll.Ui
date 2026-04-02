@@ -17,6 +17,23 @@ export enum UserGroups {
   Inspector = 15
 }
 
+// Employee tab includes every role except Owner, Inspector, and Housekeeping.
+export const EMPLOYEE_USER_GROUPS: UserGroups[] = [
+  UserGroups.Unknown,
+  UserGroups.SuperAdmin,
+  UserGroups.Admin,
+  UserGroups.Accounting,
+  UserGroups.AccountingAdmin,
+  UserGroups.Agent,
+  UserGroups.AgentAdmin,
+  UserGroups.PropertyManager,
+  UserGroups.PropertyManagerAdmin,
+  UserGroups.Facilities,
+  UserGroups.Company,
+  UserGroups.Vendor,
+  UserGroups.Tenant
+];
+
 export function getUserGroup(userGroupId: number | undefined): string {
   if (userGroupId === undefined || userGroupId === null) return '';
   

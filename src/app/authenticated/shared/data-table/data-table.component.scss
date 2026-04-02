@@ -87,6 +87,37 @@ tr.mat-mdc-row.mat-no-data-row,
     width: auto;
 }
 
+:host ::ng-deep .datatable-search-field .mat-mdc-text-field-wrapper {
+    min-height: 38px !important;
+}
+
+:host ::ng-deep .datatable-search-field .mat-mdc-form-field-flex,
+:host ::ng-deep .datatable-search-field .mat-mdc-form-field-infix,
+:host ::ng-deep .datatable-search-field .mat-mdc-form-field-input-control {
+    min-height: 38px !important;
+    height: 38px !important;
+    align-items: center !important;
+}
+
+:host ::ng-deep .datatable-search-field .mat-mdc-form-field-infix {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+:host ::ng-deep .datatable-search-field .mdc-floating-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px;
+}
+
+.datatable-filter-label-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+    vertical-align: middle;
+}
+
 .datatable-add-btn {
     transform: scale(0.9);
 }
