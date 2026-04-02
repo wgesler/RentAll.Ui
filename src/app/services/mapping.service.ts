@@ -344,10 +344,11 @@ export class MappingService {
       propertyId: workOrder.propertyId,
       propertyCode: workOrder.propertyCode,
       reservationCode: workOrder.reservationCode ?? '',
+      description: workOrder.description ?? '',
       workOrderTypeId: workOrder.workOrderTypeId,
       workOrderType: getWorkOrderType(workOrder.workOrderTypeId),
       isActive: workOrder.isActive,
-      modifiedOn: this.formatter.formatDateTimeString(workOrder.modifiedOn),
+      modifiedOn: this.formatter.formatDateString(workOrder.modifiedOn),
       modifiedBy: workOrder.modifiedBy
     }));
   }
@@ -366,7 +367,7 @@ export class MappingService {
       amountDisplay: '$' + this.formatter.currency(receipt.amount ?? 0),
       receiptPath: receipt.receiptPath ?? null,
       isActive: receipt.isActive,
-      modifiedOn: this.formatter.formatDateTimeString(receipt.modifiedOn),
+      modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),
       modifiedBy: receipt.modifiedBy
     }));
   }

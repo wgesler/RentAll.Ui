@@ -1,13 +1,13 @@
 // Reservation models will be added here
 
 export interface ReservationRequest {
-  reservationId?: string;
+  reservationId?: string | null;
   organizationId: string;
   officeId: number;
   agentId: string;
   propertyId: string;
   contactId: string;
-  reservationCode?: string;
+  reservationCode?: string | null;
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId: number;
@@ -18,6 +18,8 @@ export interface ReservationRequest {
   departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
+  lockBoxCode?: string | null;
+  unitTenantCode?: string | null;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -29,13 +31,13 @@ export interface ReservationRequest {
   hasPets: boolean;
   petFee: number;
   numberOfPets: number;
-  petDescription?: string;
+  petDescription?: string | null;
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
   maidStartDate: string;
   extraFeeLines: ExtraFeeLineRequest[];
-  notes?: string;
+  notes?: string | null;
   allowExtensions: boolean;
   currentInvoiceNo: number;
   creditDue: number;
@@ -54,7 +56,7 @@ export interface ReservationResponse {
   reservationCode: string;
   reservationTypeId: number;
   reservationStatusId: number;
-  reservationNoticeId?: number;
+  reservationNoticeId?: number | null;
   numberOfPeople: number;
   tenantName: string;
   referenceNo: string;
@@ -62,38 +64,40 @@ export interface ReservationResponse {
   departureDate: string;
   checkInTimeId: number;
   checkOutTimeId: number;
+  lockBoxCode?: string | null;
+  unitTenantCode?: string | null;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
   billingRate: number;
   deposit: number;
-  depositTypeId?: number;
+  depositTypeId?: number | null;
   departureFee: number;
   taxes: number;
   hasPets: boolean;
   petFee: number;
   numberOfPets: number;
-  petDescription?: string;
+  petDescription?: string | null;
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
   maidStartDate: string;
-  extraFeeLines?: ExtraFeeLineResponse[];
-  notes?: string;
+  extraFeeLines?: ExtraFeeLineResponse[] | null;
+  notes?: string | null;
   allowExtensions: boolean;
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
-  createdOn?: string;
-  createdBy?: string;
-  modifiedOn?: string;
-  modifiedBy?: string; 
+  createdOn?: string | null;
+  createdBy?: string | null;
+  modifiedOn?: string | null;
+  modifiedBy?: string | null; 
 }
 
 export interface ReservationListResponse {
   reservationId: string;
   reservationCode: string;
-  reservationTypeId?: number;
+  reservationTypeId?: number | null;
   propertyId: string;
   propertyCode: string;
   officeId: number;
@@ -113,7 +117,7 @@ export interface ReservationListResponse {
   reservationStatusId: number;
   currentInvoiceNo: number;
   creditDue: number;
-  hasPets?: boolean;
+  hasPets?: boolean | null;
   isActive: boolean;
   createdOn: string;
 }
@@ -121,12 +125,12 @@ export interface ReservationListResponse {
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
-  reservationTypeId?: number;
+  reservationTypeId?: number | null;
   propertyId: string;
   propertyCode: string;
   officeId: number;
   officeName: string;
-  office?: string;
+  office?: string | null;
   contactId: string;
   entityId?: string | null;
   entityTypeId?: number | null;
@@ -140,14 +144,14 @@ export interface ReservationListDisplay {
   departureDate: string;
   reservationStatusId: number;
   creditDue: number;
-  hasCredit?: boolean;
+  hasCredit?: boolean | null;
   isActive: boolean;
   createdOn: string;
 }
 
 // ExtraFeeLine models
 export interface ExtraFeeLineRequest {
-  extraFeeLineId?: string;
+  extraFeeLineId?: string | null;
   reservationId?: string | null;
   feeDescription: string | null;
   feeAmount: number;

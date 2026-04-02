@@ -46,20 +46,6 @@
                 </mat-form-field>
               }
 
-              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                <mat-label>Office</mat-label>
-                <input matInput [value]="property?.officeName || receipt?.officeName || ''" readonly disabled>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                <mat-label>Property Code</mat-label>
-                <input matInput [value]="property?.propertyCode || receipt?.propertyCode || ''" readonly disabled>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                <mat-label>Work Order Code</mat-label>
-                <input matInput formControlName="workOrderCode">
-              </mat-form-field>
             </div>
 
             <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
@@ -83,7 +69,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-span-4">
+            <div class="col-span-4 receipt-image-section">
               <mat-label class="text-sm font-medium block mb-2">Receipt *</mat-label>
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {

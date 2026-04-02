@@ -62,7 +62,13 @@
             <div class="mat">
             </div>
             <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
-            <div class="flex justify-end mb-3">
+            <div class="flex justify-end mb-3 gap-2">
+              @if (!isAddMode) {
+                <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">
+                  <mat-icon>delete</mat-icon>
+                  Cancel
+                </button>
+              }
               <button mat-raised-button type="submit" color="primary" id="save-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
                 <mat-icon>save</mat-icon>
                 Save
@@ -354,60 +360,70 @@
                 </mat-form-field>
               }
 
-              <!-- Line 5: Arrival Date, Departure Date, Check-In Time, Check-Out Time -->
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Arrival Date</mat-label>
-                <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
-                <mat-datepicker-toggle matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
-                <mat-datepicker #arrivalPicker></mat-datepicker>
-                @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {
-                  <mat-error>Arrival Date is required</mat-error>
-                }
-              </mat-form-field>
+              <!-- Line 5: Arrival/Departure/Times/Codes on one row -->
+              <div class="col-span-4 grid grid-cols-6 gap-4">
+                <mat-form-field appearance="outline">
+                  <mat-label>Arrival Date</mat-label>
+                  <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="arrivalPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #arrivalPicker></mat-datepicker>
+                  @if (form.get('arrivalDate')?.hasError('required') && form.get('arrivalDate')?.touched) {
+                    <mat-error>Arrival Date is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Departure Date</mat-label>
-                <input matInput [matDatepicker]="departurePicker" formControlName="departureDate" required>
-                <mat-datepicker-toggle matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
-                <mat-datepicker #departurePicker [startAt]="departureDateStartAt"></mat-datepicker>
-                @if (form.get('departureDate')?.hasError('required') && form.get('departureDate')?.touched) {
-                  <mat-error>Departure Date is required</mat-error>
-                }
-              </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Departure Date</mat-label>
+                  <input matInput [matDatepicker]="departurePicker" formControlName="departureDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #departurePicker [startAt]="departureDateStartAt"></mat-datepicker>
+                  @if (form.get('departureDate')?.hasError('required') && form.get('departureDate')?.touched) {
+                    <mat-error>Departure Date is required</mat-error>
+                  }
+                </mat-form-field>
 
-              <app-searchable-select
-                class="col-span-1"
-                [renderInFormField]="true"
-                [formFieldLabel]="'Check-In Time'"
-                [required]="true"
-                [value]="form.get('checkInTimeId')?.value ?? null"
-                [options]="checkInTimes"
-                [showSearchInput]="true"
-                [hideSearchHint]="true"
-                [hideSearchText]="true"
-                [nullOptionLabel]="''"
-                [noResultsText]="'No check-in times match your search'"
-                [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
-                [errorText]="'Check-In Time is required'"
-                (valueChange)="onReservationNumberDropdownChange('checkInTimeId', $event)">
-              </app-searchable-select>
+                <app-searchable-select
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Check-In Time'"
+                  [required]="true"
+                  [value]="form.get('checkInTimeId')?.value ?? null"
+                  [options]="checkInTimes"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="''"
+                  [noResultsText]="'No check-in times match your search'"
+                  [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
+                  [errorText]="'Check-In Time is required'"
+                  (valueChange)="onReservationNumberDropdownChange('checkInTimeId', $event)">
+                </app-searchable-select>
 
-              <app-searchable-select
-                class="col-span-1"
-                [renderInFormField]="true"
-                [formFieldLabel]="'Check-Out Time'"
-                [required]="true"
-                [value]="form.get('checkOutTimeId')?.value ?? null"
-                [options]="checkOutTimes"
-                [showSearchInput]="true"
-                [hideSearchHint]="true"
-                [hideSearchText]="true"
-                [nullOptionLabel]="''"
-                [noResultsText]="'No check-out times match your search'"
-                [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
-                [errorText]="'Check-Out Time is required'"
-                (valueChange)="onReservationNumberDropdownChange('checkOutTimeId', $event)">
-              </app-searchable-select>
+                <app-searchable-select
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Check-Out Time'"
+                  [required]="true"
+                  [value]="form.get('checkOutTimeId')?.value ?? null"
+                  [options]="checkOutTimes"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="''"
+                  [noResultsText]="'No check-out times match your search'"
+                  [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
+                  [errorText]="'Check-Out Time is required'"
+                  (valueChange)="onReservationNumberDropdownChange('checkOutTimeId', $event)">
+                </app-searchable-select>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Lock Box Code</mat-label>
+                  <input matInput formControlName="lockBoxCode" maxlength="32">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Unit Tenant Code</mat-label>
+                  <input matInput formControlName="unitTenantCode" maxlength="32">
+                </mat-form-field>
+              </div>
                 </div>
               </mat-expansion-panel>
 
@@ -466,12 +482,12 @@
                 <div class="flex form-standard-row">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Client Billing Method</mat-label>
-                <mat-select formControlName="billingModelId" required>
+                <mat-select formControlName="billingMethodId" required>
                   @for (billingMethod of availableBillingMethods; track billingMethod.value) {
                     <mat-option [value]="billingMethod.value">{{ billingMethod.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('billingModelId')?.hasError('required') && form.get('billingModelId')?.touched) {
+                @if (form.get('billingMethodId')?.hasError('required') && form.get('billingMethodId')?.touched) {
                   <mat-error>Billing Method is required</mat-error>
                 }
               </mat-form-field>

@@ -40,6 +40,14 @@
   cursor: not-allowed;
 }
 
+.work-order-header-fields-row {
+  flex-wrap: nowrap;
+}
+
+.work-order-items-section {
+  margin-top: 1.5rem;
+}
+
 .line-items-total-row {
   td {
     border-bottom: none;

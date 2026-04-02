@@ -109,19 +109,19 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   reservationsDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
+    'agentCode': { displayAs: 'Agent', maxWidth: '10ch' },
     'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '15ch', options: this.propertyStatusLabels },
-    'tenantName': { displayAs: 'Occupant', maxWidth: '20ch' },
-    'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
-    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
+    'tenantName': { displayAs: 'Occupant', maxWidth: '20ch', wrap: false},
+    'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
+    'companyName': { displayAs: 'Company', maxWidth: '20ch' , wrap: false},
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
     'departureDate': { displayAs: 'Departure', maxWidth: '20ch' },
   };
 
   propertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'shortAddress': { displayAs: 'Address', maxWidth: '25ch' },
-    'ownerName': { displayAs: 'Owner', maxWidth: '20ch' },
+    'shortAddress': { displayAs: 'Address', maxWidth: '25ch' , wrap: false},
+    'ownerName': { displayAs: 'Owner', maxWidth: '20ch' , wrap: false},
     'bedrooms': { displayAs: 'Beds', maxWidth: '15ch', alignment: 'center' },
     'bathrooms': { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' },
     'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '15ch', alignment: 'center' },

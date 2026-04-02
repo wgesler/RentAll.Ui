@@ -290,6 +290,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureDate: departure,
       checkInTimeId: source.checkInTimeId,
       checkOutTimeId: source.checkOutTimeId,
+      lockBoxCode: source.lockBoxCode || '',
+      unitTenantCode: source.unitTenantCode || '',
       billingTypeId: source.billingTypeId ?? BillingType.Monthly,
       billingMethodId: source.billingMethodId ?? BillingMethod.Invoice,
       prorateTypeId: source.prorateTypeId ?? null,
@@ -429,6 +431,71 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.validateDates('save');
   }
 
+  deleteReservation(): void {
+    if (this.isAddMode || !this.reservationId) {
+      return;
+    }
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const arrivalDate = this.parseDateOnly(this.reservation?.arrivalDate ?? this.form.get('arrivalDate')?.value);
+    if (arrivalDate && now >= arrivalDate) {
+      const dialogData: GenericModalData = {
+        title: 'Cancel Reservation',
+        message: 'It is not possible to cancel a reservation that has already begun.',
+        icon: 'warning' as any,
+        iconColor: 'warn',
+        no: '',
+        yes: 'OK',
+        callback: (dialogRef) => dialogRef.close(),
+        useHTML: false
+      };
+
+      this.dialog.open(GenericModalComponent, {
+        data: dialogData,
+        width: '35rem'
+      });
+      return;
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Delete Reservation',
+      message: 'Are you sure you want to delete this reservation?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'No',
+      yes: 'Yes',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result !== true) {
+        return;
+      }
+
+      this.isSubmitting = true;
+      this.reservationService.deleteReservation(this.reservationId).pipe(
+        take(1),
+        finalize(() => this.isSubmitting = false)
+      ).subscribe({
+        next: () => {
+          this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.router.navigateByUrl(RouterUrl.ReservationList);
+        },
+        error: () => {
+          this.toastr.error('Failed to delete reservation', CommonMessage.Error);
+        }
+      });
+    });
+  }
+
   performSave(): void {
     this.isSubmitting = true;
 
@@ -465,6 +532,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
       checkInTimeId: normalizeCheckInTimeId(formValue.checkInTimeId),
       checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
+      lockBoxCode: formValue.lockBoxCode || null,
+      unitTenantCode: formValue.unitTenantCode || null,
       billingTypeId: formValue.billingTypeId ?? BillingType.Monthly,
       billingMethodId: formValue.billingMethodId ?? BillingMethod.Invoice,
       prorateTypeId: formValue.prorateTypeId !== null && formValue.prorateTypeId !== undefined ? Number(formValue.prorateTypeId) : ProrateType.FirstMonth,
@@ -567,8 +636,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureDate: new FormControl(null, [Validators.required]),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
+      lockBoxCode: new FormControl(''),
+      unitTenantCode: new FormControl(''),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
-      billingModelId: new FormControl(BillingMethod.Invoice, [Validators.required]),
+      billingMethodId: new FormControl(BillingMethod.Invoice, [Validators.required]),
       prorateTypeId: new FormControl<number | null>(null),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
@@ -635,6 +706,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
       checkInTimeId: this.reservation.checkInTimeId,
       checkOutTimeId: this.reservation.checkOutTimeId,
+      lockBoxCode: this.reservation.lockBoxCode || '',
+      unitTenantCode: this.reservation.unitTenantCode || '',
       billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
       billingMethodId: this.reservation.billingMethodId ?? BillingMethod.Invoice,
       prorateTypeId: this.reservation.prorateTypeId ?? null,
@@ -981,7 +1054,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (reservationTypeId === ReservationType.Owner) {
       // Make billing and fee fields readonly for Owner type
       this.disableFieldWithValidation('billingTypeId');
-      this.disableFieldWithValidation('billingModelId');
+      this.disableFieldWithValidation('billingMethodId');
       this.disableFieldWithValidation('prorateTypeId');
       this.disableFieldWithValidation('billingRate');
       this.disableFieldWithValidation('depositType');      
@@ -998,7 +1071,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
       this.enableFieldWithValidation('billingTypeId', [Validators.required]);
-      this.enableFieldWithValidation('billingModelId', [Validators.required]);
+      this.enableFieldWithValidation('billingMethodId', [Validators.required]);
       this.enableFieldWithValidation('prorateTypeId');
       this.enableFieldWithValidation('billingRate', [Validators.required]);
       this.enableFieldWithValidation('depositType', [Validators.required]);

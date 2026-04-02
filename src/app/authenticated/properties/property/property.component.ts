@@ -376,8 +376,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.bedroomId4 = formValue.bedroomId4 ? Number(formValue.bedroomId4) : 0;
     
     // Convert Date objects to ISO strings for API (use null if not set)
-    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : null;
-    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : null;
+    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : undefined;
+    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : undefined;
     
     // Map enum fields to Id fields
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
@@ -414,7 +414,13 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
 
     // Assign location IDs directly
-    propertyRequest.officeId = formValue.officeId || null;
+    const officeId = formValue.officeId ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
+    if (!officeId) {
+      this.toastr.error('Office is required', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+    propertyRequest.officeId = Number(officeId);
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
     propertyRequest.buildingId = formValue.buildingId || null;

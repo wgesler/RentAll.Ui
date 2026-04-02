@@ -119,7 +119,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
-      workOrderCode: (this.form.get('workOrderCode')?.value || '').trim(),
+      workOrderCode: (this.receipt?.workOrderCode || '').trim(),
       receiptPath: sendNewReceipt ? undefined : receiptPathValue,
       fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
       isActive: this.form.get('isActive')?.value
@@ -156,7 +156,6 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
           propertyCode: saved.propertyCode || this.property?.propertyCode || '',
-          workOrderCode: saved.workOrderCode || '',
           description: saved.description || '',
           amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
           receiptPath: saved.receiptPath || '',
@@ -191,7 +190,6 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
-      workOrderCode: new FormControl(''),
       amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       receiptPath: new FormControl(''),
@@ -203,7 +201,6 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.form.patchValue({
       officeName: this.property?.officeName || '',
       propertyCode: this.property?.propertyCode || '',
-      workOrderCode: receipt.workOrderCode || '',
       description: receipt.description || '',
       amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
       receiptPath: receipt.receiptPath || '',

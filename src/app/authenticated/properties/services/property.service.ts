@@ -85,10 +85,6 @@ export class PropertyService {
     return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId);
   }
 
-  getActivePropertiesByOwner(ownerId: string): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId + '/active');
-  }
-
   // GET: Get calendar URL/tokenized calendar response for a property
   getPropertyCalendarUrl(propertyId: string): Observable<CalendarUrlResponse> {
     return this.http.get<CalendarUrlResponse>(this.controller + propertyId + '/calendar/subscription-url');

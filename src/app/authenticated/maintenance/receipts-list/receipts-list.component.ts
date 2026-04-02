@@ -42,15 +42,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   selectedPropertyId: string | null = null;
 
   receiptDisplayedColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderCode: { displayAs: 'WO Code', wrap: false, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch' },
-    description: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
+    description: { displayAs: 'Description', wrap: true, maxWidth: '30ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
-    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'left' }
+    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(

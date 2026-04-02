@@ -53,6 +53,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsCalendar: boolean = false;
   @Input() hasActionsCopy: boolean = false;
   @Input() hasActionsDelete: boolean = false;
+  @Input() confirmDeleteBeforeEmit: boolean = true;
   @Input() deleteConfirmTitle: string = 'Delete?';
   @Input() deleteConfirmMessage: string = 'Are you sure you want to delete this item?';
   @Input() hasActionsDownload: boolean = false;
@@ -337,6 +338,11 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   emitDeleteEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
+    if (!this.confirmDeleteBeforeEmit) {
+      this.deleteEvent.emit(rowItem);
+      return;
+    }
+
     const dialogData: GenericModalData = {
       title: this.deleteConfirmTitle,
       message: this.deleteConfirmMessage,

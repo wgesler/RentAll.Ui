@@ -37,8 +37,9 @@ export interface WorkOrderDisplayList {
   propertyId: string;
   propertyCode: string;
   reservationCode?: string | null;
+  description?: string | null;
   workOrderTypeId: number;
-  workOrderType?: string; // display label from WorkOrderType enum
+  workOrderType?: string; 
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;

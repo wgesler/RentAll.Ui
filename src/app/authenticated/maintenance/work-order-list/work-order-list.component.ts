@@ -36,13 +36,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   selectedPropertyId: string | null = null;
 
   workOrderDisplayedColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
+    description: { displayAs: 'Description', wrap: false, maxWidth: '40ch' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
-    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '25ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, maxWidth: '15ch'}
+    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(

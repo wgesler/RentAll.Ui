@@ -41,9 +41,9 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   ownerPropertiesDisplayedColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', maxWidth: '20ch' },
+    officeName: { displayAs: 'Office', maxWidth: '15ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    shortAddress: { displayAs: 'Address', maxWidth: '30ch' },
+    shortAddress: { displayAs: 'Address', maxWidth: '20ch' },
     bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
     accomodates: { displayAs: 'Accom', maxWidth: '12ch', alignment: 'center' },
@@ -51,7 +51,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   };
 
   ownerReservationsDisplayedColumns: ColumnSet = {
-    office: { displayAs: 'Office', maxWidth: '20ch' },
+    office: { displayAs: 'Office', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },

@@ -211,7 +211,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const scopedOwnerId = (this.userId || this.ownerUserId || '').trim();
+    const scopedOwnerId = (this.userId || '').trim();
     if (!scopedOwnerId) {
       this.propertyRows = [];
       this.properties = [];
@@ -219,12 +219,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.propertyService.getActivePropertiesByOwner(scopedOwnerId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+    this.propertyService.getPropertiesByOwner(scopedOwnerId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
+        const activeProperties = (properties || []).filter(p => p.isActive);
         const workingOfficeId = this.selectedOfficeId;
         const filtered = workingOfficeId == null
-          ? (properties || [])
-          : (properties || []).filter(p => p.officeId === workingOfficeId);
+          ? activeProperties
+          : activeProperties.filter(p => p.officeId === workingOfficeId);
         this.propertyRows = filtered;
         this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
       },

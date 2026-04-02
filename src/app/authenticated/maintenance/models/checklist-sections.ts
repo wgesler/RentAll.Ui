@@ -323,7 +323,7 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
   {
     key: 'cleaningStatus',
     title: 'Cleaning Status',
-    selectionMode: 'exactlyOne',
+    selectionMode: 'atLeastOne',
     items: [
       { text: 'Cleaning Done', requiresPhoto: false, requiresCount: false },
       { text: 'Needs to be Redone', requiresPhoto: false, requiresCount: false },

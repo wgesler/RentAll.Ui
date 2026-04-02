@@ -28,7 +28,7 @@ import { PhotoService } from '../../documents/services/photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { DialogMissingCountComponent } from './dialog-missing-count.component';
-import { DialogIssueItemComponent, DialogIssueItemResult } from './dialog-issue-item.component';
+import { DialogIssueItemComponent } from './dialog-issue-item.component';
 import { ChecklistIssueEntry, DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
 import { UserGroups } from '../../users/models/user-enums';
 
@@ -1666,60 +1666,31 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
+    // Three-state cycle in answer mode:
+    // unchecked -> checked green -> checked red -> unchecked
     if (event.checked) {
-      // First click: checked green state (no issue).
+      // unchecked -> green
       this.setItemIssueState(sectionKey, repeatIndex, item, false);
       this.trySetItemCheckedTrue(sectionKey, repeatIndex, item);
       return;
     }
 
-    // Checked item clicked again: cycle green -> red -> green while remaining checked.
     if (item.hasIssue === true) {
+      // red -> unchecked
       this.clearIssueStateAndPhoto(sectionKey, repeatIndex, item);
-      control.setValue(true, { emitEvent: false });
+      control.setValue(false, { emitEvent: false });
       if (event.source) {
-        event.source.checked = true;
+        event.source.checked = false;
       }
       return;
     }
 
+    // green -> red (stay checked)
     this.setItemIssueState(sectionKey, repeatIndex, item, true);
     control.setValue(true, { emitEvent: false });
     if (event.source) {
       event.source.checked = true;
     }
-
-    this.openIssueItemDialog().afterClosed().pipe(take(1)).subscribe({
-      next: async (result: DialogIssueItemResult | null) => {
-        if (!result) {
-          this.setItemIssueState(sectionKey, repeatIndex, item, false);
-          control.setValue(false, { emitEvent: false });
-          if (event.source) {
-            event.source.checked = false;
-          }
-          return;
-        }
-
-        try {
-          if (result.photoFile) {
-            await this.uploadIssuePhoto(sectionKey, repeatIndex, item, result.photoFile);
-          }
-          this.setItemIssueState(sectionKey, repeatIndex, item, true);
-          this.updateItemIssue(sectionKey, repeatIndex, item, result.issueText);
-          control.setValue(true, { emitEvent: false });
-          if (event.source) {
-            event.source.checked = true;
-          }
-        } catch {
-          this.setItemIssueState(sectionKey, repeatIndex, item, false);
-          control.setValue(false, { emitEvent: false });
-          if (event.source) {
-            event.source.checked = false;
-          }
-          this.openUploadFailedDialog();
-        }
-      }
-    });
   }
 
   trySetItemCheckedTrue(sectionKey: string, repeatIndex: number, item: ChecklistItem): void {
@@ -2295,11 +2266,13 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   get keypadAccessCodesDisplay(): string {
     const codes = [
       this.property?.unitMstrCode,
-      this.property?.unitTenantCode,
       this.property?.bldgMstrCode,
       this.property?.bldgTenantCode,
       this.property?.mailRoomCode,
-      this.property?.garageCode
+      this.property?.garageCode,
+      this.property?.gateCode,
+      this.property?.trashCode,
+      this.property?.storageCode
     ].filter(Boolean);
     return codes.length > 0 ? codes.join(' / ') : 'N/A';
   }

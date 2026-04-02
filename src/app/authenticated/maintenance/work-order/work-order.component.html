@@ -38,20 +38,10 @@
           </div>
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-            <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
+            <div class="col-span-4 flex items-center gap-x-1.5 work-order-header-fields-row" style="min-width: 0;">
               <mat-form-field appearance="outline" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
                 <mat-label>Code</mat-label>
                 <input matInput [value]="form.get('workOrderCode')?.value || ''" readonly disabled>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" style="flex: 0 0 22%; min-width: 0; max-width: 22%;">
-                <mat-label>Office</mat-label>
-                <input matInput [value]="property?.officeName || workOrder?.officeName || ''" readonly disabled>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" style="flex: 0 0 16%; min-width: 0; max-width: 16%;">
-                <mat-label>Property Code</mat-label>
-                <input matInput [value]="property?.propertyCode || workOrder?.propertyCode || ''" readonly disabled>
               </mat-form-field>
 
               <mat-form-field appearance="outline" style="flex: 0 0 18%; min-width: 0; max-width: 18%;">
@@ -67,7 +57,7 @@
               </mat-form-field>
 
               @if (isTenantTypeSelected()) {
-                <mat-form-field appearance="outline" style="flex: 1 1 auto; min-width: 0;">
+                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
                   <mat-label>Tenant</mat-label>
                   <mat-select formControlName="reservationId">
                     <mat-option [value]="null">Select Reservation</mat-option>
@@ -79,15 +69,15 @@
                   </mat-select>
                 </mat-form-field>
               }
+
+              <mat-form-field appearance="outline" style="flex: 1 1 auto; min-width: 0;">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description" placeholder="Work order description" maxlength="250">
+              </mat-form-field>
             </div>
 
-            <mat-form-field appearance="outline" class="col-span-4">
-              <mat-label>Description</mat-label>
-              <input matInput formControlName="description" placeholder="Work order description" maxlength="250">
-            </mat-form-field>
-
             <!-- Work Order Items (table like Invoice Ledger Items) -->
-            <div class="col-span-4 mb-4">
+            <div class="col-span-4 mb-4 work-order-items-section">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-lg font-medium">Work Order Items</span>
                 <button mat-raised-button type="button" color="accent" (click)="addWorkOrderItem()"

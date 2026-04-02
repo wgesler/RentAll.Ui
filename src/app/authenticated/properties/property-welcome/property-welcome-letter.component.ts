@@ -506,6 +506,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
       result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
+      result = result.replace(/\{\{lockBoxCode\}\}/g, this.selectedReservation.lockBoxCode || '');
+      result = result.replace(/\{\{unitTenantCode\}\}/g, this.selectedReservation.unitTenantCode || '');
     }
 
     if (this.property) {
@@ -520,7 +522,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
-      result = result.replace(/\{\{keypadAccess\}\}/g, this.property.unitTenantCode || '');
       result = result.replace(/\{\{alarmCode\}\}/g, this.property.alarmCode || '');
 
     }

@@ -10,48 +10,52 @@
             <span class="flex-shrink-0 text-xl font-medium">Reservation Board</span>
           </span>
         }
-        <div class="header-title form-titlebar-fields-wrap header-date-controls">
-          <mat-form-field appearance="outline" class="header-date-field">
-            <mat-label>Start Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="startPicker"
-              [(ngModel)]="startDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [max]="endDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
-            <mat-datepicker #startPicker></mat-datepicker>
-          </mat-form-field>
+        @if (!isOwner) {
+          <div class="header-title form-titlebar-fields-wrap header-date-controls">
+            <mat-form-field appearance="outline" class="header-date-field">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="startPicker"
+                [(ngModel)]="startDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [max]="endDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+              <mat-datepicker #startPicker></mat-datepicker>
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="header-date-field">
-            <mat-label>End Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="endPicker"
-              [(ngModel)]="endDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [min]="startDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
-            <mat-datepicker #endPicker></mat-datepicker>
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="header-date-field">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="endPicker"
+                [(ngModel)]="endDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [min]="startDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+              <mat-datepicker #endPicker></mat-datepicker>
+            </mat-form-field>
+          </div>
+        }
+      </div>
+      @if (!isOwner) {
+        <div class="form-titlebar-actions-wrap">
+          <button
+            mat-raised-button
+            type="button"
+            color="primary"
+            id="selection-button"
+            (click)="goToBoardSelection()"
+            class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
+            <mat-icon
+              class="!w-[18px] !h-[18px] !text-lg leading-none"
+              [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
+            Selection
+          </button>
         </div>
-      </div>
-      <div class="form-titlebar-actions-wrap">
-        <button
-          mat-raised-button
-          type="button"
-          color="primary"
-          id="selection-button"
-          (click)="goToBoardSelection()"
-          class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
-          <mat-icon
-            class="!w-[18px] !h-[18px] !text-lg leading-none"
-            [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
-          Selection
-        </button>
-      </div>
+      }
     </div>
     <mat-card>
       <div class="board-wrapper">

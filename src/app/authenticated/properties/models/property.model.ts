@@ -1,17 +1,17 @@
 // Ordered to match form layout - Updated to match API PropertyResponseDto
 export interface PropertyRequest {
   // Top section
-  propertyId?: string;
+  propertyId?: string | null;
   organizationId: string;
   propertyCode: string;
   owner1Id: string;
-  owner2Id?: string;
-  owner3Id?: string;
+  owner2Id?: string | null;
+  owner3Id?: string | null;
   isActive: boolean;
   
   // Availability section
-  availableFrom?: string;
-  availableUntil?: string;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -37,16 +37,16 @@ export interface PropertyRequest {
   
   // Address section
   address1: string;
-  address2?: string;
-  suite?: string;
+  address2?: string | null;
+  suite?: string | null;
   city: string;
   state: string;
   zip: string;
-  phone?: string;
-  neighborhood?: string;
-  crossStreet?: string;
-  view?: string;
-  mailbox?: string;
+  phone?: string | null;
+  neighborhood?: string | null;
+  crossStreet?: string | null;
+  view?: string | null;
+  mailbox?: string | null;
   
     // Location section
   officeId: number;
@@ -69,14 +69,13 @@ export interface PropertyRequest {
   poundLimit: string;
   smoking: boolean;
   parking: boolean;
-  parkingnotes?: string;
-  alarmCode?: string;
-  unitMstrCode?: string;
-  unitTenantCode?: string;
-  bldgMstrCode?: string;
-  bldgTenantCode?: string;
-  mailRoomCode?: string;
-  garageCode?: string;
+  parkingnotes?: string | null;
+  alarmCode?: string | null;
+  unitMstrCode?: string | null;
+  bldgMstrCode?: string | null;
+  bldgTenantCode?: string | null;
+  mailRoomCode?: string | null;
+  garageCode?: string | null;
   gateCode?: string | null;
   trashCode?: string | null;
   storageCode?: string | null;
@@ -97,8 +96,8 @@ export interface PropertyRequest {
   dvd: boolean;
   streaming: boolean;
   fastInternet: boolean;
-  internetNetwork?: string;
-  internetPassword?: string;
+  internetNetwork?: string | null;
+  internetPassword?: string | null;
   
   // Outdoor Spaces section
   deck: boolean;
@@ -115,12 +114,12 @@ export interface PropertyRequest {
   
   // Trash section
   trashPickupId: number;
-  trashRemoval?: string;
+  trashRemoval?: string | null;
   
   // Additional Amenities section
-  amenities?: string;
-  description?: string;
-  notes?: string;
+  amenities?: string | null;
+  description?: string | null;
+  notes?: string | null;
 }
 
 export interface PropertyResponse {
@@ -128,13 +127,13 @@ export interface PropertyResponse {
   organizationId: string;
   propertyCode: string;
   owner1Id: string;
-  owner2Id?: string;
-  owner3Id?: string;
+  owner2Id?: string | null;
+  owner3Id?: string | null;
   isActive: boolean;
    
   // Availability section
-  availableFrom?: string;
-  availableUntil?: string;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -160,16 +159,16 @@ export interface PropertyResponse {
   
   // Address section
   address1: string;
-  address2?: string;
-  suite?: string;
+  address2?: string | null;
+  suite?: string | null;
   city: string;
   state: string;
   zip: string;
-  phone?: string;
-  neighborhood?: string;
-  crossStreet?: string;
-  view?: string;
-  mailbox?: string;
+  phone?: string | null;
+  neighborhood?: string | null;
+  crossStreet?: string | null;
+  view?: string | null;
+  mailbox?: string | null;
   
     // Location section
   officeId: number;
@@ -193,14 +192,13 @@ export interface PropertyResponse {
   poundLimit: string;
   smoking: boolean;
   parking: boolean;
-  parkingNotes?: string;
-  alarmCode?: string;
-  unitMstrCode?: string;
-  unitTenantCode?: string;
-  bldgMstrCode?: string;
-  bldgTenantCode?: string;
-  mailRoomCode?: string;
-  garageCode?: string;
+  parkingNotes?: string | null;
+  alarmCode?: string | null;
+  unitMstrCode?: string | null;
+  bldgMstrCode?: string | null;
+  bldgTenantCode?: string | null;
+  mailRoomCode?: string | null;
+  garageCode?: string | null;
   gateCode?: string | null;
   trashCode?: string | null;
   storageCode?: string | null;
@@ -221,8 +219,8 @@ export interface PropertyResponse {
   dvd: boolean;
   streaming: boolean;
   fastInternet: boolean;
-  internetNetwork?: string;
-  internetPassword?: string;
+  internetNetwork?: string | null;
+  internetPassword?: string | null;
  
   // Outdoor Spaces section
   deck: boolean;
@@ -239,19 +237,19 @@ export interface PropertyResponse {
   
   // Trash section
   trashPickupId: number;
-  trashRemoval?: string;
+  trashRemoval?: string | null;
   
   // Additional Amenities section
-  amenities?: string;
-  description?: string;
-  notes?: string;
+  amenities?: string | null;
+  description?: string | null;
+  notes?: string | null;
 }
 export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;
   shortAddress: string;
-  availableFrom?: string;
-  availableUntil?: string;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
   officeId: number;  
   officeName: string;
   owner1Id: string;

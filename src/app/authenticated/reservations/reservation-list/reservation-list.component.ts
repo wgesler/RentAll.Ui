@@ -1,6 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
@@ -19,6 +20,8 @@ import { PropertySelectionFilterService } from '../../properties/services/proper
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
@@ -65,11 +68,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
+    'tenantName': { displayAs: 'Occupant', maxWidth: '20ch' },
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' },
-    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
+    'companyName': { displayAs: 'Company', maxWidth: '15ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '16ch', alignment: 'center'},
     'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
-    'hasCredit': { displayAs: 'Credit', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactReservationsDisplayedColumns: ColumnSet = {
@@ -92,6 +95,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private authService: AuthService,
+    private dialog: MatDialog,
     private propertySelectionFilterService: PropertySelectionFilterService) {
   }
 
@@ -220,13 +224,61 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteReservation(reservation: ReservationListDisplay): void {
-    this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
-        this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
-        this.applyFilters();
-      },
-      error: () => {}
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const arrivalDate = reservation.arrivalDate ? new Date(reservation.arrivalDate) : null;
+    if (arrivalDate && !isNaN(arrivalDate.getTime())) {
+      arrivalDate.setHours(0, 0, 0, 0);
+      if (now >= arrivalDate) {
+        const dialogData: GenericModalData = {
+          title: 'Cancel Reservation',
+          message: 'It is not possible to cancel a reservation that has already begun.',
+          icon: 'warning' as any,
+          iconColor: 'warn',
+          no: '',
+          yes: 'OK',
+          callback: (dialogRef) => dialogRef.close(),
+          useHTML: false
+        };
+
+        this.dialog.open(GenericModalComponent, {
+          data: dialogData,
+          width: '35rem'
+        });
+        return;
+      }
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Delete Reservation',
+      message: 'Are you sure you want to delete this reservation?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Delete',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result !== true) {
+        return;
+      }
+
+      this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
+        next: () => {
+          this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
+          this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+          this.applyFilters();
+        },
+        error: () => {}
+      });
     });
   }
   //#endregion
