@@ -47,6 +47,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 
 @Component({
     selector: 'app-property',
@@ -149,7 +150,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     private propertyLetterService: PropertyLetterService,
     private reservationService: ReservationService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
   }
 
@@ -1630,26 +1632,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!this.hasUnsavedChanges()) {
       return true;
     }
-    const dialogData: GenericModalData = {
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Do you want to save before leaving this page?',
-      icon: 'warning' as any,
-      iconColor: 'warn',
-      no: 'No',
-      yes: 'Yes',
-      callback: (dialogRef, result) => dialogRef.close(result),
-      useHTML: false,
-      hideClose: true
-    };
-    const dialogRef = this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '35rem'
-    });
-    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
-    if (shouldSave === true) {
-      this.saveProperty();
-    }
-    return true;
+    return this.unsavedChangesDialogService.confirmLeave();
   }
 
   @HostListener('window:beforeunload', ['$event'])

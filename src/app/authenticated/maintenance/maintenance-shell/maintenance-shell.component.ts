@@ -42,6 +42,7 @@ import { MaintenanceComponent } from '../maintenance/maintenance.component';
 })
 export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate {
   @ViewChild('inspectionChecklist') inspectionChecklist?: ChecklistComponent;
+  @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
@@ -348,7 +349,11 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   async confirmChecklistNavigation(): Promise<boolean> {
-    return this.inspectionChecklist?.confirmNavigationWithUnsavedChanges() ?? true;
+    const canLeaveChecklist = await (this.inspectionChecklist?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
+    if (!canLeaveChecklist) {
+      return false;
+    }
+    return this.maintenanceSection?.confirmNavigationWithUnsavedChanges() ?? true;
   }
   //#endregion
 }

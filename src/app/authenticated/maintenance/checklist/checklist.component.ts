@@ -31,6 +31,7 @@ import { DialogMissingCountComponent } from './dialog-missing-count.component';
 import { DialogIssueItemComponent } from './dialog-issue-item.component';
 import { ChecklistIssueEntry, DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
 import { UserGroups } from '../../users/models/user-enums';
+import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 
 export type ChecklistMode = 'template' | 'answer' | 'readonly';
 export type ChecklistType = 'inspection';
@@ -96,7 +97,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     public inspectionService: InspectionService,
     public mappingService: MappingService,
     private configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
   }
 
@@ -643,28 +645,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (!this.hasUnsavedChanges()) {
       return true;
     }
-
-    const dialogData: GenericModalData = {
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Do you want to save before leaving this page?',
-      icon: 'warning' as any,
-      iconColor: 'warn',
-      no: 'No',
-      yes: 'Yes',
-      callback: (dialogRef, result) => dialogRef.close(result),
-      useHTML: false,
-      hideClose: true
-    };
-
-    const dialogRef = this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '35rem'
-    });
-    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
-    if (shouldSave === true) {
-      this.saveChecklistData(this.canSubmitInspection);
-    }
-    return true;
+    return this.unsavedChangesDialogService.confirmLeave();
   }
 
   @HostListener('window:beforeunload', ['$event'])

@@ -40,6 +40,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
 import { ExtraFeeLineRequest, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
@@ -153,7 +154,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private costCodesService: CostCodesService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
   }
 
@@ -2164,26 +2166,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (!this.hasUnsavedChanges()) {
       return true;
     }
-    const dialogData: GenericModalData = {
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Do you want to save before leaving this page?',
-      icon: 'warning' as any,
-      iconColor: 'warn',
-      no: 'No',
-      yes: 'Yes',
-      callback: (dialogRef, result) => dialogRef.close(result),
-      useHTML: false,
-      hideClose: true
-    };
-    const dialogRef = this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '35rem'
-    });
-    const shouldSave = await firstValueFrom(dialogRef.afterClosed());
-    if (shouldSave === true) {
-      this.saveReservation();
-    }
-    return true;
+    return this.unsavedChangesDialogService.confirmLeave();
   }
 
   @HostListener('window:beforeunload', ['$event'])

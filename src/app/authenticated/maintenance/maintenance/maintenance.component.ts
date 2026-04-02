@@ -19,6 +19,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceService } from '../services/maintenance.service';
 import { ApplianceService } from '../services/appliance.service';
 import { JwtUser } from '../../../public/login/models/jwt';
+import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 
 @Component({
   standalone: true,
@@ -33,6 +34,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;
+  hasUserEdits = false;
+  isInitializingFormState = true;
   user: JwtUser | null = null;
   
   maintenanceRecord: MaintenanceResponse | null = null;
@@ -53,7 +56,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     private maintenanceService: MaintenanceService,
     private applianceService: ApplianceService,
     private authService: AuthService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
     this.form = this.buildForm();
   }
@@ -61,6 +65,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   //#region Maintenance
   ngOnInit(): void {
     this.user = this.authService.getUser();
+    this.trackUserEdits();
     this.setupAssigneeDateSync();
     this.loadMaintenance();
     this.loadAppliances();
@@ -329,6 +334,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   }
 
   populateForm(): void {
+    this.isInitializingFormState = true;
     const source = this.maintenanceRecord;
     this.form.patchValue({
       maintenanceId: source?.maintenanceId ?? '',
@@ -358,6 +364,18 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });
+    this.resetUserEdits();
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasUserEdits && !this.isSaving && !this.isSavingAppliances;
+  }
+
+  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+    return this.unsavedChangesDialogService.confirmLeave();
   }
 
   setupAssigneeDateSync(): void {
@@ -450,6 +468,23 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       return selectedDay > todayDay ? { futureDate: true } : null;
     };
+  }
+  //#endregion
+
+  //#region Utility Methods
+  trackUserEdits(): void {
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.isInitializingFormState) {
+        return;
+      }
+      this.hasUserEdits = true;
+    });
+  }
+
+  resetUserEdits(): void {
+    this.hasUserEdits = false;
+    this.form.markAsPristine();
+    this.isInitializingFormState = false;
   }
   //#endregion
 }
