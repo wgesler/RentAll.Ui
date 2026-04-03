@@ -8,10 +8,7 @@
 
 
 .dashboard-main-content {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
-  gap: 24px;
-  align-items: start;
+  display: block;
 }
 
 .reservation-tables {
@@ -35,7 +32,7 @@
   font-size: 0.9rem;
   color: #666;
   margin: 0;
-  text-align: right;
+  text-align: left;
 }
 
 .day-box {
@@ -155,22 +152,165 @@
 .welcome-tile {
   background-color: #F8F8F8;
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   margin-bottom: 48px;
+  width: 100%;
+}
+
+.welcome-stats-strip {
   display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  overflow: visible;
+  width: 100%;
+}
+
+.day-box-compact {
+  width: 174px;
+  min-width: 174px;
+  min-height: 94px;
+  padding: 8px;
+}
+
+.day-box-compact .day-title {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.day-box-compact .day-name {
+  font-size: 0.72rem;
+}
+
+.day-box-compact .total-number {
+  font-size: 1.05rem;
+}
+
+.compact-stats {
+  margin-top: 0;
+  gap: 4px;
+}
+
+.day-box-compact .stat-label {
+  font-size: 0.68rem;
+}
+
+.day-box-compact .stat-value {
+  font-size: 0.9rem;
+}
+
+.day-box-reservations .stat-label {
+  color: #1976D2;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.day-box-reservations .stat-value {
+  color: #333;
+  font-size: 1.12rem;
+  font-weight: 600;
+}
+
+.day-box-today .total-number,
+.day-box-tomorrow .total-number {
+  font-size: 1.12rem;
+  font-weight: 600;
+}
+
+.commission-summary-row {
+  margin-top: 6px;
+}
+
+.day-box-commissions .commission-summary-row .stat-label {
+  color: #1976D2;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.day-box-commissions .commission-summary-row .commission-amount {
+  color: #333;
+  font-size: 1.05rem;
+  font-weight: 400;
+  min-width: 6ch;
+  text-align: right;
+}
+
+.day-box-commissions {
+  position: relative;
+}
+
+.day-box-today .day-title > span:first-child,
+.day-box-tomorrow .day-title > span:first-child,
+.day-box-reservations .day-title > span:first-child,
+.day-box-commissions .day-title > span:first-child {
+  font-size: calc(0.76rem + 2pt);
+  line-height: 1.15;
+}
+
+.commission-tile-clickable {
+  cursor: pointer;
+}
+
+.commission-breakdown-popover {
+  position: absolute;
+  top: 82px;
+  right: 8px;
+  min-width: 210px;
+  max-width: 260px;
+  background-color: #FFF3E0;
+  border: 1px solid #FFCC80;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+  overflow: visible;
+  z-index: 40;
+}
+
+.commission-breakdown-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: #333;
 }
 
-.welcome-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.commission-breakdown-row + .commission-breakdown-row {
+  margin-top: 4px;
 }
 
-.date-display-inline {
+.commission-breakdown-agent {
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.commission-breakdown-amount {
+  text-align: right;
+  font-weight: 500;
+}
+
+.day-box-profile .date-text {
+  font-size: 12.72px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+}
+
+.day-box-profile .welcome-content {
   display: flex;
   align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.day-box-profile {
+  margin-right: auto;
+  width: 248px;
+  min-width: 248px;
+  border: 0 !important;
+  padding-top: 6px;
 }
 
 .profile-picture {
@@ -196,32 +336,17 @@
 }
 
 .welcome-label {
-  font-size: 14px;
-  color: #666;
+  font-size: 14.33px;
+  color: #4f6480;
   font-weight: 400;
+  line-height: 1.2;
 }
 
 .user-name {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
-}
-
-.reservation-section {
-  margin-bottom: 4px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  & + .reservation-section {
-    margin-top: 0;
-  }
-}
-
-/* Keep dashboard accordion tabs tightly stacked like standard form pages. */
-:host ::ng-deep .reservation-tables .mat-accordion .mat-expansion-panel-spacing {
-  margin: 0 !important;
+  color: #1e3a68;
+  line-height: 1.15;
 }
 
 .section-title {
@@ -289,6 +414,58 @@
     font-size: inherit !important;
     line-height: inherit !important;
   }
+}
+
+/* Arrivals status selector: show single blue underlined letter, click opens dropdown. */
+:host ::ng-deep td.mat-cell.mat-column-arrivalPropertyStatusDropdown,
+:host ::ng-deep td.mat-mdc-cell.mat-column-arrivalPropertyStatusDropdown {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+
+  .mat-mdc-select-arrow-wrapper {
+    display: none !important;
+  }
+
+  .mat-mdc-select-trigger {
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+    justify-content: center;
+    color: #0d47a1 !important;
+    text-decoration: underline;
+  }
+
+  .mat-mdc-select,
+  .mat-mdc-select-min-line,
+  .mat-mdc-select-value,
+  .mat-mdc-select-value-text,
+  .mat-mdc-select-trigger {
+    color: #1d4ed8 !important;
+    text-decoration: underline;
+    font-weight: 600;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+
+  .mat-mdc-select-value-text {
+    text-align: center;
+  }
+}
+
+:host ::ng-deep .dashboard-status-panel .mat-mdc-option {
+  min-height: 26px !important;
+  height: 26px !important;
+}
+
+:host ::ng-deep .dashboard-status-panel .mat-mdc-option .mdc-list-item__primary-text {
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+:host ::ng-deep .dashboard-status-panel {
+  min-width: 140px !important;
+  width: 140px !important;
+  max-width: 140px !important;
 }
 
 .loading-container {
@@ -373,11 +550,6 @@
     padding: 16px;
   }
 
-  .dashboard-main-content {
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 200px);
-    gap: 16px;
-  }
-
   .day-box {
     padding: 14px;
   }
@@ -400,27 +572,21 @@
 }
 
 @media (max-width: 1280px) {
-  .dashboard-main-content {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar-content {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
   .welcome-tile {
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 12px;
     margin-bottom: 24px;
+  }
+
+  .welcome-stats-strip {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
   }
 }
 
 @media (max-width: 900px) {
-  .sidebar-content {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .day-box-compact {
+    min-width: 120px;
   }
 }
 
@@ -429,8 +595,13 @@
     padding: 12px;
   }
 
-  .sidebar-content {
-    grid-template-columns: 1fr;
+  .welcome-stats-strip {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .day-box-compact {
+    min-width: 120px;
   }
 
   .day-box {

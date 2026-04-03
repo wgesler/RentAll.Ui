@@ -25,29 +25,118 @@
       <div class="dashboard-content">
         <!-- Welcome Tile -->
         <div class="welcome-tile">
-          <div class="welcome-content">
-            @if (profilePictureUrl) {
-              <img [src]="profilePictureUrl" alt="Profile Picture" class="profile-picture" />
-            } @else {
-              <mat-icon class="profile-icon">person</mat-icon>
-            }
-            <div class="welcome-text">
-              <span class="welcome-label">Welcome</span>
-              <span class="user-name">{{ getFullName() }}</span>
+          <div class="welcome-stats-strip">
+            <div class="day-box day-box-profile day-box-compact">
+              <p class="date-text">{{ todayDate }}</p>
+              <div class="welcome-content">
+                @if (profilePictureUrl) {
+                  <img [src]="profilePictureUrl" alt="Profile Picture" class="profile-picture" />
+                } @else {
+                  <mat-icon class="profile-icon">person</mat-icon>
+                }
+                <div class="welcome-text">
+                  <span class="welcome-label">Welcome</span>
+                  <span class="user-name">{{ getFullName() }}</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="date-display-inline">
-            <p class="date-text">{{ todayDate }}</p>
+
+            <div class="day-box day-box-today day-box-compact">
+              <div class="day-box-text">
+                <h4 class="day-title">
+                  <span>Arrivals/Departures</span>
+                  <span class="day-name">Today</span>
+                </h4>
+                <div class="icon-number-row">
+                  <mat-icon class="calendar-icon-below">calendar_today</mat-icon>
+                  <span class="total-number">{{ getTodayTotal() }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-box day-box-tomorrow day-box-compact">
+              <div class="day-box-text">
+                <h4 class="day-title">
+                  <span>Arrivals/Departures</span>
+                  <span class="day-name">Tomorrow</span>
+                </h4>
+                <div class="icon-number-row">
+                  <mat-icon class="calendar-icon-below">event</mat-icon>
+                  <span class="total-number">{{ getTomorrowTotal() }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-box day-box-reservations day-box-compact">
+              <div class="day-box-text">
+                <h4 class="day-title">
+                  <span>Properties</span>
+                </h4>
+                @if (isLoadingProperties) {
+                  <div class="loading-container-small">
+                    <mat-spinner [diameter]="18"></mat-spinner>
+                  </div>
+                } @else {
+                  <div class="reservations-stats compact-stats">
+                    <div class="stat-row">
+                      <span class="stat-label">Rented</span>
+                      <span class="stat-value">{{ rentedCount }}</span>
+                    </div>
+                    <div class="stat-row">
+                      <span class="stat-label">Vacant</span>
+                      <span class="stat-value">{{ vacantCount }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (canViewCommissions) {
+              <div
+                class="day-box day-box-commissions day-box-compact"
+                [class.commission-tile-clickable]="isAdmin"
+                (click)="onCommissionTileClick($event)">
+                <div class="day-box-text">
+                  <h4 class="day-title">
+                    <span>Commissions</span>
+                    <span class="day-name">{{ getCurrentMonthDisplay() }}</span>
+                  </h4>
+                  <div class="stat-row commission-summary-row">
+                    <span class="stat-label">
+                      {{ currentUserAgentCode || 'N/A' }}
+                    </span>
+                    <button
+                      type="button"
+                      class="commission-toggle-button stat-value commission-amount"
+                      (click)="toggleMonthlyCommissionAmount()"
+                      [attr.aria-label]="showMonthlyCommissionAmount ? 'Hide monthly commission amount' : 'Show monthly commission amount'"
+                      [title]="showMonthlyCommissionAmount ? 'Click to hide amount' : 'Show amount'">
+                      {{ getCommissionAmountDisplay(getMonthlyCommissionTotal()) }}
+                    </button>
+                  </div>
+                </div>
+                @if (isAdmin && showCommissionBreakdown) {
+                  <div class="commission-breakdown-popover">
+                    @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
+                      <div class="commission-breakdown-row">
+                        <span class="commission-breakdown-agent">{{ row.agentCode }}</span>
+                        <span class="commission-breakdown-amount">${{ row.amount.toFixed(2) }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
           </div>
         </div>
 
-        <!-- Main Content Area with Tables and Sidebar -->
+        <!-- Main Content Area -->
         <div class="dashboard-main-content">
           <!-- Reservation Tables -->
           <div class="reservation-tables">
             <!-- Upcoming Properties Table -->
             <mat-expansion-panel
-              class="reservation-section"
               [(expanded)]="expandedSections.properties">
               <mat-expansion-panel-header>
                 <mat-panel-title>
@@ -63,7 +152,7 @@
                 <div class="tableDiv">
                   <app-data-table
                     [data]="upcomingArrivals"
-                    [columns]="reservationsDisplayedColumns"
+                    [columns]="arrivalsReservationsDisplayedColumns"
                     [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
                     [hasColumnIndex]="false"
                     [hasFilter]="false"
@@ -72,9 +161,12 @@
                     [hasActionsRowClick]="true"
                     [hasActionsEdit]="false"
                     [hasActionsDelete]="false"
+                    [hasPropertyCodeLink]="true"
                     [itemsPerPage]="50"
                     (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
+                    (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
                     (rowClickEvent)="goToReservation($event)"
+                    (propertyCodeClickEvent)="goToProperty($event)"
                     (contactClickEvent)="goToContact($event)"/>
 
                   @if (upcomingDepartures.length > 0) {
@@ -83,7 +175,7 @@
                     </div>
                     <app-data-table
                       [data]="upcomingDepartures"
-                      [columns]="reservationsDisplayedColumns"
+                      [columns]="departuresReservationsDisplayedColumns"
                       [hasColumnIndex]="false"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -91,9 +183,12 @@
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="false"
                       [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
                       [itemsPerPage]="50"
                       (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
+                      (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
                       (rowClickEvent)="goToReservation($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
                       (contactClickEvent)="goToContact($event)"/>
                   }
 
@@ -110,8 +205,10 @@
                     [hasActionsRowClick]="true"
                     [hasActionsEdit]="false"
                     [hasActionsDelete]="false"
+                    [hasPropertyCodeLink]="true"
                     [itemsPerPage]="50"
-                    (rowClickEvent)="goToProperty($event)"/>
+                    (rowClickEvent)="goToProperty($event)"
+                    (propertyCodeClickEvent)="goToProperty($event)"/>
                 </div>
               }
             </mat-expansion-panel>
@@ -119,7 +216,6 @@
             <!-- Monthly Commissions Table -->
             @if (canViewCommissions) {
               <mat-expansion-panel 
-                class="reservation-section"
                 [(expanded)]="expandedSections.monthlyCommissions">
                 <mat-expansion-panel-header>
                   <mat-panel-title>
@@ -152,8 +248,10 @@
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="false"
                       [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
                       [itemsPerPage]="50"
                       (rowClickEvent)="goToReservation($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
                       (contactClickEvent)="goToContact($event)"/>
                   </div>
                 }
@@ -161,91 +259,6 @@
             }
 
           </div>
-
-          <!-- Right Sidebar -->
-          <aside class="dashboard-sidebar">
-            <div class="sidebar-content">
-              <!-- Today Box -->
-              <div class="day-box day-box-today">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Arrivals/Departures</span>
-                    <span class="day-name">Today</span>
-                  </h4>
-                  <div class="icon-number-row">
-                    <mat-icon class="calendar-icon-below">calendar_today</mat-icon>
-                    <span class="total-number">{{ getTodayTotal() }}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Tomorrow Box -->
-              <div class="day-box day-box-tomorrow">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Arrivals/Departures</span>
-                    <span class="day-name">Tomorrow</span>
-                  </h4>
-                  <div class="icon-number-row">
-                    <mat-icon class="calendar-icon-below">event</mat-icon>
-                    <span class="total-number">{{ getTomorrowTotal() }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Properties Box -->
-              <div class="day-box day-box-reservations">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Properties</span>
-                  </h4>
-                  @if (isLoadingProperties) {
-                    <div class="loading-container-small">
-                      <mat-spinner [diameter]="24"></mat-spinner>
-                    </div>
-                  } @else {
-                    <div class="reservations-stats">
-                      <div class="stat-row">
-                        <span class="stat-label">Rented:</span>
-                        <span class="stat-value">{{ rentedCount }}</span>
-                      </div>
-                      <div class="stat-row">
-                        <span class="stat-label">Vacant:</span>
-                        <span class="stat-value">{{ vacantCount }}</span>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              <!-- Monthly Commissions Box -->
-              @if (canViewCommissions) {
-                <div class="day-box day-box-commissions">
-                  <div class="day-box-text">
-                    <h4 class="day-title">
-                      <span>Monthly Commission</span>
-                      <span class="day-name">{{ getCurrentMonthDisplay() }}</span>
-                    </h4>
-                    <div class="reservations-stats">
-                      @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
-                        <div class="stat-row">
-                          <span class="stat-label">{{ row.agentCode }}</span>
-                          <button
-                            type="button"
-                            class="commission-toggle-button stat-value commission-amount"
-                            (click)="toggleMonthlyCommissionAmount()"
-                            [attr.aria-label]="showMonthlyCommissionAmount ? 'Hide monthly commission amount' : 'Show monthly commission amount'"
-                            [title]="showMonthlyCommissionAmount ? 'Click to hide amount' : 'Click to show amount'">
-                            {{ getCommissionAmountDisplay(row.amount) }}
-                          </button>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                </div>
-              }
-            </div>
-          </aside>
         </div>
       </div>
     </mat-card>

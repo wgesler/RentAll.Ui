@@ -814,6 +814,11 @@ export class MappingService {
         monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
+        paymentReceived: this.toBooleanValue(o.paymentReceived),
+        welcomeLetterSent: this.toBooleanValue(o.welcomeLetterSent),
+        readyForArrival: this.toBooleanValue(o.readyForArrival),
+        code: this.toBooleanValue(o.code),
+        departureLetterSent: this.toBooleanValue(o.departureLetterSent),
         creditDue: o.creditDue,
         hasCredit: o.creditDue > 0,
         reservationStatusId: o.reservationStatusId,
@@ -904,6 +909,28 @@ export class MappingService {
       return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
     }
     return null;
+  }
+
+  private toBooleanValue(value: unknown): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value === 1;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) {
+        return false;
+      }
+      if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'n') {
+        return false;
+      }
+    }
+    return false;
   }
 
   isViewableInBrowser(contentType: string, fileExtension: string): boolean {

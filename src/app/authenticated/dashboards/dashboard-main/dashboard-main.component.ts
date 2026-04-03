@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subscription, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -11,7 +11,7 @@ import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../p
 import { PropertyService } from '../../properties/services/property.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
-import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ExtraFeeLineRequest, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -22,7 +22,7 @@ import { FormsModule } from '@angular/forms';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
-import { getPropertyStatus, getPropertyStatuses } from '../../properties/models/property-enums';
+import { getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 
@@ -45,12 +45,18 @@ export interface MonthlyCommissionTileRow {
 type TurnoverReservationDisplay = ReservationListDisplay & {
   propertyStatusId?: number;
   propertyStatusText: string;
-  propertyStatusDropdown: {
+  propertyStatusLetter: string;
+  arrivalPropertyStatusDropdown: {
     value: string;
     isOverridable: boolean;
+    options?: string[];
+    panelClass?: string | string[];
+    triggerText?: string;
     toString: () => string;
   };
 };
+
+type TurnoverCheckboxColumn = 'paymentReceived' | 'welcomeLetterSent' | 'readyForArrival' | 'code' | 'departureLetterSent';
 
 @Component({
     standalone: true,
@@ -88,6 +94,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   adminCommissionRatesByAgentCode = new Map<string, number>();
   showMonthlyCommissionAmount: boolean = false;
+  showCommissionBreakdown: boolean = false;
   monthlyCommissions: MonthlyCommissionDisplay[] = [];
 
   allProperties: PropertyListResponse[] = [];
@@ -106,16 +113,29 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
 
-  reservationsDisplayedColumns: ColumnSet = {
+  arrivalsReservationsDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'agentCode': { displayAs: 'Agent', maxWidth: '10ch' },
-    'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '15ch', options: this.propertyStatusLabels },
     'tenantName': { displayAs: 'Occupant', maxWidth: '20ch', wrap: false},
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
-    'companyName': { displayAs: 'Company', maxWidth: '20ch' , wrap: false},
-    'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
-    'departureDate': { displayAs: 'Departure', maxWidth: '20ch' },
+    'arrivalDate': { displayAs: 'Arrival', maxWidth: '15ch' , alignment: 'center' },
+    'arrivalPropertyStatusDropdown': { displayAs: 'Status', maxWidth: '8ch', alignment: 'center', options: this.propertyStatusLabels },
+    'paymentReceived': { displayAs: 'Payment', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'welcomeLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'readyForArrival': { displayAs: 'Ready', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'code': { displayAs: 'Code', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+   };
+
+  departuresReservationsDisplayedColumns: ColumnSet = {
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    'agentCode': { displayAs: 'Agent', maxWidth: '10ch' },
+    'tenantName': { displayAs: 'Occupant', maxWidth: '20ch', wrap: false},
+    'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
+    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center' },
+    'arrivalPropertyStatusDropdown': { displayAs: 'Status', maxWidth: '8ch', alignment: 'center', options: this.propertyStatusLabels },
+    'departureLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
   };
 
   propertiesDisplayedColumns: ColumnSet = {
@@ -124,18 +144,18 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'ownerName': { displayAs: 'Owner', maxWidth: '20ch' , wrap: false},
     'bedrooms': { displayAs: 'Beds', maxWidth: '15ch', alignment: 'center' },
     'bathrooms': { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' },
-    'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '15ch', alignment: 'center' },
-    'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '20ch', alignment: 'center' },
+    'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '10ch', alignment: 'center' },
+    'lastDepartureDate': { displayAs: 'Last Departure', maxWidth: '15ch', alignment: 'center' },
   };
 
   monthlyCommissionsDisplayedColumns: ColumnSet = {
     'agentCode': { displayAs: 'Agent', maxWidth: '15ch' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' },
-    'departureDate': { displayAs: 'Departure', maxWidth: '20ch' },
-    'daysRented': { displayAs: 'Days Rented', maxWidth: '15ch' },    
-    'commission': { displayAs: 'Commission', maxWidth: '15ch' },
+    'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch', alignment: 'center' },
+    'departureDate': { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
+    'daysRented': { displayAs: 'Days Rented', maxWidth: '15ch', alignment: 'center' },    
+    'commission': { displayAs: 'Commission', maxWidth: '15ch', alignment: 'center' },
   };
 
   constructor(
@@ -168,7 +188,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     }
 
     this.loadOffices();
+    this.loadReservations();
+    this.loadProperties();
     this.loadCurrentUser(this.user.userId);
+
     if (this.isAdmin) {
       this.adminUsers = [];
       this.adminAgents = [];
@@ -177,9 +200,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       this.loadUsers();
       this.loadAgents();
     }
-
-    this.loadReservations();
-    this.loadProperties();
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
@@ -412,6 +432,25 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   toggleMonthlyCommissionAmount(): void {
     this.showMonthlyCommissionAmount = !this.showMonthlyCommissionAmount;
+  }
+
+  onCommissionTileClick(event: MouseEvent): void {
+    if (!this.isAdmin) {
+      return;
+    }
+    event.stopPropagation();
+    this.showCommissionBreakdown = !this.showCommissionBreakdown;
+    if (!this.showCommissionBreakdown) {
+      this.showMonthlyCommissionAmount = false;
+    }
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showCommissionBreakdown) {
+      this.showMonthlyCommissionAmount = false;
+    }
+    this.showCommissionBreakdown = false;
   }
   
   setTodayDate(): void {
@@ -661,21 +700,56 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     }
   }
 
-  goToProperty(event: PropertyVacancyDisplay): void {
+  goToProperty(event: { propertyId: string }): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]);
     this.router.navigateByUrl(url);
   }
   //#endregion
 
-  //#region Property Status Methods
+  //#region Dynamic Update Methods
+  onTurnoverReservationCheckboxChange(event: TurnoverReservationDisplay): void {
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn as TurnoverCheckboxColumn | undefined;
+    if (!this.isTurnoverCheckboxColumn(changedCheckboxColumn)) {
+      return;
+    }
+
+    const previousValue = this.toBoolean((event as any)?.__previousCheckboxValue);
+    const nextValue = this.toBoolean((event as any)?.__checkboxValue);
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyTurnoverCheckboxValue(event.reservationId, changedCheckboxColumn, nextValue);
+
+    this.reservationService.getReservationByGuid(event.reservationId).pipe(take(1), 
+      switchMap((reservation: ReservationResponse) => {
+        const reservationRequest = this.buildReservationRequestForCheckboxUpdate(reservation, changedCheckboxColumn, nextValue);
+        return this.reservationService.updateReservation(reservationRequest).pipe(take(1));
+      })
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Reservation updated.', CommonMessage.Success);
+      },
+      error: (err: any) => {
+        this.applyTurnoverCheckboxValue(event.reservationId, changedCheckboxColumn, previousValue);
+        const validationMessage = this.getReservationUpdateErrorMessage(err);
+        if (validationMessage) {
+          this.toastr.error(validationMessage, CommonMessage.Error, { timeOut: 10000 });
+          return;
+        }
+        this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+      }
+    });
+  }
+
   onTurnoverPropertyStatusChange(event: TurnoverReservationDisplay): void {
-    const selectedLabel = event.propertyStatusDropdown?.value ?? '';
+    const selectedLabel = event.arrivalPropertyStatusDropdown?.value ?? '';
     const selectedStatusId = this.propertyStatusByLabel.get(selectedLabel);
     const previousStatusId = event.propertyStatusId;
     const previousLabel = event.propertyStatusText;
 
     if (selectedStatusId === undefined) {
-      event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+      event.arrivalPropertyStatusDropdown = this.buildArrivalStatusDropdownCell(previousLabel, previousStatusId);
       return;
     }
 
@@ -683,13 +757,13 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return;
     }
 
-    event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
+    event.propertyStatusLetter = getPropertyStatusLetter(selectedStatusId);
+    event.arrivalPropertyStatusDropdown = this.buildArrivalStatusDropdownCell(selectedLabel, selectedStatusId, false);
 
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
-      take(1),
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
       switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
       finalize(() => {
-        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
+        event.arrivalPropertyStatusDropdown = this.buildArrivalStatusDropdownCell(event.propertyStatusText, event.propertyStatusId);
       })
     ).subscribe({
       next: () => {
@@ -704,18 +778,143 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       error: () => {
         event.propertyStatusId = previousStatusId;
         event.propertyStatusText = previousLabel;
-        event.propertyStatusDropdown = this.buildStatusDropdownCell(previousLabel);
+        event.propertyStatusLetter = getPropertyStatusLetter(previousStatusId ?? -1);
+        event.arrivalPropertyStatusDropdown = this.buildArrivalStatusDropdownCell(previousLabel, previousStatusId);
         this.toastr.error('Unable to update property status.', CommonMessage.Error);
       }
     });
   }
 
-  buildStatusDropdownCell(label: string, isOverridable: boolean = true): TurnoverReservationDisplay['propertyStatusDropdown'] {
+  buildArrivalStatusDropdownCell(
+    label: string,
+    statusId?: number,
+    isOverridable: boolean = true
+  ): TurnoverReservationDisplay['arrivalPropertyStatusDropdown'] {
     return {
       value: label,
       isOverridable,
+      options: this.propertyStatusLabels,
+      panelClass: ['datatable-dropdown-panel', 'dashboard-status-panel'],
+      triggerText: getPropertyStatusLetter(statusId ?? -1),
       toString: () => label
     };
+  }
+
+  isTurnoverCheckboxColumn(value: string | undefined): value is TurnoverCheckboxColumn {
+    return value === 'paymentReceived'
+      || value === 'welcomeLetterSent'
+      || value === 'readyForArrival'
+      || value === 'code'
+      || value === 'departureLetterSent';
+  }
+
+  applyTurnoverCheckboxValue(reservationId: string, column: TurnoverCheckboxColumn, value: boolean): void {
+    const nextValue = !!value;
+    this.allReservations = this.allReservations.map(reservation =>
+      reservation.reservationId === reservationId
+        ? { ...reservation, [column]: nextValue }
+        : reservation
+    );
+    this.upcomingArrivals = this.upcomingArrivals.map(reservation =>
+      reservation.reservationId === reservationId
+        ? { ...reservation, [column]: nextValue }
+        : reservation
+    );
+    this.upcomingDepartures = this.upcomingDepartures.map(reservation =>
+      reservation.reservationId === reservationId
+        ? { ...reservation, [column]: nextValue }
+        : reservation
+    );
+  }
+
+  buildReservationRequestForCheckboxUpdate(
+    reservation: ReservationResponse,
+    column: TurnoverCheckboxColumn,
+    value: boolean
+  ): ReservationRequest {
+    const paymentReceived = column === 'paymentReceived' ? value : this.toBoolean(reservation.paymentReceived);
+    const welcomeLetterSent = column === 'welcomeLetterSent' ? value : this.toBoolean(reservation.welcomeLetterSent);
+    const readyForArrival = column === 'readyForArrival' ? value : this.toBoolean(reservation.readyForArrival);
+    const code = column === 'code' ? value : this.toBoolean(reservation.code);
+    const departureLetterSent = column === 'departureLetterSent' ? value : this.toBoolean(reservation.departureLetterSent);
+
+    const extraFeeLines: ExtraFeeLineRequest[] = (reservation.extraFeeLines || []).map(line => ({
+      extraFeeLineId: line.extraFeeLineId,
+      reservationId: line.reservationId,
+      feeDescription: line.feeDescription,
+      feeAmount: line.feeAmount,
+      feeFrequencyId: line.feeFrequencyId,
+      costCodeId: line.costCodeId
+    }));
+
+    const {
+      officeName: _officeName,
+      contactName: _contactName,
+      createdOn: _createdOn,
+      createdBy: _createdBy,
+      modifiedOn: _modifiedOn,
+      modifiedBy: _modifiedBy,
+      extraFeeLines: _extraFeeLines,
+      ...requestBase
+    } = reservation;
+
+    return {
+      ...requestBase,
+      organizationId: reservation.organizationId || '',
+      tenantName: reservation.tenantName || '',
+      referenceNo: reservation.referenceNo || '',
+      lockBoxCode: reservation.lockBoxCode ?? null,
+      unitTenantCode: reservation.unitTenantCode ?? null,
+      reservationNoticeId: reservation.reservationNoticeId ?? 0,
+      depositTypeId: reservation.depositTypeId ?? 0,
+      petDescription: reservation.petDescription ?? null,
+      extraFeeLines,
+      notes: reservation.notes ?? null,
+      allowExtensions: reservation.allowExtensions,
+      paymentReceived,
+      welcomeLetterSent,
+      readyForArrival,
+      code,
+      departureLetterSent,
+      currentInvoiceNo: reservation.currentInvoiceNo,
+      creditDue: reservation.creditDue,
+      isActive: reservation.isActive
+    };
+  }
+
+  toBoolean(value: unknown): boolean {
+    return value === true || value === 1 || value === '1' || value === 'true';
+  }
+
+  getReservationUpdateErrorMessage(error: any): string {
+    if (!error || error.status !== 400) {
+      return '';
+    }
+
+    const payload = error.error;
+    if (!payload || typeof payload !== 'object') {
+      return '';
+    }
+
+    const baseMessage = payload.title || payload.message || payload.Message || 'Validation failed.';
+    const details = payload.errors;
+    if (!details || typeof details !== 'object') {
+      return baseMessage;
+    }
+
+    const fieldMessages: string[] = [];
+    Object.keys(details).forEach(key => {
+      const errors = details[key];
+      if (Array.isArray(errors) && errors.length > 0) {
+        fieldMessages.push(`${key}: ${errors.join(', ')}`);
+      }
+    });
+
+    if (fieldMessages.length === 0) {
+      return baseMessage;
+    }
+
+    return `${baseMessage}\n${fieldMessages.join('\n')}`;
   }
 
   buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
@@ -810,6 +1009,20 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         return true;
       }
       return typeof property.vacancyDays === 'number' && property.vacancyDays > 0;
+    }).sort((a, b) => {
+      const aDays = a.vacancyDays;
+      const bDays = b.vacancyDays;
+
+      if (aDays === null && bDays === null) {
+        return (a.propertyCode || '').localeCompare(b.propertyCode || '');
+      }
+      if (aDays === null) {
+        return -1;
+      }
+      if (bDays === null) {
+        return 1;
+      }
+      return bDays - aDays;
     });
 
     this.rentedCount = rentedPropertyIds.size;
@@ -834,11 +1047,13 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   ): TurnoverReservationDisplay {
     const propertyStatusId = propertyStatusByPropertyId.get(reservation.propertyId);
     const propertyStatusText = getPropertyStatus(propertyStatusId);
+    const propertyStatusLetter = getPropertyStatusLetter(propertyStatusId ?? -1);
     return {
       ...reservation,
       propertyStatusId,
       propertyStatusText,
-      propertyStatusDropdown: this.buildStatusDropdownCell(propertyStatusText)
+      propertyStatusLetter,
+      arrivalPropertyStatusDropdown: this.buildArrivalStatusDropdownCell(propertyStatusText, propertyStatusId)
     };
   }
   //#endregion

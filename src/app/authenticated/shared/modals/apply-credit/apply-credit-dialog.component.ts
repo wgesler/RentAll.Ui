@@ -136,6 +136,11 @@ export class ApplyCreditDialogComponent implements OnInit {
           })),
           notes: reservation.notes,
           allowExtensions: reservation.allowExtensions,
+          paymentReceived: reservation.paymentReceived,
+          welcomeLetterSent: reservation.welcomeLetterSent,
+          readyForArrival: reservation.readyForArrival,
+          code: reservation.code,
+          departureLetterSent: reservation.departureLetterSent,
           currentInvoiceNo: reservation.currentInvoiceNo,
           creditDue: (reservation.creditDue || 0) + this.creditAmount, // Add the credit amount to existing creditDue
           isActive: reservation.isActive

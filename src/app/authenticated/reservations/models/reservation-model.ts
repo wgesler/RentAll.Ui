@@ -39,6 +39,11 @@ export interface ReservationRequest {
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
+  paymentReceived: boolean;
+  welcomeLetterSent: boolean;
+  readyForArrival: boolean;
+  code: boolean;
+  departureLetterSent: boolean;
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean; 
@@ -85,6 +90,11 @@ export interface ReservationResponse {
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;
+  paymentReceived: boolean;
+  welcomeLetterSent: boolean;
+  readyForArrival: boolean;
+  code: boolean;
+  departureLetterSent: boolean;
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
@@ -114,9 +124,14 @@ export interface ReservationListResponse {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
+  hasPets?: boolean | null;
+  paymentReceived: boolean;
+  welcomeLetterSent: boolean;
+  readyForArrival: boolean;
+  code: boolean;
+  departureLetterSent: boolean;
   currentInvoiceNo: number;
   creditDue: number;
-  hasPets?: boolean | null;
   isActive: boolean;
   createdOn: string;
 }
@@ -141,7 +156,12 @@ export interface ReservationListDisplay {
   arrivalDate: string;
   departureDate: string;
   reservationStatusId: number;
+  paymentReceived: boolean;
+  welcomeLetterSent: boolean;
+  readyForArrival: boolean;
+  code: boolean;
   creditDue: number;
+  departureLetterSent: boolean;
   hasCredit?: boolean | null;
   isActive: boolean;
   createdOn: string;

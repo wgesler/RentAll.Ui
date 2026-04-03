@@ -409,6 +409,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         })),
         notes: reservation.notes,
         allowExtensions: reservation.allowExtensions,
+        paymentReceived: reservation.paymentReceived,
+        welcomeLetterSent: reservation.welcomeLetterSent,
+        readyForArrival: reservation.readyForArrival,
+        code: reservation.code,
+        departureLetterSent: reservation.departureLetterSent,
         currentInvoiceNo: reservation.currentInvoiceNo,
         creditDue: newCreditDue,
         isActive: reservation.isActive

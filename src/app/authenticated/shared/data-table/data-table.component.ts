@@ -123,6 +123,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() deleteEvent = new EventEmitter<PurposefulAny>();
   @Output() downloadEvent = new EventEmitter<PurposefulAny>();
   @Output() dropdownChangeEvent = new EventEmitter<PurposefulAny>();
+  @Output() checkboxChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() editEvent = new EventEmitter<PurposefulAny>();
   @Output() lockEvent = new EventEmitter<PurposefulAny>();
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
@@ -436,6 +437,18 @@ export class DataTableComponent implements OnChanges, OnInit {
       rowItem.__changedDropdownColumn = columnName;
     }
     this.dropdownChangeEvent.emit(rowItem);
+  }
+
+  emitCheckboxChangeEvent(event: MatCheckboxChange, rowItem: PurposefulAny, columnName: string): void {
+    if (!this.getColumnByName(columnName)?.checkboxEditable) {
+      return;
+    }
+    const previousValue = !!rowItem[columnName];
+    rowItem[columnName] = event.checked;
+    rowItem.__changedCheckboxColumn = columnName;
+    rowItem.__previousCheckboxValue = previousValue;
+    rowItem.__checkboxValue = event.checked;
+    this.checkboxChangeEvent.emit(rowItem);
   }
 
   emitInlineEditChangeEvent(rowItem: PurposefulAny, columnName: string, value: string): void {

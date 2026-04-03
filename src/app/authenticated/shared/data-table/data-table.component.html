@@ -284,12 +284,16 @@
                   } @else if (column.isCheckbox) {
                     <div class="datatable-checkbox-cell">
                       <mat-checkbox [checked]="column.name === 'needsMaintenance' ? true : item[column.name]"
+                        [disabled]="!column.checkboxEditable"
+                        (change)="emitCheckboxChangeEvent($event, item, column.name || '')"
+                        (click)="$event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
                         [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
                         [class.needs-maintenance-alert]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'red' || (!item?.needsMaintenanceState && item[column.name]))"
                         [class.needs-maintenance-warning]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'yellow'"
                         [class.needs-maintenance-missing]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'grey'"
                         [class.needs-maintenance-ok]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'green' || (!item?.needsMaintenanceState && !item[column.name]))"
-                        disabled/>
+                      />
                     </div>
                   } @else if (item[column.name]?.options?.length || column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
@@ -299,6 +303,9 @@
                           (mousedown)="$event.stopPropagation()"
                           [panelClass]="item[column.name]?.panelClass || 'datatable-dropdown-panel'"
                           [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item, column.name)">
+                          @if (item[column.name]?.triggerText) {
+                            <mat-select-trigger>{{ item[column.name]?.triggerText }}</mat-select-trigger>
+                          }
                           @for (option of (item[column.name]?.options || column.options || []); track option) {
                             <mat-option [value]="option" id="option-{{column}}-{{$index}}">
                               {{option}}
