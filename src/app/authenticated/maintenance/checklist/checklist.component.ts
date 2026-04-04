@@ -77,8 +77,6 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   sectionSetCounts: Record<string, number> = {};
   sectionSetItems: Record<string, ChecklistItem[][]> = {};
   nextItemId = 0;
-  lastSavedStateSignature = '';
-  hasSavedStateSignature = false;
   selectionModeOptions: Array<{ value: 'allRequired' | 'exactlyOne' | 'atLeastOne'; label: string }> = [
     { value: 'allRequired', label: 'All Required' },
     { value: 'exactlyOne', label: 'Exactly One' },
@@ -613,39 +611,28 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
   }
 
-  getCurrentStateSignature(): string {
-    if (!this.form || this.sections.length === 0) {
-      return '';
-    }
-    return this.isTemplateMode
-      ? this.buildChecklistTemplateJson()
-      : this.buildChecklistAnswersJson();
-  }
-
   captureSavedStateSignature(): void {
-    this.lastSavedStateSignature = this.getCurrentStateSignature();
-    this.hasSavedStateSignature = true;
     this.form?.markAsPristine();
+    this.form?.markAsUntouched();
   }
 
   hasUnsavedChanges(): boolean {
     if (this.isReadonlyMode || this.isSavingInProgress || !this.form) {
       return false;
     }
-    const currentSignature = this.getCurrentStateSignature();
-    if (!this.hasSavedStateSignature) {
-      this.lastSavedStateSignature = currentSignature;
-      this.hasSavedStateSignature = true;
-      return false;
-    }
-    return currentSignature !== this.lastSavedStateSignature;
+    return this.form.dirty;
   }
 
   async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
     if (!this.hasUnsavedChanges()) {
       return true;
     }
-    return this.unsavedChangesDialogService.confirmLeave();
+    const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
+    if (action === 'save') {
+      return this.saveChecklistDataAndWait();
+    }
+    this.discardUnsavedChanges();
+    return true;
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -657,17 +644,43 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     event.returnValue = '';
   }
 
-  saveChecklistData(submitRequested: boolean = false): void {
+  discardUnsavedChanges(): void {
+    if (this.isTemplateMode) {
+      const savedTemplateJson = this.maintenanceRecord?.inspectionCheckList?.trim() ?? '';
+      if (savedTemplateJson.length > 0) {
+        this.applySavedChecklistJson(savedTemplateJson);
+      } else {
+        this.resetChecklist();
+      }
+      this.captureSavedStateSignature();
+      return;
+    }
+
+    const savedAnswersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
+    if (savedAnswersJson.length > 0) {
+      this.applySavedAnswersJson(savedAnswersJson);
+    } else {
+      this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
+    }
+    this.captureSavedStateSignature();
+  }
+
+  saveChecklistData(submitRequested: boolean = false, onComplete?: (saved: boolean) => void): void {
     if (this.isReadonlyMode) {
+      onComplete?.(false);
       return;
     }
 
     if (this.isTemplateMode) {
-      this.saveTemplate();
+      this.saveTemplate(onComplete);
       return;
     }
 
-    this.saveAnswersData(submitRequested);
+    this.saveAnswersData(submitRequested, onComplete);
+  }
+
+  saveChecklistDataAndWait(submitRequested: boolean = false): Promise<boolean> {
+    return new Promise(resolve => this.saveChecklistData(submitRequested, resolve));
   }
 
   buildChecklistTemplateJson(): string {
@@ -777,8 +790,9 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return JSON.stringify(payload);
   }
 
-  saveTemplate(): void {
+  saveTemplate(onComplete?: (saved: boolean) => void): void {
     if (!this.property) {
+      onComplete?.(false);
       return;
     }
 
@@ -815,10 +829,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
         this.captureSavedStateSignature();
         this.toastr.success('Template saved successfully', CommonMessage.Success);
+        onComplete?.(true);
       },
       error: () => {
         this.isServiceError = true;
         this.toastr.error('Failed to save template/inspection draft', CommonMessage.Error);
+        onComplete?.(false);
       }
     });
   }
@@ -892,13 +908,24 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     ).pipe(map(() => void 0));
   }
 
-  saveAnswersData(submitRequested: boolean = false): void {
+  saveAnswersData(submitRequested: boolean = false, onComplete?: (saved: boolean) => void): void {
+    let hasCompleted = false;
+    const complete = (saved: boolean): void => {
+      if (hasCompleted) {
+        return;
+      }
+      hasCompleted = true;
+      onComplete?.(saved);
+    };
+
     const inspectionChecklistJson = this.buildChecklistAnswersJson();
     if (!this.property) {
+      complete(false);
       return;
     }
     if (!this.maintenanceRecord?.maintenanceId) {
       this.toastr.error('Unable to save inspection.', CommonMessage.Error);
+      complete(false);
       return;
     }
 
@@ -908,29 +935,66 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
 
     const persistInspection = (documentPath: string | null): void => {
       if (this.activeInspection) {
-        const updatePayload: InspectionRequest = {
-          inspectionId: this.activeInspection.inspectionId,
-          organizationId: this.activeInspection.organizationId,
-          officeId: this.activeInspection.officeId,
-          propertyId: this.activeInspection.propertyId,
-          maintenanceId: this.activeInspection.maintenanceId,
-          inspectionCheckList: inspectionChecklistJson,
-          documentPath: documentPath ?? this.activeInspection.documentPath ?? null,
-          isActive: shouldSubmitInspection ? false : this.activeInspection.isActive
-        };
-        this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
-          next: (savedInspectionResponse: InspectionResponse) => {
-            const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
-            this.activeInspection = savedInspection;
-            this.captureSavedStateSignature();
-            this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
-            if (shouldSubmitInspection) {
-              this.inspectionSubmitted.emit();
-            }
+        this.inspectionService.getInspectionById(this.activeInspection.inspectionId).pipe(take(1)).subscribe({
+          next: (latestInspection) => {
+            const updatePayload: InspectionRequest = {
+              inspectionId: latestInspection.inspectionId,
+              organizationId: latestInspection.organizationId,
+              officeId: latestInspection.officeId,
+              propertyId: latestInspection.propertyId,
+              maintenanceId: latestInspection.maintenanceId,
+              inspectionCheckList: inspectionChecklistJson,
+              documentPath: documentPath ?? latestInspection.documentPath ?? null,
+              isActive: shouldSubmitInspection ? false : latestInspection.isActive
+            };
+
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+              next: (savedInspectionResponse: InspectionResponse) => {
+                const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
+                this.activeInspection = savedInspection;
+                this.captureSavedStateSignature();
+                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
+                if (shouldSubmitInspection) {
+                  this.inspectionSubmitted.emit();
+                }
+                complete(true);
+              },
+              error: (_err: HttpErrorResponse) => {
+                this.isServiceError = true;
+                this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+                complete(false);
+              }
+            });
           },
-          error: (_err: HttpErrorResponse) => {
-            this.isServiceError = true;
-            this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+          error: () => {
+            // Fallback to current in-memory inspection model if latest fetch fails.
+            const updatePayload: InspectionRequest = {
+              inspectionId: this.activeInspection!.inspectionId,
+              organizationId: this.activeInspection!.organizationId,
+              officeId: this.activeInspection!.officeId,
+              propertyId: this.activeInspection!.propertyId,
+              maintenanceId: this.activeInspection!.maintenanceId,
+              inspectionCheckList: inspectionChecklistJson,
+              documentPath: documentPath ?? this.activeInspection!.documentPath ?? null,
+              isActive: shouldSubmitInspection ? false : this.activeInspection!.isActive
+            };
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+              next: (savedInspectionResponse: InspectionResponse) => {
+                const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
+                this.activeInspection = savedInspection;
+                this.captureSavedStateSignature();
+                this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
+                if (shouldSubmitInspection) {
+                  this.inspectionSubmitted.emit();
+                }
+                complete(true);
+              },
+              error: (_err: HttpErrorResponse) => {
+                this.isServiceError = true;
+                this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+                complete(false);
+              }
+            });
           }
         });
         return;
@@ -949,6 +1013,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.isSavingAnswersInternal = false;
         this.isServiceError = true;
         this.toastr.error('Unable to save inspection due to missing context.', CommonMessage.Error);
+        complete(false);
         return;
       }
       this.inspectionService.getInspectionsByPropertyId(createPayload.propertyId).pipe(take(1)).subscribe({
@@ -974,10 +1039,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
                 if (shouldSubmitInspection) {
                   this.inspectionSubmitted.emit();
                 }
+                complete(true);
               },
               error: (_err: HttpErrorResponse) => {
                 this.isServiceError = true;
                 this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+                complete(false);
               }
             });
             return;
@@ -992,10 +1059,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               if (shouldSubmitInspection) {
                 this.inspectionSubmitted.emit();
               }
+              complete(true);
             },
             error: (_err: HttpErrorResponse) => {
               this.isServiceError = true;
               this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+              complete(false);
             }
           });
         },
@@ -1009,10 +1078,12 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               if (shouldSubmitInspection) {
                 this.inspectionSubmitted.emit();
               }
+              complete(true);
             },
             error: (_err: HttpErrorResponse) => {
               this.isServiceError = true;
               this.toastr.error(shouldSubmitInspection ? 'Failed to submit inspection' : 'Failed to save inspection', CommonMessage.Error);
+              complete(false);
             }
           });
         }
@@ -1037,6 +1108,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       this.isSavingAnswersInternal = false;
       this.isServiceError = true;
       this.toastr.error('Failed to build inspection document', CommonMessage.Error);
+      complete(false);
       return;
     }
 
@@ -1053,6 +1125,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         this.isSavingAnswersInternal = false;
         this.isServiceError = true;
         this.toastr.error('Failed to generate inspection document', CommonMessage.Error);
+        complete(false);
       }
     });
   }

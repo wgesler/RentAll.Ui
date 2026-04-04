@@ -1,0 +1,165 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">home</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ propertySection?.isAddMode ? 'Add Property' : 'Edit Property' }}
+          </span>
+        </span>
+
+        @if (propertySection?.form) {
+          <div class="header-title form-titlebar-fields-wrap">
+            @if (propertySection?.showOfficeDropdown) {
+              @if (isHeaderOfficeEditable) {
+                <app-titlebar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'flex-shrink-0 titlebar-field-office'"
+                  [value]="propertySection?.form?.get('officeId')?.value ?? null"
+                  [options]="officeOptions"
+                  [nullOptionLabel]="'Select Office'"
+                  [noResultsText]="'No offices match your search'"
+                  (valueChange)="onOfficeDropdownChange($event)">
+                </app-titlebar-select>
+              } @else {
+                <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-office">
+                  <mat-label>Office</mat-label>
+                  <input matInput [value]="sharedOfficeName" readonly [disabled]="true" class="readonly-field">
+                </mat-form-field>
+              }
+            }
+
+            <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              @if (isHeaderPropertyCodeEditable) {
+                <input
+                  matInput
+                  [value]="propertySection?.form?.get('propertyCode')?.value ?? ''"
+                  maxlength="15"
+                  (focus)="onPropertyCodeFocus($event)"
+                  (input)="onPropertyCodeInput($event)">
+              } @else {
+                <input
+                  matInput
+                  [value]="sharedPropertyCode || (propertySection?.isAddMode ? propertySection?.propertyCodeDefaultPrompt : '')"
+                  readonly
+                  [disabled]="true"
+                  class="readonly-field">
+              }
+            </mat-form-field>
+
+            @if (!(propertySection?.isAddMode ?? true) && selectedTabIndex >= 2) {
+              <div class="titlebar-reservation-slot">
+                <app-titlebar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                  [required]="false"
+                  [value]="selectedReservationId ?? null"
+                  [options]="reservationOptions"
+                  [showInstructionOption]="true"
+                  [nullOptionLabel]="selectedTabIndex >= 3 ? 'All Reservations' : 'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onReservationDropdownChange($event)">
+                </app-titlebar-select>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="flex items-center gap-3 ml-[10px]">
+        @if (!(selectedTabIndex === 0 && !(propertySection?.isAddMode ?? true)) && selectedTabIndex !== 2) {
+          <mat-checkbox
+            color="primary"
+            class="flex-shrink-0"
+            [checked]="contextualIsActiveValue"
+            (change)="onContextualIsActiveChange($event.checked)">
+            IsActive
+          </mat-checkbox>
+        }
+        <div class="uniform-gap form-titlebar-actions-wrap">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()" class="text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          @if (showContextualSave && !(selectedTabIndex === 0 && !(propertySection?.isAddMode ?? true)) && selectedTabIndex !== 2) {
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="onContextualSave()" class="text-nowrap flex-shrink-0" [disabled]="contextualSaveDisabled">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Property">
+          <app-property #propertySection></app-property>
+        </mat-tab>
+
+        <mat-tab label="Information">
+          <app-property-information
+            #propertyInformationSection
+            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
+            [copiedPropertyInformation]="propertySection?.copiedPropertyInformation ?? null"
+            [officeId]="propertySection?.sharedOfficeId ?? null"
+            [propertyCode]="propertySection?.sharedPropertyCode"
+            [hideOfficeAndPropertyCode]="true">
+          </app-property-information>
+        </mat-tab>
+
+        <mat-tab label="Welcome Letter">
+          <app-property-welcome-letter
+            #propertyWelcomeLetterSection
+            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
+            [externalReservationId]="propertySection?.sharedReservationId ?? null"
+            [officeId]="propertySection?.sharedOfficeId ?? null"
+            [propertyCode]="propertySection?.sharedPropertyCode"
+            [hideOfficePropertyReservation]="true"
+            [reservations]="propertySection?.reservations ?? []"
+            (reservationSelected)="propertySection?.onWelcomeLetterReservationSelected($event)"
+            (officeIdChange)="propertySection?.onWelcomeLetterOfficeIdChange($event)">
+          </app-property-welcome-letter>
+        </mat-tab>
+
+        <mat-tab label="Emails">
+          <app-email-list
+            #propertyEmailList
+            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
+            [propertyCode]="propertySection?.sharedPropertyCode"
+            [officeId]="propertySection?.sharedOfficeId ?? null"
+            [reservationId]="propertySection?.sharedReservationId"
+            [emailTypeId]="EmailType.PropertyLetter"
+            [source]="'property'"
+            [hideHeader]="true"
+            [hideFilters]="true"
+            [activeOnly]="listIsActiveFilter"
+            [reservations]="propertySection?.reservations ?? []"
+            (reservationIdChange)="propertySection?.onEmailReservationSelected($event)"
+            (officeIdChange)="propertySection?.onEmailOfficeIdChange($event)">
+          </app-email-list>
+        </mat-tab>
+
+        <mat-tab label="Documents">
+          <app-document-list
+            #propertyDocumentList
+            [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
+            [propertyCode]="propertySection?.sharedPropertyCode"
+            [documentTypeId]="DocumentType.PropertyLetter"
+            [officeId]="propertySection?.sharedOfficeId ?? null"
+            [reservationId]="propertySection?.sharedReservationId"
+            [source]="'property'"
+            [reservations]="propertySection?.reservations ?? []"
+            [activeOnly]="listIsActiveFilter"
+            (reservationIdChange)="propertySection?.onDocumentsReservationSelected($event)"
+            (officeIdChange)="propertySection?.onDocumentOfficeIdChange($event)"
+            [hideHeader]="true"
+            [hideFilters]="true">
+          </app-document-list>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

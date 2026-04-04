@@ -487,6 +487,38 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   }
 }
 
+/* Keep title-bar dropdown trigger text vertically centered even when no value is selected. */
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value,
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value-text,
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-min-line,
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .searchable-trigger-value,
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .searchable-trigger-value--placeholder,
+.header-title .mat-mdc-select-placeholder {
+  height: 100% !important;
+  min-height: 100% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1.2 !important;
+  transform: none !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Empty title-bar selects (e.g., Office) should keep label centered with arrow. */
+.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mdc-floating-label:not(.mdc-floating-label--float-above) {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  line-height: 1.2 !important;
+}
+
+/* Global: empty-state mat-select labels should be vertically centered with the trigger arrow. */
+.mat-mdc-form-field-type-mat-select .mdc-floating-label:not(.mdc-floating-label--float-above) {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  line-height: 1.2 !important;
+}
+
 .titlebar-field-reservation {
   width: 460px;
   min-width: 460px;

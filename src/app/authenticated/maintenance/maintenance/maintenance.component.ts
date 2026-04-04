@@ -34,9 +34,8 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;
-  hasUserEdits = false;
-  isInitializingFormState = true;
   user: JwtUser | null = null;
+  savedFormState: Record<string, unknown> | null = null;
   
   maintenanceRecord: MaintenanceResponse | null = null;
   appliances: ApplianceResponse[] = [];
@@ -65,7 +64,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   //#region Maintenance
   ngOnInit(): void {
     this.user = this.authService.getUser();
-    this.trackUserEdits();
     this.setupAssigneeDateSync();
     this.loadMaintenance();
     this.loadAppliances();
@@ -73,13 +71,15 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     this.loadInspectorUsers();
   }
 
-  onSave(): void {
+  onSave(onComplete?: (saved: boolean) => void): void {
     if (!this.property) {
+      onComplete?.(false);
       return;
     }
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      onComplete?.(false);
       return;
     }
 
@@ -162,10 +162,12 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
         this.populateForm();
         this.isSaving = false;
         this.toastr.success('Maintenance saved.', CommonMessage.Success);
+        onComplete?.(true);
       },
       error: () => {
         this.isSaving = false;
         this.toastr.error('Unable to save maintenance.', CommonMessage.Error);
+        onComplete?.(false);
       }
     });
   }
@@ -334,7 +336,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   }
 
   populateForm(): void {
-    this.isInitializingFormState = true;
     const source = this.maintenanceRecord;
     this.form.patchValue({
       maintenanceId: source?.maintenanceId ?? '',
@@ -364,18 +365,23 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });
-    this.resetUserEdits();
+    this.captureSavedStateSignature();
   }
 
   hasUnsavedChanges(): boolean {
-    return this.hasUserEdits && !this.isSaving && !this.isSavingAppliances;
+    return !!this.form?.dirty && !this.isSaving && !this.isSavingAppliances;
   }
 
   async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
     if (!this.hasUnsavedChanges()) {
       return true;
     }
-    return this.unsavedChangesDialogService.confirmLeave();
+    const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
+    if (action === 'save') {
+      return this.saveMaintenanceAndWait();
+    }
+    this.discardUnsavedChanges();
+    return true;
   }
 
   setupAssigneeDateSync(): void {
@@ -472,19 +478,26 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  trackUserEdits(): void {
-    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      if (this.isInitializingFormState) {
-        return;
-      }
-      this.hasUserEdits = true;
-    });
+  captureSavedStateSignature(): void {
+    if (!this.form) {
+      return;
+    }
+    this.savedFormState = structuredClone(this.form.getRawValue() as Record<string, unknown>);
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
   }
 
-  resetUserEdits(): void {
-    this.hasUserEdits = false;
+  saveMaintenanceAndWait(): Promise<boolean> {
+    return new Promise(resolve => this.onSave(resolve));
+  }
+
+  discardUnsavedChanges(): void {
+    if (!this.form || !this.savedFormState) {
+      return;
+    }
+    this.form.reset(structuredClone(this.savedFormState), { emitEvent: false });
     this.form.markAsPristine();
-    this.isInitializingFormState = false;
+    this.form.markAsUntouched();
   }
   //#endregion
 }

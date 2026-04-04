@@ -21,6 +21,7 @@ import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { hasInspectorRole } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
+import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 
 @Component({
   standalone: true,
@@ -49,6 +50,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   property: PropertyResponse | null = null;
   isServiceError = false;
   selectedTabIndex = 0;
+  isHandlingTabGuard = false;
 
   userId = '';
   organizationId = '';
@@ -81,7 +83,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {}
 
   //#region Maintenance
@@ -184,12 +187,22 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   //#endregion
 
   //#region Route/Reload Methods
-  onTabChange(event: { index: number }): void {
-    const nextTabIndex = event.index;
-    if (nextTabIndex === this.selectedTabIndex) {
+  async onTabIndexChange(nextTabIndex: number): Promise<void> {
+    if (this.isHandlingTabGuard || nextTabIndex === this.selectedTabIndex) {
       return;
     }
+
+    this.isHandlingTabGuard = true;
+    const previousTabIndex = this.selectedTabIndex;
     this.selectedTabIndex = nextTabIndex;
+    try {
+      const canLeave = await this.confirmChecklistNavigation();
+      if (!canLeave) {
+        this.selectedTabIndex = previousTabIndex;
+      }
+    } finally {
+      this.isHandlingTabGuard = false;
+    }
   }
 
   onInspectionSubmitted(): void {
@@ -344,11 +357,35 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   async confirmChecklistNavigation(): Promise<boolean> {
-    const canLeaveChecklist = await (this.inspectionChecklist?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
-    if (!canLeaveChecklist) {
-      return false;
+    const hasInspectionChanges = this.inspectionChecklist?.hasUnsavedChanges() ?? false;
+    const hasMaintenanceChanges = this.maintenanceSection?.hasUnsavedChanges() ?? false;
+    if (!hasInspectionChanges && !hasMaintenanceChanges) {
+      return true;
     }
-    return this.maintenanceSection?.confirmNavigationWithUnsavedChanges() ?? true;
+
+    let targetSection: 'inspection' | 'maintenance';
+    if (this.selectedTabIndex === 0 && hasInspectionChanges) {
+      targetSection = 'inspection';
+    } else if (this.selectedTabIndex === 1 && hasMaintenanceChanges) {
+      targetSection = 'maintenance';
+    } else {
+      targetSection = hasInspectionChanges ? 'inspection' : 'maintenance';
+    }
+
+    const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
+    if (action === 'save') {
+      if (targetSection === 'inspection') {
+        return this.inspectionChecklist?.saveChecklistDataAndWait() ?? true;
+      }
+      return this.maintenanceSection?.saveMaintenanceAndWait() ?? true;
+    }
+
+    if (targetSection === 'inspection') {
+      this.inspectionChecklist?.discardUnsavedChanges();
+    } else {
+      this.maintenanceSection?.discardUnsavedChanges();
+    }
+    return true;
   }
   //#endregion
 }

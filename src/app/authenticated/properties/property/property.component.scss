@@ -571,6 +571,32 @@ section.content-card {
   }
 }
 
+:host ::ng-deep .property-shell-mode-tabs .mat-mdc-tab-header {
+  display: none !important;
+}
+
+:host ::ng-deep .property-shell-embedded-wrap {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:host ::ng-deep .property-shell-embedded {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+:host ::ng-deep .property-shell-embedded mat-card {
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
 /* Remove always-reserved hint/error space so section top/bottom spacing matches. */
 :host ::ng-deep .info-form .mat-mdc-form-field-subscript-wrapper,
 :host ::ng-deep .info-form .mat-mdc-form-field-bottom-align::before {

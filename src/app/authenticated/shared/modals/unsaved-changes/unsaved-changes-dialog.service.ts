@@ -10,28 +10,6 @@ import { GenericModalData } from '../generic/models/generic-modal-data';
 export class UnsavedChangesDialogService {
   constructor(private dialog: MatDialog) {}
 
-  async confirmLeave(message: string = 'You have unsaved changes. Do you want to leave this page without saving?'): Promise<boolean> {
-    const dialogData: GenericModalData = {
-      title: 'Unsaved Changes',
-      message,
-      icon: 'warning' as any,
-      iconColor: 'accent',
-      no: 'Stay',
-      yes: 'Leave',
-      callback: (dialogRef, result) => dialogRef.close(result),
-      useHTML: false,
-      hideClose: true
-    };
-
-    const dialogRef = this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '35rem'
-    });
-
-    const shouldLeave = await firstValueFrom(dialogRef.afterClosed());
-    return shouldLeave === true;
-  }
-
   async confirmLeaveOrSave(message: string = 'You have unsaved changes. What would you like to do?'): Promise<'discard' | 'save'> {
     const dialogData: GenericModalData = {
       title: 'Unsaved Changes',
