@@ -774,6 +774,13 @@ export class MappingService {
     }));
   }
 
+  mapVacantPropertyLastDepartureDate(value: Date | null): string {
+    if (!value) {
+      return 'Never rented';
+    }
+    return this.formatter.formatDateString(value.toISOString()) || 'Never rented';
+  }
+
   mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
     return regions.map<RegionListDisplay>((o: RegionResponse) => {
       return {

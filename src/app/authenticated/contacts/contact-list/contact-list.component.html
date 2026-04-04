@@ -68,6 +68,7 @@
         [itemsPerPage]="100"
         (editEvent)="goToContact($event)"
         (copyEvent)="copyContact($event)"
+        (checkboxChangeEvent)="onContactCheckboxChange($event)"
         (rowClickEvent)="goToContact($event)"
         (deleteEvent)="deleteContact($event)"/>
     </div>

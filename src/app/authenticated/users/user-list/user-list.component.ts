@@ -20,7 +20,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EMPLOYEE_USER_GROUPS, getStartupPage, UserGroups } from '../models/user-enums';
-import { UserListDisplay, UserResponse } from '../models/user.model';
+import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
 @Component({
@@ -36,6 +36,9 @@ export class UserListComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   showInactive: boolean = false;
   selectedTabIndex: number = 0;
+  user: any;
+  isAdmin = false;
+  canEditIsActiveCheckbox = false;
   allUsers: UserListDisplay[] = [];
   usersDisplay: UserListDisplay[] = [];
   offices: OfficeResponse[] = [];
@@ -53,11 +56,11 @@ export class UserListComponent implements OnInit, OnDestroy {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'phone': { displayAs: 'Phone', maxWidth: '18ch' },
-    'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '20ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '20ch' },
+    'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '15ch' },
     'defaultOffice': { displayAs: 'Default Office', maxWidth: '20ch' },
-    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '40ch'},
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices', 'officeScope']));
@@ -79,6 +82,9 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region User-List
   ngOnInit(): void {
+    this.user = this.authService.getUser();
+    this.isAdmin = this.authService.isAdmin();
+    this.setIsActiveCheckboxEditability();
     this.isSuperAdminUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadUsers();
@@ -109,6 +115,47 @@ export class UserListComponent implements OnInit, OnDestroy {
   goToUser(event: UserListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+    });
+  }
+
+  onUserCheckboxChange(event: UserListDisplay): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyUserIsActiveValue(event.userId, nextValue);
+
+    this.userService.getUserByGuid(event.userId).pipe(
+      take(1),
+      finalize(() => this.applyFilters())
+    ).subscribe({
+      next: (user: UserResponse) => {
+        const request = this.buildUserIsActiveUpdateRequest(user, nextValue);
+        this.userService.updateUser(request).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('User updated.', CommonMessage.Success);
+          },
+          error: () => {
+            this.applyUserIsActiveValue(event.userId, previousValue);
+            this.toastr.error('Unable to update user.', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.applyUserIsActiveValue(event.userId, previousValue);
+        this.toastr.error('Unable to update user.', CommonMessage.Error);
+      }
     });
   }
   //#endregion
@@ -276,6 +323,11 @@ export class UserListComponent implements OnInit, OnDestroy {
     });
   }
 
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.usersDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
   getDefaultOfficeName(defaultOfficeId: number | null): string {
     if (defaultOfficeId === null || defaultOfficeId === undefined) {
       return '';
@@ -335,6 +387,30 @@ export class UserListComponent implements OnInit, OnDestroy {
       };
     });
 
+    this.applyFilters();
+  }
+
+  buildUserIsActiveUpdateRequest(user: UserResponse, isActive: boolean): UserRequest {
+    const { organizationName: _organizationName, ...requestBase } = user;
+    return {
+      ...requestBase,
+      isActive
+    };
+  }
+
+  applyUserIsActiveValue(userId: string, isActive: boolean): void {
+    for (const user of this.users) {
+      if (user.userId === userId) {
+        user.isActive = isActive;
+        break;
+      }
+    }
+    for (const user of this.allUsers) {
+      if (user.userId === userId) {
+        user.isActive = isActive;
+        break;
+      }
+    }
     this.applyFilters();
   }
 

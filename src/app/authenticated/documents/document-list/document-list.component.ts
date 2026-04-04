@@ -83,21 +83,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentTypes: { value: number, label: string }[] = [];
 
   sidebarColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
-    'propertyCode': { displayAs: 'Property', maxWidth: '20ch', sortType: 'natural' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '20ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
-    'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '25ch', alignment: 'center' },
+    'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
+    'createdOn': { displayAs: 'Created', maxWidth: '30ch', alignment: 'center' },
   };
 
   tabColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '18ch' },
-    'propertyCode': { displayAs: 'Property', maxWidth: '18ch', sortType: 'natural' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '18ch', sortType: 'natural' },
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
-    'fileName': { displayAs: 'File Name', maxWidth: '40ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '25ch', alignment: 'center' },
+    'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
+    'createdOn': { displayAs: 'Created', maxWidth: '30ch', alignment: 'center' },
   };
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());

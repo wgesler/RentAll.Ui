@@ -75,15 +75,18 @@
               [hasActionsEdit]="true"
               [hasActionsCopy]="true"
               [hasActionsDelete]="true"
+              [hasPropertyCodeLink]="true"
               [confirmDeleteBeforeEmit]="false"
               [deleteConfirmTitle]="'Delete Reservation'"
               [deleteConfirmMessage]="'Are you sure you want to delete this reservation?'"
               [itemsPerPage]="100"
               (editEvent)="goToReservation($event)"
               (rowClickEvent)="goToReservation($event)"
+              (propertyCodeClickEvent)="goToProperty($event)"
               (copyEvent)="copyReservation($event)"
               (deleteEvent)="deleteReservation($event)"
-              (contactClickEvent)="goToContact($event)"/>
+              (contactClickEvent)="goToContact($event)"
+              (checkboxChangeEvent)="onReservationCheckboxChange($event)"/>
           </div>
         </div>
       }

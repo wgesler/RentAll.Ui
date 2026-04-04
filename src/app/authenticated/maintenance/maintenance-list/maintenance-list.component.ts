@@ -127,11 +127,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'cleaner': { displayAs: 'Cleaner', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
+    'cleaner': { displayAs: 'Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
     'carpetDate': { displayAs: 'Carpet Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.carpetUserOptions },
+    'carpet': { displayAs: 'Carpet Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.carpetUserOptions },
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
-    'inspector': { displayAs: 'Inspector', maxWidth: '22ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
+    'inspector': { displayAs: 'Inspector', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
     
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {

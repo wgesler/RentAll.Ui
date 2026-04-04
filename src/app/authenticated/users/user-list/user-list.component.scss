@@ -32,18 +32,6 @@ body {
     padding: 0 !important;
 }
 
-.mat {
-  overflow-x: hidden;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.tableDiv {
-  width: 100%;
-  overflow-x: auto;
-  padding: var(--global-page-inner-padding);
-}
-
 .users-tabs {
   ::ng-deep {
     .mat-mdc-tab-header {
@@ -59,14 +47,5 @@ body {
       border-right: 2px solid rgb(148, 163, 184);
     }
 
-    .mat-mdc-tab-body-wrapper {
-      overflow-x: hidden;
-      max-width: 100%;
-    }
-
-    .mat-mdc-tab-body-content {
-      overflow-x: hidden;
-      max-width: 100%;
-    }
   }
 }

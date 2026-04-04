@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -17,7 +17,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EntityType } from '../models/contact-enum';
-import { ContactListDisplay } from '../models/contact.model';
+import { ContactListDisplay, ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 
 @Component({
@@ -47,6 +47,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  user: any;
+  isAdmin = false;
   officeScopeResolved: boolean = false;
   organizationId: string = '';
   preferredOfficeId: number | null = null;
@@ -54,25 +56,24 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   routerSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
+  canEditIsActiveCheckbox = false;
 
   private readonly baseColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
-    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
-    'companyName': { displayAs: 'Company', maxWidth: '20ch' },
-    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone', maxWidth: '20ch' },
+    'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
+    'companyName': { displayAs: 'Company', maxWidth: '30ch' },
+    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   private readonly ownerColumns: ColumnSet = {
-    'officeName': { displayAs: 'Office', maxWidth: '20ch' },
-    'contactCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural' },
+    'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
     'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '20ch' },
-    'fullName': { displayAs: 'Name', maxWidth: '25ch' },
-    'phone': { displayAs: 'Phone', maxWidth: '20ch' },
+    'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
+    'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   get contactsDisplayedColumns(): ColumnSet {
@@ -96,8 +97,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Contact-List
   ngOnInit(): void {
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+    this.user = this.authService.getUser();
+    this.isAdmin = this.authService.isAdmin();
+    this.setIsActiveCheckboxEditability();
+    this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadContacts();
 
@@ -159,6 +163,39 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       copyFrom: event.contactId,
       entityTypeId: this.entityTypeId ?? undefined,
       tabIndex: this.tabIndex
+    });
+  }
+
+  onContactCheckboxChange(event: ContactListDisplay): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyContactIsActiveValue(event.contactId, nextValue);
+
+    this.contactService.getContactByGuid(event.contactId).pipe(
+      take(1),
+      switchMap((contact: ContactResponse) => this.contactService.updateContact(this.buildContactIsActiveUpdateRequest(contact, nextValue)).pipe(take(1))),
+      finalize(() => this.applyFilters())
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Contact updated.', CommonMessage.Success);
+      },
+      error: () => {
+        this.applyContactIsActiveValue(event.contactId, previousValue);
+        this.toastr.error('Unable to update contact.', CommonMessage.Error);
+      }
     });
   }
   //#endregion
@@ -291,6 +328,30 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
+  }
+
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.baseColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    this.ownerColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
+  buildContactIsActiveUpdateRequest(contact: ContactResponse, isActive: boolean): ContactRequest {
+    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
+    return {
+      ...requestBase,
+      isActive
+    };
+  }
+
+  applyContactIsActiveValue(contactId: string, isActive: boolean): void {
+    for (const contact of this.allContacts) {
+      if (contact.contactId === contactId) {
+        contact.isActive = isActive;
+        break;
+      }
+    }
     this.applyFilters();
   }
 

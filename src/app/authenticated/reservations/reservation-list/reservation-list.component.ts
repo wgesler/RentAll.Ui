@@ -22,7 +22,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
+import { ExtraFeeLineRequest, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -55,6 +55,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  user: any;
+  isAdmin = false;
   
   userId: string = '';
   organizationId: string = '';
@@ -62,6 +64,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
+  canEditIsActiveCheckbox = false;
 
   private readonly compactViewportWidth = 1024;
   private readonly fullReservationsDisplayedColumns: ColumnSet = {
@@ -73,7 +76,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'companyName': { displayAs: 'Company', maxWidth: '15ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '16ch', alignment: 'center'},
     'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
   private readonly compactReservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural' }
@@ -101,9 +104,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Reservation List
   ngOnInit(): void {
-    this.userId = this.authService.getUser()?.userId || '';
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+    this.user = this.authService.getUser();
+    this.isAdmin = this.authService.isAdmin();
+    this.userId = this.user?.userId || '';
+    this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
+    this.setIsActiveCheckboxEditability();
     this.updateDisplayedColumns();
     this.loadOffices();
 
@@ -281,6 +287,47 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
+
+  onReservationCheckboxChange(event: ReservationListDisplay): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyReservationIsActiveValue(event.reservationId, nextValue);
+
+    this.reservationService.getReservationByGuid(event.reservationId).pipe(
+      take(1),
+      finalize(() => this.applyFilters())
+    ).subscribe({
+      next: (reservation: ReservationResponse) => {
+        const request = this.buildReservationRequestForIsActiveUpdate(reservation, nextValue);
+        this.reservationService.updateReservation(request).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('Reservation updated.', CommonMessage.Success);
+          },
+          error: () => {
+            this.applyReservationIsActiveValue(event.reservationId, previousValue);
+            this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.applyReservationIsActiveValue(event.reservationId, previousValue);
+        this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+      }
+    });
+  }
   //#endregion
 
   //#region Routing Methods
@@ -323,6 +370,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   goToContact(event: ReservationListDisplay): void {
     if (event.contactId) {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+    }
+  }
+
+  goToProperty(event: ReservationListDisplay): void {
+    if (event.propertyId) {
+      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId]));
     }
   }
   //#endregion
@@ -497,6 +550,85 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
     this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+  }
+
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.fullReservationsDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
+  applyReservationIsActiveValue(reservationId: string, isActive: boolean): void {
+    const nextValue = !!isActive;
+    this.allReservations = this.allReservations.map(reservation =>
+      reservation.reservationId === reservationId
+        ? { ...reservation, isActive: nextValue }
+        : reservation
+    );
+    this.reservationsDisplay = this.reservationsDisplay.map(reservation =>
+      reservation.reservationId === reservationId
+        ? { ...reservation, isActive: nextValue }
+        : reservation
+    );
+  }
+
+  buildReservationRequestForIsActiveUpdate(reservation: ReservationResponse, isActive: boolean): ReservationRequest {
+    const extraFeeLines: ExtraFeeLineRequest[] = (reservation.extraFeeLines || []).map(line => ({
+      extraFeeLineId: line.extraFeeLineId,
+      reservationId: line.reservationId,
+      feeDescription: line.feeDescription,
+      feeAmount: line.feeAmount,
+      feeFrequencyId: line.feeFrequencyId,
+      costCodeId: line.costCodeId
+    }));
+
+    return {
+      reservationId: reservation.reservationId,
+      organizationId: reservation.organizationId || '',
+      officeId: reservation.officeId,
+      agentId: reservation.agentId ?? null,
+      propertyId: reservation.propertyId,
+      contactId: reservation.contactId,
+      reservationCode: reservation.reservationCode,
+      reservationTypeId: reservation.reservationTypeId,
+      reservationStatusId: reservation.reservationStatusId,
+      reservationNoticeId: reservation.reservationNoticeId ?? 0,
+      numberOfPeople: reservation.numberOfPeople,
+      tenantName: reservation.tenantName || '',
+      referenceNo: reservation.referenceNo || '',
+      arrivalDate: reservation.arrivalDate,
+      departureDate: reservation.departureDate,
+      checkInTimeId: reservation.checkInTimeId,
+      checkOutTimeId: reservation.checkOutTimeId,
+      lockBoxCode: reservation.lockBoxCode ?? null,
+      unitTenantCode: reservation.unitTenantCode ?? null,
+      billingMethodId: reservation.billingMethodId,
+      prorateTypeId: reservation.prorateTypeId,
+      billingTypeId: reservation.billingTypeId,
+      billingRate: reservation.billingRate,
+      deposit: reservation.deposit,
+      depositTypeId: reservation.depositTypeId ?? 0,
+      departureFee: reservation.departureFee,
+      taxes: reservation.taxes,
+      hasPets: reservation.hasPets,
+      petFee: reservation.petFee,
+      numberOfPets: reservation.numberOfPets,
+      petDescription: reservation.petDescription ?? null,
+      maidService: reservation.maidService,
+      maidServiceFee: reservation.maidServiceFee,
+      frequencyId: reservation.frequencyId,
+      maidStartDate: reservation.maidStartDate,
+      extraFeeLines,
+      notes: reservation.notes ?? null,
+      allowExtensions: reservation.allowExtensions,
+      paymentReceived: reservation.paymentReceived,
+      welcomeLetterSent: reservation.welcomeLetterSent,
+      readyForArrival: reservation.readyForArrival,
+      code: reservation.code,
+      departureLetterSent: reservation.departureLetterSent,
+      currentInvoiceNo: reservation.currentInvoiceNo,
+      creditDue: reservation.creditDue,
+      isActive
+    };
   }
 
   ngOnDestroy(): void {

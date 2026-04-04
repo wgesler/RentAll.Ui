@@ -512,11 +512,11 @@
     
     a {
       text-decoration: underline;
-      color: inherit;
+      color: #1d4ed8;
       cursor: pointer;
       
       &:hover {
-        color: rgb(59, 130, 246);
+        color: #1d4ed8;
       }
     }
   }
@@ -594,6 +594,8 @@
     .property-row:hover & {
       background-color: #e3f2fd;
     }
+
+    color: #1d4ed8;
   }
 }
 
@@ -606,7 +608,7 @@
     height: 20px !important;
     padding: 0 !important;
     justify-content: center;
-    color: #0d47a1 !important;
+    color: #1d4ed8 !important;
     text-decoration: underline;
   }
 
@@ -616,7 +618,7 @@
     font-size: 11px !important;
     line-height: 1 !important;
     text-align: center;
-    color: #0d47a1 !important;
+    color: #1d4ed8 !important;
     text-decoration: underline;
   }
 

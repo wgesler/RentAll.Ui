@@ -62,11 +62,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
+  user: any;
+  isAdmin = false;
   userId: string = '';
   organizationId: string = '';
   preferredOfficeId: number | null = null;
   propertiesFiltered = false;
   isCompactView = false;
+  canEditIsActiveCheckbox = false;
 
   private readonly compactViewportWidth = 1024;
   private readonly propertyStatuses = getPropertyStatuses();
@@ -82,7 +85,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'propertyType': { displayAs: 'Type', maxWidth: '13ch', wrap: false },
     'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: '', maxWidth: '20ch', sortType: 'natural', wrap: false }
@@ -110,9 +113,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Property-List
   ngOnInit(): void {
     this.updateDisplayedColumns();
-    this.userId = this.authService.getUser()?.userId || '';
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+    this.user = this.authService.getUser();
+    this.isAdmin = this.authService.isAdmin();
+    this.setIsActiveCheckboxEditability();
+    this.userId = this.user?.userId || '';
+    this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
@@ -212,6 +218,39 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.getProperties();
       },
       error: () => {}
+    });
+  }
+
+  onPropertyCheckboxChange(event: PropertyListDisplayRow): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyPropertyIsActiveValue(event.propertyId, nextValue);
+
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
+      take(1),
+      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyIsActiveUpdateRequest(property, nextValue)).pipe(take(1))),
+      finalize(() => this.applyFilters())
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Property updated.', CommonMessage.Success);
+      },
+      error: () => {
+        this.applyPropertyIsActiveValue(event.propertyId, previousValue);
+        this.toastr.error('Unable to update property.', CommonMessage.Error);
+      }
     });
   }
   //#endregion
@@ -411,6 +450,15 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     };
   }
 
+  buildPropertyIsActiveUpdateRequest(property: PropertyResponse, isActive: boolean): PropertyRequest {
+    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    return {
+      ...requestBase,
+      isActive,
+      parkingnotes: parkingNotes
+    };
+  }
+
   updatePropertyStatusDisplay(propertyId: string, propertyStatusId: number, propertyStatusText: string): void {
     for (const property of this.allProperties) {
       if (property.propertyId === propertyId) {
@@ -422,12 +470,27 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.applyFilters();
   }
+
+  applyPropertyIsActiveValue(propertyId: string, isActive: boolean): void {
+    for (const property of this.allProperties) {
+      if (property.propertyId === propertyId) {
+        property.isActive = isActive;
+        break;
+      }
+    }
+    this.applyFilters();
+  }
   //#endregion
 
   //#region Utility Methods
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
     this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;
+  }
+
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.fullPropertiesDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
   }
 
   ngOnDestroy(): void {

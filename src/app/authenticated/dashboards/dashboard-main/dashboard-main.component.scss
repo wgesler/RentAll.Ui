@@ -64,6 +64,19 @@
   border-color: #FFCC80;
 }
 
+/* Keep first line flush, add side margin to follow-up lines in colored tiles. */
+.day-box-today .day-title > span:not(:first-child),
+.day-box-tomorrow .day-title > span:not(:first-child),
+.day-box-reservations .day-title > span:not(:first-child),
+.day-box-commissions .day-title > span:not(:first-child),
+.day-box-today .icon-number-row,
+.day-box-tomorrow .icon-number-row,
+.day-box-reservations .reservations-stats,
+.day-box-commissions .commission-summary-row {
+  padding-left: 6px;
+  padding-right: 10px;
+}
+
 .day-box-content {
   display: flex;
   align-items: flex-start;
@@ -307,8 +320,8 @@
 
 .day-box-profile {
   margin-right: auto;
-  width: 248px;
-  min-width: 248px;
+  width: 320px;
+  min-width: 320px;
   border: 0 !important;
   padding-top: 6px;
 }
@@ -347,6 +360,7 @@
   font-weight: 600;
   color: #1e3a68;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .section-title {
@@ -413,42 +427,6 @@
     text-decoration: underline;
     font-size: inherit !important;
     line-height: inherit !important;
-  }
-}
-
-/* Arrivals status selector: show single blue underlined letter, click opens dropdown. */
-:host ::ng-deep td.mat-cell.mat-column-arrivalPropertyStatusDropdown,
-:host ::ng-deep td.mat-mdc-cell.mat-column-arrivalPropertyStatusDropdown {
-  font-size: 12px !important;
-  line-height: 1.2 !important;
-
-  .mat-mdc-select-arrow-wrapper {
-    display: none !important;
-  }
-
-  .mat-mdc-select-trigger {
-    min-height: 20px !important;
-    height: 20px !important;
-    padding: 0 !important;
-    justify-content: center;
-    color: #0d47a1 !important;
-    text-decoration: underline;
-  }
-
-  .mat-mdc-select,
-  .mat-mdc-select-min-line,
-  .mat-mdc-select-value,
-  .mat-mdc-select-value-text,
-  .mat-mdc-select-trigger {
-    color: #1d4ed8 !important;
-    text-decoration: underline;
-    font-weight: 600;
-    font-size: 12px !important;
-    line-height: 1.2 !important;
-  }
-
-  .mat-mdc-select-value-text {
-    text-align: center;
   }
 }
 
