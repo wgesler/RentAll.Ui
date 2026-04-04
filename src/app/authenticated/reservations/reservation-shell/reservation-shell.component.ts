@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatTabChangeEvent } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, finalize, map, take } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
@@ -61,6 +60,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   organizationId: string = '';
   preferredOfficeId: number | null = null;
   isAddMode: boolean = false;
+  isHandlingTabGuard: boolean = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -112,23 +112,47 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   //#endregion
 
   //#region Tab Interaction Methods
-  onTabChange(event: MatTabChangeEvent): void {
-    this.selectedTabIndex = event.index;
-    this.refreshHeaderReservationOptions();
-    this.onHeaderReservationChange();
-
-    const tabParam = this.getTabParamFromIndex(event.index);
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { tab: tabParam },
-      queryParamsHandling: 'merge'
-    });
-
-    if (event.index === 3 && this.reservationEmailList) {
-      this.reservationEmailList.reload();
+  async onTabIndexChange(requestedTabIndex: number): Promise<void> {
+    if (this.isHandlingTabGuard) {
+      return;
     }
-    if (event.index === 4 && this.reservationDocumentList) {
-      this.reservationDocumentList.reload();
+
+    const previousTabIndex = this.selectedTabIndex;
+    if (previousTabIndex === requestedTabIndex) {
+      return;
+    }
+
+    this.isHandlingTabGuard = true;
+    try {
+      // Accept the emitted index first so we can deterministically revert on "Stay".
+      this.selectedTabIndex = requestedTabIndex;
+
+      if (this.reservationSection) {
+        const canLeave = await this.reservationSection.confirmNavigationWithUnsavedChanges();
+        if (!canLeave) {
+          this.selectedTabIndex = previousTabIndex;
+          return;
+        }
+      }
+
+      this.refreshHeaderReservationOptions();
+      this.onHeaderReservationChange();
+
+      const tabParam = this.getTabParamFromIndex(requestedTabIndex);
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { tab: tabParam },
+        queryParamsHandling: 'merge'
+      });
+
+      if (requestedTabIndex === 3 && this.reservationEmailList) {
+        this.reservationEmailList.reload();
+      }
+      if (requestedTabIndex === 4 && this.reservationDocumentList) {
+        this.reservationDocumentList.reload();
+      }
+    } finally {
+      this.isHandlingTabGuard = false;
     }
   }
   
@@ -177,7 +201,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === previousReservationId) || null;
         return;
       }
-      this.reservationSection.loadReservationById(nextReservationId);
+      this.reservationSection.loadReservation(nextReservationId);
     }
 
     this.onHeaderReservationChange();
@@ -194,7 +218,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         return;
       }
       if (reservation.reservation?.reservationId !== this.selectedHeaderReservationId) {
-        reservation.loadReservationById(this.selectedHeaderReservationId);
+        reservation.loadReservation(this.selectedHeaderReservationId);
       }
       return;
     }

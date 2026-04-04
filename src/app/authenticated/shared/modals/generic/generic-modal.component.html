@@ -15,11 +15,13 @@
     <div class="flex flex-1 justify-end gap-3 p-3">
         @if (data.no) {
             <button mat-raised-button color="accent" (click)="data.callback(dialogRef, false)" id="cancel">
+                @if (data.noIcon) {<mat-icon>{{data.noIcon}}</mat-icon>}
                 {{data.no}}
             </button>
         }
         @if (data.yes) {
             <button mat-raised-button cdkFocusInitial color="primary" (click)="data.callback(dialogRef, true)" id="ok">
+                @if (data.yesIcon) {<mat-icon>{{data.yesIcon}}</mat-icon>}
                 {{data.yes}}
             </button>
         }

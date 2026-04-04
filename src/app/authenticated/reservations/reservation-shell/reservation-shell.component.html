@@ -65,7 +65,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="onTabChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Reservation">
           <app-reservation #reservationSection [shellMode]="true"></app-reservation>
         </mat-tab>

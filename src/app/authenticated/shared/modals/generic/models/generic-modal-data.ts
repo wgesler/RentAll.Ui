@@ -10,6 +10,8 @@ export type GenericModalData = {
     iconColor: string;
     no: string;
     yes: string;
+    noIcon?: string;
+    yesIcon?: string;
     // This function provides the ability to only fire when a button was pressed.
     // If you use the dialogRef.afterClosed() observable, you get a response even if the user didn't press the yes or the no button.
     // You receive events for when the modal is dismissed instead of answered.
@@ -25,6 +27,8 @@ export const defaultGenericModalData = {
     iconColor: 'accent',
     no: 'Cancel',
     yes: 'OK',
+    noIcon: undefined,
+    yesIcon: undefined,
     callback: (dialogRef: DialogRef, result: boolean) => {
         dialogRef.close(result);
     },

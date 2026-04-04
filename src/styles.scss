@@ -378,6 +378,11 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   flex-shrink: 0;
 }
 
+/* Hide office dropdown arrow when title-bar office is read-only/disabled. */
+.header-title app-searchable-select .titlebar-field-office .mat-mdc-select.mat-mdc-select-disabled .mat-mdc-select-arrow-wrapper {
+  display: none !important;
+}
+
 .titlebar-field-company {
   width: 300px;
   min-width: 300px;

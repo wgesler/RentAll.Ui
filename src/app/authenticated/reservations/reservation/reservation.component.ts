@@ -127,6 +127,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   destroy$ = new Subject<void>();
   readonly newContactOptionValue = '__new_contact__';
   readonly noneAgentOptionValue = '__none_agent__';
+  savedFormState: Record<string, unknown> | null = null;
+  savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   readonly agentSelectionRequiredValidator: ValidatorFn = (control: AbstractControl) => {
     const value = control.value;
     if (value === null || value === undefined || value === '') {
@@ -134,8 +136,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
     return null;
   };
-  lastSavedStateSignature = '';
-  hasSavedStateSignature = false;
 
   constructor(
     public reservationService: ReservationService,
@@ -235,7 +235,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         }
         this.captureSavedStateSignature();
       } else {
-        this.getReservation();
+        this.loadReservation();
       }
     });
   }
@@ -375,41 +375,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const parsed = new Date(value);
     parsed.setHours(0, 0, 0, 0);
     return isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  getReservation(): void {
-    if (this.isAddMode) {
-      return;
-    }
-
-    this.reservationService.getReservationByGuid(this.reservationId).pipe( take(1)).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
-        this.populateForm();
-      },
-      error: () => {
-        this.isServiceError = true;
-      }
-    });
-  }
-
-  loadReservationById(reservationId: string): void {
-    if (!reservationId || this.reservation?.reservationId === reservationId) {
-      return;
-    }
-
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservationId = response.reservationId;
-        this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
-        this.populateForm();
-      },
-      error: () => {}
-    });
   }
 
   saveReservation(): void {
@@ -1042,14 +1007,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   onContactNameChange(contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
-    this.form.get('contactId')?.setValue(normalizedContactId);
-    this.form.get('contactId')?.markAsTouched();
+    const contactControl = this.form.get('contactId');
+    contactControl?.setValue(normalizedContactId);
+    contactControl?.markAsTouched();
+    contactControl?.markAsDirty();
   }
 
   onCompanyContactChange(contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
-    this.form.get('companyContact')?.setValue(normalizedContactId);
-    this.form.get('companyContact')?.markAsTouched();
+    const companyContactControl = this.form.get('companyContact');
+    companyContactControl?.setValue(normalizedContactId);
+    companyContactControl?.markAsTouched();
+    companyContactControl?.markAsDirty();
     if (!normalizedContactId) {
       return;
     }
@@ -1069,14 +1038,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   onReservationNumberDropdownChange(controlName: 'reservationTypeId' | 'reservationStatusId' | 'reservationNoticeId' | 'checkInTimeId' | 'checkOutTimeId', value: string | number | null): void {
-    this.form.get(controlName)?.setValue(value == null || value === '' ? null : Number(value));
-    this.form.get(controlName)?.markAsTouched();
+    const control = this.form.get(controlName);
+    control?.setValue(value == null || value === '' ? null : Number(value));
+    control?.markAsTouched();
+    control?.markAsDirty();
   }
 
   onPropertyDropdownChange(value: string | number | null): void {
     const normalizedPropertyId = value == null ? '' : String(value).trim();
-    this.form.get('propertyId')?.setValue(normalizedPropertyId);
-    this.form.get('propertyId')?.markAsTouched();
+    const propertyControl = this.form.get('propertyId');
+    propertyControl?.setValue(normalizedPropertyId);
+    propertyControl?.markAsTouched();
+    propertyControl?.markAsDirty();
   }
 
   get propertyOptions(): SearchableSelectOption[] {
@@ -1085,8 +1058,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   onAgentDropdownChange(value: string | number | null): void {
     const normalizedAgentId = value == null ? null : String(value).trim();
-    this.form.get('agentId')?.setValue(normalizedAgentId);
-    this.form.get('agentId')?.markAsTouched();
+    const agentControl = this.form.get('agentId');
+    agentControl?.setValue(normalizedAgentId);
+    agentControl?.markAsTouched();
+    agentControl?.markAsDirty();
   }
 
   get agentOptions(): SearchableSelectOption[] {
@@ -1697,6 +1672,34 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       error: () => {}
     });
   }
+
+  loadReservation(reservationId?: string): void {
+    if (this.isAddMode) {
+      return;
+    }
+
+    const targetReservationId = reservationId ?? this.reservationId;
+    if (!targetReservationId || this.reservation?.reservationId === targetReservationId) {
+      return;
+    }
+
+    const isInitialLoad = !reservationId;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
+    this.reservationService.getReservationByGuid(targetReservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.reservation = response;
+        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
+        this.populateForm();
+      },
+      error: () => {
+        if (isInitialLoad) {
+          this.isServiceError = true;
+        }
+      }
+    });
+  }
   
   loadAgents(): void {
     this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
@@ -2049,6 +2052,106 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
   //#endregion
 
+  //#region Save State Methods
+  captureSavedStateSignature(): void {
+    this.savedFormState = this.cloneFormState(this.form?.getRawValue() ?? {});
+    this.savedExtraFeeLinesState = this.cloneExtraFeeLines(this.extraFeeLines || []);
+    this.form?.markAsPristine();
+    this.form?.markAsUntouched();
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (!this.form || this.isSubmitting) {
+      return false;
+    }
+    return this.form.dirty;
+  }
+
+  discardUnsavedChanges(): void {
+    if (!this.form || !this.savedFormState) {
+      return;
+    }
+
+    this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
+    this.extraFeeLines = this.cloneExtraFeeLines(this.savedExtraFeeLinesState || []);
+
+    const propertyId = this.form.get('propertyId')?.value as string | null;
+    this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
+    const contactId = this.form.get('contactId')?.value as string | null;
+    this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
+
+    this.updateReservationStatusesByReservationType();
+    this.updateContactsByReservationType();
+    this.updateEnabledFieldsByReservationType();
+    this.updateContactFields();
+    this.updateDepositValues();
+    this.updateBillingValues();
+    this.updateDepartureFeeValue();
+    this.updatePetFields();
+    this.updateMaidServiceFields();
+    this.updateMaidStartDate();
+
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+  }
+
+  cloneFormState<T>(value: T): T {
+    if (value instanceof Date) {
+      return new Date(value.getTime()) as T;
+    }
+    if (Array.isArray(value)) {
+      return value.map(item => this.cloneFormState(item)) as T;
+    }
+    if (value && typeof value === 'object') {
+      const clonedObject: Record<string, unknown> = {};
+      Object.keys(value as Record<string, unknown>).forEach(key => {
+        clonedObject[key] = this.cloneFormState((value as Record<string, unknown>)[key]);
+      });
+      return clonedObject as T;
+    }
+    return value;
+  }
+
+  cloneExtraFeeLines(lines: ExtraFeeLineDisplay[]): ExtraFeeLineDisplay[] {
+    return lines.map(line => ({
+      extraFeeLineId: line.extraFeeLineId,
+      feeDescription: line.feeDescription,
+      feeAmount: line.feeAmount,
+      feeFrequencyId: line.feeFrequencyId,
+      costCodeId: line.costCodeId,
+      isNew: line.isNew
+    }));
+  }
+
+  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+    const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
+    if (action === 'save') {
+      // Clear dirty state immediately so navigation can proceed without repeated prompts.
+      this.captureSavedStateSignature();
+      this.saveReservation();
+      return true;
+    }
+
+    if (action === 'discard') {
+      this.discardUnsavedChanges();
+    }
+    return true;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.hasUnsavedChanges()) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = '';
+  }
+  
+  //#endregion
+
   //#region Utility Methods
   back(): void {
     this.confirmNavigationWithUnsavedChanges().then(canLeave => {
@@ -2068,47 +2171,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return this.confirmNavigationWithUnsavedChanges();
   }
 
-  getCurrentStateSignature(): string {
-    const formSignature = this.form ? JSON.stringify(this.form.getRawValue()) : '';
-    const feesSignature = JSON.stringify(this.extraFeeLines || []);
-    return `${formSignature}|${feesSignature}`;
-  }
-
-  captureSavedStateSignature(): void {
-    this.lastSavedStateSignature = this.getCurrentStateSignature();
-    this.hasSavedStateSignature = true;
-    this.form?.markAsPristine();
-  }
-
-  hasUnsavedChanges(): boolean {
-    if (!this.form || this.isSubmitting) {
-      return false;
-    }
-    const currentSignature = this.getCurrentStateSignature();
-    if (!this.hasSavedStateSignature) {
-      this.lastSavedStateSignature = currentSignature;
-      this.hasSavedStateSignature = true;
-      return false;
-    }
-    return currentSignature !== this.lastSavedStateSignature;
-  }
-
-  async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
-    if (!this.hasUnsavedChanges()) {
-      return true;
-    }
-    return this.unsavedChangesDialogService.confirmLeave();
-  }
-
-  @HostListener('window:beforeunload', ['$event'])
-  handleBeforeUnload(event: BeforeUnloadEvent): void {
-    if (!this.hasUnsavedChanges()) {
-      return;
-    }
-    event.preventDefault();
-    event.returnValue = '';
-  }
-  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
