@@ -118,10 +118,19 @@ export class UtilityService {
     const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
     const contactName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
     const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact?.entityTypeId === EntityType.Company);
+    const formatWithCompanyToken = (name: string): string => {
+      if (!shortCompanyName) {
+        return name;
+      }
+      if (!name) {
+        return shortCompanyName;
+      }
+      return `${shortCompanyName}: ${name}`;
+    };
     if (isCorporate) {
-      return [shortCompanyName, reservation.tenantName].filter(Boolean).join(' ');
+      return formatWithCompanyToken(reservation.tenantName || '');
     }
-    return [shortCompanyName, contactName].filter(Boolean).join(' ');
+    return formatWithCompanyToken(contactName || '');
   }
 
   /** Label for reservation dropdown: ReservationCode: getReservationDisplayName(). */

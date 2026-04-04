@@ -797,7 +797,6 @@ export class MappingService {
 
   mapReservationList(reservations: ReservationListResponse[]): ReservationListDisplay[] {
     return reservations.map<ReservationListDisplay>((o: ReservationListResponse) => {
-      const isCompanyContact = Number(o.entityTypeId) === EntityType.Company;
       const companyName = String(o.displayName || o.companyName || '').trim();
 
       const tenantName = String(o.tenantName || o.contactName || '').trim();
@@ -812,7 +811,6 @@ export class MappingService {
         officeName: o.officeName,
         office: o.officeName || undefined,
         contactId: o.contactId,
-        entityId: o.entityId ?? null,
         entityTypeId: o.entityTypeId ?? null,
         contactName: o.contactName,
         tenantName: tenantName,

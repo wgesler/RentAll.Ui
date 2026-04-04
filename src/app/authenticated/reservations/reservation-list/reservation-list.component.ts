@@ -588,6 +588,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       agentId: reservation.agentId ?? null,
       propertyId: reservation.propertyId,
       contactId: reservation.contactId,
+      companyId: reservation.companyId ?? null,
+      companyName: reservation.companyName ?? null,
       reservationCode: reservation.reservationCode,
       reservationTypeId: reservation.reservationTypeId,
       reservationStatusId: reservation.reservationStatusId,

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, HostListener, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -66,6 +66,7 @@ interface ExtraFeeLineDisplay {
 })
 
 export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  @Input() shellMode: boolean = false;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   
@@ -76,10 +77,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   isAddMode: boolean = false;
   propertyPanelOpen: boolean = true;
   billingPanelOpen: boolean = true;
-  ReservationType = ReservationType; // Expose enum to template
-  EntityType = EntityType; // Expose enum to template
-  DocumentType = DocumentType; // Expose enum to template
-  EmailType = EmailType; // Expose enum to template
+  ReservationType = ReservationType; 
+  EntityType = EntityType; 
+  DocumentType = DocumentType; 
+  EmailType = EmailType;
   departureDateStartAt: Date | null = null;
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
@@ -104,8 +105,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   properties: PropertyListResponse[] = [];
   availableProperties: PropertyListResponse[] = [];
   selectedProperty: PropertyListResponse | null = null;
-  reservationList: ReservationListResponse[] = [];
-  availableHeaderReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedHeaderReservationId: string | null | undefined = undefined;
   organizationId: string = '';
   preferredOfficeId: number | null = null;
@@ -126,13 +125,15 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  readonly tabParamToIndex: Record<string, number> = {
-    lease: 1,
-    invoices: 2,
-    email: 3,
-    documents: 4
-  };
   readonly newContactOptionValue = '__new_contact__';
+  readonly noneAgentOptionValue = '__none_agent__';
+  readonly agentSelectionRequiredValidator: ValidatorFn = (control: AbstractControl) => {
+    const value = control.value;
+    if (value === null || value === undefined || value === '') {
+      return { required: true };
+    }
+    return null;
+  };
   lastSavedStateSignature = '';
   hasSavedStateSignature = false;
 
@@ -179,19 +180,17 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       }
     });
 
-    // Initialize form immediately to prevent template errors
+
     this.buildForm();
     
     // Get route params first
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       this.reservationId = paramMap.get('id') || null;
       this.isAddMode = !this.reservationId || this.reservationId === 'new';
-      if (!this.isAddMode && this.reservationId) {
-        this.selectedHeaderReservationId = this.reservationId;
-      }
       
       if (this.isAddMode) {
-        this.billingPanelOpen = false;
+        this.propertyPanelOpen = true;
+        this.billingPanelOpen = true;
         this.updatePetFields();
         this.updateMaidServiceFields();
         this.extraFeeLines = [];
@@ -200,8 +199,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-        this.selectedTabIndex = this.getTabIndexFromQueryParam(queryParams['tab']);
-        
+        this.selectedTabIndex = 0;
+
         if (queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
           const officeId = parseInt(queryParams['officeId'], 10);
           if (!isNaN(officeId)) {
@@ -237,7 +236,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.captureSavedStateSignature();
       } else {
         this.getReservation();
-        this.loadReservationOptions();
       }
     });
   }
@@ -246,8 +244,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
-  /** Pre-fill form from a copied reservation: empty property code, arrival = today, same stay length. */
-  private applyCopyFromReservation(source: ReservationResponse): void {
+  applyCopyFromReservation(source: ReservationResponse): void {
     if (!this.form || !source) return;
 
     this.selectedOffice = this.offices.find(o => o.officeId === source.officeId) || null;
@@ -281,7 +278,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       propertyId: '',
       propertyCode: '',
       propertyAddress: '',
-      agentId: source.agentId || null,
+      agentId: source.reservationTypeId === ReservationType.Owner
+        ? null
+        : (source.agentId || this.noneAgentOptionValue),
       contactId: source.contactId || null,
       companyName: (source as { companyName?: string })?.companyName ?? '',
       tenantName: source.tenantName || '',
@@ -335,7 +334,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
   }
 
-  private applyAddModePrefillFromQueryParams(): void {
+  applyAddModePrefillFromQueryParams(): void {
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       const propertyId = queryParams['propertyId'] as string | undefined;
       const startDateParam = (queryParams['startDate'] || queryParams['arrivalDate']) as string | undefined;
@@ -358,7 +357,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  private parseDateFromQuery(value?: string): Date | null {
+  parseDateFromQuery(value?: string): Date | null {
     if (!value) {
       return null;
     }
@@ -389,8 +388,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
         this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
         this.populateForm();
-        this.selectedHeaderReservationId = this.reservation.reservationId;
-        this.refreshHeaderReservationOptions();
       },
       error: () => {
         this.isServiceError = true;
@@ -398,39 +395,50 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  saveReservation(): void {
-    // Mark all fields as touched to show validation errors
-    this.form.markAllAsTouched();
-    
-    // Also mark individual controls as touched to ensure error messages appear
-    // Use emitEvent: false to prevent triggering valueChanges subscriptions that might clear fields
-    Object.keys(this.form.controls).forEach(key => {
-      const control = this.form.get(key);
-      if (control) {
-        control.markAsTouched();
-        control.updateValueAndValidity({ emitEvent: false });
-      }
-    });
-    
-    // Explicitly ensure reservationTypeId is validated and shows error
-    const reservationTypeControl = this.form.get('reservationTypeId');
-    if (reservationTypeControl) {
-      reservationTypeControl.markAsTouched();
-      reservationTypeControl.updateValueAndValidity({ emitEvent: false });
+  loadReservationById(reservationId: string): void {
+    if (!reservationId || this.reservation?.reservationId === reservationId) {
+      return;
     }
+
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.reservation = response;
+        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
+        this.populateForm();
+      },
+      error: () => {}
+    });
+  }
+
+  saveReservation(): void {
+    this.touchAllFormControls(this.form);
+    this.form.markAsTouched();
+    this.form.markAsDirty();
+    this.form.updateValueAndValidity({ emitEvent: false });
     
     if (!this.form.valid) {
       this.toastr.error('Please fill in all required fields', CommonMessage.Error);
       return;
     }
 
-    // Validate ExtraFeeLines before saving
     if (!this.validateExtraFeeLines()) {
       return;
     }
 
-    // Check for date overlaps before saving
     this.validateDates('save');
+  }
+
+  touchAllFormControls(control: AbstractControl): void {
+    if (control instanceof FormGroup) {
+      Object.keys(control.controls).forEach(key => this.touchAllFormControls(control.controls[key]));
+      return;
+    }
+
+    control.markAsTouched();
+    control.markAsDirty();
+    control.updateValueAndValidity({ emitEvent: false });
   }
 
   deleteReservation(): void {
@@ -515,12 +523,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       : ReservationType.Individual;
     const isOwnerReservationType = reservationTypeId === ReservationType.Owner;
 
-    const agentId = formValue.agentId;
-    if (!isOwnerReservationType && (!agentId || agentId === '' || agentId === 'null' || agentId === null)) {
+    const agentIdRaw = formValue.agentId;
+    const agentId = agentIdRaw === this.noneAgentOptionValue ? null : agentIdRaw;
+    if (!isOwnerReservationType && (agentIdRaw == null || String(agentIdRaw).trim() === '')) {
       this.toastr.error('Agent is required', CommonMessage.Error);
       this.isSubmitting = false;
       return;
     }
+
+    const companyIdRaw = formValue.companyContact;
+    const companyNameRaw = formValue.companyName;
+    const companyId = companyIdRaw == null || String(companyIdRaw).trim() === '' ? null : String(companyIdRaw).trim();
+    const companyName = companyNameRaw == null || String(companyNameRaw).trim() === '' ? null : String(companyNameRaw).trim();
 
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
@@ -528,8 +542,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       propertyId: formValue.propertyId,
       agentId: isOwnerReservationType
         ? null
-        : (agentId == null || agentId === '' || agentId === 'null' ? null : String(agentId)),
+        : (agentId == null || String(agentId).trim() === '' ? null : String(agentId)),
       contactId: formValue.contactId,
+      companyId: companyId,
+      companyName: companyName,
       reservationTypeId: reservationTypeId,
       reservationStatusId: formValue.reservationStatusId ?? ReservationStatus.PreBooking,
       reservationNoticeId: formValue.reservationNoticeId !== null && formValue.reservationNoticeId !== undefined ? Number(formValue.reservationNoticeId) : ReservationNotice.ThirtyDays,
@@ -638,11 +654,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
       propertyId: new FormControl('', [Validators.required]),
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
-      agentId: new FormControl(null, [Validators.required]),
+      agentId: new FormControl(null, [this.agentSelectionRequiredValidator]),
       tenantName: new FormControl('', [Validators.required]), // Always enabled
       referenceNo: new FormControl(''),
       contactId: new FormControl('', [Validators.required]), // Always enabled
-      companyName: new FormControl({ value: '', disabled: true }), // Display selected contact company name
+      companyName: new FormControl({ value: '', disabled: true }),
+      companyContact: new FormControl(''),
+      contactPhone: new FormControl({ value: '', disabled: true }),
+      contactEmail: new FormControl({ value: '', disabled: true }),
       reservationTypeId: new FormControl(null, [Validators.required]),
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
@@ -654,7 +673,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       unitTenantCode: new FormControl(''),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingMethodId: new FormControl(BillingMethod.Invoice, [Validators.required]),
-      prorateTypeId: new FormControl<number | null>(null),
+      prorateTypeId: new FormControl<number | null>(ProrateType.FirstMonth),
       billingRate: new FormControl<string>('0.00', [Validators.required]),
       numberOfPeople: new FormControl(1, [Validators.required]),
       pets: new FormControl(false, [Validators.required]),
@@ -663,8 +682,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       petDescription: new FormControl(''),
       maidService: new FormControl(false, [Validators.required]),
       maidStartDate: new FormControl<Date | null>(null),
-      phone: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
-      email: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
+      phone: new FormControl({ value: '', disabled: true }),
+      email: new FormControl({ value: '', disabled: true }),
       depositType: new FormControl(DepositType.Deposit, [Validators.required]),
       deposit: new FormControl<string>('0.00'),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
@@ -709,7 +728,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       propertyId: this.reservation.propertyId,
       propertyCode: this.selectedProperty?.propertyCode || this.properties.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
       propertyAddress: this.selectedProperty?.shortAddress || '',
-      agentId: this.reservation.agentId || null,
+      agentId: this.reservation.reservationTypeId === ReservationType.Owner
+        ? null
+        : (this.reservation.agentId || this.noneAgentOptionValue),
       contactId: this.reservation.contactId || null,
       companyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       tenantName: this.reservation.tenantName || '',
@@ -755,7 +776,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.captureSavedStateSignature();
   }
 
-  /** True when editing an existing reservation whose arrival date is in the future (property can be changed). */
   get canEditProperty(): boolean {
     if (this.isAddMode || !this.reservation) {
       return false;
@@ -771,7 +791,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return arrivalStart > todayStart;
   }
 
-  /** Enable or disable propertyId based on whether the reservation has started (edit mode only). */
   updatePropertyIdEditState(): void {
     const control = this.form.get('propertyId');
     if (!control) {
@@ -783,7 +802,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       control.disable({ emitEvent: false });
     }
   }
-    
+  //#endregion
+
+  //#region Form Value Change Handlers
   setupFormHandlers(): void {
     // Prevent setting up handlers multiple times
     if (this.handlersSetup) {
@@ -800,19 +821,20 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.setupMaidServiceHandler();
     this.setupMaidStartDateHandler();
     this.setupDepartureDateStartAtHandler();
+    this.updateCompanyContactRequirement();
     
     this.handlersSetup = true;
   }
-  //#endregion
-
-  //#region Form Value Change Handlers
+  
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(propertyId => {
       this.selectedProperty = propertyId ? this.availableProperties.find(p => p.propertyId === propertyId) || null : null;
-      if (this.selectedProperty && !this.selectedOffice) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty.officeId) || null;
-        if (this.selectedOffice) {
+      if (this.selectedProperty) {
+        const propertyOffice = this.offices.find(o => o.officeId === this.selectedProperty!.officeId) || null;
+        if (propertyOffice && this.selectedOffice?.officeId !== propertyOffice.officeId) {
+          this.selectedOffice = propertyOffice;
           this.loadCostCodes();
+          this.filterPropertiesByOffice();
         }
       }
       if (this.reservation?.contactId) {
@@ -833,7 +855,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.updatePetFields();
       this.updateMaidServiceFields();
       this.updateContactFields();
-      this.refreshHeaderReservationOptions();
     });
   }
 
@@ -856,16 +877,17 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.updateReservationStatusesByReservationType();
       this.updateContactsByReservationType();
       this.applyDefaultProrateTypeByReservationType(reservationTypeId);
+      this.applyDefaultDepositTypeByReservationType(reservationTypeId);
       this.updateEnabledFieldsByReservationType();
 
-       // Always clear reservation status when type changes
-      this.form.patchValue({ reservationStatusId: null }, { emitEvent: false });
-      
       // When reservation type changes, always clear contact-related fields
       this.form.patchValue({ 
+        contactPhone: '',
+        contactEmail: '',
         phone: '',
         email: '',
         companyName: '',
+        companyContact: '',
         tenantName: '',
         referenceNo: '',
         contactId: ''
@@ -984,6 +1006,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
     else if (reservationTypeId === ReservationType.Owner) 
       this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Owner);
+    else if (reservationTypeId === ReservationType.Platform)
+      this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
     else
       this.filteredContacts = this.contacts;
     
@@ -1002,6 +1026,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     ];
   }
 
+  get companyContactOptions(): SearchableSelectOption[] {
+    return this.companyContacts.map(contact => ({
+      value: contact.contactId,
+      label: this.getContactNameLabel(contact)
+    }));
+  }
+
   getContactNameLabel(contact: ContactResponse): string {
     if (contact.entityTypeId === EntityType.Company) {
       return `${contact.displayName ?? contact.companyName}: ${contact.firstName} ${contact.lastName}`;
@@ -1015,13 +1046,26 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.get('contactId')?.markAsTouched();
   }
 
-  get headerReservationOptions(): SearchableSelectOption[] {
-    return this.availableHeaderReservations.map(option => ({ value: option.value.reservationId, label: option.label }));
-  }
+  onCompanyContactChange(contactId: string | number | null): void {
+    const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
+    this.form.get('companyContact')?.setValue(normalizedContactId);
+    this.form.get('companyContact')?.markAsTouched();
+    if (!normalizedContactId) {
+      return;
+    }
 
-  onHeaderReservationDropdownChange(reservationId: string | number | null): void {
-    this.selectedHeaderReservationId = reservationId == null ? null : String(reservationId);
-    this.onHeaderReservationChange();
+    const selectedCompanyContact = this.companyContacts.find(c => c.contactId === normalizedContactId) || null;
+    if (!selectedCompanyContact) {
+      return;
+    }
+
+    const selectedCompanyName = (selectedCompanyContact.displayName
+      ?? (this.utilityService.getCompanyDisplayToken(selectedCompanyContact.companyName ?? null) || selectedCompanyContact.companyName || '')).trim();
+    this.form.patchValue({
+      companyName: selectedCompanyName,
+      phone: this.formatterService.phoneNumber(selectedCompanyContact.phone) || '',
+      email: selectedCompanyContact.email || ''
+    }, { emitEvent: false });
   }
 
   onReservationNumberDropdownChange(controlName: 'reservationTypeId' | 'reservationStatusId' | 'reservationNoticeId' | 'checkInTimeId' | 'checkOutTimeId', value: string | number | null): void {
@@ -1029,14 +1073,27 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.get(controlName)?.markAsTouched();
   }
 
+  onPropertyDropdownChange(value: string | number | null): void {
+    const normalizedPropertyId = value == null ? '' : String(value).trim();
+    this.form.get('propertyId')?.setValue(normalizedPropertyId);
+    this.form.get('propertyId')?.markAsTouched();
+  }
+
+  get propertyOptions(): SearchableSelectOption[] {
+    return this.availableProperties.map(property => ({ value: property.propertyId, label: property.propertyCode }));
+  }
+
   onAgentDropdownChange(value: string | number | null): void {
-    const normalizedAgentId = value == null || value === '' ? null : String(value);
+    const normalizedAgentId = value == null ? null : String(value).trim();
     this.form.get('agentId')?.setValue(normalizedAgentId);
     this.form.get('agentId')?.markAsTouched();
   }
 
   get agentOptions(): SearchableSelectOption[] {
-    return this.agents.map(agent => ({ value: agent.agentId, label: agent.agentCode }));
+    return [
+      { value: this.noneAgentOptionValue, label: 'None' },
+      ...this.agents.map(agent => ({ value: agent.agentId, label: agent.agentCode }))
+    ];
   }
 
   updateReservationStatusesByReservationType(): void {
@@ -1086,10 +1143,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.disableFieldWithValidation('taxes');
     } else {
       // Enable fields for non-Owner types (with appropriate validators)
-      this.enableFieldWithValidation('agentId', [Validators.required]);
+      this.enableFieldWithValidation('agentId', [this.agentSelectionRequiredValidator]);
       this.enableFieldWithValidation('billingTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingMethodId', [Validators.required]);
-      this.enableFieldWithValidation('prorateTypeId');
+      this.enableFieldWithValidation('prorateTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingRate', [Validators.required]);
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);
@@ -1107,6 +1164,22 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.departureDateStartAt = new Date(arrivalDate);
       }
     }
+
+    this.updateCompanyContactRequirement();
+  }
+
+  updateCompanyContactRequirement(): void {
+    const companyContactControl = this.form.get('companyContact');
+    if (!companyContactControl) {
+      return;
+    }
+
+    if (this.showCompanyRow) {
+      companyContactControl.setValidators([Validators.required]);
+    } else {
+      companyContactControl.clearValidators();
+    }
+    companyContactControl.updateValueAndValidity({ emitEvent: false });
   }
 
   applyDefaultProrateTypeByReservationType(reservationTypeId: number | null): void {
@@ -1117,20 +1190,47 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     if (reservationTypeId === ReservationType.Individual) {
       prorateTypeControl.setValue(ProrateType.SecondMonth, { emitEvent: false });
-    } else if (reservationTypeId === ReservationType.Corporate) {
+    } else if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
       prorateTypeControl.setValue(ProrateType.FirstMonth, { emitEvent: false });
+    } else if (reservationTypeId === ReservationType.Owner) {
+      prorateTypeControl.setValue(null, { emitEvent: false });
     }
+  }
+
+  applyDefaultDepositTypeByReservationType(reservationTypeId: number | null): void {
+    const depositTypeControl = this.form.get('depositType');
+    if (!depositTypeControl) {
+      return;
+    }
+
+    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+      depositTypeControl.setValue(DepositType.CLR, { emitEvent: false });
+    } else {
+      depositTypeControl.setValue(DepositType.Deposit, { emitEvent: false });
+    }
+    this.updateDepositValues();
   }
 
   updateContactFields(): void {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     if (reservationTypeId === ReservationType.Owner) {
-      this.selectedContact = this.contacts.find(c => c.contactId === this.selectedProperty?.owner1Id) || null;
-      this.form.patchValue({ contactId: this.selectedContact?.contactId || '' }, { emitEvent: false });
+      const currentContactId = this.form?.get('contactId')?.value as string | null;
+      const selectedOwnerContact = currentContactId
+        ? this.contacts.find(c => c.contactId === currentContactId) || null
+        : null;
+      if (selectedOwnerContact) {
+        this.selectedContact = selectedOwnerContact;
+      } else {
+        this.selectedContact = this.contacts.find(c => c.contactId === this.selectedProperty?.owner1Id) || null;
+        this.form.patchValue({ contactId: this.selectedContact?.contactId || '' }, { emitEvent: false });
+      }
     }
 
     if (!this.selectedContact) {
       this.form.patchValue({
+        contactPhone: '',
+        contactEmail: '',
+        companyContact: '',
         companyName: '',
         phone: '',
         email: '',
@@ -1144,18 +1244,27 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     // Phone, email and companyName remain disabled (read-only) - just update their values. Prefer displayName so e.g. "Harvard" not "Harvard University".
     const selectedCompanyName = (this.selectedContact.displayName ?? (this.utilityService.getCompanyDisplayToken(this.selectedContact.companyName ?? null) || this.selectedContact.companyName || '')).trim();
-    this.form.patchValue({
-      companyName: selectedCompanyName,
-      phone: this.formatterService.phoneNumber(this.selectedContact.phone) || '',
-      email: this.selectedContact.email || '',
-    }, { emitEvent: false });
+    const contactFieldPatch: Record<string, unknown> = {
+      contactPhone: this.formatterService.phoneNumber(this.selectedContact.phone) || '',
+      contactEmail: this.selectedContact.email || '',
+    };
+
+    // In Platform mode, company row is independent and should not auto-select from Contact Name.
+    if (!this.showCompanyRow) {
+      contactFieldPatch['companyContact'] = this.selectedContact.contactId || '';
+      contactFieldPatch['companyName'] = selectedCompanyName;
+      contactFieldPatch['phone'] = this.formatterService.phoneNumber(this.selectedContact.phone) || '';
+      contactFieldPatch['email'] = this.selectedContact.email || '';
+    }
+
+    this.form.patchValue(contactFieldPatch, { emitEvent: false });
 
     if (reservationTypeId === ReservationType.Owner) {
       this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
       return;
     }
 
-    if (reservationTypeId === ReservationType.Individual) {
+    if (reservationTypeId === ReservationType.Individual || reservationTypeId === ReservationType.Platform) {
       this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
       return;
     }
@@ -1175,13 +1284,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (!this.selectedContact) {
       return false;
     }
+    return this.selectedContact.entityTypeId === EntityType.Company;
+  }
 
-    if (this.selectedContact.entityTypeId === EntityType.Company) {
-      return true;
-    }
-
-    const entityId = (this.selectedContact.entityId ?? '').trim().toLowerCase();
-    return entityId === 'company';
+  get showCompanyRow(): boolean {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    return reservationTypeId === ReservationType.Platform;
   }
 
   get isOwnerReservationType(): boolean {
@@ -1223,6 +1331,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.contactService.refreshContacts().pipe(take(1)).subscribe({
         next: (contacts) => {
           this.contacts = contacts || [];
+          this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
           let targetReservationTypeId: number | null = null;
           if (result.entityTypeId === EntityType.Tenant) {
             targetReservationTypeId = ReservationType.Individual;
@@ -1235,6 +1344,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
             this.updateReservationStatusesByReservationType();
             this.updateContactsByReservationType();
             this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
+            this.applyDefaultDepositTypeByReservationType(targetReservationTypeId);
             this.updateEnabledFieldsByReservationType();
           } else {
             this.updateContactsByReservationType();
@@ -1273,15 +1383,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
 
     const billingControl = this.form.get('billingRate')!;
-    const billingTypeId = this.form.get('billingTypeId')!.value;
-
-    let billingRate: string;
-    if (billingTypeId === BillingType.Monthly) {
-      billingRate = this.selectedProperty.monthlyRate.toFixed(2);
-    } else {
-      billingRate = this.selectedProperty.dailyRate.toFixed(2);
-    }
-
+    const billingRate = this.selectedProperty.monthlyRate.toFixed(2);
     billingControl.setValue(billingRate, { emitEvent: false });
   }
 
@@ -1365,6 +1467,108 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);
     }
+  }
+
+  onLeaseOfficeIdChange(officeId: number | null): void {
+    if (officeId !== null && officeId !== undefined && this.offices.length > 0) {
+      const newOffice = this.offices.find(o => o.officeId === officeId) || null;
+      if (newOffice && newOffice !== this.selectedOffice) {
+        this.selectedOffice = newOffice;
+        this.loadCostCodes();
+        this.filterPropertiesByOffice();
+      }
+    } else if (officeId === null && this.selectedOffice) {
+      this.selectedOffice = null;
+      this.filterPropertiesByOffice();
+    }
+  }
+
+  filterPropertiesByOffice(): void {
+    const officeFiltered = !this.selectedOffice
+      ? this.properties
+      : this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
+
+    if (!this.canEditProperty || !this.reservation) {
+      this.availableProperties = officeFiltered;
+      this.applySelectedPropertyClearIfOfficeMismatch();
+      return;
+    }
+
+    const arrivalRaw = this.form.get('arrivalDate')?.value ?? this.reservation?.arrivalDate;
+    const departureRaw = this.form.get('departureDate')?.value ?? this.reservation?.departureDate;
+    if (!arrivalRaw || !departureRaw) {
+      this.availableProperties = officeFiltered;
+      this.applySelectedPropertyClearIfOfficeMismatch();
+      return;
+    }
+
+    const arrival = this.normalizeDateForConflict(arrivalRaw);
+    const departure = this.normalizeDateForConflict(departureRaw);
+    const currentReservationId = this.reservation.reservationId;
+    const currentPropertyId = this.reservation.propertyId;
+
+    this.reservationService.getReservationList().pipe(take(1), catchError(() => of([] as ReservationListResponse[]))).subscribe(list => {
+      const propertyIdsWithConflict = new Set<string>();
+      for (const r of list) {
+        if (r.reservationId === currentReservationId || !r.isActive) continue;
+        if (!r.arrivalDate || !r.departureDate) continue;
+        const rArr = this.normalizeDateForConflict(r.arrivalDate);
+        const rDep = this.normalizeDateForConflict(r.departureDate);
+        if (arrival <= rDep && departure >= rArr) {
+          propertyIdsWithConflict.add(r.propertyId);
+        }
+      }
+      this.availableProperties = officeFiltered.filter(p =>
+        !propertyIdsWithConflict.has(p.propertyId) || p.propertyId === currentPropertyId
+      );
+      this.applySelectedPropertyClearIfOfficeMismatch();
+    });
+  }
+
+  normalizeDateForConflict(value: string | Date | null | undefined): Date {
+    const d = value instanceof Date ? new Date(value) : new Date(value as string);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  applySelectedPropertyClearIfOfficeMismatch(): void {
+    if (this.selectedProperty && this.selectedOffice && this.selectedProperty.officeId !== this.selectedOffice.officeId) {
+      this.selectedProperty = null;
+      this.form.patchValue({
+        propertyId: '',
+        propertyAddress: '',
+        propertyCode: ''
+      }, { emitEvent: false });
+    }
+  }
+
+  get sharedOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? this.reservation?.officeId ?? null;
+  }
+
+  get sharedPropertyId(): string | null {
+    const formPropertyId = this.form?.get('propertyId')?.value;
+    if (formPropertyId) {
+      return String(formPropertyId);
+    }
+    return this.selectedProperty?.propertyId ?? this.reservation?.propertyId ?? null;
+  }
+
+  get sharedPropertyCode(): string | null {
+    const formCode = this.form?.get('propertyCode')?.value;
+    if (typeof formCode === 'string' && formCode.trim().length > 0) {
+      return formCode.trim();
+    }
+    return this.selectedProperty?.propertyCode
+      ?? this.properties.find(p => p.propertyId === this.reservation?.propertyId)?.propertyCode
+      ?? null;
+  }
+
+  get sharedReservationId(): string | null {
+    if (this.isAddMode) {
+      return null;
+    }
+    return this.reservationId ?? this.reservation?.reservationId ?? null;
   }
   //#endregion
 
@@ -1476,9 +1680,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
+        this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
       },
       error: () => {
         this.contacts = [];
+        this.companyContacts = [];
       }
     });
   }
@@ -1559,224 +1765,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.availableChargeCostCodes = [];
       }
     });
-  }
-
-  onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    if (this.selectedOffice) {
-      this.loadCostCodes();
-    }
-    this.filterPropertiesByOffice();
-    
-    if (this.selectedProperty && this.selectedProperty.officeId !== this.selectedOffice?.officeId) {
-      this.selectedProperty = null;
-      this.form.patchValue({
-        propertyId: '',
-        propertyAddress: '',
-        propertyCode: ''
-      });
-    }
-    this.refreshHeaderReservationOptions();
-  }
-
-  onLeaseOfficeIdChange(officeId: number | null): void {
-    if (officeId !== null && officeId !== undefined && this.offices.length > 0) {
-      const newOffice = this.offices.find(o => o.officeId === officeId) || null;
-      if (newOffice && newOffice !== this.selectedOffice) {
-        this.selectedOffice = newOffice;
-        this.loadCostCodes();
-        this.filterPropertiesByOffice();
-      }
-    } else if (officeId === null && this.selectedOffice) {
-      this.selectedOffice = null;
-      this.filterPropertiesByOffice();
-    }
-    this.refreshHeaderReservationOptions();
-  }
-
-  filterPropertiesByOffice(): void {
-    const officeFiltered = !this.selectedOffice
-      ? this.properties
-      : this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
-
-    if (!this.canEditProperty || !this.reservation) {
-      this.availableProperties = officeFiltered;
-      this.applySelectedPropertyClearIfOfficeMismatch();
-      this.refreshHeaderReservationOptions();
-      return;
-    }
-
-    const arrivalRaw = this.form.get('arrivalDate')?.value ?? this.reservation?.arrivalDate;
-    const departureRaw = this.form.get('departureDate')?.value ?? this.reservation?.departureDate;
-    if (!arrivalRaw || !departureRaw) {
-      this.availableProperties = officeFiltered;
-      this.applySelectedPropertyClearIfOfficeMismatch();
-      this.refreshHeaderReservationOptions();
-      return;
-    }
-
-    const arrival = this.normalizeDateForConflict(arrivalRaw);
-    const departure = this.normalizeDateForConflict(departureRaw);
-    const currentReservationId = this.reservation.reservationId;
-    const currentPropertyId = this.reservation.propertyId;
-
-    this.reservationService.getReservationList().pipe(take(1), catchError(() => of([] as ReservationListResponse[]))).subscribe(list => {
-      const propertyIdsWithConflict = new Set<string>();
-      for (const r of list) {
-        if (r.reservationId === currentReservationId || !r.isActive) continue;
-        if (!r.arrivalDate || !r.departureDate) continue;
-        const rArr = this.normalizeDateForConflict(r.arrivalDate);
-        const rDep = this.normalizeDateForConflict(r.departureDate);
-        if (arrival <= rDep && departure >= rArr) {
-          propertyIdsWithConflict.add(r.propertyId);
-        }
-      }
-      this.availableProperties = officeFiltered.filter(p =>
-        !propertyIdsWithConflict.has(p.propertyId) || p.propertyId === currentPropertyId
-      );
-      this.applySelectedPropertyClearIfOfficeMismatch();
-      this.refreshHeaderReservationOptions();
-    });
-  }
-
-  loadReservationOptions(): void {
-    this.reservationService.getReservationList().pipe(take(1), catchError(() => of([] as ReservationListResponse[]))).subscribe(reservations => {
-      this.reservationList = reservations || [];
-      this.refreshHeaderReservationOptions();
-    });
-  }
-
-  refreshHeaderReservationOptions(): void {
-    const officeId = this.sharedOfficeId;
-    const propertyId = this.sharedPropertyId;
-    const preferredReservationId = this.reservation?.reservationId ?? this.reservationId ?? null;
-    if (!officeId || !propertyId) {
-      this.availableHeaderReservations = [];
-      if (this.selectedHeaderReservationId === undefined) {
-        this.selectedHeaderReservationId = preferredReservationId;
-      }
-      return;
-    }
-
-    this.availableHeaderReservations = this.reservationList
-      .filter(r => r.officeId === officeId && r.propertyId === propertyId)
-      .sort((a, b) => a.reservationCode.localeCompare(b.reservationCode))
-      .map(r => ({
-        value: r,
-        label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
-      }));
-
-    if (this.selectedHeaderReservationId === undefined) {
-      this.selectedHeaderReservationId = preferredReservationId ?? this.sharedReservationId ?? null;
-    }
-
-    // Preserve current selection while options are still loading.
-    if (this.availableHeaderReservations.length === 0) {
-      return;
-    }
-
-    if (this.selectedHeaderReservationId && !this.availableHeaderReservations.some(r => r.value.reservationId === this.selectedHeaderReservationId)) {
-      if (preferredReservationId && this.availableHeaderReservations.some(r => r.value.reservationId === preferredReservationId)) {
-        this.selectedHeaderReservationId = preferredReservationId;
-        return;
-      }
-      this.selectedHeaderReservationId = null;
-    }
-  }
-
-  async onHeaderReservationChange(): Promise<void> {
-    if (this.selectedTabIndex === 0) {
-      if (!this.selectedHeaderReservationId) {
-        return;
-      }
-      if (this.selectedHeaderReservationId !== this.reservation?.reservationId) {
-        const canLeave = await this.confirmNavigationWithUnsavedChanges();
-        if (!canLeave) {
-          this.selectedHeaderReservationId = this.reservation?.reservationId ?? this.reservationId ?? null;
-          return;
-        }
-      }
-      this.loadReservationFromHeaderSelection(this.selectedHeaderReservationId);
-      return;
-    }
-    if (this.selectedTabIndex === 1 && this.selectedHeaderReservationId) {
-      this.leaseReloadService.triggerReload();
-    }
-    if (this.selectedTabIndex === 3 && this.reservationEmailList) {
-      this.reservationEmailList.reload();
-    }
-    if (this.selectedTabIndex === 4 && this.reservationDocumentList) {
-      this.reservationDocumentList.reload();
-    }
-  }
-
-  private loadReservationFromHeaderSelection(reservationId: string): void {
-    if (!reservationId || this.reservation?.reservationId === reservationId) {
-      return;
-    }
-
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservationId = response.reservationId;
-        this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
-        this.selectedHeaderReservationId = response.reservationId;
-        this.populateForm();
-        this.refreshHeaderReservationOptions();
-      },
-      error: () => {}
-    });
-  }
-
-  get activeReservationId(): string | null {
-    return this.selectedHeaderReservationId ?? null;
-  }
-
-  private normalizeDateForConflict(value: string | Date | null | undefined): Date {
-    const d = value instanceof Date ? new Date(value) : new Date(value as string);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-
-  private applySelectedPropertyClearIfOfficeMismatch(): void {
-    if (this.selectedProperty && this.selectedOffice && this.selectedProperty.officeId !== this.selectedOffice.officeId) {
-      this.selectedProperty = null;
-      this.form.patchValue({
-        propertyId: '',
-        propertyAddress: '',
-        propertyCode: ''
-      }, { emitEvent: false });
-    }
-  }
-
-  get sharedOfficeId(): number | null {
-    return this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? this.reservation?.officeId ?? null;
-  }
-
-  get sharedPropertyId(): string | null {
-    const formPropertyId = this.form?.get('propertyId')?.value;
-    if (formPropertyId) {
-      return String(formPropertyId);
-    }
-    return this.selectedProperty?.propertyId ?? this.reservation?.propertyId ?? null;
-  }
-
-  get sharedPropertyCode(): string | null {
-    const formCode = this.form?.get('propertyCode')?.value;
-    if (typeof formCode === 'string' && formCode.trim().length > 0) {
-      return formCode.trim();
-    }
-    return this.selectedProperty?.propertyCode
-      ?? this.properties.find(p => p.propertyId === this.reservation?.propertyId)?.propertyCode
-      ?? null;
-  }
-
-  get sharedReservationId(): string | null {
-    if (this.isAddMode) {
-      return null;
-    }
-    return this.reservationId ?? this.reservation?.reservationId ?? null;
   }
   //#endregion
 
@@ -1892,7 +1880,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  private parseDateOnly(value: string | Date | null | undefined): Date | null {
+  parseDateOnly(value: string | Date | null | undefined): Date | null {
     if (!value) {
       return null;
     }
@@ -1906,11 +1894,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return parsed;
   }
 
-  private formatDateForMessage(date: Date): string {
+  formatDateForMessage(date: Date): string {
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
   }
 
-  private handleAvailabilityDateError(
+  handleAvailabilityDateError(
     message: string,
     fieldToClear: 'arrivalDate' | 'departureDate',
     preserveOnSave: boolean
@@ -1977,14 +1965,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const value = input.value.replace(/[^0-9]/g, '');
     input.value = value;
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
-  }
-
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
-  }
-
-  onPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
   onExtraFeeAmountInput(event: Event, index: number): void {
@@ -2066,60 +2046,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     // Blur the input to complete the edit (same as pressing Tab)
     const input = event.target as HTMLInputElement;
     input.blur();
-  }
-  //#endregion
-
-  //#region Tab Selection Methods
-  onTabChange(event: any): void {
-    this.selectedTabIndex = event.index;
-    this.refreshHeaderReservationOptions();
-    if (event.index === 1) {
-      const defaultReservationId = this.sharedReservationId ?? this.reservation?.reservationId ?? null;
-      if (!this.selectedHeaderReservationId && defaultReservationId) {
-        this.selectedHeaderReservationId = defaultReservationId;
-      }
-      this.onHeaderReservationChange();
-    }
-    const tabParam = this.getTabParamFromIndex(event.index);
-
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { tab: tabParam },
-      queryParamsHandling: 'merge'
-    });
-
-    // When Email tab (index 3) is selected, reload the email list
-    if (event.index === 3 && this.reservationEmailList) {
-      this.reservationEmailList.reload();
-    }
-
-    // When Documents tab (index 4) is selected, reload the document list
-    if (event.index === 4 && this.reservationDocumentList) {
-      this.reservationDocumentList.reload();
-    }
-  }
-  
- getTabIndexFromQueryParam(tabParam: string | undefined): number {
-    if (!tabParam) {
-      return 0;
-    }
-
-    return this.tabParamToIndex[tabParam] ?? 0;
-  }
-
-  getTabParamFromIndex(tabIndex: number): string | null {
-    switch (tabIndex) {
-      case 1:
-        return 'lease';
-      case 2:
-        return 'invoices';
-      case 3:
-        return 'email';
-      case 4:
-        return 'documents';
-      default:
-        return null;
-    }
   }
   //#endregion
 

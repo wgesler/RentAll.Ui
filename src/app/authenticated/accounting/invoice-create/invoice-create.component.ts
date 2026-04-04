@@ -655,7 +655,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
-    if (this.contact && this.contact.entityTypeId === EntityType.Company && this.contact.entityId) {
+    if (this.contact && this.contact.entityTypeId === EntityType.Company) {
        this.isCompanyRental = true;
     } else {
       this.isCompanyRental = false;

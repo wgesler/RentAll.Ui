@@ -43,7 +43,7 @@ import { PropertyComponent } from './authenticated/properties/property/property.
 import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
 import { ReservationBoardComponent } from './authenticated/reservations/reservation-board/reservation-board.component';
 import { ReservationListComponent } from './authenticated/reservations/reservation-list/reservation-list.component';
-import { ReservationComponent } from './authenticated/reservations/reservation/reservation.component';
+import { ReservationShellComponent } from './authenticated/reservations/reservation-shell/reservation-shell.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
 import { UserListComponent } from './authenticated/users/user-list/user-list.component';
 import { UserComponent } from './authenticated/users/user/user.component';
@@ -196,7 +196,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.CostCodesList, component: CostCodesListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.CostCodes, component: CostCodesComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Reservation, component: ReservationComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.Reservation, component: ReservationShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationBoardSelection, component: PropertySelectionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },

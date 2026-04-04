@@ -1,17 +1,3 @@
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  gap: 1rem;
-
-  p {
-    margin-top: 1rem;
-    color: #666;
-  }
-}
-
 // Reservation styles
 .reservation-tabs {
   ::ng-deep {
@@ -256,23 +242,33 @@
   box-sizing: border-box;
 }
 
-/* Edit Reservation title-bar fields: slightly taller to match Property page visuals. */
-:host ::ng-deep .header-title .titlebar-field-office.mat-mdc-form-field,
-:host ::ng-deep .header-title .titlebar-field-property-code.mat-mdc-form-field,
-:host ::ng-deep .header-title .titlebar-field-reservation.mat-mdc-form-field {
-  .mat-mdc-text-field-wrapper {
-    height: 32px !important;
-    min-height: 32px !important;
+.reservation-shell-mode {
+  width: 100% !important;
+  margin-top: 0 !important;
+
+  .property-titlebar {
+    display: none;
   }
 
-  .mat-mdc-form-field-flex,
-  .mat-mdc-form-field-infix,
-  .mat-mdc-select-trigger,
-  input.mat-mdc-input-element {
-    height: 32px !important;
-    min-height: 32px !important;
-    display: flex !important;
-    align-items: center !important;
+  > mat-card {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  ::ng-deep .reservation-tabs .mat-mdc-tab-header {
+    display: none;
+  }
+
+  ::ng-deep .reservation-tabs .mat-mdc-tab-body-wrapper,
+  ::ng-deep .reservation-tabs .mat-mdc-tab-body-content,
+  ::ng-deep .reservation-tabs form.info-form {
+    min-height: 0 !important;
+  }
+
+  ::ng-deep form.reservation-shell-form {
+    padding-top: 1.5rem !important;
   }
 }
 
@@ -299,6 +295,12 @@
 
 .reservation-mobile-toggle-row {
   display: none;
+}
+
+:host ::ng-deep .reservation-accordion-wrap .mat-mdc-form-field-subscript-wrapper,
+:host ::ng-deep .reservation-accordion-wrap .mat-mdc-form-field-error-wrapper,
+:host ::ng-deep .reservation-accordion-wrap mat-error {
+  display: none !important;
 }
 
 @media screen and (max-width: 1024px) {

@@ -286,7 +286,6 @@ export class ContactComponent implements OnInit, OnDestroy {
       ...formValue,
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId,
-      entityId: this.contact?.entityId ?? undefined,
       officeId: formValue.officeId || undefined,
       address1: formValue.address1 || '',
       address2: formValue.address2 || undefined,
@@ -297,7 +296,6 @@ export class ContactComponent implements OnInit, OnDestroy {
       notes: this.compactDialogMode && this.contact ? (this.contact.notes ?? undefined) : (formValue.notes || undefined),
       markup: this.compactDialogMode && this.contact != null ? (this.contact.markup ?? this.formatterService.parsePercentageValue(formValue.markup, 25)) : this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
-      companyId: this.contact?.companyId ?? undefined,
       displayName: derivedDisplayName,
       isInternational: isInternational,
       // In compact dialog we don't show agreements section; preserve loaded values so we don't delete them

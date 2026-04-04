@@ -1,0 +1,122 @@
+@if (isLoading$ | async) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading reservation...</p>
+  </div>
+} @else {
+<div class="flex content-card-wrap justify-center items-start" fxLayout="row wrap">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">
+            {{ reservationSection?.isAddMode ? 'Add Reservation' : 'Edit Reservation' }}
+          </span>
+        </span>
+        @if (reservationSection?.form) {
+          <div class="header-title form-titlebar-fields-wrap">
+            @if (showOfficeDropdown) {
+              <app-titlebar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="officeOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onOfficeDropdownChange($event)">
+              </app-titlebar-select>
+            } @else {
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Office</mat-label>
+                <input matInput [value]="selectedOfficeName" readonly [disabled]="true" class="readonly-field">
+              </mat-form-field>
+            }
+            <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              <input matInput [value]="selectedPropertyCode" readonly [disabled]="true" class="readonly-field">
+            </mat-form-field>
+            @if (!(reservationSection?.isAddMode ?? true)) {
+              <div class="titlebar-reservation-slot">
+                <app-titlebar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                  [required]="false"
+                  [value]="selectedHeaderReservationId ?? null"
+                  [options]="availableHeaderReservations"
+                  [showInstructionOption]="true"
+                  [nullOptionLabel]="'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onHeaderReservationDropdownChange($event)">
+                </app-titlebar-select>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      <div class="form-titlebar-actions-wrap">
+        <button mat-raised-button type="button" color="accent" id="back-button" (click)="reservationSection?.back()"
+          class="text-nowrap flex-shrink-0">
+          <mat-icon>arrow_back</mat-icon>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab label="Reservation">
+          <app-reservation #reservationSection [shellMode]="true"></app-reservation>
+        </mat-tab>
+
+        <mat-tab label="Lease">
+          <app-lease
+            [reservationId]="activeReservationId ?? ''"
+            [propertyId]="reservationSection?.sharedPropertyId ?? ''"
+            [officeId]="reservationSection?.sharedOfficeId ?? null"
+            [lockOfficeSelection]="true"
+            (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">
+          </app-lease>
+        </mat-tab>
+
+        <mat-tab label="Invoices">
+          <app-invoice-list
+            [officeId]="reservationSection?.sharedOfficeId ?? null"
+            [reservationId]="activeReservationId"
+            [source]="'reservation'">
+          </app-invoice-list>
+        </mat-tab>
+
+        <mat-tab label="Emails">
+          <app-email-list
+            #reservationEmailList
+            [propertyId]="reservationSection?.sharedPropertyId"
+            [propertyCode]="reservationSection?.sharedPropertyCode"
+            [hideFilters]="true"
+            [officeId]="reservationSection?.sharedOfficeId ?? null"
+            [reservationId]="activeReservationId"
+            [emailTypeId]="EmailType.ReservationLease"
+            [source]="'reservation'"
+            [hideHeader]="true">
+          </app-email-list>
+        </mat-tab>
+
+        <mat-tab label="Documents">
+          <app-document-list
+            #reservationDocumentList
+            [propertyId]="reservationSection?.sharedPropertyId"
+            [propertyCode]="reservationSection?.sharedPropertyCode"
+            [documentTypeId]="DocumentType.ReservationLease"
+            [hideFilters]="true"
+            [officeId]="reservationSection?.sharedOfficeId ?? null"
+            [reservationId]="activeReservationId"
+            [source]="'reservation'"
+            [hideHeader]="true">
+          </app-document-list>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>
+}

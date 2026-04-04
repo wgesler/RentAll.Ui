@@ -16,8 +16,8 @@ export class UnsavedChangesDialogService {
       message,
       icon: 'warning' as any,
       iconColor: 'accent',
-      no: 'No',
-      yes: 'Yes',
+      no: 'Stay',
+      yes: 'Leave',
       callback: (dialogRef, result) => dialogRef.close(result),
       useHTML: false,
       hideClose: true

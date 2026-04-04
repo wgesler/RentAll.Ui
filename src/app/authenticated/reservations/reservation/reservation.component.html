@@ -1,11 +1,11 @@
 @if (isLoading$ | async) {
-  <div class="loading-container">
+  <div class="page-loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading reservation...</p>
   </div>
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
+    <section class="content-card" [class.reservation-shell-mode]="shellMode">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
         <div class="flex items-center flex-wrap py-4">
           <span class="flex flex-column items-center gap-3 flex-shrink-0">
@@ -33,11 +33,11 @@
                     [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
                     [required]="selectedTabIndex === 0"
                     [value]="selectedHeaderReservationId ?? null"
-                    [options]="headerReservationOptions"
+                    [options]="[]"
                     [showInstructionOption]="selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4"
                     [nullOptionLabel]="selectedTabIndex === 1 ? 'Select Reservation' : 'All Reservations'"
                     [noResultsText]="'No reservations match your search'"
-                    (valueChange)="onHeaderReservationDropdownChange($event)">
+                    (valueChange)="selectedHeaderReservationId = ($event == null ? null : ($event + ''))">
                   </app-titlebar-select>
                 </div>
               }
@@ -56,16 +56,17 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
           <mat-tab label="Reservation">
             @if (form) {
             <div class="mat">
             </div>
-            <form [formGroup]="form" (ngSubmit)="saveReservation()" class="info-form mb-8 pt-5">
+            <form [formGroup]="form" (ngSubmit)="saveReservation()" [ngClass]="shellMode ? 'info-form mb-8 reservation-shell-form' : 'info-form mb-8 pt-5'">
             <div class="flex justify-end mb-3 gap-2">
               @if (!isAddMode) {
                 <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">
-                  Cancel
+                  <mat-icon>delete</mat-icon>
+                  Delete
                 </button>
               }
               <button mat-raised-button type="submit" color="primary" id="save-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
@@ -96,18 +97,22 @@
                 <!-- Edit Mode: Line 1: Property (when editable), Property Address, Credit Due (if > 0) -->
                 @if (canEditProperty) {
                   <!-- Reservation has not started: property is editable -->
-                  <mat-form-field appearance="outline" class="col-span-1">
-                    <mat-label>Property Code</mat-label>
-                    <mat-select formControlName="propertyId" required>
-                      <mat-option value="">Select Property</mat-option>
-                      @for (property of availableProperties; track property.propertyId) {
-                        <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
-                      }
-                    </mat-select>
-                    @if (form.get('propertyId')?.hasError('required') && form.get('propertyId')?.touched) {
-                      <mat-error>Property is required</mat-error>
-                    }
-                  </mat-form-field>
+                  <app-searchable-select
+                    class="col-span-1"
+                    [renderInFormField]="true"
+                    [formFieldLabel]="'Property Code'"
+                    [required]="true"
+                    [value]="form.get('propertyId')?.value ?? null"
+                    [options]="propertyOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [nullOptionLabel]="'Select Property'"
+                    [noResultsText]="'No properties match your search'"
+                    [showError]="!!(form.get('propertyId')?.invalid && form.get('propertyId')?.touched)"
+                    [errorText]="'Property is required'"
+                    (valueChange)="onPropertyDropdownChange($event)">
+                  </app-searchable-select>
                 }
 
                 <mat-form-field appearance="outline" [ngClass]="canEditProperty ? ((reservation?.creditDue > 0) ? 'col-span-1' : 'col-span-2') : ((reservation?.creditDue > 0) ? 'col-span-2' : 'col-span-3')">
@@ -133,18 +138,22 @@
 
               @if (isAddMode) {
                 <!-- Add Mode: Line 1: Property (1/4), Property Address (2/4 or 3/4), Credit Due (1/4 if > 0) -->
-                <mat-form-field appearance="outline" class="col-span-1">
-                  <mat-label>Property Code</mat-label>
-                  <mat-select formControlName="propertyId" required>
-                    <mat-option value="">Select Property</mat-option>
-                    @for (property of availableProperties; track property.propertyId) {
-                      <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
-                    }
-                  </mat-select>
-                  @if (form.get('propertyId')?.hasError('required') && form.get('propertyId')?.touched) {
-                    <mat-error>Property is required</mat-error>
-                  }
-                </mat-form-field>
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Property Code'"
+                  [required]="true"
+                  [value]="form.get('propertyId')?.value ?? null"
+                  [options]="propertyOptions"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Property'"
+                  [noResultsText]="'No properties match your search'"
+                  [showError]="!!(form.get('propertyId')?.invalid && form.get('propertyId')?.touched)"
+                  [errorText]="'Property is required'"
+                  (valueChange)="onPropertyDropdownChange($event)">
+                </app-searchable-select>
 
                 <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
                   <mat-label>Property Address</mat-label>
@@ -177,9 +186,9 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'Select Reservation Type'"
+                  [nullOptionLabel]="''"
                   [noResultsText]="'No reservation types match your search'"
-                  [showError]="!!(form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched)"
+                  [showError]="!!(form.get('reservationTypeId')?.invalid && form.get('reservationTypeId')?.touched)"
                   [errorText]="'Reservation Type is required'"
                   (valueChange)="onReservationNumberDropdownChange('reservationTypeId', $event)">
                 </app-searchable-select>
@@ -196,7 +205,7 @@
                   [hideSearchText]="true"
                   [nullOptionLabel]="''"
                   [noResultsText]="'No reservation statuses match your search'"
-                  [showError]="!!(form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched)"
+                  [showError]="!!(form.get('reservationStatusId')?.invalid && form.get('reservationStatusId')?.touched)"
                   [errorText]="'Reservation Status is required'"
                   (valueChange)="onReservationNumberDropdownChange('reservationStatusId', $event)">
                 </app-searchable-select>
@@ -229,8 +238,10 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'None'"
+                  [nullOptionLabel]="'Select Agent'"
                   [noResultsText]="'No agents match your search'"
+                  [showError]="!!(!isOwnerReservationType && form.get('agentId')?.invalid && form.get('agentId')?.touched)"
+                  [errorText]="'Agent is required'"
                   (valueChange)="onAgentDropdownChange($event)">
                 </app-searchable-select>
               }
@@ -247,9 +258,9 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'Select Reservation Type'"
+                  [nullOptionLabel]="''"
                   [noResultsText]="'No reservation types match your search'"
-                  [showError]="!!(form.get('reservationTypeId')?.hasError('required') && form.get('reservationTypeId')?.touched)"
+                  [showError]="!!(form.get('reservationTypeId')?.invalid && form.get('reservationTypeId')?.touched)"
                   [errorText]="'Reservation Type is required'"
                   (valueChange)="onReservationNumberDropdownChange('reservationTypeId', $event)">
                 </app-searchable-select>
@@ -266,7 +277,7 @@
                   [hideSearchText]="true"
                   [nullOptionLabel]="''"
                   [noResultsText]="'No reservation statuses match your search'"
-                  [showError]="!!(form.get('reservationStatusId')?.hasError('required') && form.get('reservationStatusId')?.touched)"
+                  [showError]="!!(form.get('reservationStatusId')?.invalid && form.get('reservationStatusId')?.touched)"
                   [errorText]="'Reservation Status is required'"
                   (valueChange)="onReservationNumberDropdownChange('reservationStatusId', $event)">
                 </app-searchable-select>
@@ -299,13 +310,15 @@
                   [showSearchInput]="true"
                   [hideSearchHint]="true"
                   [hideSearchText]="true"
-                  [nullOptionLabel]="'None'"
+                  [nullOptionLabel]="'Select Agent'"
                   [noResultsText]="'No agents match your search'"
+                  [showError]="!!(!isOwnerReservationType && form.get('agentId')?.invalid && form.get('agentId')?.touched)"
+                  [errorText]="'Agent is required'"
                   (valueChange)="onAgentDropdownChange($event)">
                 </app-searchable-select>
               }
 
-              <!-- Line 3: Contact Name, Company Name, Phone, Email -->
+              <!-- Line 3: Contact Name, Contact Phone, Contact Email -->
               <app-searchable-select
                 class="col-span-1"
                 [renderInFormField]="true"
@@ -317,29 +330,78 @@
                 [showSearchInput]="true"
                 [hideSearchHint]="true"
                 [hideSearchText]="true"
-                [nullOptionLabel]="''"
+                [nullOptionLabel]="'Select Contact'"
                 [noResultsText]="'No contacts match your search'"
-                [showError]="!!(form.get('contactId')?.hasError('required') && form.get('contactId')?.touched)"
+                [showError]="!!(form.get('contactId')?.invalid && form.get('contactId')?.touched)"
                 [errorText]="'Contact Name is required'"
                 (valueChange)="onContactNameChange($event)">
               </app-searchable-select>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Company Name</mat-label>
-                <input matInput formControlName="companyName" readonly class="readonly-field">
-              </mat-form-field>
+              @if (form.get('reservationTypeId')?.value === ReservationType.Corporate) {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Name</mat-label>
+                  <input matInput formControlName="companyName">
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Contact Phone</mat-label>
-                <input matInput formControlName="phone" readonly class="readonly-field">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Phone</mat-label>
+                  <input matInput formControlName="contactPhone">
+                </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1">
-                <mat-label>Contact Email</mat-label>
-                <input matInput type="email" formControlName="email" readonly class="readonly-field">
-              </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Email</mat-label>
+                  <input matInput type="email" formControlName="contactEmail">
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Phone</mat-label>
+                  <input matInput formControlName="contactPhone">
+                </mat-form-field>
 
-              <!-- Line 4: Number of People, Tenant Name(s) -->
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Email</mat-label>
+                  <input matInput type="email" formControlName="contactEmail">
+                </mat-form-field>
+
+                <div class="col-span-1"></div>
+              }
+
+              @if (showCompanyRow) {
+                <!-- Line 4: Company Name, Company Contact, Contact Phone, Contact Email -->
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Company Contact'"
+                  [required]="showCompanyRow"
+                  [value]="form.get('companyContact')?.value || ''"
+                  [options]="companyContactOptions"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Company Contact'"
+                  [noResultsText]="'No company contacts match your search'"
+                  [showError]="!!(form.get('companyContact')?.hasError('required') && form.get('companyContact')?.touched)"
+                  [errorText]="'Company Contact is required'"
+                  (valueChange)="onCompanyContactChange($event)">
+                </app-searchable-select>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Name</mat-label>
+                  <input matInput formControlName="companyName">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Contact Phone</mat-label>
+                  <input matInput formControlName="phone">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Company Contact Email</mat-label>
+                  <input matInput type="email" formControlName="email">
+                </mat-form-field>
+              }
+
+              <!-- Line 5: Number of People, Tenant Name(s) -->
               <mat-form-field appearance="outline" class="col-span-1">
                 <mat-label>Number of People</mat-label>
                 <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
@@ -444,7 +506,7 @@
                     <mat-option [value]="billingType.value">{{ billingType.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('billingTypeId')?.hasError('required') && form.get('billingTypeId')?.touched) {
+                @if (form.get('billingTypeId')?.invalid && form.get('billingTypeId')?.touched) {
                   <mat-error>Billing Type is required</mat-error>
                 }
               </mat-form-field>
@@ -452,7 +514,7 @@
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Billing Rate</mat-label>
                 <input matInput type="text" formControlName="billingRate" placeholder="0.00" (blur)="formatDecimal('billingRate')" (input)="onDecimalInput($event, 'billingRate')" (focus)="selectAllOnFocus($event)" required>
-                @if (form.get('billingRate')?.hasError('required') && form.get('billingRate')?.touched) {
+                @if (form.get('billingRate')?.invalid && form.get('billingRate')?.touched) {
                   <mat-error>Billing Rate is required</mat-error>
                 }
               </mat-form-field>
@@ -464,7 +526,7 @@
                     <mat-option [value]="depositType.value">{{ depositType.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('depositType')?.hasError('required') && form.get('depositType')?.touched) {
+                @if (form.get('depositType')?.invalid && form.get('depositType')?.touched) {
                   <mat-error>DepositType is required</mat-error>
                 }
               </mat-form-field>
@@ -490,7 +552,7 @@
                     <mat-option [value]="billingMethod.value">{{ billingMethod.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('billingMethodId')?.hasError('required') && form.get('billingMethodId')?.touched) {
+                @if (form.get('billingMethodId')?.invalid && form.get('billingMethodId')?.touched) {
                   <mat-error>Billing Method is required</mat-error>
                 }
               </mat-form-field>
@@ -502,12 +564,15 @@
                     <mat-option [value]="prorateType.value">{{ prorateType.label }}</mat-option>
                   }
                 </mat-select>
+                @if (!isOwnerReservationType && form.get('prorateTypeId')?.invalid && form.get('prorateTypeId')?.touched) {
+                  <mat-error>Client Prorate Month is required</mat-error>
+                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Departure Fee</mat-label>
                 <input matInput type="text" formControlName="departureFee" placeholder="0.00" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
-                @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
+                @if (form.get('departureFee')?.invalid && form.get('departureFee')?.touched) {
                   <mat-error>Departure Fee is required</mat-error>
                 }
               </mat-form-field>
@@ -526,7 +591,7 @@
                   <mat-option [value]="false">No</mat-option>
                   <mat-option [value]="true">Yes</mat-option>
                 </mat-select>
-                @if (form.get('pets')?.hasError('required') && form.get('pets')?.touched) {
+                @if (form.get('pets')?.invalid && form.get('pets')?.touched) {
                   <mat-error>Pets is required</mat-error>
                 }
               </mat-form-field>
@@ -534,7 +599,7 @@
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Pet Fee</mat-label>
                 <input matInput type="text" formControlName="petFee" placeholder="0.00" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" [required]="form.get('pets')?.value === true">
-                @if (form.get('petFee')?.hasError('required') && form.get('petFee')?.touched) {
+                @if (form.get('petFee')?.invalid && form.get('petFee')?.touched) {
                   <mat-error>Pet Fee is required</mat-error>
                 }
               </mat-form-field>
@@ -547,7 +612,7 @@
                   <mat-option [value]="3">3</mat-option>
                   <mat-option [value]="4">4</mat-option>
                 </mat-select>
-                @if (form.get('numberOfPets')?.hasError('required') && form.get('numberOfPets')?.touched) {
+                @if (form.get('numberOfPets')?.invalid && form.get('numberOfPets')?.touched) {
                   <mat-error>Number of Pets is required</mat-error>
                 }
               </mat-form-field>
@@ -555,7 +620,7 @@
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Pet(s) Description</mat-label>
                 <input matInput type="text" formControlName="petDescription" placeholder="" [required]="form.get('pets')?.value === true">
-                @if (form.get('petDescription')?.hasError('required') && form.get('petDescription')?.touched) {
+                @if (form.get('petDescription')?.invalid && form.get('petDescription')?.touched) {
                   <mat-error>Pet Description is required</mat-error>
                 }
               </mat-form-field>
@@ -569,7 +634,7 @@
                   <mat-option [value]="false">No</mat-option>
                   <mat-option [value]="true">Yes</mat-option>
                 </mat-select>
-                @if (form.get('maidService')?.hasError('required') && form.get('maidService')?.touched) {
+                @if (form.get('maidService')?.invalid && form.get('maidService')?.touched) {
                   <mat-error>MaidService is required</mat-error>
                 }
               </mat-form-field>
@@ -716,7 +781,7 @@
           
           <mat-tab label="Lease">
             <app-lease 
-              [reservationId]="activeReservationId ?? ''" 
+              [reservationId]="(selectedHeaderReservationId ?? null) ?? ''" 
               [propertyId]="sharedPropertyId ?? ''"
               [officeId]="sharedOfficeId"
               [lockOfficeSelection]="true"
@@ -727,7 +792,7 @@
           <mat-tab label="Invoices">
             <app-invoice-list 
               [officeId]="sharedOfficeId"
-              [reservationId]="activeReservationId"
+              [reservationId]="selectedHeaderReservationId ?? null"
               [source]="'reservation'">
             </app-invoice-list>
           </mat-tab>
@@ -739,7 +804,7 @@
               [propertyCode]="sharedPropertyCode"
               [hideFilters]="true"
               [officeId]="sharedOfficeId"
-              [reservationId]="activeReservationId"
+              [reservationId]="selectedHeaderReservationId ?? null"
               [emailTypeId]="EmailType.ReservationLease"
               [source]="'reservation'"
               [hideHeader]="true">
@@ -754,7 +819,7 @@
               [documentTypeId]="DocumentType.ReservationLease"
               [hideFilters]="true"
               [officeId]="sharedOfficeId"
-              [reservationId]="activeReservationId"
+              [reservationId]="selectedHeaderReservationId ?? null"
               [source]="'reservation'"
               [hideHeader]="true">
             </app-document-list>

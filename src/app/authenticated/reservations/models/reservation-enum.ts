@@ -48,7 +48,8 @@ export function getReservationStatuses(): { value: number, label: string }[] {
 export enum ReservationType {
  	Individual = 0,
 	Corporate = 1,
-	Owner = 2
+	Owner = 2,
+  Platform = 3
 }
 
 export function getReservationType(reservationTypeId: number | undefined): string {
@@ -57,7 +58,8 @@ export function getReservationType(reservationTypeId: number | undefined): strin
   const typeMap: { [key: number]: string } = {
     [ReservationType.Individual]: 'Individual',
     [ReservationType.Corporate]: 'Corporate',
-    [ReservationType.Owner]: 'Owner'
+    [ReservationType.Owner]: 'Owner',
+    [ReservationType.Platform]: 'Platform'
   };
   
   return typeMap[reservationTypeId] || '';
@@ -68,7 +70,8 @@ export function getReservationTypes(): { value: number, label: string }[] {
   return [
     { value: ReservationType.Individual, label: getReservationType(ReservationType.Individual) },
     { value: ReservationType.Corporate, label: getReservationType(ReservationType.Corporate) },
-    { value: ReservationType.Owner, label: getReservationType(ReservationType.Owner) }
+    { value: ReservationType.Owner, label: getReservationType(ReservationType.Owner) },
+    { value: ReservationType.Platform, label: getReservationType(ReservationType.Platform) }
   ];
 }
 //#endregion

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroupDirective, FormsModule, NgForm } from '@angular/forms';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MaterialModule } from '../../../material.module';
 
 export interface SearchableSelectOption<TValue = string | number | null> {
@@ -12,63 +13,15 @@ export interface SearchableSelectOption<TValue = string | number | null> {
   standalone: true,
   selector: 'app-searchable-select',
   imports: [CommonModule, FormsModule, MaterialModule],
-  styles: [`
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-text-field-wrapper {
-      height: 34px !important;
-      min-height: 34px !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-    }
-
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-flex,
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-form-field-infix {
-      height: 34px !important;
-      min-height: 34px !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-      display: flex !important;
-      align-items: center !important;
-    }
-
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-trigger {
-      height: 34px !important;
-      min-height: 34px !important;
-      display: flex !important;
-      align-items: center !important;
-    }
-
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value {
-      height: 34px !important;
-      min-height: 34px !important;
-      display: flex !important;
-      align-items: center !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-    }
-
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-value-text,
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-min-line,
-    :host ::ng-deep .searchable-titlebar-select .mat-mdc-select-placeholder {
-      line-height: 34px !important;
-    }
-
-    .searchable-trigger-value {
-      display: inline-block;
-      width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .searchable-trigger-value.searchable-trigger-value--clickable {
-      cursor: pointer;
-    }
-  `],
   template: `
     @if (renderInFormField) {
       <mat-form-field
+        class="searchable-select-field"
         [appearance]="formFieldAppearance"
-        [class]="formFieldClass"
+        [ngClass]="formFieldClass"
+        [class.mat-form-field-invalid]="showError"
+        [class.mat-mdc-form-field-invalid]="showError"
+        [class.searchable-invalid]="showError"
         [class.searchable-titlebar-select]="titlebarMode">
         @if (formFieldLabel) {
           <mat-label>{{ formFieldLabel }}</mat-label>
@@ -78,22 +31,24 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           [required]="required"
           [canSelectNullableOptions]="true"
           [compareWith]="compareValues"
+          [errorStateMatcher]="showErrorStateMatcher"
+          [attr.aria-invalid]="showError"
           [disabled]="disabled"
-          [class]="selectClass"
+          class="searchable-select-control"
+          [ngClass]="selectClass"
           (selectionChange)="valueChange.emit($event.value)"
           (keydown)="onSelectKeydown($event)"
           (openedChange)="onOpenedChange($event)">
-          @if (triggerValueClickable) {
-            <mat-select-trigger>
-              <span
-                class="searchable-trigger-value"
-                [class.searchable-trigger-value--clickable]="hasConcreteSelection"
-                (mousedown)="onTriggerValueMouseDown($event)"
-                (click)="onTriggerValueClick($event)">
-                {{ selectedOptionLabel || nullOptionLabel }}
-              </span>
-            </mat-select-trigger>
-          }
+          <mat-select-trigger>
+            <span
+              class="searchable-trigger-value"
+              [class.searchable-trigger-value--placeholder]="!hasConcreteSelection"
+              [class.searchable-trigger-value--clickable]="triggerValueClickable && hasConcreteSelection"
+              (mousedown)="onTriggerValueMouseDown($event)"
+              (click)="onTriggerValueClick($event)">
+              {{ selectedOptionLabel || nullOptionLabel }}
+            </span>
+          </mat-select-trigger>
           @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
             <mat-option>
               <input
@@ -127,22 +82,24 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [required]="required"
         [canSelectNullableOptions]="true"
         [compareWith]="compareValues"
+        [errorStateMatcher]="showErrorStateMatcher"
+        [attr.aria-invalid]="showError"
         [disabled]="disabled"
-        [class]="selectClass"
+        class="searchable-select-control"
+        [ngClass]="selectClass"
         (selectionChange)="valueChange.emit($event.value)"
         (keydown)="onSelectKeydown($event)"
         (openedChange)="onOpenedChange($event)">
-        @if (triggerValueClickable) {
-          <mat-select-trigger>
-            <span
-              class="searchable-trigger-value"
-              [class.searchable-trigger-value--clickable]="hasConcreteSelection"
-              (mousedown)="onTriggerValueMouseDown($event)"
-              (click)="onTriggerValueClick($event)">
-              {{ selectedOptionLabel || nullOptionLabel }}
-            </span>
-          </mat-select-trigger>
-        }
+        <mat-select-trigger>
+          <span
+            class="searchable-trigger-value"
+            [class.searchable-trigger-value--placeholder]="!hasConcreteSelection"
+            [class.searchable-trigger-value--clickable]="triggerValueClickable && hasConcreteSelection"
+            (mousedown)="onTriggerValueMouseDown($event)"
+            (click)="onTriggerValueClick($event)">
+            {{ selectedOptionLabel || nullOptionLabel }}
+          </span>
+        </mat-select-trigger>
         @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
           <mat-option>
             <input
@@ -194,6 +151,10 @@ export class SearchableSelectComponent {
   @Input() triggerValueClickable = false;
   @Output() valueChange = new EventEmitter<string | number | null>();
   @Output() triggerValueClick = new EventEmitter<Event>();
+
+  showErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: (_control: FormControl | null, _form: FormGroupDirective | NgForm | null): boolean => this.showError
+  };
 
   searchText = '';
   isPanelOpen = false;
