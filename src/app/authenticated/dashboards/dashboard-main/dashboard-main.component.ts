@@ -424,6 +424,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   getCommissionAmountDisplay(amount: number): string {
+    if (amount <= 0) {
+      return `$${amount.toFixed(2)}`;
+    }
+
     if (this.showMonthlyCommissionAmount) {
       return `$${amount.toFixed(2)}`;
     }
@@ -435,7 +439,9 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   }
 
   onCommissionTileClick(event: MouseEvent): void {
-    if (!this.isAdmin) {
+    if (!this.isAdmin || this.getMonthlyCommissionTotal() <= 0) {
+      this.showCommissionBreakdown = false;
+      this.showMonthlyCommissionAmount = false;
       return;
     }
     event.stopPropagation();

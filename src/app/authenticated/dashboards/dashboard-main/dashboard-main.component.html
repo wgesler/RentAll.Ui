@@ -94,7 +94,7 @@
             @if (canViewCommissions) {
               <div
                 class="day-box day-box-commissions day-box-compact"
-                [class.commission-tile-clickable]="isAdmin"
+                [class.commission-tile-clickable]="isAdmin && getMonthlyCommissionTotal() > 0"
                 (click)="onCommissionTileClick($event)">
                 <div class="day-box-text">
                   <h4 class="day-title">
@@ -115,7 +115,7 @@
                     </button>
                   </div>
                 </div>
-                @if (isAdmin && showCommissionBreakdown) {
+                @if (isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
                   <div class="commission-breakdown-popover">
                     @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
                       <div class="commission-breakdown-row">
