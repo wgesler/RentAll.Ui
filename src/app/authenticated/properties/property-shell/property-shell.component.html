@@ -32,7 +32,14 @@
 
             <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
-              @if (isHeaderPropertyCodeEditable) {
+              @if (!(propertySection?.isAddMode ?? false)) {
+                <input
+                  matInput
+                  [value]="sharedPropertyCode || 'Code'"
+                  readonly
+                  [disabled]="true"
+                  class="readonly-field">
+              } @else if (isHeaderPropertyCodeEditable) {
                 <input
                   matInput
                   [value]="propertySection?.form?.get('propertyCode')?.value ?? ''"
