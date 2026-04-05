@@ -13,7 +13,7 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { getNumberQueryParam } from '../../shared/query-param.utils';
+import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -50,6 +50,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isEmbedded: boolean = true;
+  returnUrl: string | null = null;
   states: string[] = [];
   
   contactId: string;
@@ -150,6 +151,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       }
       this.isAddMode = this.contactId === 'new';
     }
+    this.captureReturnUrl();
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
     this.buildForm();
     if (this.dialogData?.preloadedContact) {
@@ -345,12 +347,12 @@ export class ContactComponent implements OnInit, OnDestroy {
             if (this.isEmbedded) {
               this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
             } else {
-              this.router.navigate([RouterUrl.ContactList]);
+              this.navigateBackToOrigin();
             }
           },
           error: () => {
             if (this.isEmbedded) this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
-            else this.router.navigate([RouterUrl.ContactList]);
+            else this.navigateBackToOrigin();
           }
         });
       },
@@ -1015,8 +1017,47 @@ export class ContactComponent implements OnInit, OnDestroy {
     if (this.isEmbedded) {
       this.closed.emit({});
     } else {
-      this.router.navigate([RouterUrl.ContactList]);
+      this.navigateBackToOrigin();
     }
+  }
+
+  captureReturnUrl(): void {
+    const fromQuery = getStringQueryParam(this.route.snapshot.queryParams, 'returnUrl');
+    if (fromQuery) {
+      const normalized = fromQuery.startsWith('/') ? fromQuery : `/${fromQuery}`;
+      if (normalized.startsWith('/auth/') && !/\/contacts\/[^/?]+/.test(normalized)) {
+        this.returnUrl = normalized;
+        return;
+      }
+    }
+
+    const returnTo = getStringQueryParam(this.route.snapshot.queryParams, 'returnTo');
+    if (returnTo === 'reservation-list') {
+      this.returnUrl = RouterUrl.ReservationList;
+      return;
+    }
+    if (returnTo === 'property-list') {
+      this.returnUrl = RouterUrl.PropertyList;
+      return;
+    }
+    if (returnTo === 'maintenance-list') {
+      this.returnUrl = RouterUrl.MaintenanceList;
+      return;
+    }
+    if (returnTo === 'dashboard-main') {
+      this.returnUrl = RouterUrl.Dashboard;
+      return;
+    }
+
+    this.returnUrl = null;
+  }
+
+  navigateBackToOrigin(): void {
+    if (this.returnUrl) {
+      this.router.navigateByUrl(this.returnUrl);
+      return;
+    }
+    this.router.navigate([RouterUrl.ContactList]);
   }
   //#endregion
 }

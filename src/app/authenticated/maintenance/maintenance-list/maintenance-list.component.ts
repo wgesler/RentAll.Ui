@@ -236,7 +236,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   goToContact(event: MaintenanceListDisplay): void {
     if (event.owner1Id) {
       this.ngZone.run(() => {
-        this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id]));
+        this.router.navigate(
+          [RouterUrl.replaceTokens(RouterUrl.Contact, [event.owner1Id])],
+          { queryParams: { returnUrl: this.router.url } }
+        );
       });
     }
   }

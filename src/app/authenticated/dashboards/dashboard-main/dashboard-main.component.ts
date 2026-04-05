@@ -696,7 +696,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   goToContact(event: ReservationListDisplay): void {
     if (event.contactId) {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId]));
+      this.router.navigate(
+        [RouterUrl.replaceTokens(RouterUrl.Contact, [event.contactId])],
+        { queryParams: { returnUrl: this.router.url } }
+      );
     }
   }
 
