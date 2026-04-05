@@ -319,6 +319,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     this.departureDateStartAt = today;
     this.updateContactFields();
+    this.applyPlatformCompanyDetails(source.companyId ?? null, source.companyName ?? null);
     this.updatePetFields();
     this.updateMaidServiceFields();
     this.updateMaidStartDate();
@@ -731,6 +732,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     // Find selected contact - contacts are guaranteed to be loaded at this point
     this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
     this.updateContactFields();
+    this.applyPlatformCompanyDetails(this.reservation.companyId ?? null, this.reservation.companyName ?? null);
    
     // Update pet and maid service fields after patching
     this.updatePetFields();
@@ -1254,6 +1256,44 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.form.patchValue({ referenceNo: '' }, { emitEvent: false });
     }
  }
+
+  applyPlatformCompanyDetails(companyId: string | null, companyName: string | null): void {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    if (reservationTypeId !== ReservationType.Platform) {
+      return;
+    }
+
+    const normalizedCompanyId = companyId == null || String(companyId).trim() === '' ? null : String(companyId).trim();
+    const normalizedCompanyName = companyName == null || String(companyName).trim() === '' ? null : String(companyName).trim();
+
+    const matchedCompanyContact = normalizedCompanyId
+      ? this.companyContacts.find(c => c.contactId === normalizedCompanyId) || null
+      : this.companyContacts.find(c => {
+          const displayName = (c.displayName ?? '').trim();
+          const rawCompanyName = (c.companyName ?? '').trim();
+          return !!normalizedCompanyName && (displayName === normalizedCompanyName || rawCompanyName === normalizedCompanyName);
+        }) || null;
+
+    if (!matchedCompanyContact) {
+      this.form.patchValue({
+        companyContact: normalizedCompanyId ?? '',
+        companyName: normalizedCompanyName ?? '',
+        phone: '',
+        email: ''
+      }, { emitEvent: false });
+      return;
+    }
+
+    const selectedCompanyName = (matchedCompanyContact.displayName
+      ?? (this.utilityService.getCompanyDisplayToken(matchedCompanyContact.companyName ?? null) || matchedCompanyContact.companyName || '')).trim();
+
+    this.form.patchValue({
+      companyContact: matchedCompanyContact.contactId || '',
+      companyName: selectedCompanyName,
+      phone: this.formatterService.phoneNumber(matchedCompanyContact.phone) || '',
+      email: matchedCompanyContact.email || ''
+    }, { emitEvent: false });
+  }
 
   get showPoNumberField(): boolean {
     if (!this.selectedContact) {

@@ -121,10 +121,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' , alignment: 'center' },
     'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '165h', options: this.propertyStatusLabels },
-    'paymentReceived': { displayAs: 'Payment', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '9ch' },
-    'welcomeLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '9ch' },
-    'readyForArrival': { displayAs: 'Ready', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '9ch' },
-    'code': { displayAs: 'Code', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '9ch' },
+    'paymentReceived': { displayAs: 'Payment', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'welcomeLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'readyForArrival': { displayAs: 'Ready', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'code': { displayAs: 'Code', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
    };
 
   departuresReservationsDisplayedColumns: ColumnSet = {

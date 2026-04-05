@@ -18,7 +18,6 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EMPLOYEE_USER_GROUPS, getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -28,7 +27,7 @@ import { UserService } from '../services/user.service';
     selector: 'app-user-list',
     templateUrl: './user-list.component.html',
     styleUrls: ['./user-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
 })
 
 export class UserListComponent implements OnInit, OnDestroy, OnChanges {

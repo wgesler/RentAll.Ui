@@ -37,7 +37,7 @@ import { PropertyHtmlService } from '../../properties/services/property-html.ser
 import { PropertyService } from '../../properties/services/property.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { LeaseInformationResponse } from '../models/lease-information.model';
-import { BillingType, DepositType, ReservationNotice } from '../models/reservation-enum';
+import { BillingType, DepositType, ReservationNotice, ReservationType } from '../models/reservation-enum';
 import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
@@ -70,6 +70,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   leaseInformation: LeaseInformationResponse | null = null;
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
+  companyContact: ContactResponse | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
@@ -586,11 +587,16 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   loadContact(): void {
     if (!this.selectedReservation?.contactId) {
       this.contact = null;
+      this.companyContact = null;
       this.isCompanyRental = false;
       return;
     }
 
     this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
+    this.companyContact = this.selectedReservation.companyId
+      ? this.contacts.find(c => c.contactId === this.selectedReservation?.companyId) || null
+      : null;
+
     if (this.contact && this.contact.entityTypeId === EntityType.Company) {
       this.isCompanyRental = true;
       this.form.patchValue({ includeRentalCreditApplication: false });
@@ -818,17 +824,55 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return '';
   }
 
-  getResponsibleParty(): string {
-    if(!this.contact ) return '';
-    if (this.contact.entityTypeId === EntityType.Company) {
-      return (this.contact.companyName || '').trim();
+  getResponsibleNoun(): string {
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+      return 'Company';
     }
+    return 'Tenant';
+  }
+
+  getResponsibleParty(): string {
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
+    if (!sourceContact) return '';
+
+    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+      return (sourceContact.companyName || '').trim();
+    }
+
     return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
-  getResponsibleNoun(): string {
-    if(!this.contact ) return '';
-    return this.contact.entityTypeId === EntityType.Company ? 'Company' : 'Tenant';
+  getResponsiblePartyAddress() {
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
+    if (!sourceContact) return '';
+
+    const isInternational = (sourceContact as any).isInternational || false;
+    if (isInternational) {
+      const parts = [sourceContact.address1, sourceContact.address2].filter(p => p);
+      return parts.join(', ');
+    }
+
+    const parts = [sourceContact.address1, sourceContact.city, sourceContact.state, sourceContact.zip].filter(p => p);
+    return parts.join(', ');
+  }
+
+  getResponsiblePartyPhone() {
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
+    if (!sourceContact) return '';
+
+    return this.formatterService.phoneNumber(sourceContact.phone) || '';
+  }
+
+  getResponsiblePartyEmail() {
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
+    if (!sourceContact) return '';
+
+    return sourceContact.email || '';
   }
 
   getSecurityDepositText(): string {
@@ -1091,26 +1135,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   replaceAllOtherPlaceholders(html: string): string {
     let result = html;
 
-    // Replace contact/company placeholders
-    if (this.contact) {
-      result = result.replace(/\{\{clientCode\}\}/g, this.contact.contactCode || '');
-      result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
-      result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
-
-      // Contact information (could be company or individual)
-      result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim());
-      result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
-      result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
-
-      // Contact address fields always come from the reservation contact.
-      result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
-      result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
-      result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
-      result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
-      result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
-       result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress());
-    }
-
     // Replace reservation placeholders
     if (this.selectedReservation) {
       let referenceNo: string | null = null;
@@ -1119,6 +1143,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       }
 
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
+      result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
+      result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
+      result = result.replace(/\{\{responsiblePartyAddress\}\}/g, this.getResponsiblePartyAddress());
+      result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getResponsiblePartyPhone());
+      result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getResponsiblePartyEmail());
+
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{referenceNo\}\}/g, referenceNo || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
