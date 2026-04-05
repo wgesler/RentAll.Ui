@@ -7,7 +7,7 @@ import { InvoiceCreateComponent } from './authenticated/accounting/invoice-creat
 import { InvoiceComponent } from './authenticated/accounting/invoice/invoice.component';
 import { BillingComponent } from './authenticated/accounting/billing/billing.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
-import { ContactsComponent } from './authenticated/contacts/contacts/contacts.component';
+import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
 import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
 import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
@@ -45,7 +45,7 @@ import { ReservationBoardComponent } from './authenticated/reservations/reservat
 import { ReservationListComponent } from './authenticated/reservations/reservation-list/reservation-list.component';
 import { ReservationShellComponent } from './authenticated/reservations/reservation-shell/reservation-shell.component';
 import { LayoutComponent } from './authenticated/shared/layout/layout/layout.component';
-import { UserListComponent } from './authenticated/users/user-list/user-list.component';
+import { UsersShellComponent } from './authenticated/users/users-shell/users-shell.component';
 import { UserComponent } from './authenticated/users/user/user.component';
 import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
@@ -172,8 +172,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Dashboard, component: DashboardMainComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.ContactList, component: ContactsComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Contacts, component: ContactsComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.ContactList, component: ContactsShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Contacts, component: ContactsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
@@ -201,7 +201,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.ReservationBoardSelection, component: PropertySelectionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.UserList, component: UserListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.UserList, component: UsersShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.User, component: UserComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.OrganizationList, component: OrganizationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Organization, component: OrganizationComponent, canActivate: [authRouteGuard] },

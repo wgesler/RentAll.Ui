@@ -1,71 +1,4 @@
 @if (!(isLoading$ | async)) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">people</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">Users</span>
-          </span>
-          <div class="header-title form-titlebar-fields-wrap">
-            @if (isSuperAdminUser) {
-              <app-titlebar-select
-                [label]="'Organization'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="selectedOrganizationId"
-                [options]="organizationOptions"
-                [nullOptionLabel]="'All Organizations'"
-                [noResultsText]="'No organizations match your search'"
-                (valueChange)="onOrganizationDropdownChange($event)">
-              </app-titlebar-select>
-            } @else if (showOfficeDropdown) {
-              <app-titlebar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="selectedOfficeId"
-                [options]="officeOptions"
-                [nullOptionLabel]="'All Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onOfficeDropdownChange($event)">
-              </app-titlebar-select>
-            }
-          </div>
-        </div>
-      </div>
-      <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="users-tabs" (selectedTabChange)="onTabChange($event)">
-          <mat-tab label="Employees">
-            <ng-template matTabContent>
-              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
-            </ng-template>
-          </mat-tab>
-          <mat-tab label="Owners">
-            <ng-template matTabContent>
-              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
-            </ng-template>
-          </mat-tab>
-          <mat-tab label="Cleaners">
-            <ng-template matTabContent>
-              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
-            </ng-template>
-          </mat-tab>
-          <mat-tab label="Inspectors">
-            <ng-template matTabContent>
-              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
-            </ng-template>
-          </mat-tab>
-          <mat-tab label="Vendors">
-            <ng-template matTabContent>
-              <ng-container *ngTemplateOutlet="usersTableTemplate"></ng-container>
-            </ng-template>
-          </mat-tab>
-        </mat-tab-group>
-      </mat-card>
-    </section>
-  </div>
-}
-
-<ng-template #usersTableTemplate>
   <div class="mat list-layout-standard">
     <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
       <div class="table-filter-row-actions form-titlebar-actions-wrap">
@@ -97,5 +30,5 @@
         (deleteEvent)="deleteUser($event)"/>
     </div>
   </div>
-</ng-template>
+}
 

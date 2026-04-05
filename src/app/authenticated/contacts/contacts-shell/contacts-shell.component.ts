@@ -1,4 +1,3 @@
-
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -16,7 +15,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 
 @Component({
     standalone: true,
-    selector: 'app-contacts',
+    selector: 'app-contacts-shell',
     imports: [
     MaterialModule,
     FormsModule,
@@ -24,10 +23,10 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ContactListComponent,
     ContactComponent
 ],
-    templateUrl: './contacts.component.html',
-    styleUrls: ['./contacts.component.scss']
+    templateUrl: './contacts-shell.component.html',
+    styleUrls: ['./contacts-shell.component.scss']
 })
-export class ContactsComponent implements OnInit, OnDestroy {
+export class ContactsShellComponent implements OnInit, OnDestroy {
   EntityType = EntityType;
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;

@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -31,7 +31,8 @@ import { UserService } from '../services/user.service';
     imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
 })
 
-export class UserListComponent implements OnInit, OnDestroy {
+export class UserListComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() tabIndex?: number;
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -82,6 +83,10 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   //#region User-List
   ngOnInit(): void {
+    if (this.tabIndex !== undefined && this.tabIndex !== null) {
+      this.selectedTabIndex = this.tabIndex;
+    }
+
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
@@ -95,6 +100,15 @@ export class UserListComponent implements OnInit, OnDestroy {
         this.resolveOfficeScope(officeId);
       }
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['tabIndex']) {
+      const newTabIndex = changes['tabIndex'].currentValue;
+      if (newTabIndex !== undefined && newTabIndex !== null) {
+        this.setSelectedTabIndex(newTabIndex);
+      }
+    }
   }
 
   addUser(): void {
@@ -193,6 +207,11 @@ export class UserListComponent implements OnInit, OnDestroy {
 
   onTabChange(event: { index: number }): void {
     this.selectedTabIndex = event.index;
+    this.applyFilters();
+  }
+
+  setSelectedTabIndex(tabIndex: number): void {
+    this.selectedTabIndex = tabIndex;
     this.applyFilters();
   }
 

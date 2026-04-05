@@ -297,12 +297,6 @@
   display: none;
 }
 
-:host ::ng-deep .reservation-accordion-wrap .mat-mdc-form-field-subscript-wrapper,
-:host ::ng-deep .reservation-accordion-wrap .mat-mdc-form-field-error-wrapper,
-:host ::ng-deep .reservation-accordion-wrap mat-error {
-  display: none !important;
-}
-
 @media screen and (max-width: 1024px) {
   .reservation-mobile-toggle-row {
     display: block;

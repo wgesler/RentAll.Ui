@@ -32,20 +32,3 @@ body {
     padding: 0 !important;
 }
 
-.users-tabs {
-  ::ng-deep {
-    .mat-mdc-tab-header {
-      .mdc-tab {
-        flex: 1;
-        min-width: 0;
-      }
-    }
-
-    .mat-mdc-tab.mdc-tab--active {
-      border-top: 2px solid rgb(148, 163, 184);
-      border-left: 2px solid rgb(148, 163, 184);
-      border-right: 2px solid rgb(148, 163, 184);
-    }
-
-  }
-}

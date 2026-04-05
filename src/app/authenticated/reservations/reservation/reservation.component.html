@@ -61,7 +61,7 @@
             @if (form) {
             <div class="mat">
             </div>
-            <form [formGroup]="form" (ngSubmit)="saveReservation()" [ngClass]="shellMode ? 'info-form mb-8 reservation-shell-form' : 'info-form mb-8 pt-5'">
+            <form [formGroup]="form" (ngSubmit)="saveReservation()" [ngClass]="shellMode ? 'info-form mb-8 reservation-shell-form form-hide-error-text' : 'info-form mb-8 pt-5 form-hide-error-text'">
             <div class="flex justify-end mb-3 gap-2">
               @if (!isAddMode) {
                 <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">

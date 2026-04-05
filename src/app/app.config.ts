@@ -2,6 +2,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig } from '@angular/core';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialogConfig } from '@angular/material/dialog';
+import { MAT_TABS_CONFIG } from '@angular/material/tabs';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
 import { Idle } from '@ng-idle/core';
@@ -29,6 +30,7 @@ export const appConfig: ApplicationConfig = {
 
         width: '35rem'
       }
-    }
+    },
+    { provide: MAT_TABS_CONFIG, useValue: { animationDuration: '0ms' } }
   ]
 };

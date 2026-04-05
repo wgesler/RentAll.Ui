@@ -1,0 +1,55 @@
+<div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">people</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Users</span>
+        </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          @if (activeUsersSection?.isSuperAdminUser) {
+            <app-titlebar-select
+              [label]="'Organization'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="activeUsersSection?.selectedOrganizationId ?? null"
+              [options]="activeUsersSection?.organizationOptions ?? []"
+              [nullOptionLabel]="'All Organizations'"
+              [noResultsText]="'No organizations match your search'"
+              (valueChange)="onOrganizationDropdownChange($event)">
+            </app-titlebar-select>
+          } @else if (activeUsersSection?.showOfficeDropdown) {
+            <app-titlebar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="activeUsersSection?.selectedOfficeId ?? null"
+              [options]="activeUsersSection?.officeOptions ?? []"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-titlebar-select>
+          }
+        </div>
+      </div>
+    </div>
+
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="users-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Employees">
+          <app-user-list [tabIndex]="0"></app-user-list>
+        </mat-tab>
+        <mat-tab label="Owners">
+          <app-user-list [tabIndex]="1"></app-user-list>
+        </mat-tab>
+        <mat-tab label="Cleaners">
+          <app-user-list [tabIndex]="2"></app-user-list>
+        </mat-tab>
+        <mat-tab label="Inspectors">
+          <app-user-list [tabIndex]="3"></app-user-list>
+        </mat-tab>
+        <mat-tab label="Vendors">
+          <app-user-list [tabIndex]="4"></app-user-list>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

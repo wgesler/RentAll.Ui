@@ -1,22 +1,18 @@
 .letter-information-form-container {
-  padding: 20px;
+  padding: var(--global-page-inner-padding);
   width: 100%;
 }
 
 .letter-information-form {
+  .property-information-top-spacer {
+    min-height: 56px;
+  }
+
   .form-fields {
     display: flex;
     flex-direction: column;
     gap: 16px;
     padding: 16px 0;
-  }
-
-  mat-accordion {
-    margin-bottom: 16px;
-  }
-
-  mat-expansion-panel {
-    margin-bottom: 8px;
   }
 
   .mt-4 {
@@ -91,6 +87,18 @@
 .readonly-field {
   background-color: transparent !important;
   cursor: not-allowed;
+}
+
+/* Property Information: force global accordion gap consistently, including expanded state. */
+:host ::ng-deep .letter-information-form mat-accordion .mat-expansion-panel,
+:host ::ng-deep .letter-information-form mat-accordion .mat-expansion-panel.mat-expanded,
+:host ::ng-deep .letter-information-form mat-accordion .mat-expansion-panel.mat-expansion-panel-spacing {
+  margin-top: 0 !important;
+  margin-bottom: var(--global-accordion-gap) !important;
+}
+
+:host ::ng-deep .letter-information-form mat-accordion .mat-expansion-panel:last-child {
+  margin-bottom: 0 !important;
 }
 
 ::ng-deep mat-form-field {

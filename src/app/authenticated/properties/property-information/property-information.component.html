@@ -23,8 +23,9 @@
       </div>
     }
     <form [formGroup]="form" class="letter-information-form">
+      <div class="property-information-top-spacer"></div>
       <mat-accordion multi="true">
-        <mat-expansion-panel>
+        <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
             <mat-panel-title>Move In Information</mat-panel-title>
           </mat-expansion-panel-header>
@@ -41,7 +42,7 @@
           </div>
         </mat-expansion-panel>
 
-        <mat-expansion-panel>
+        <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
             <mat-panel-title>Property Information</mat-panel-title>
           </mat-expansion-panel-header>
@@ -99,7 +100,7 @@
           </div>
         </mat-expansion-panel>
 
-        <mat-expansion-panel>
+        <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
             <mat-panel-title>Move Out Information</mat-panel-title>
           </mat-expansion-panel-header>
@@ -111,7 +112,7 @@
           </div>
         </mat-expansion-panel>
 
-        <mat-expansion-panel>
+        <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
             <mat-panel-title>Support Services</mat-panel-title>
           </mat-expansion-panel-header>

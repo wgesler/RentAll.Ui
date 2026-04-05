@@ -7,9 +7,15 @@
   <div class="flex content-card-wrap justify-center property-shell-embedded-wrap">
     <section class="content-card property-shell-embedded">
       @if (form) {
-      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form">
+      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
             <div class="info-form mb-8 pt-5">
             <div class="flex justify-end items-center gap-3 mb-3">
+              <mat-checkbox
+                color="primary"
+                class="flex-shrink-0"
+                formControlName="isActive">
+                IsActive
+              </mat-checkbox>
               <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
                 class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
                 <mat-icon>save</mat-icon>
@@ -274,15 +280,27 @@
                 </div>
                 <!-- Beds line: 18 slices — 1+1+1+1 + 2+2+2+2+2 (Beds/Bath/Accom/SqFt narrow; beds wider) -->
                 <div class="basic-row beds-line-grid gap-x-1.5 gap-y-1">
-                  <mat-form-field appearance="outline" class="basic-compact">
+                  <mat-form-field
+                    appearance="outline"
+                    class="basic-compact"
+                    [class.mat-mdc-form-field-invalid]="!!(form.get('bedrooms')?.invalid && form.get('bedrooms')?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.get('bedrooms')?.invalid && form.get('bedrooms')?.touched)">
                     <mat-label>Beds</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="bedrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                  <mat-form-field
+                    appearance="outline"
+                    class="basic-compact min-w-0"
+                    [class.mat-mdc-form-field-invalid]="!!(form.get('bathrooms')?.invalid && form.get('bathrooms')?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.get('bathrooms')?.invalid && form.get('bathrooms')?.touched)">
                     <mat-label>Baths</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="bathrooms" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
+                  <mat-form-field
+                    appearance="outline"
+                    class="basic-compact"
+                    [class.mat-mdc-form-field-invalid]="!!(form.get('accomodates')?.invalid && form.get('accomodates')?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.get('accomodates')?.invalid && form.get('accomodates')?.touched)">
                     <mat-label>Accom</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" formControlName="accomodates" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                     @if (form.get('accomodates')?.hasError('required') && form.get('accomodates')?.touched) {
@@ -292,7 +310,11 @@
                       <mat-error>Min 1</mat-error>
                     }
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
+                  <mat-form-field
+                    appearance="outline"
+                    class="basic-compact"
+                    [class.mat-mdc-form-field-invalid]="!!(form.get('squareFeet')?.invalid && form.get('squareFeet')?.touched)"
+                    [class.mat-form-field-invalid]="!!(form.get('squareFeet')?.invalid && form.get('squareFeet')?.touched)">
                     <mat-label>Sq Ft</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="squareFeet" placeholder="0" (focus)="selectAllOnFocus($event)" required>
                   </mat-form-field>
@@ -308,6 +330,8 @@
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No bed sizes match your search'"
+                    [showError]="showBedDropdownError(1)"
+                    [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId1', $event)">
                   </app-searchable-select>
                   <app-searchable-select
@@ -322,6 +346,8 @@
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No bed sizes match your search'"
+                    [showError]="showBedDropdownError(2)"
+                    [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId2', $event)">
                   </app-searchable-select>
                   <app-searchable-select
@@ -336,6 +362,8 @@
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No bed sizes match your search'"
+                    [showError]="showBedDropdownError(3)"
+                    [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId3', $event)">
                   </app-searchable-select>
                   <app-searchable-select
@@ -350,6 +378,8 @@
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No bed sizes match your search'"
+                    [showError]="showBedDropdownError(4)"
+                    [errorText]="'Required'"
                     (valueChange)="onNumericDropdownChange('bedroomId4', $event)">
                   </app-searchable-select>
                   <app-searchable-select

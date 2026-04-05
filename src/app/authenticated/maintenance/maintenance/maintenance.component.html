@@ -6,7 +6,7 @@
 } @else {
 <section class="maintenance-page">
   <div class="info-form form-standard-top-padding">
-  <form [formGroup]="form" class="maintenance-top-fields form-standard-grid">
+  <form [formGroup]="form" class="maintenance-top-fields form-standard-grid form-hide-error-text">
     <div class="maintenance-top-actions">
       <button mat-raised-button color="primary" type="button" (click)="onSave()" [disabled]="isSaving || form.invalid">
         <mat-icon>save</mat-icon>
@@ -72,7 +72,7 @@
         <mat-panel-title>Maintenance</mat-panel-title>
       </mat-expansion-panel-header>
 
-      <form [formGroup]="form" class="maintenance-form form-standard-grid">
+      <form [formGroup]="form" class="maintenance-form form-standard-grid form-hide-error-text">
         <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
           <mat-form-field appearance="outline">
             <mat-label>License No</mat-label>

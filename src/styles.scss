@@ -14,6 +14,7 @@
   --global-form-field-gap-x: 6px;
   --global-form-field-gap-y: 4px;
   --global-form-row-gap: 8px;
+  --global-accordion-gap: 4px;
   --global-dropdown-font-size: 14px;
   --global-dropdown-option-min-height: 34px;
 }
@@ -189,6 +190,28 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   color: var(--mat-form-field-error-text-color, #f44336) !important;
 }
 
+app-searchable-select .searchable-select-field.searchable-invalid .searchable-trigger-value,
+app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-select-value-text,
+app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-select-min-line {
+  color: var(--mat-form-field-error-text-color, #f44336) !important;
+}
+
+/* Global Material select invalid text/label coloring consistency. */
+.mat-mdc-form-field.mat-form-field-invalid .mdc-floating-label,
+.mat-mdc-form-field.mat-form-field-invalid .mat-mdc-select-placeholder,
+.mat-mdc-form-field.mat-form-field-invalid .mat-mdc-select-value-text,
+.mat-mdc-form-field.mat-form-field-invalid .mat-mdc-select-min-line,
+.mat-mdc-form-field.mat-form-field-invalid .mat-mdc-select-arrow {
+  color: var(--mat-form-field-error-text-color, #f44336) !important;
+}
+
+.mat-mdc-form-field.mat-form-field-invalid input.mat-mdc-input-element,
+.mat-mdc-form-field.mat-form-field-invalid textarea.mat-mdc-input-element,
+.mat-mdc-form-field.mat-mdc-form-field-invalid input.mat-mdc-input-element,
+.mat-mdc-form-field.mat-mdc-form-field-invalid textarea.mat-mdc-input-element {
+  color: var(--mat-form-field-error-text-color, #f44336) !important;
+}
+
 /* Title-bar searchable selects use compact text sizing. */
 .header-title app-searchable-select .searchable-trigger-value,
 .header-title app-searchable-select .searchable-select-field .mat-mdc-select-value-text,
@@ -220,6 +243,19 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 
 .form-standard-section-heading-gap {
   margin-bottom: 1rem !important;
+}
+
+/* Global utility: red invalid fields without under-field error text. */
+.form-hide-error-text {
+  .mat-mdc-form-field-subscript-wrapper,
+  .mat-mdc-form-field-error-wrapper,
+  mat-error {
+    display: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
 
 /* Global utility: render date fields at half-width of their container. */
@@ -735,19 +771,44 @@ mat-tab-header {
 }
 
 .mat-mdc-tab {
+  position: relative;
   border-radius: 0.5rem;
   overflow: hidden;
   margin: 0.25rem !important;
   background-color: rgb(226, 232, 240, 0.5) !important;
+  border: 1px solid transparent;
   transition: background-color 300ms linear, border-radius 300ms linear;
+  &:hover {
+    background-color: rgb(226, 232, 240, 0.95) !important;
+  }
 
   &.mdc-tab--active {
-    background-color: transparent !important;
+    background-color: #fff !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none !important;
     border-bottom-left-radius: .1rem;
     border-bottom-right-radius: .1rem;
+    margin-bottom: -1px !important;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-top: 1px solid rgba(100, 116, 139, 0.95);
+      border-left: 1px solid rgba(100, 116, 139, 0.95);
+      border-right: 1px solid rgba(100, 116, 139, 0.95);
+      border-bottom: 0;
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+      pointer-events: none;
+      z-index: 2;
+    }
     &:hover {
+      background-color: rgb(241, 245, 249) !important;
       * {
-        background-color: #fff;
+        background-color: rgb(241, 245, 249);
       }
     }
     .mdc-tab__text-label {
@@ -759,6 +820,16 @@ mat-tab-header {
   }
 }
 
+/* Shell/tab pages use a stronger active edge. */
+.property-tabs .mat-mdc-tab.mdc-tab--active::after,
+.reservation-tabs .mat-mdc-tab.mdc-tab--active::after,
+.contacts-tabs .mat-mdc-tab.mdc-tab--active::after,
+.accounting-tabs .mat-mdc-tab.mdc-tab--active::after,
+.users-tabs .mat-mdc-tab.mdc-tab--active::after {
+  border-top-width: 2px !important;
+  border-left-width: 2px !important;
+  border-right-width: 2px !important;
+}
 
 // Manipulate initial background color
 .mdc-text-field--filled:not(.mdc-text-field--disabled) {
@@ -906,6 +977,21 @@ mat-form-field input,
 // Global expansion panel content spacing baseline
 .mat-expansion-panel .mat-expansion-panel-body {
   padding: 16px !important;
+}
+
+/* Global accordion spacing baseline between panels. */
+.mat-accordion .mat-expansion-panel {
+  margin-bottom: var(--global-accordion-gap) !important;
+}
+
+.mat-accordion .mat-expansion-panel.mat-expanded,
+.mat-accordion .mat-expansion-panel.mat-expansion-panel-spacing {
+  margin-top: 0 !important;
+  margin-bottom: var(--global-accordion-gap) !important;
+}
+
+.mat-accordion .mat-expansion-panel:last-child {
+  margin-bottom: 0 !important;
 }
 
 /* Uniform gap: zero child margins so flex gap is the only spacing between items */

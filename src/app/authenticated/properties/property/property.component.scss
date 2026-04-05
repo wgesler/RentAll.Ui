@@ -171,10 +171,10 @@
     }
   }
 
-  /* Line 2: remaining 7 codes, equal columns */
+  /* Line 2: 6 code fields, equal columns */
   .features-code-fields-row {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px 10px;
     align-items: start;
     width: 100%;
@@ -595,15 +595,6 @@ section.content-card {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-}
-
-/* Remove always-reserved hint/error space so section top/bottom spacing matches. */
-:host ::ng-deep .info-form .mat-mdc-form-field-subscript-wrapper,
-:host ::ng-deep .info-form .mat-mdc-form-field-bottom-align::before {
-  min-height: 0 !important;
-  height: 0 !important;
-  margin-top: 0 !important;
-  padding-top: 0 !important;
 }
 
 /* Owner select: name (left) opens edit dialog; arrow (right) opens dropdown. */

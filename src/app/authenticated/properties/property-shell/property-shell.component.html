@@ -69,7 +69,7 @@
       </div>
 
       <div class="flex items-center gap-3 ml-[10px]">
-        @if (!(selectedTabIndex === 0 && !(propertySection?.isAddMode ?? true)) && selectedTabIndex !== 2) {
+        @if (selectedTabIndex !== 0 && selectedTabIndex !== 2) {
           <mat-checkbox
             color="primary"
             class="flex-shrink-0"
@@ -83,7 +83,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          @if (showContextualSave && !(selectedTabIndex === 0 && !(propertySection?.isAddMode ?? true)) && selectedTabIndex !== 2) {
+          @if (showContextualSave && selectedTabIndex !== 0 && selectedTabIndex !== 2) {
             <button mat-raised-button type="button" color="primary" id="save-button" (click)="onContextualSave()" class="text-nowrap flex-shrink-0" [disabled]="contextualSaveDisabled">
               <mat-icon>save</mat-icon>
               Save

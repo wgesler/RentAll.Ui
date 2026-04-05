@@ -57,6 +57,47 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
 export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   readonly newOwnerOptionValue = '__new_owner__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
+  readonly bedSelectionValidator = (control: AbstractControl): ValidationErrors | null => {
+    const formGroup = control as FormGroup;
+    const bedroomsRaw = formGroup.get('bedrooms')?.value;
+    const bedrooms = Number(bedroomsRaw);
+    if (!Number.isFinite(bedrooms) || bedrooms < 1 || bedrooms > 4) {
+      return null;
+    }
+
+    const bedValues = [
+      Number(formGroup.get('bedroomId1')?.value ?? 0),
+      Number(formGroup.get('bedroomId2')?.value ?? 0),
+      Number(formGroup.get('bedroomId3')?.value ?? 0),
+      Number(formGroup.get('bedroomId4')?.value ?? 0)
+    ];
+
+    const requiredBedIndexes: number[] = [];
+    const noneRequiredBedIndexes: number[] = [];
+
+    for (let index = 0; index < bedValues.length; index++) {
+      const bedNumber = index + 1;
+      const bedValue = bedValues[index];
+      if (bedNumber <= bedrooms) {
+        if (!Number.isFinite(bedValue) || bedValue <= 0) {
+          requiredBedIndexes.push(bedNumber);
+        }
+      } else if (Number.isFinite(bedValue) && bedValue > 0) {
+        noneRequiredBedIndexes.push(bedNumber);
+      }
+    }
+
+    if (requiredBedIndexes.length === 0 && noneRequiredBedIndexes.length === 0) {
+      return null;
+    }
+
+    return {
+      bedSelection: {
+        requiredBedIndexes,
+        noneRequiredBedIndexes
+      }
+    };
+  };
   isAdmin = false;
   isServiceError: boolean = false;
   form: FormGroup;
@@ -489,9 +530,9 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       zip: new FormControl('', [Validators.required]),
       neighborhood: new FormControl(''),
       crossStreet: new FormControl(''),
-      bedrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
-      bathrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
-      squareFeet: new FormControl(0, [Validators.required, Validators.min(0)]),
+      bedrooms: new FormControl(0, [Validators.required, Validators.min(1)]),
+      bathrooms: new FormControl(0, [Validators.required, Validators.min(1)]),
+      squareFeet: new FormControl(0, [Validators.required, Validators.min(1)]),
       bedroomId1: new FormControl(0),
       bedroomId2: new FormControl(0),
       bedroomId3: new FormControl(0),
@@ -584,7 +625,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
       isActive: new FormControl(true)
-    });
+    }, { validators: [this.bedSelectionValidator] });
   }
 
   populateForm(): void {
@@ -855,6 +896,28 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     control?.setValue(value == null || value === '' ? null : Number(value));
     control?.markAsTouched();
     control?.markAsDirty();
+  }
+
+  showBedDropdownError(bedNumber: number): boolean {
+    if (!this.form) {
+      return false;
+    }
+    const bedSelectionErrors = this.form.errors?.['bedSelection'] as {
+      requiredBedIndexes?: number[];
+      noneRequiredBedIndexes?: number[];
+    } | undefined;
+    if (!bedSelectionErrors) {
+      return false;
+    }
+
+    const isAffected =
+      (bedSelectionErrors.requiredBedIndexes || []).includes(bedNumber) ||
+      (bedSelectionErrors.noneRequiredBedIndexes || []).includes(bedNumber);
+    if (!isAffected) {
+      return false;
+    }
+
+    return !!(this.form.get('bedrooms')?.touched || this.form.get(`bedroomId${bedNumber}`)?.touched);
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
