@@ -523,6 +523,18 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   }
 }
 
+/* Keep empty title-bar labels vertically centered for both select and input fields. */
+.header-title .titlebar-field-office.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-company.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-property-code.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-reservation.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-document-type.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .field-width-18ch.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above) {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  line-height: 1.2 !important;
+}
+
 /* Keep title-bar dropdown trigger text vertically centered even when no value is selected. */
 .header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value,
 .header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value-text,
