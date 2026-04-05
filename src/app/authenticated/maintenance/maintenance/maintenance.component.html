@@ -65,108 +65,25 @@
         <mat-datepicker #inspectingDatePicker></mat-datepicker>
       </mat-form-field>
     </div>
+    <div class="maintenance-form-row form-standard-grid">
+      <mat-form-field appearance="outline" class="maintenance-field-full">
+        <mat-label>Notes</mat-label>
+        <textarea matInput rows="2" formControlName="notes"></textarea>
+      </mat-form-field>
+    </div>
   </form>
   <mat-accordion class="maintenance-accordion" multi="true">
     <mat-expansion-panel [expanded]="true">
       <mat-expansion-panel-header>
         <mat-panel-title>Maintenance</mat-panel-title>
       </mat-expansion-panel-header>
-
-      <form [formGroup]="form" class="maintenance-form form-standard-grid form-hide-error-text">
-        <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
-          <mat-form-field appearance="outline">
-            <mat-label>License No</mat-label>
-            <input matInput formControlName="licenseNo" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>License Date</mat-label>
-            <input matInput [matDatepicker]="licenseDatePicker" formControlName="licenseDate" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="licenseDatePicker"></mat-datepicker-toggle>
-            <mat-datepicker #licenseDatePicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('licenseDate')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Filter Description</mat-label>
-            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="filterDescription"></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Last Filter Change Date</mat-label>
-            <input matInput [matDatepicker]="lastFilterChangeDatePicker" formControlName="lastFilterChangeDate" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="lastFilterChangeDatePicker"></mat-datepicker-toggle>
-            <mat-datepicker #lastFilterChangeDatePicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('lastFilterChangeDate')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="maintenance-form-row maintenance-form-row-four form-standard-grid">
-          <mat-form-field appearance="outline">
-            <mat-label>Smoke Detector Description</mat-label>
-            <input matInput formControlName="smokeDetectors" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Last Smoke Change Date</mat-label>
-            <input matInput [matDatepicker]="lastSmokeChangeDatePicker" formControlName="lastSmokeChangeDate" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="lastSmokeChangeDatePicker"></mat-datepicker-toggle>
-            <mat-datepicker #lastSmokeChangeDatePicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('lastSmokeChangeDate')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Smoke Detector Battery Description</mat-label>
-            <input matInput formControlName="smokeDetectorBatteries" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Last Battery Change Date</mat-label>
-            <input matInput [matDatepicker]="lastBatteryChangeDatePicker" formControlName="lastBatteryChangeDate" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="lastBatteryChangeDatePicker"></mat-datepicker-toggle>
-            <mat-datepicker #lastBatteryChangeDatePicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('lastBatteryChangeDate')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="maintenance-form-row maintenance-form-row-two form-standard-grid">
-          <mat-form-field appearance="outline">
-            <mat-label>HVAC Notes</mat-label>
-            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="hvacNotes"></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>HVAC Serviced</mat-label>
-            <input matInput [matDatepicker]="hvacServicedPicker" formControlName="hvacServiced" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="hvacServicedPicker"></mat-datepicker-toggle>
-            <mat-datepicker #hvacServicedPicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('hvacServiced')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="maintenance-form-row maintenance-form-row-two form-standard-grid">
-          <mat-form-field appearance="outline">
-            <mat-label>Fireplace Notes</mat-label>
-            <textarea matInput rows="1" class="maintenance-stretch-textarea" formControlName="fireplaceNotes"></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Fireplace Serviced</mat-label>
-            <input matInput [matDatepicker]="fireplaceServicedPicker" formControlName="fireplaceServiced" [max]="today" />
-            <mat-datepicker-toggle matSuffix [for]="fireplaceServicedPicker"></mat-datepicker-toggle>
-            <mat-datepicker #fireplaceServicedPicker></mat-datepicker>
-            <mat-error *ngIf="hasFutureDateError('fireplaceServiced')">Date must be today or earlier.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="maintenance-form-row form-standard-grid">
-          <mat-form-field appearance="outline" class="maintenance-field-full">
-            <mat-label>Notes</mat-label>
-            <textarea matInput rows="3" formControlName="notes"></textarea>
-          </mat-form-field>
-        </div>
-
-      </form>
+      <app-maintenance-item-list
+        [maintenanceItems]="maintenanceItems"
+        [isLoading]="isLoadingMaintenanceItems"
+        [isSaving]="isSavingMaintenanceItems"
+        [property]="property"
+        (deleteExisting)="onMaintenanceItemDelete($event)"
+        (saveChanges)="onMaintenanceItemSaveChanges($event)" />
     </mat-expansion-panel>
 
     <mat-expansion-panel [expanded]="true">
@@ -178,6 +95,7 @@
         [isLoading]="isLoadingAppliances"
         [isSaving]="isSavingAppliances"
         [property]="property"
+        (deleteExisting)="onApplianceDelete($event)"
         (saveChanges)="onApplianceSaveChanges($event)" />
     </mat-expansion-panel>
   </mat-accordion>

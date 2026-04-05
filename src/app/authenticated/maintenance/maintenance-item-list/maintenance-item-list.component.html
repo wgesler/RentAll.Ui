@@ -1,10 +1,10 @@
 @if (isLoading) {
-  <div class="appliance-loading">
+  <div class="maintenance-item-loading">
     <mat-spinner [diameter]="28"></mat-spinner>
-    <span>Loading appliances...</span>
+    <span>Loading maintenance items...</span>
   </div>
 } @else {
-  <div class="appliance-actions">
+  <div class="maintenance-item-actions">
     <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="addRow()">
       <mat-icon>add</mat-icon>
       Add
@@ -17,21 +17,21 @@
     }
   </div>
 
-  <div class="appliance-lines-wrap overflow-x-auto">
-    <table class="line-items-table appliance-lines-table">
+  <div class="maintenance-item-lines-wrap overflow-x-auto">
+    <table class="line-items-table maintenance-item-lines-table">
       <thead>
         <tr>
-          <th>Appliance Name</th>
-          <th>Manufacturer</th>
-          <th>Model No.</th>
-          <th>Serial No.</th>
+          <th>Name</th>
+          <th>Last Serviced</th>
+          <th>Months</th>
+          <th>Notes</th>
           <th class="actions-column"></th>
         </tr>
       </thead>
       <tbody>
         @if (!rows || rows.length === 0) {
           <tr>
-            <td class="appliance-empty" colspan="5">No appliances found for this property.</td>
+            <td class="maintenance-item-empty" colspan="5">No maintenance items found for this property.</td>
           </tr>
         } @else {
           @for (row of rows; track trackByRowId($index, row)) {
@@ -39,34 +39,36 @@
               <td>
                 <input
                   type="text"
-                  class="editable-input"
-                  [(ngModel)]="row.applianceName"
+                  class="editable-input name-input"
+                  [(ngModel)]="row.name"
                   [ngModelOptions]="{ standalone: true }"
-                  [name]="'appliance-name-' + row.rowId" />
+                  [name]="'maintenance-item-name-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  class="editable-input date-input"
+                  [(ngModel)]="row.lastServicedOn"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'maintenance-item-last-serviced-' + row.rowId" />
               </td>
               <td>
                 <input
                   type="text"
-                  class="editable-input"
-                  [(ngModel)]="row.manufacturer"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  class="editable-input months-input"
+                  [ngModel]="row.monthsBetweenService ?? ''"
+                  (ngModelChange)="onMonthsBetweenServiceInput(row, $event)"
                   [ngModelOptions]="{ standalone: true }"
-                  [name]="'appliance-make-' + row.rowId" />
+                  [name]="'maintenance-item-months-' + row.rowId" />
               </td>
               <td>
-                <input
-                  type="text"
-                  class="editable-input"
-                  [(ngModel)]="row.modelNo"
+                <textarea
+                  class="editable-input notes-input"
+                  [(ngModel)]="row.notes"
                   [ngModelOptions]="{ standalone: true }"
-                  [name]="'appliance-model-' + row.rowId" />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  class="editable-input"
-                  [(ngModel)]="row.serialNo"
-                  [ngModelOptions]="{ standalone: true }"
-                  [name]="'appliance-serial-' + row.rowId" />
+                  [name]="'maintenance-item-notes-' + row.rowId"></textarea>
               </td>
               <td class="actions-column">
                 <button mat-icon-button type="button" class="delete-row-btn" (click)="removeRow(row)" [disabled]="isSaving">

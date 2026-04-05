@@ -4,7 +4,7 @@ import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDest
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,8 +22,10 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { hasInspectorRole } from '../../shared/access/role-access';
 import { MaintenanceRequest } from '../models/maintenance.model';
+import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceService } from '../services/maintenance.service';
+import { MaintenanceItemsService } from '../services/maintenance-items.service';
 import { UserService } from '../../users/services/user.service';
 import { UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
@@ -109,6 +111,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   inspectorPropertyIds = new Set<string>();
   upcomingDeparturePropertyIds = new Set<string>();
   currentReservationHasPetsByPropertyId = new Map<string, boolean>();
+  maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
 
   private readonly compactViewportWidth = 1024;
   private readonly upcomingDepartureWindowDays = 14;
@@ -153,7 +156,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'officeScope', 'cleaners', 'carpetUsers', 'inspectors', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'maintenanceItems', 'officeScope', 'cleaners', 'carpetUsers', 'inspectors', 'reservations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -169,6 +172,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public utilityService: UtilityService,
     public ngZone: NgZone,
     public maintenanceService: MaintenanceService,
+    public maintenanceItemsService: MaintenanceItemsService,
     public userService: UserService,
     public reservationService: ReservationService
   ) {
@@ -296,16 +300,56 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isServiceError = false;
     if (!this.userId) {
       this.allProperties = [];
+      this.maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
       this.applyFilters();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems');
       return;
     }
 
     this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1),
-      switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(take(1), map(maintenanceList => ({ properties, maintenanceList })))),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))
+      switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(
+        take(1),
+        switchMap(maintenanceList => {
+          const propertyIds = (properties || [])
+            .map(property => property.propertyId)
+            .filter(propertyId => !!propertyId);
+
+          if (propertyIds.length === 0) {
+            return of({
+              properties,
+              maintenanceList,
+              maintenanceItemsByPropertyId: new Map<string, MaintenanceItemResponse[]>()
+            });
+          }
+
+          const maintenanceItemsRequests$ = propertyIds.map(propertyId =>
+            this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(
+              take(1),
+              catchError(() => of([] as MaintenanceItemResponse[]))
+            )
+          );
+
+          return forkJoin(maintenanceItemsRequests$).pipe(map(maintenanceItemsResponses => {
+            const maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
+            propertyIds.forEach((propertyId, index) => {
+              maintenanceItemsByPropertyId.set(propertyId, maintenanceItemsResponses[index] || []);
+            });
+            return {
+              properties,
+              maintenanceList,
+              maintenanceItemsByPropertyId
+            };
+          }));
+        })
+      )),
+      finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems');
+      })
     ).subscribe({
       next: (loadResponse) => {
+        this.maintenanceItemsByPropertyId = loadResponse.maintenanceItemsByPropertyId;
         const mappingContext: MaintenanceListMappingContext = {
           housekeepingUsers: this.housekeepingUsers,
           inspectorUsers: this.inspectorUsers,
@@ -319,11 +363,13 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           loadResponse,
           mappingContext
         ) as MaintenanceListDisplay[];
+        this.applyMaintenanceStatusFromServiceDates();
         this.remapCleanerInspectorDropdowns();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.allProperties = [];
+        this.maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
         this.propertiesDisplay = [];
         console.error('Error loading properties:', err);
       }
@@ -725,18 +771,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       carpetDate: overrides.carpetDate !== undefined ? overrides.carpetDate : existing?.carpetDate,
       inspectorUserId: overrides.inspectorUserId !== undefined ? overrides.inspectorUserId : (existing?.inspectorUserId ?? null),
       inspectingDate: overrides.inspectingDate !== undefined ? overrides.inspectingDate : existing?.inspectingDate,
-      filterDescription: existing?.filterDescription,
-      lastFilterChangeDate: existing?.lastFilterChangeDate,
-      smokeDetectors: existing?.smokeDetectors,
-      lastSmokeChangeDate: existing?.lastSmokeChangeDate,
-      smokeDetectorBatteries: existing?.smokeDetectorBatteries,
-      lastBatteryChangeDate: existing?.lastBatteryChangeDate,
-      licenseNo: existing?.licenseNo,
-      licenseDate: existing?.licenseDate,
-      hvacNotes: existing?.hvacNotes,
-      hvacServiced: existing?.hvacServiced,
-      fireplaceNotes: existing?.fireplaceNotes,
-      fireplaceServiced: existing?.fireplaceServiced,
       notes: existing?.notes,
       isActive: existing?.isActive ?? true
     };
@@ -1061,6 +1095,59 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
   normalizePropertyId(propertyId: string | null | undefined): string {
     return (propertyId ?? '').trim().toLowerCase();
+  }
+
+  applyMaintenanceStatusFromServiceDates(): void {
+    this.allProperties = (this.allProperties || []).map(property => {
+      const maintenanceItems = this.maintenanceItemsByPropertyId.get(property.propertyId) || [];
+      const needsMaintenanceState = this.getNeedsMaintenanceState(maintenanceItems);
+      return {
+        ...property,
+        needsMaintenanceState,
+        needsMaintenance: needsMaintenanceState !== 'green'
+      };
+    });
+  }
+
+  getNeedsMaintenanceState(items: MaintenanceItemResponse[]): 'red' | 'yellow' | 'green' | 'grey' {
+    if (!items || items.length === 0) {
+      return 'grey';
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let hasYellow = false;
+
+    for (const item of items) {
+      const monthsBetweenService = Math.max(0, Number(item.monthsBetweenService ?? 0));
+      const lastServicedOn = this.parseDateOnly(item.lastServicedOn);
+
+      const redThreshold = new Date(today);
+      redThreshold.setMonth(redThreshold.getMonth() - monthsBetweenService);
+      if (!lastServicedOn || lastServicedOn <= redThreshold) {
+        return 'red';
+      }
+
+      const yellowThreshold = new Date(today);
+      yellowThreshold.setMonth(yellowThreshold.getMonth() - Math.max(0, monthsBetweenService - 1));
+      if (lastServicedOn <= yellowThreshold) {
+        hasYellow = true;
+      }
+    }
+
+    return hasYellow ? 'yellow' : 'green';
+  }
+
+  parseDateOnly(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
   }
 
   ngOnDestroy(): void {

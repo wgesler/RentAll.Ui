@@ -1,14 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, concat, concatMap, defaultIfEmpty, finalize, from, map, Observable, Subject, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, concatMap, defaultIfEmpty, finalize, from, map, Observable, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { ApplianceListComponent } from '../appliance-list/appliance-list.component';
 import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
+import { MaintenanceItemListComponent } from '../maintenance-item-list/maintenance-item-list.component';
+import { MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { ChecklistSection, INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -18,31 +20,34 @@ import { UserService } from '../../users/services/user.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceService } from '../services/maintenance.service';
 import { ApplianceService } from '../services/appliance.service';
+import { MaintenanceItemsService } from '../services/maintenance-items.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 
 @Component({
   standalone: true,
   selector: 'app-maintenance',
-  imports: [CommonModule, ReactiveFormsModule, MaterialModule, ApplianceListComponent],
+  imports: [CommonModule, ReactiveFormsModule, MaterialModule, ApplianceListComponent, MaintenanceItemListComponent],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
 })
-export class MaintenanceComponent implements OnInit, OnDestroy {
+export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() property: PropertyResponse | null = null;
   readonly today = new Date();
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;
+  isSavingMaintenanceItems = false;
   user: JwtUser | null = null;
   savedFormState: Record<string, unknown> | null = null;
   
   maintenanceRecord: MaintenanceResponse | null = null;
   appliances: ApplianceResponse[] = [];
+  maintenanceItems: MaintenanceItemResponse[] = [];
   housekeepingUsers: UserResponse[] = [];
   inspectorUsers: UserResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['maintenance', 'appliances', 'cleaners', 'inspectors']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['maintenance', 'appliances', 'maintenanceItems', 'cleaners', 'inspectors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -54,6 +59,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private maintenanceService: MaintenanceService,
     private applianceService: ApplianceService,
+    private maintenanceItemsService: MaintenanceItemsService,
     private authService: AuthService,
     private toastr: ToastrService,
     private unsavedChangesDialogService: UnsavedChangesDialogService
@@ -65,10 +71,15 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.setupAssigneeDateSync();
-    this.loadMaintenance();
-    this.loadAppliances();
+    this.loadPropertyScopedData();
     this.loadHousekeepingUsers();
     this.loadInspectorUsers();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['property']) {
+      this.loadPropertyScopedData();
+    }
   }
 
   onSave(onComplete?: (saved: boolean) => void): void {
@@ -101,18 +112,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       carpetDate: carpetUserId ? this.mappingService.toIsoDateOrNull(raw.carpetDate) : null,
       inspectorUserId,
       inspectingDate: inspectorUserId ? this.mappingService.toIsoDateOrNull(raw.inspectingDate) : null,
-      filterDescription: this.nullIfBlank(raw.filterDescription),
-      lastFilterChangeDate: this.mappingService.toIsoDateOrNull(raw.lastFilterChangeDate),
-      smokeDetectors: this.nullIfBlank(raw.smokeDetectors),
-      lastSmokeChangeDate: this.mappingService.toIsoDateOrNull(raw.lastSmokeChangeDate),
-      smokeDetectorBatteries: this.nullIfBlank(raw.smokeDetectorBatteries),
-      lastBatteryChangeDate: this.mappingService.toIsoDateOrNull(raw.lastBatteryChangeDate),
-      licenseNo: this.nullIfBlank(raw.licenseNo),
-      licenseDate: this.mappingService.toIsoDateOrNull(raw.licenseDate),
-      hvacNotes: this.nullIfBlank(raw.hvacNotes),
-      hvacServiced: this.mappingService.toIsoDateOrNull(raw.hvacServiced),
-      fireplaceNotes: this.nullIfBlank(raw.fireplaceNotes),
-      fireplaceServiced: this.mappingService.toIsoDateOrNull(raw.fireplaceServiced),
       notes: this.nullIfBlank(raw.notes),
       isActive: raw.isActive ?? this.maintenanceRecord?.isActive ?? true
     };
@@ -138,18 +137,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
           carpetDate: pickValue(maintenancePayload.carpetDate, existing?.carpetDate, null),
           inspectorUserId: pickValue(maintenancePayload.inspectorUserId, existing?.inspectorUserId, null),
           inspectingDate: pickValue(maintenancePayload.inspectingDate, existing?.inspectingDate, null),
-          filterDescription: pickValue(maintenancePayload.filterDescription, existing?.filterDescription, null),
-          lastFilterChangeDate: pickValue(maintenancePayload.lastFilterChangeDate, existing?.lastFilterChangeDate, null),
-          smokeDetectors: pickValue(maintenancePayload.smokeDetectors, existing?.smokeDetectors, null),
-          lastSmokeChangeDate: pickValue(maintenancePayload.lastSmokeChangeDate, existing?.lastSmokeChangeDate, null),
-          smokeDetectorBatteries: pickValue(maintenancePayload.smokeDetectorBatteries, existing?.smokeDetectorBatteries, null),
-          lastBatteryChangeDate: pickValue(maintenancePayload.lastBatteryChangeDate, existing?.lastBatteryChangeDate, null),
-          licenseNo: pickValue(maintenancePayload.licenseNo, existing?.licenseNo, null),
-          licenseDate: pickValue(maintenancePayload.licenseDate, existing?.licenseDate, null),
-          hvacNotes: pickValue(maintenancePayload.hvacNotes, existing?.hvacNotes, null),
-          hvacServiced: pickValue(maintenancePayload.hvacServiced, existing?.hvacServiced, null),
-          fireplaceNotes: pickValue(maintenancePayload.fireplaceNotes, existing?.fireplaceNotes, null),
-          fireplaceServiced: pickValue(maintenancePayload.fireplaceServiced, existing?.fireplaceServiced, null),
           notes: pickValue(maintenancePayload.notes, existing?.notes, null),
           isActive: maintenancePayload.isActive ?? existing?.isActive ?? true
         };
@@ -177,21 +164,19 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const deleteIds = (payload.deleteIds || []).filter(id => Number.isFinite(id));
     const upserts = payload.upserts || [];
-    if (deleteIds.length === 0 && upserts.length === 0) {
+    if (upserts.length === 0) {
       return;
     }
 
     this.isSavingAppliances = true;
-    const deleteOperations$ = from(deleteIds).pipe(concatMap(applianceId => this.applianceService.deleteAppliance(applianceId)));
     const upsertOperations$ = from(upserts).pipe(
       concatMap(request => request.applianceId
         ? this.applianceService.updateAppliance(request)
         : this.applianceService.createAppliance(request))
     );
 
-    concat(deleteOperations$, upsertOperations$).pipe(
+    upsertOperations$.pipe(
       defaultIfEmpty(null),
       finalize(() => {
         this.isSavingAppliances = false;
@@ -203,6 +188,82 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.toastr.error('Unable to save appliances.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onApplianceDelete(applianceId: number): void {
+    if (!Number.isFinite(applianceId)) {
+      return;
+    }
+    this.isSavingAppliances = true;
+    this.applianceService.deleteAppliance(applianceId).pipe(take(1), finalize(() => {
+      this.isSavingAppliances = false;
+    })).subscribe({
+      next: () => {
+        this.loadAppliances();
+        this.toastr.success('Appliance removed.', CommonMessage.Success);
+      },
+      error: () => {
+        this.toastr.error('Unable to remove appliance.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onMaintenanceItemSaveChanges(payload: { upserts: MaintenanceItemRequest[]; deleteIds: number[] }): void {
+    if (!this.property) {
+      return;
+    }
+
+    const upserts = payload.upserts || [];
+    if (upserts.length === 0) {
+      return;
+    }
+
+    this.isSavingMaintenanceItems = true;
+    const upsertOperations$ = from(upserts).pipe(
+      concatMap(request => request.maintenanceItemId
+        ? this.maintenanceItemsService.updateMaintenanceItem(request)
+        : this.maintenanceItemsService.createMaintenanceItem(request))
+    );
+
+    upsertOperations$.pipe(
+      defaultIfEmpty(null),
+      finalize(() => {
+        this.isSavingMaintenanceItems = false;
+      })
+    ).subscribe({
+      complete: () => {
+        this.loadMaintenanceItems();
+        this.toastr.success('Maintenance items saved.', CommonMessage.Success);
+      },
+      error: () => {
+        this.toastr.error('Unable to save maintenance items.', CommonMessage.Error);
+      }
+    });
+  }
+
+  onMaintenanceItemDelete(maintenanceItemId: number): void {
+    if (!Number.isFinite(maintenanceItemId) || !this.property) {
+      return;
+    }
+    this.isSavingMaintenanceItems = true;
+    this.maintenanceItemsService.deleteMaintenanceItem({
+      maintenanceItemId,
+      propertyId: this.property.propertyId,
+      name: '',
+      notes: null,
+      monthsBetweenService: 0,
+      lastServicedOn: null
+    }).pipe(take(1), finalize(() => {
+      this.isSavingMaintenanceItems = false;
+    })).subscribe({
+      next: () => {
+        this.loadMaintenanceItems();
+        this.toastr.success('Maintenance item removed.', CommonMessage.Success);
+      },
+      error: () => {
+        this.toastr.error('Unable to remove maintenance item.', CommonMessage.Error);
       }
     });
   }
@@ -256,6 +317,31 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadMaintenanceItems(): void {
+    const propertyId = this.property?.propertyId;
+    if (!propertyId) {
+      this.maintenanceItems = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenanceItems');
+    this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems'))).subscribe({
+      next: (items: MaintenanceItemResponse[]) => {
+        this.maintenanceItems = items || [];
+      },
+      error: () => {
+        this.maintenanceItems = [];
+      }
+    });
+  }
+
+  loadPropertyScopedData(): void {
+    this.loadMaintenance();
+    this.loadAppliances();
+    this.loadMaintenanceItems();
+  }
+
   loadHousekeepingUsers(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'cleaners');
     this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
@@ -304,7 +390,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   }
 
   buildForm(): FormGroup {
-    const dateOnOrBeforeToday = this.dateOnOrBeforeTodayValidator();
     return this.fb.group({
       maintenanceId: new FormControl<string>(''),
       organizationId: new FormControl<string>(''),
@@ -318,18 +403,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       carpetDate: new FormControl<Date | null>(null),
       inspectorUserId: new FormControl<string | null>(null),
       inspectingDate: new FormControl<Date | null>(null),
-      filterDescription: new FormControl<string>(''),
-      lastFilterChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
-      smokeDetectors: new FormControl<string>(''),
-      lastSmokeChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
-      smokeDetectorBatteries: new FormControl<string>(''),
-      lastBatteryChangeDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
-      licenseNo: new FormControl<string>(''),
-      licenseDate: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
-      hvacNotes: new FormControl<string>(''),
-      hvacServiced: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
-      fireplaceNotes: new FormControl<string>(''),
-      fireplaceServiced: new FormControl<Date | null>(null, [dateOnOrBeforeToday]),
       notes: new FormControl<string>(''),
       isActive: new FormControl<boolean>(true)
     });
@@ -350,18 +423,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
       carpetDate: this.mappingService.parseDateOrNull(source?.carpetDate),
       inspectorUserId: source?.inspectorUserId ?? null,
       inspectingDate: this.mappingService.parseDateOrNull(source?.inspectingDate),
-      filterDescription: source?.filterDescription ?? '',
-      lastFilterChangeDate: this.mappingService.parseDateOrNull(source?.lastFilterChangeDate),
-      smokeDetectors: source?.smokeDetectors ?? '',
-      lastSmokeChangeDate: this.mappingService.parseDateOrNull(source?.lastSmokeChangeDate),
-      smokeDetectorBatteries: source?.smokeDetectorBatteries ?? '',
-      lastBatteryChangeDate: this.mappingService.parseDateOrNull(source?.lastBatteryChangeDate),
-      licenseNo: source?.licenseNo ?? '',
-      licenseDate: this.mappingService.parseDateOrNull(source?.licenseDate),
-      hvacNotes: source?.hvacNotes ?? '',
-      hvacServiced: this.mappingService.parseDateOrNull(source?.hvacServiced ?? undefined),
-      fireplaceNotes: source?.fireplaceNotes ?? '',
-      fireplaceServiced: this.mappingService.parseDateOrNull(source?.fireplaceServiced ?? undefined),
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });
@@ -369,7 +430,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form?.dirty && !this.isSaving && !this.isSavingAppliances;
+    return !!this.form?.dirty && !this.isSaving && !this.isSavingAppliances && !this.isSavingMaintenanceItems;
   }
 
   async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
@@ -418,6 +479,10 @@ export class MaintenanceComponent implements OnInit, OnDestroy {
 
   get isLoadingAppliances(): boolean {
     return this.itemsToLoad$.value.has('appliances');
+  }
+
+  get isLoadingMaintenanceItems(): boolean {
+    return this.itemsToLoad$.value.has('maintenanceItems');
   }
 
   getCleanerOptionsForOffice(): UserResponse[] {

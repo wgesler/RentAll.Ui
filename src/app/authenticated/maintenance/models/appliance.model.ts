@@ -5,7 +5,6 @@ export interface ApplianceRequest {
   manufacturer?: string | null;
   modelNo?: string | null;
   serialNo?: string | null;
-  isActive: boolean;
 }
 
 export interface ApplianceResponse {
@@ -15,7 +14,4 @@ export interface ApplianceResponse {
   manufacturer?: string | null;
   modelNo?: string | null;
   serialNo?: string | null;
-  isActive: boolean;
-  modifiedOn?: string;
-  modifiedBy?: string;
 }

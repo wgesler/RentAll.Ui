@@ -11,18 +11,6 @@ export interface MaintenanceRequest {
   inspectingDate?: string | null;
   carpetUserId?: string | null;
   carpetDate?: string | null;
-  filterDescription?: string | null;
-  lastFilterChangeDate?: string | null;
-  smokeDetectors?: string | null;
-  lastSmokeChangeDate?: string | null;
-  smokeDetectorBatteries?: string | null;
-  lastBatteryChangeDate?: string | null;
-  licenseNo?: string | null;
-  licenseDate?: string | null;
-  hvacNotes?: string | null;
-  hvacServiced?: string | null;
-  fireplaceNotes?: string | null;
-  fireplaceServiced?: string | null;
   notes?: string | null;
   isActive: boolean;
 }
@@ -40,18 +28,6 @@ export interface MaintenanceResponse {
   inspectingDate?: string | null;
   carpetUserId?: string | null;
   carpetDate?: string | null;
-  filterDescription?: string | null;
-  lastFilterChangeDate?: string | null;
-  smokeDetectors?: string | null;
-  lastSmokeChangeDate?: string | null;
-  smokeDetectorBatteries?: string | null;
-  lastBatteryChangeDate?: string | null;
-  licenseNo?: string | null;
-  licenseDate?: string | null;
-  hvacNotes?: string | null;
-  hvacServiced?: string | null;
-  fireplaceNotes?: string | null;
-  fireplaceServiced?: string | null;
   notes?: string | null;
   isActive: boolean;
   createdOn: string;

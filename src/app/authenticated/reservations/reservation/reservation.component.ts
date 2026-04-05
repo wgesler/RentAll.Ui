@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, HostListener, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -69,6 +69,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   @Input() shellMode: boolean = false;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
+  @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
   
   isServiceError: boolean = false;
   selectedTabIndex: number = 0;
@@ -1624,6 +1625,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       isNew: true
     };
     this.extraFeeLines.push(newLine);
+    setTimeout(() => this.focusLastExtraFeeDescriptionInput());
   }
 
   removeExtraFeeLine(index: number): void {
@@ -1687,6 +1689,15 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       feeFrequencyId: line.feeFrequencyId !== undefined && line.feeFrequencyId !== null ? Number(line.feeFrequencyId) : Frequency.OneTime,
       costCodeId: line.costCodeId !== undefined && line.costCodeId !== null ? Number(line.costCodeId) : 0
     }));
+  }
+
+  focusLastExtraFeeDescriptionInput(): void {
+    const lastInput = this.extraFeeDescriptionInputs?.last?.nativeElement;
+    if (!lastInput) {
+      return;
+    }
+    lastInput.focus();
+    lastInput.select();
   }
   //#endregion
 

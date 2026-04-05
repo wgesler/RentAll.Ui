@@ -1,11 +1,11 @@
-.appliance-loading {
+.maintenance-item-loading {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0;
 }
 
-.appliance-actions {
+.maintenance-item-actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -13,19 +13,19 @@
   margin-bottom: 0.5rem;
 }
 
-.appliance-empty {
+.maintenance-item-empty {
   color: rgba(0, 0, 0, 0.7);
   font-style: italic;
 }
 
-.appliance-lines-wrap {
+.maintenance-item-lines-wrap {
   width: 100%;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.line-items-table.appliance-lines-table {
+.line-items-table.maintenance-item-lines-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
@@ -46,15 +46,34 @@
   }
 
   .actions-column {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
     text-align: right;
   }
 
-  th:not(.actions-column),
-  td:not(.actions-column) {
-    width: 25%;
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 22%;
+  }
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 14%;
+  }
+
+  th:nth-child(3),
+  td:nth-child(3) {
+    width: 8%;
+  }
+
+  th:nth-child(4),
+  td:nth-child(4) {
+    width: 56%;
+  }
+
+  td:nth-child(4) {
+    padding-right: 2px !important;
   }
 
   tbody tr:hover {
@@ -81,6 +100,28 @@
     outline: none;
     border-color: var(--mat-sys-primary, #1976d2) !important;
   }
+}
+
+.name-input {
+  min-width: 120px;
+}
+
+.notes-input {
+  min-height: 28px;
+  height: 28px;
+  resize: both;
+  overflow: auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.date-input {
+  max-width: 140px;
+}
+
+.months-input {
+  max-width: 56px;
+  text-align: center;
 }
 
 .delete-row-btn {

@@ -20,15 +20,10 @@ export class ApplianceService {
     this.http = http;
     this.configService = configService;
     this.controller = this.configService.config().apiUrl + 'maintenance/appliance/';
-    this.maintenanceController = this.configService.config().apiUrl + 'maintenance/';
-  }
+   }
 
   getAppliancesByPropertyId(propertyId: string): Observable<ApplianceResponse[]> {
-    return this.http.get<ApplianceResponse[]>(this.maintenanceController + 'appliances/' + propertyId);
-  }
-
-  getAppliancesByMaintenanceId(maintenanceId: string): Observable<ApplianceResponse[]> {
-    return this.http.get<ApplianceResponse[]>(this.controller + 'maintenance/' + maintenanceId);
+    return this.http.get<ApplianceResponse[]>(this.controller + propertyId);
   }
 
   getApplianceById(applianceId: number): Observable<ApplianceResponse> {

@@ -704,6 +704,7 @@
                           <td style="width: 50px;">{{ i + 1 }}</td>
                           <td style="min-width: 100px;">
                             <input type="text" class="w-full editable-input" 
+                              #extraFeeDescriptionInput
                               [value]="line.feeDescription || ''"
                               (input)="updateExtraFeeLineField(i, 'feeDescription', $any($event.target).value || '')"
                               placeholder="Enter fee description">

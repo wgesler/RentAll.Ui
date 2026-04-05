@@ -177,7 +177,7 @@
                               @if (isPaymentMode && !line.isNew) {
                                 <input type="text" class="w-full border-0 readonly-input" [value]="line.description || ''" readonly>
                               } @else {
-                                <input type="text" class="w-full ledger-input-no-border" 
+                                <input type="text" class="w-full editable-input" 
                                   [value]="line.description || ''"
                                   (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                               }
@@ -188,7 +188,7 @@
                                   [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''" 
                                   readonly>
                               } @else {
-                                <input type="text" class="w-full ledger-input-no-border" 
+                                <input type="text" class="w-full editable-input" 
                                   [attr.data-field]="'amount'"
                                   [attr.data-index]="i"
                                   [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"

@@ -27,9 +27,9 @@ export class ApplianceListComponent implements OnChanges {
   @Input() isSaving = false;
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: ApplianceRequest[]; deleteIds: number[] }>();
+  @Output() deleteExisting = new EventEmitter<number>();
 
   rows: ApplianceEditRow[] = [];
-  deletedApplianceIds = new Set<number>();
   originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string }>();
   rowCounter = 0;
 
@@ -54,8 +54,9 @@ export class ApplianceListComponent implements OnChanges {
   }
 
   removeRow(row: ApplianceEditRow): void {
-    if (row.applianceId) {
-      this.deletedApplianceIds.add(row.applianceId);
+    if (row.applianceId != null) {
+      this.deleteExisting.emit(row.applianceId);
+      return;
     }
     this.rows = this.rows.filter(current => current.rowId !== row.rowId);
   }
@@ -79,7 +80,6 @@ export class ApplianceListComponent implements OnChanges {
 
   //#region Utility Methods
   resetRowsFromInput(): void {
-    this.deletedApplianceIds.clear();
     this.originalRowsById.clear();
     this.rowCounter = 0;
     this.rows = (this.appliances || []).map(appliance => {
@@ -146,8 +146,7 @@ export class ApplianceListComponent implements OnChanges {
       applianceName,
       manufacturer,
       modelNo,
-      serialNo,
-      isActive: true
+      serialNo
     };
   }
 
@@ -165,8 +164,8 @@ export class ApplianceListComponent implements OnChanges {
       }
     }
 
-    const deleteIds = Array.from(this.deletedApplianceIds.values());
-    const hasChanges = upserts.length > 0 || deleteIds.length > 0;
+    const deleteIds: number[] = [];
+    const hasChanges = upserts.length > 0;
     return { upserts, deleteIds, hasChanges };
   }
   //#endregion
