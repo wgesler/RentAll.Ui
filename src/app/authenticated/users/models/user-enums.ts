@@ -17,9 +17,16 @@ export enum UserGroups {
   Inspector = 15
 }
 
-// Employee tab includes every role except Owner, Inspector, and Housekeeping.
+/** Owner / Housekeeping / Inspector / Vendor tabs. If a user's roles are only from this set, they do not appear on the Employees tab. */
+export const SPECIALTY_ONLY_TAB_USER_GROUPS: UserGroups[] = [
+  UserGroups.Owner,
+  UserGroups.Housekeeping,
+  UserGroups.Inspector,
+  UserGroups.Vendor
+];
+
+/** Staff roles for the Employees tab (hasAnyUserGroup). Users with only roles in SPECIALTY_ONLY_TAB_USER_GROUPS are excluded in user-list applyFilters. */
 export const EMPLOYEE_USER_GROUPS: UserGroups[] = [
-  UserGroups.Unknown,
   UserGroups.SuperAdmin,
   UserGroups.Admin,
   UserGroups.Accounting,
@@ -29,9 +36,6 @@ export const EMPLOYEE_USER_GROUPS: UserGroups[] = [
   UserGroups.PropertyManager,
   UserGroups.PropertyManagerAdmin,
   UserGroups.Facilities,
-  UserGroups.Company,
-  UserGroups.Vendor,
-  UserGroups.Tenant
 ];
 
 export function getUserGroup(userGroupId: number | undefined): string {

@@ -18,7 +18,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { EMPLOYEE_USER_GROUPS, getStartupPage, UserGroups } from '../models/user-enums';
+import { EMPLOYEE_USER_GROUPS, getStartupPage, SPECIALTY_ONLY_TAB_USER_GROUPS, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -149,10 +149,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyUserIsActiveValue(event.userId, nextValue);
 
-    this.userService.getUserByGuid(event.userId).pipe(
-      take(1),
-      finalize(() => this.applyFilters())
-    ).subscribe({
+    this.userService.getUserByGuid(event.userId).pipe(take(1),finalize(() => this.applyFilters())).subscribe({
       next: (user: UserResponse) => {
         const request = this.buildUserIsActiveUpdateRequest(user, nextValue);
         this.userService.updateUser(request).pipe(take(1)).subscribe({
@@ -192,7 +189,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const tabPredicates: Array<(user: UserListDisplay) => boolean> = [
-      (user) => this.hasAnyUserGroup(user, EMPLOYEE_USER_GROUPS),
+      (user) =>
+        !this.userHasOnlySpecialtyTabRoles(user) && this.hasAnyUserGroup(user, EMPLOYEE_USER_GROUPS),
       (user) => this.hasUserGroup(user, UserGroups.Owner),
       (user) => this.hasUserGroup(user, UserGroups.Housekeeping),
       (user) => this.hasUserGroup(user, UserGroups.Inspector),
@@ -265,6 +263,33 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       : this.offices.find(office => office.officeId === officeId) || null;
     this.onOfficeChange();
   }
+
+  getDefaultOfficeName(defaultOfficeId: number | null): string {
+    if (defaultOfficeId === null || defaultOfficeId === undefined) {
+      return '';
+    }
+    const office = this.offices.find(o => o.officeId === Number(defaultOfficeId));
+    return office?.name || String(defaultOfficeId);
+  }
+
+  refreshDefaultOfficeDisplay(): void {
+    if (!this.allUsers?.length) {
+      return;
+    }
+
+    this.allUsers = this.allUsers.map(user => ({
+      ...user,
+      defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId ?? null)
+    }));
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.refreshDefaultOfficeDisplay();
+    this.applyFilters();
+  }
   //#endregion
 
   //#region Data Loading Methods
@@ -320,7 +345,38 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region IsActive Support Methods
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.usersDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+  
+  buildUserIsActiveUpdateRequest(user: UserResponse, isActive: boolean): UserRequest {
+    const { organizationName: _organizationName, ...requestBase } = user;
+    return {
+      ...requestBase,
+      isActive
+    };
+  }
+
+  applyUserIsActiveValue(userId: string, isActive: boolean): void {
+    for (const user of this.users) {
+      if (user.userId === userId) {
+        user.isActive = isActive;
+        break;
+      }
+    }
+    for (const user of this.allUsers) {
+      if (user.userId === userId) {
+        user.isActive = isActive;
+        break;
+      }
+    }
+    this.applyFilters();
+  }
+  //#endregion
+
+  //#region Role Methods
   hasRole(role: UserGroups): boolean {
     const userGroups = this.authService.getUser()?.userGroups || [];
     if (!userGroups.length) {
@@ -339,38 +395,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
 
       return typeof group === 'number' && group === role;
     });
-  }
-
-  setIsActiveCheckboxEditability(): void {
-    this.canEditIsActiveCheckbox = this.isAdmin;
-    this.usersDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
-  }
-
-  getDefaultOfficeName(defaultOfficeId: number | null): string {
-    if (defaultOfficeId === null || defaultOfficeId === undefined) {
-      return '';
-    }
-    const office = this.offices.find(o => o.officeId === Number(defaultOfficeId));
-    return office?.name || String(defaultOfficeId);
-  }
-
-  refreshDefaultOfficeDisplay(): void {
-    if (!this.allUsers?.length) {
-      return;
-    }
-
-    this.allUsers = this.allUsers.map(user => ({
-      ...user,
-      defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId ?? null)
-    }));
-  }
-
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    this.refreshDefaultOfficeDisplay();
-    this.applyFilters();
   }
 
   rebuildUsersDisplay(): void {
@@ -408,40 +432,39 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  buildUserIsActiveUpdateRequest(user: UserResponse, isActive: boolean): UserRequest {
-    const { organizationName: _organizationName, ...requestBase } = user;
-    return {
-      ...requestBase,
-      isActive
-    };
-  }
-
-  applyUserIsActiveValue(userId: string, isActive: boolean): void {
-    for (const user of this.users) {
-      if (user.userId === userId) {
-        user.isActive = isActive;
-        break;
-      }
-    }
-    for (const user of this.allUsers) {
-      if (user.userId === userId) {
-        user.isActive = isActive;
-        break;
-      }
-    }
-    this.applyFilters();
-  }
-
   hasUserGroup(user: UserListDisplay, group: UserGroups): boolean {
     const groups = user.userGroups || [];
     const targetGroup = UserGroups[group];
-    return groups.some(userGroup => String(userGroup) === targetGroup);
+    return groups.some(
+      userGroup => String(userGroup) === targetGroup || (!Number.isNaN(Number(userGroup)) && Number(userGroup) === group)
+    );
   }
 
   hasAnyUserGroup(user: UserListDisplay, groups: UserGroups[]): boolean {
     return groups.some(group => this.hasUserGroup(user, group));
   }
 
+  userHasOnlySpecialtyTabRoles(user: UserListDisplay): boolean {
+    const groups = user.userGroups || [];
+    if (groups.length === 0) {
+      return false;
+    }
+    return groups.every(g =>
+      SPECIALTY_ONLY_TAB_USER_GROUPS.some(sg => this.userGroupValueMatches(g, sg))
+    );
+  }
+
+  userGroupValueMatches(userGroupValue: unknown, group: UserGroups): boolean {
+    const targetName = UserGroups[group];
+    if (String(userGroupValue) === targetName) {
+      return true;
+    }
+    const n = Number(userGroupValue);
+    return !Number.isNaN(n) && n === group;
+  }
+  //#endregion
+  
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
