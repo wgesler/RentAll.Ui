@@ -158,10 +158,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.applyOfficeSelectionLockState();
     }
 
-    // When propertyId becomes available, load property and lease information
-    if (changes['propertyId'] && changes['propertyId'].currentValue && !changes['propertyId'].previousValue) {
+    // When propertyId becomes available/changes, reload all property-scoped document data.
+    if (changes['propertyId'] && changes['propertyId'].currentValue) {
       this.loadProperty();
       this.loadLeaseInformation();
+      this.getLease();
     }
     
     // When officeId changes from parent, set the selected office (don't emit back)
@@ -203,7 +204,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return;
     }
 
-    // In debug mode, pull form templates from local assets (no DB HTML fetch).
+    // Pull local HTML templates by default while testing.
     if (this.debuggingHtml) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
       this.generatePreviewIframe();

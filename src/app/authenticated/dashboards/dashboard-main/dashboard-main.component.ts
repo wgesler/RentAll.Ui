@@ -120,7 +120,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'tenantName': { displayAs: 'Occupant', maxWidth: '20ch', wrap: false},
     'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '20ch' , alignment: 'center' },
-    'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '165h', options: this.propertyStatusLabels },
+    'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '18ch', options: this.propertyStatusLabels },
     'paymentReceived': { displayAs: 'Payment', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'welcomeLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'readyForArrival': { displayAs: 'Ready', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
