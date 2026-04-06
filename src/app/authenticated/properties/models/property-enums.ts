@@ -116,6 +116,44 @@ export function getPropertyTypes(): { value: number, label: string }[] {
 }
 //#endregion
 
+//#region PropertyLeaseType
+export enum PropertyLeaseType {
+  PropertyManagement = 0,
+  Direct = 1,
+  ThirdParty = 2
+}
+
+export function getPropertyLeaseType(propertyLeaseTypeId: number | undefined): string {
+  if (propertyLeaseTypeId === undefined || propertyLeaseTypeId === null) return '';
+
+  const leaseTypeMap: { [key: number]: string } = {
+    [PropertyLeaseType.PropertyManagement]: 'Property Management',
+    [PropertyLeaseType.Direct]: 'Direct',
+    [PropertyLeaseType.ThirdParty]: 'Third Party'
+  };
+
+  return leaseTypeMap[propertyLeaseTypeId] || '';
+}
+
+// Gets the array of property lease type options for dropdowns
+export function getPropertyLeaseTypes(): { value: number, label: string }[] {
+  return Object.keys(PropertyLeaseType)
+    .filter(key => isNaN(Number(key))) // Filter out numeric keys
+    .map(key => ({
+      value: PropertyLeaseType[key as keyof typeof PropertyLeaseType],
+      label: getPropertyLeaseType(PropertyLeaseType[key as keyof typeof PropertyLeaseType])
+    }));
+}
+
+// Normalizes property lease type ID to a number for API requests
+export function normalizePropertyLeaseTypeId(value: number | null | undefined): number {
+  if (value !== null && value !== undefined) {
+    return Number(value);
+  }
+  return PropertyLeaseType.PropertyManagement;
+}
+//#endregion
+
 //#region PropertyStatus
 export enum PropertyStatus {
   Vacant = 0,

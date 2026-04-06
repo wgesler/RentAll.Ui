@@ -10,6 +10,14 @@
       <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
             <div class="info-form mb-8 pt-5">
             <div class="flex justify-end items-center gap-3 mb-3">
+              <mat-form-field appearance="outline" class="property-lease-type-field flex-shrink-0">
+                <mat-label>Lease type</mat-label>
+                <mat-select formControlName="propertyLeaseId">
+                  @for (opt of propertyLeaseTypeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
               <mat-checkbox
                 color="primary"
                 class="flex-shrink-0"
@@ -469,13 +477,14 @@
                     }
                   </mat-form-field>
                 </div>
-                <!-- Owners (under rate fields) -->
+                <!-- Owners (property management lease) or Vendor (other lease types) -->
+                @if (isPropertyManagementLease) {
                 <div class="mb-4 flex items-center gap-3 mt-4">
                   <app-searchable-select
                     class="owner-select-field owner-select-field-primary"
                     [renderInFormField]="true"
                     [formFieldLabel]="'Owner'"
-                    [required]="isAddMode"
+                    [required]="true"
                     [value]="form.get('owner1Id')?.value || ''"
                     [options]="ownerOptions"
                     [triggerValueClickable]="hasOwnerSelected('owner1Id')"
@@ -484,7 +493,7 @@
                     [hideSearchText]="true"
                     [nullOptionLabel]="''"
                     [noResultsText]="'No owners match your search'"
-                    [showError]="!!(isAddMode && form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
+                    [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
                     [errorText]="'Owner is required'"
                     (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
                     (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
@@ -520,6 +529,27 @@
                     (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
                   </app-searchable-select>
                 </div>
+                } @else {
+                <div class="mb-4 flex items-center gap-3 mt-4">
+                  <app-searchable-select
+                    class="vendor-select-field"
+                    [renderInFormField]="true"
+                    [formFieldLabel]="'Vendor'"
+                    [required]="true"
+                    [value]="form.get('vendorId')?.value ?? null"
+                    [options]="vendorOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter vendors...'"
+                    [nullOptionLabel]="''"
+                    [noResultsText]="'No vendors match your search'"
+                    [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
+                    [errorText]="'Vendor is required'"
+                    (valueChange)="onVendorDropdownChange($event)">
+                  </app-searchable-select>
+                </div>
+                }
               </div>
             </mat-expansion-panel>
 

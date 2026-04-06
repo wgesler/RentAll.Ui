@@ -619,6 +619,13 @@ mat-form-field.company-dropdown {
   min-width: 200px;
 }
 
+/* Property form: vendor row — one control spans one-quarter of the row width */
+.vendor-select-field {
+  flex: 0 0 25%;
+  max-width: 25%;
+  min-width: 0;
+}
+
 .mobile-hide {
   @media (max-width: 768px) {
     display: none !important;

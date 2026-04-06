@@ -471,11 +471,13 @@ export class MappingService {
       return {
         propertyId: o.propertyId,
         propertyCode: o.propertyCode,
+        propertyLeaseId: o.propertyLeaseId,
         shortAddress: o.shortAddress,
         officeId: o.officeId,
         officeName: o.officeName,
         owner1Id: o.owner1Id,
-        ownerName: o.ownerName,
+        vendorId: o.vendorId,
+        contactName: o.contactName,
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,
         accomodates: o.accomodates,
@@ -757,7 +759,13 @@ export class MappingService {
   }
 
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
-    return raw as unknown as PropertyResponse;
+    const { propertyLeaseTypeId, ...rest } = raw as Record<string, unknown> & {
+      propertyLeaseTypeId: number;
+    };
+    return {
+      ...rest,
+      propertyLeaseId: Number(propertyLeaseTypeId)
+    } as unknown as PropertyResponse;
   }
 
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {

@@ -827,7 +827,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsibleNoun(): string {
     const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
+    if (reservationTypeId === ReservationType.Corporate) {
       return 'Company';
     }
     return 'Tenant';
@@ -835,45 +835,30 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsibleParty(): string {
     const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
-    if (!sourceContact) return '';
-
-    if (reservationTypeId === ReservationType.Corporate || reservationTypeId === ReservationType.Platform) {
-      return (sourceContact.companyName || '').trim();
+    if (reservationTypeId === ReservationType.Corporate) {
+      return (this.contact.companyName || '').trim();
     }
 
     return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
   }
 
   getResponsiblePartyAddress() {
-    const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
-    if (!sourceContact) return '';
-
-    const isInternational = (sourceContact as any).isInternational || false;
+    const isInternational = this.contact.isInternational || false;
     if (isInternational) {
-      const parts = [sourceContact.address1, sourceContact.address2].filter(p => p);
+      const parts = [this.contact?.address1, this.contact?.address2].filter(p => p);
       return parts.join(', ');
     }
 
-    const parts = [sourceContact.address1, sourceContact.city, sourceContact.state, sourceContact.zip].filter(p => p);
+    const parts = [this.contact?.address1, this.contact?.city, this.contact?.state, this.contact?.zip].filter(p => p);
     return parts.join(', ');
   }
 
   getResponsiblePartyPhone() {
-    const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
-    if (!sourceContact) return '';
-
-    return this.formatterService.phoneNumber(sourceContact.phone) || '';
+    return this.formatterService.phoneNumber(this.contact.phone) || '';
   }
 
   getResponsiblePartyEmail() {
-    const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    const sourceContact = reservationTypeId === ReservationType.Platform ? (this.companyContact || this.contact) : this.contact;
-    if (!sourceContact) return '';
-
-    return sourceContact.email || '';
+    return this.contact?.email || '';
   }
 
   getSecurityDepositText(): string {

@@ -4,9 +4,11 @@ export interface PropertyRequest {
   propertyId?: string | null;
   organizationId: string;
   propertyCode: string;
-  owner1Id: string;
+  propertyLeaseId: number;
+  owner1Id?: string | null;
   owner2Id?: string | null;
   owner3Id?: string | null;
+  vendorId?: string| null;
   isActive: boolean;
   
   // Availability section
@@ -126,9 +128,11 @@ export interface PropertyResponse {
   propertyId: string;
   organizationId: string;
   propertyCode: string;
-  owner1Id: string;
+  propertyLeaseId: number;
+  owner1Id?: string | null;
   owner2Id?: string | null;
   owner3Id?: string | null;
+  vendorId?: string| null;
   isActive: boolean;
    
   // Availability section
@@ -247,13 +251,15 @@ export interface PropertyResponse {
 export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;
+  propertyLeaseId: number;
   shortAddress: string;
   availableFrom?: string | null;
   availableUntil?: string | null;
   officeId: number;  
   officeName: string;
-  owner1Id: string;
-  ownerName: string;
+  owner1Id?: string | null;
+  vendorId?: string| null;
+  contactName: string;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -279,11 +285,13 @@ export interface PropertyListResponse{
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
+  propertyLeaseId: number;
   shortAddress:string;
   officeId: number;  
   officeName: string;
-  owner1Id: string;
-  ownerName: string;
+  owner1Id?: string | null;
+  vendorId?: string| null;
+  contactName: string;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;

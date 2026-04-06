@@ -31,7 +31,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { CheckinTimes, CheckoutTimes, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../models/property-enums';
+import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -56,48 +56,10 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
 
 export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   readonly newOwnerOptionValue = '__new_owner__';
+  readonly newVendorOptionValue = '__new_vendor__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
-  readonly bedSelectionValidator = (control: AbstractControl): ValidationErrors | null => {
-    const formGroup = control as FormGroup;
-    const bedroomsRaw = formGroup.get('bedrooms')?.value;
-    const bedrooms = Number(bedroomsRaw);
-    if (!Number.isFinite(bedrooms) || bedrooms < 1 || bedrooms > 4) {
-      return null;
-    }
-
-    const bedValues = [
-      Number(formGroup.get('bedroomId1')?.value ?? 0),
-      Number(formGroup.get('bedroomId2')?.value ?? 0),
-      Number(formGroup.get('bedroomId3')?.value ?? 0),
-      Number(formGroup.get('bedroomId4')?.value ?? 0)
-    ];
-
-    const requiredBedIndexes: number[] = [];
-    const noneRequiredBedIndexes: number[] = [];
-
-    for (let index = 0; index < bedValues.length; index++) {
-      const bedNumber = index + 1;
-      const bedValue = bedValues[index];
-      if (bedNumber <= bedrooms) {
-        if (!Number.isFinite(bedValue) || bedValue <= 0) {
-          requiredBedIndexes.push(bedNumber);
-        }
-      } else if (Number.isFinite(bedValue) && bedValue > 0) {
-        noneRequiredBedIndexes.push(bedNumber);
-      }
-    }
-
-    if (requiredBedIndexes.length === 0 && noneRequiredBedIndexes.length === 0) {
-      return null;
-    }
-
-    return {
-      bedSelection: {
-        requiredBedIndexes,
-        noneRequiredBedIndexes
-      }
-    };
-  };
+  readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
+  
   isAdmin = false;
   isServiceError: boolean = false;
   form: FormGroup;
@@ -108,7 +70,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   property: PropertyResponse;
   propertyInformation: PropertyLetterResponse | null = null; 
   selectedReservationId: string | null = null;
-  copiedPropertyInformation: PropertyLetterResponse | null = null; // Store copied property information data
+  copiedPropertyInformation: PropertyLetterResponse | null = null; 
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
@@ -215,20 +177,14 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         // All accordions expanded when property form is opened (add or edit)
         this.expandedSections = { basic: true, features: true, trash: true, maintenance: true, description: true };
         
-        // Update form validators based on mode
-        const owner1Control = this.form.get('owner1Id');
         const codeControl = this.form.get('propertyCode');
-
         if (this.isAddMode) {
-          owner1Control?.setValidators([Validators.required]);
           codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
         } else {
-          owner1Control?.clearValidators();
           codeControl?.clearValidators();
         }
-
-        owner1Control?.updateValueAndValidity();
         codeControl?.updateValueAndValidity();
+        this.applyOwnerVendorLeaseValidators();
         this.applyOfficeControlState();
 
         if (!this.isAddMode) {
@@ -252,6 +208,15 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     // Check query params for tab selection
     this.setupConditionalFields();
     this.setupOwnerSelectionHandlers();
+    this.setupVendorSelectionHandlers();
+    this.setupLeaseTypeOwnerVendorValidators();
+  }
+
+  get isPropertyManagementLease(): boolean {
+    if (!this.form) {
+      return true;
+    }
+    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseId')?.value) === PropertyLeaseType.PropertyManagement;
   }
 
   getProperty(): void {
@@ -269,7 +234,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   copyFromProperty(sourcePropertyId: string): void {
-    // Wait for contacts and location lookups to be loaded before copying
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     const contactsLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('contacts')), filter(loaded => loaded === true), take(1));
     const officesLoaded$ = this.itemsToLoad$.pipe(map(items => !items.has('offices')), filter(loaded => loaded === true), take(1));
@@ -339,7 +303,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
   
   saveProperty(onComplete?: (saved: boolean) => void): void {
-    // Mark all fields as touched to show validation errors
     this.form.markAllAsTouched();
     
     // Also mark individual controls as touched to ensure error messages appear
@@ -376,7 +339,19 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     // Ensure time fields are integers
     propertyRequest.checkInTimeId = normalizeCheckInTimeId(formValue.checkInTimeId);
     propertyRequest.checkOutTimeId = normalizeCheckOutTimeId(formValue.checkOutTimeId);
-    
+    propertyRequest.propertyLeaseId = normalizePropertyLeaseTypeId(formValue.propertyLeaseId);
+
+    if (propertyRequest.propertyLeaseId === PropertyLeaseType.PropertyManagement) {
+      propertyRequest.vendorId = null;
+    } else {
+      propertyRequest.owner1Id = undefined;
+      propertyRequest.owner2Id = undefined;
+      propertyRequest.owner3Id = undefined;
+      const vid = formValue.vendorId;
+      propertyRequest.vendorId =
+        vid != null && String(vid).trim() !== '' ? String(vid).trim() : null;
+    }
+
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
     propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
@@ -501,14 +476,14 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   
   //#region Form Methods
   buildForm(): void {
-    const contactValidators = [];
     const codeValidators = this.isAddMode ? [Validators.required] : [];
     
     this.form = this.fb.group({
       propertyCode: new FormControl('', codeValidators),
-      owner1Id: new FormControl('', contactValidators),
+      owner1Id: new FormControl(''),
       owner2Id: new FormControl(null),
       owner3Id: new FormControl(null),
+      vendorId: new FormControl<string | null>(null),
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
@@ -624,7 +599,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       latitude: new FormControl('0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
-      isActive: new FormControl(true)
+      isActive: new FormControl(true),
+      propertyLeaseId: new FormControl<number>(PropertyLeaseType.PropertyManagement, [Validators.required])
     }, { validators: [this.bedSelectionValidator] });
   }
 
@@ -663,6 +639,19 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
       formData.maintenanceStatusId = this.property.maintenanceStatusId != null ? Number(this.property.maintenanceStatusId) : MaintenanceStatus.UnProcessed;
+      formData.propertyLeaseId = this.property.propertyLeaseId != null && this.property.propertyLeaseId !== undefined
+        ? Number(this.property.propertyLeaseId)
+        : PropertyLeaseType.PropertyManagement;
+
+      const leaseNorm = normalizePropertyLeaseTypeId(formData.propertyLeaseId);
+      if (leaseNorm === PropertyLeaseType.PropertyManagement) {
+        formData.vendorId = null;
+      } else {
+        formData.owner1Id = '';
+        formData.owner2Id = null;
+        formData.owner3Id = null;
+        formData.vendorId = this.property.vendorId ?? null;
+      }
       
       // Handle bedroom IDs
       formData.bedroomId1 = this.property.bedroomId1 ?? 0;
@@ -736,12 +725,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
       this.syncConditionalFieldState();
+      this.applyOwnerVendorLeaseValidators();
       this.form.markAsUntouched();
       this.form.markAsPristine();
       this.captureSavedStateSignature();
-
-      // Log any invalid fields after load so you can fix defaults or API mapping (check browser console)
-      this.logInvalidFormControlsAfterLoad();
     }
   }
 
@@ -761,6 +748,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!this.form) return;
     this.form.patchValue({
       propertyCode: this.propertyCodeDefaultPrompt,
+      propertyLeaseId: PropertyLeaseType.PropertyManagement,
+      vendorId: null,
       checkInTimeId: CheckinTimes.FourPM,
       checkOutTimeId: CheckoutTimes.ElevenAM,
       heating: true,
@@ -773,37 +762,83 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       tv: true,
       fastInternet: true
     }, { emitEvent: false });
+    this.applyOwnerVendorLeaseValidators();
     this.captureSavedStateSignature();
   }
 
-  /** Call after loading a saved property. Logs field names (and errors) for any control that is invalid. */
-  logInvalidFormControlsAfterLoad(): void {
-    const invalid: { path: string; errors: Record<string, unknown> }[] = [];
-    const collectInvalid = (group: FormGroup, path = ''): void => {
-      Object.keys(group.controls).forEach(key => {
-        const control = group.get(key);
-        const controlPath = path ? `${path}.${key}` : key;
-        if (control instanceof FormControl) {
-          if (control.invalid && control.errors) {
-            invalid.push({ path: controlPath, errors: { ...control.errors } });
-          }
-        } else if (control instanceof FormGroup) {
-          collectInvalid(control, controlPath);
-        }
-      });
-    };
-    collectInvalid(this.form);
-    if (invalid.length > 0) {
-      console.warn(
-        '[Property] Validation errors on load – invalid field(s):',
-        invalid.map(i => `${i.path} (${Object.keys(i.errors).join(', ')})`).join('; ')
-      );
-      console.warn('[Property] Invalid controls detail:', invalid);
+  applyOwnerVendorLeaseValidators(): void {
+    const owner1 = this.form?.get('owner1Id');
+    const vendor = this.form?.get('vendorId');
+    const leaseCtl = this.form?.get('propertyLeaseId');
+    if (!this.form || !owner1 || !vendor || !leaseCtl) {
+      return;
     }
+    const pm = normalizePropertyLeaseTypeId(leaseCtl.value) === PropertyLeaseType.PropertyManagement;
+    if (pm) {
+      owner1.setValidators([Validators.required]);
+      vendor.clearValidators();
+    } else {
+      owner1.clearValidators();
+      vendor.setValidators([Validators.required]);
+    }
+    owner1.updateValueAndValidity({ emitEvent: false });
+    vendor.updateValueAndValidity({ emitEvent: false });
   }
   //#endregion
 
-  //#region Owner Dialog
+  //#region Form validators
+  bedSelectionValidator(control: AbstractControl): ValidationErrors | null {
+    const formGroup = control as FormGroup;
+    const bedroomsRaw = formGroup.get('bedrooms')?.value;
+    const bedrooms = Number(bedroomsRaw);
+    if (!Number.isFinite(bedrooms) || bedrooms < 1 || bedrooms > 4) {
+      return null;
+    }
+
+    const bedValues = [
+      Number(formGroup.get('bedroomId1')?.value ?? 0),
+      Number(formGroup.get('bedroomId2')?.value ?? 0),
+      Number(formGroup.get('bedroomId3')?.value ?? 0),
+      Number(formGroup.get('bedroomId4')?.value ?? 0)
+    ];
+
+    const requiredBedIndexes: number[] = [];
+    const noneRequiredBedIndexes: number[] = [];
+
+    for (let index = 0; index < bedValues.length; index++) {
+      const bedNumber = index + 1;
+      const bedValue = bedValues[index];
+      if (bedNumber <= bedrooms) {
+        if (!Number.isFinite(bedValue) || bedValue <= 0) {
+          requiredBedIndexes.push(bedNumber);
+        }
+      } else if (Number.isFinite(bedValue) && bedValue > 0) {
+        noneRequiredBedIndexes.push(bedNumber);
+      }
+    }
+
+    if (requiredBedIndexes.length === 0 && noneRequiredBedIndexes.length === 0) {
+      return null;
+    }
+
+    return {
+      bedSelection: {
+        requiredBedIndexes,
+        noneRequiredBedIndexes
+      }
+    };
+  }
+
+  propertyCodeEntryValidator = (control: AbstractControl): ValidationErrors | null => {
+    const value = String(control.value ?? '').trim();
+    if (!value) return null;
+    return value.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()
+      ? { defaultCode: true }
+      : null;
+  };
+  //#endregion
+
+  //#region Owner/Vendor Dialog
   openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
     const dialogRef = this.dialog.open(ContactComponent, {
       width: '1200px',
@@ -828,6 +863,36 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         next: (contacts) => {
           this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
           this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
+        },
+        error: () => {}
+      });
+    });
+  }
+
+  openNewVendorDialog(): void {
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.entityTypeId = EntityType.Vendor;
+    dialogRef.componentInstance.compactDialogMode = true;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: (contacts) => {
+          this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+          this.form.patchValue({ vendorId: result.contactId }, { emitEvent: false });
         },
         error: () => {}
       });
@@ -880,6 +945,14 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const normalizedValue = value === null || value === undefined ? (ownerField === 'owner1Id' ? '' : null) : String(value);
     const control = this.form.get(ownerField);
     control?.setValue(normalizedValue);
+    control?.markAsTouched();
+    control?.markAsDirty();
+  }
+
+  onVendorDropdownChange(value: string | number | null): void {
+    const control = this.form.get('vendorId');
+    const normalized = value == null || value === '' ? null : String(value);
+    control?.setValue(normalized);
     control?.markAsTouched();
     control?.markAsDirty();
   }
@@ -1009,6 +1082,21 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     });
   }
 
+  setupVendorSelectionHandlers(): void {
+    this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (value === this.newVendorOptionValue) {
+        this.form.patchValue({ vendorId: null }, { emitEvent: false });
+        this.openNewVendorDialog();
+      }
+    });
+  }
+
+  setupLeaseTypeOwnerVendorValidators(): void {
+    this.form.get('propertyLeaseId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyOwnerVendorLeaseValidators();
+    });
+  }
+
   setupConditionalFields(): void {
     // Subscribe to parking checkbox changes to enable/disable parkingNotes field
     this.form.get('parking')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
@@ -1122,7 +1210,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: (contacts) => {
-        this.contacts = contacts?.filter(c => c.entityTypeId === EntityType.Owner) || [];
+        this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
       },
       error: () => {
         this.contacts = [];
@@ -1434,7 +1522,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       this.form.patchValue({
         owner1Id: '',
         owner2Id: null,
-        owner3Id: null
+        owner3Id: null,
+        vendorId: null
       }, { emitEvent: false });
     }
   }
@@ -1443,6 +1532,24 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const officeId = this.form?.get('officeId')?.value;
     if (!officeId) return [];
     return this.contacts.filter(c => Number(c.officeId) === Number(officeId));
+  }
+
+  get vendorContactsForOffice(): ContactResponse[] {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) return [];
+    return this.contactService
+      .getAllContactsValue()
+      .filter(c => c.entityTypeId === EntityType.Vendor && Number(c.officeId) === Number(officeId));
+  }
+
+  get vendorOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      ...this.vendorContactsForOffice.map(contact => ({
+        value: contact.contactId,
+        label: contact.fullName ?? ''
+      }))
+    ];
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -1471,14 +1578,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       input.select();
     }
   }
-
-  private propertyCodeEntryValidator = (control: AbstractControl): ValidationErrors | null => {
-    const value = String(control.value ?? '').trim();
-    if (!value) return null;
-    return value.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()
-      ? { defaultCode: true }
-      : null;
-  };
 
   /** No default dates in UI: empty unless API sends a real calendar date (sentinels like 0001-01-01 → blank). */
   private parseMaintenanceDateOrNull(iso: string | null | undefined): Date | null {
@@ -1590,6 +1689,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
 
     this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
     this.applyOfficeControlState();
+    this.applyOwnerVendorLeaseValidators();
     this.syncConditionalFieldState();
 
     const officeId = this.form.get('officeId')?.value;

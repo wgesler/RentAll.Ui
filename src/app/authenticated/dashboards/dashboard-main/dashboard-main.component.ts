@@ -141,7 +141,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
   propertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '30ch' , wrap: false},
-    'ownerName': { displayAs: 'Owner', maxWidth: '20ch' , wrap: false},
+    'contactName': { displayAs: 'Contact', maxWidth: '20ch' , wrap: false},
     'bedrooms': { displayAs: 'Beds', maxWidth: '15ch', alignment: 'center' },
     'bathrooms': { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' },
     'vacancyDaysDisplay': { displayAs: 'Days Vacant', maxWidth: '25ch', alignment: 'center' },
@@ -985,11 +985,13 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return {
         propertyId: property.propertyId,
         propertyCode: property.propertyCode,
+        propertyLeaseId: property.propertyLeaseId,
         shortAddress: property.shortAddress,
         officeId: property.officeId,
         officeName: property.officeName,
         owner1Id: property.owner1Id,
-        ownerName: property.ownerName,
+        vendorId: property.vendorId,
+        contactName: property.contactName,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
         accomodates: property.accomodates,
