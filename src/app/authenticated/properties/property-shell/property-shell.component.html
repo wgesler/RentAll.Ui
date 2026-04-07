@@ -86,7 +86,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
           <app-property #propertySection (titleBarContextChange)="onTitleBarContextFromProperty($event)"></app-property>
         </mat-tab>

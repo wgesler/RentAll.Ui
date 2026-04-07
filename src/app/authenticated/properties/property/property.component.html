@@ -7,29 +7,34 @@
   <div class="flex content-card-wrap justify-center property-shell-embedded-wrap">
     <section class="content-card property-shell-embedded">
       @if (form) {
-      <div class="info-form mb-8 pt-5">
+      <div class="info-form mb-8">
       <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
-            <div class="flex justify-end items-center gap-3 mb-3">
-              <mat-form-field appearance="outline" class="property-lease-type-field flex-shrink-0">
-                <mat-label>Property Lease Type</mat-label>
-                <mat-select formControlName="propertyLeaseId">
-                  @for (opt of propertyLeaseTypeOptions; track opt.value) {
-                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-checkbox
-                color="primary"
-                class="flex-shrink-0"
-                formControlName="isActive">
-                IsActive
-              </mat-checkbox>
-              <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
+            <div class="property-tab-actions-band">
+              <div class="property-tab-actions-band__row">
+                <div class="header-title flex-shrink-0">
+                  <mat-form-field appearance="outline" class="titlebar-field-company">
+                    <mat-label>Property Lease Type</mat-label>
+                    <mat-select formControlName="propertyLeaseId">
+                      @for (opt of propertyLeaseTypeOptions; track opt.value) {
+                        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <mat-checkbox
+                  color="primary"
+                  class="flex-shrink-0"
+                  formControlName="isActive">
+                  IsActive
+                </mat-checkbox>
+                <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
             </div>
+            <div class="property-tab-main-area">
             <mat-accordion multi="true">
             <!-- Basic Rental Information (combined: basic + address + location + rates) -->
             <mat-expansion-panel [expanded]="expandedSections.basic" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
@@ -688,6 +693,7 @@
                 <span>Saving...</span>
               </div>
             }
+            </div>
       </form>
 
       </div>

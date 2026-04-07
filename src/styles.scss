@@ -1,6 +1,7 @@
 @use "./reset.scss";
 @use "./styles/mixins" as *;
 @use "./styles/theme";
+@use "./styles/debug-layout-bands";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,6 +12,11 @@
 
 :root {
   --global-page-inner-padding: 15px;
+  --property-tab-actions-band-height: calc(6.5rem * 5 / 6);
+  /* Tab actions band (shell): gap from control bottoms to inner top/bottom of the band (same on every tab). */
+  --property-tab-actions-band-inner-padding-block: 2px;
+  /* Stack gap between debug bands: see --dbg-layout-stack-gap in styles/_debug-layout-bands.scss */
+  --property-tab-list-band-row-padding-top: 0.75rem;
   --global-form-field-gap-x: 6px;
   --global-form-field-gap-y: 4px;
   --global-form-row-gap: 8px;
@@ -23,6 +29,137 @@
 html {
   scrollbar-gutter: stable;
   overflow-y: auto;
+}
+
+/* Band between mat-tabs and main content under .property-tabs (property + maintenance shells). */
+.property-tab-actions-band {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.property-tab-actions-band__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.property-tab-actions-band__row + .property-tab-actions-band__row {
+  margin-top: 0.5rem;
+}
+
+/* Tabbed email/document lists outside property shell: keep prior top inset (was mt-3). */
+.document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
+  padding-top: var(--property-tab-list-band-row-padding-top);
+}
+
+/* Tab strip debug: add class dbg-band-tabs on mat-tab-group (see styles/_debug-layout-bands.scss). */
+
+/*
+ * Tab actions band row (not the tab strip).
+ * Default align-items:center makes a short Save sit above the row bottom when siblings are taller; flex-end
+ * lines up control bottoms; gap below Save is var(--property-tab-actions-band-inner-padding-block) + border.
+ */
+.property-tabs .property-tab-actions-band > .property-tab-actions-band__row {
+  align-items: flex-end;
+}
+
+.property-tabs .document-list-tab-container .property-tab-actions-band > .property-tab-actions-band__row {
+  align-items: center;
+}
+
+/* Band between tabs and main content (purple spacing always; chrome when body.dbg-page-debug-on). */
+.property-tabs .property-tab-actions-band {
+  margin-bottom: var(--dbg-layout-stack-gap);
+  box-sizing: border-box;
+  min-height: var(--property-tab-actions-band-height);
+  padding-inline: var(--global-page-inner-padding);
+  padding-top: var(--property-tab-actions-band-inner-padding-block);
+  padding-bottom: var(--property-tab-actions-band-inner-padding-block);
+}
+
+/* Property shell Emails/Documents: reservation band lives inside orange; no extra stack gap before orange. */
+.property-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
+  min-height: 0;
+  margin-bottom: 0;
+  padding-inline: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+/*
+ * app-property nests legacy .content-card-wrap > .content-card inside the tab (width 96%, margin-top 24px, centered).
+ * Other tabs render full width — reset so the actions band and form align with sibling tabs.
+ */
+.property-tabs app-property .property-shell-embedded-wrap.content-card-wrap {
+  align-items: stretch;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.property-tabs app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Cancel .content-card-wrap .info-form horizontal padding for the band only (full width matches other tabs). */
+.property-tabs app-property .property-page-form > .property-tab-actions-band:first-child {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* Band bleeds horizontally to tab content edges. */
+.property-tabs .letter-information-form-container > .letter-information-form > .property-tab-actions-band:first-child {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+}
+
+.property-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-actions-band:first-child {
+  margin-inline: -1.5rem;
+  width: calc(100% + 3rem);
+  max-width: none;
+}
+
+/* Main area: match tab strip + actions band width (same bleed as band above; list tabs are already full width). */
+.property-tabs app-property .property-page-form > .property-tab-main-area {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.property-tabs .letter-information-form-container > .letter-information-form > .property-tab-main-area {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.property-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-main-area {
+  margin-inline: -1.5rem;
+  width: calc(100% + 3rem);
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.property-tabs .document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
+  padding-top: 0;
+  margin-top: 0;
 }
 
 /* Reservation dropdown: wider to accommodate "ReservationCode: displayName" labels */

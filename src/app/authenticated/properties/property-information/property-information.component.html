@@ -23,13 +23,16 @@
       </div>
     }
     <form [formGroup]="form" class="letter-information-form">
-      <div class="flex justify-end items-center gap-3 property-information-form-actions">
-        <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyLetter()"
-          class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
+      <div class="property-tab-actions-band">
+        <div class="property-tab-actions-band__row property-information-form-actions">
+          <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyLetter()"
+            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
       </div>
+      <div class="property-tab-main-area">
       <mat-accordion multi="true">
         <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
@@ -148,6 +151,7 @@
           <mat-label>Additional Notes</mat-label>
           <textarea matInput formControlName="additionalNotes" rows="4"></textarea>
         </mat-form-field>
+      </div>
       </div>
     </form>
   </div>

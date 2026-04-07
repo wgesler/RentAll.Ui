@@ -1,0 +1,28 @@
+---
+description: Global toggle for blue/purple/orange layout debug bands (body class + DebugLayoutBandsService) and dbg-band-* template hooks
+globs: src/**/*.html,src/styles/**/*.scss,src/app/services/debug-layout-bands.service.ts,src/app/app.component.ts
+alwaysApply: true
+---
+
+# Debug layout bands
+
+## Operator (agent): turn chrome ON / OFF
+
+Chrome is **hidden by default**. Spacing (stack gaps) stays on so the layout does not jump.
+
+- **Turn ON:** `DebugLayoutBandsService.setEnabled(true)` (persists `localStorage` key `rentall-dbg-layout-bands` = `1`), or in DevTools: `localStorage.setItem('rentall-dbg-layout-bands','1')` then reload. Body gets class **`dbg-page-debug-on`**.
+- **Turn OFF:** `DebugLayoutBandsService.setEnabled(false)` or `localStorage.removeItem('rentall-dbg-layout-bands')` then reload.
+
+Implementation: `src/app/services/debug-layout-bands.service.ts`. `AppComponent` injects the service so it initializes on app load.
+
+Do **not** remove `dbg-band-*` classes from templates to hide chrome; toggle the service or storage instead.
+
+## New pages
+
+1. Add hooks: **`dbg-band-tabs`** (on `mat-tab-group` or wrapper), **`dbg-band-actions`**, **`dbg-band-main`** as needed.
+2. Property/maintenance-style shells already use **`.property-tabs`** + **`.property-tab-actions-band`** / **`.property-tab-main-area`**; tab strip still needs **`dbg-band-tabs`** on the tab group.
+3. Tune colors/gap in `src/styles/_debug-layout-bands.scss` (`:root` `--dbg-*`).
+
+## Source of truth
+
+- **Styles:** `src/styles/_debug-layout-bands.scss` (imported from `styles.scss`). Visuals are under **`body.dbg-page-debug-on`**; spacing for hooked elements is always applied.

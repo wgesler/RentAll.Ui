@@ -49,8 +49,8 @@
       </div>
       }
 
-      <div class="top-controls">
-        <div class="flex gap-2 items-center uniform-gap">
+      <div class="property-tab-actions-band top-controls">
+        <div class="property-tab-actions-band__row flex gap-2 items-center uniform-gap">
           <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
             <mat-icon>print</mat-icon>
@@ -74,7 +74,7 @@
         </div>
       </div>
 
-      <div class="editor-section">
+      <div class="editor-section property-tab-main-area">
         @if (selectedOffice && selectedReservation && previewIframeHtml) {
           <div class="preview-section">
             <iframe 

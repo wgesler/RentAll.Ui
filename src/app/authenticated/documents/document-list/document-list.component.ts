@@ -68,8 +68,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   queryParamsSubscription?: Subscription;
   officeScopeResolved: boolean = false;
 
-  embeddedActiveReservationsOnly = true;
-  
   selectedReservationId: string | null = null;
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
 
@@ -299,11 +297,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   addDocument(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Document, ['new']));
-  }
-
-  onEmbeddedActiveReservationsOnlyChange(checked: boolean): void {
-    this.embeddedActiveReservationsOnly = checked;
-    this.applyFilters();
   }
 
   reload(): void {
@@ -818,9 +811,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const activeReservationsOnly =
-      this.hideHeader && this.hideFilters && this.source === 'property'
-        ? this.embeddedActiveReservationsOnly
-        : this.activeOnly;
+      (this.hideHeader && this.hideFilters && this.source === 'property') || this.activeOnly;
     if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
       const activeReservationIds = new Set(
         this.reservations

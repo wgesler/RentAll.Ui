@@ -2,20 +2,11 @@
   @if (hideHeader) {
     <!-- Full-page layout when inside a tab -->
     <div class="document-list-tab-container list-layout-tabbed">
-      @if (hideFilters && source === 'property') {
-        <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
-          <mat-checkbox
-            color="primary"
-            class="flex-shrink-0"
-            [checked]="embeddedActiveReservationsOnly"
-            (change)="onEmbeddedActiveReservationsOnlyChange($event.checked)">
-            IsActive
-          </mat-checkbox>
-        </div>
-      }
+      <div class="property-tab-main-area">
+      <div class="property-tab-actions-band">
       @if (!hideFilters) {
       <!-- Office and conditional field dropdown row -->
-      <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+      <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
         @if (showOfficeDropdown) {
           <app-title-bar-select
             [label]="selectedOfficeId ? 'Office' : 'All Offices'"
@@ -107,7 +98,7 @@
       </div>
       }
       @if (hideFilters && showReservationFilterOnly && source === 'property') {
-      <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+      <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
         <app-title-bar-select
           [label]="'Reservation'"
           [formFieldClass]="'reservation-dropdown'"
@@ -119,6 +110,7 @@
         </app-title-bar-select>
       </div>
       }
+      </div>
       <mat-card class="full-height-card">
         <div class="mat list-layout-tabbed">
           <div class="tableDiv">
@@ -143,6 +135,7 @@
           </div>
         </div>
       </mat-card>
+      </div>
     </div>
   } @else {
     <!-- Standard layout with header -->

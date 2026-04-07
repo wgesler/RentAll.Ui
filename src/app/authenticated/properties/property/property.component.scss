@@ -31,11 +31,6 @@
   min-width: 18ch;
 }
 
-.property-lease-type-field {
-  width: 220px;
-  min-width: 200px;
-}
-
 .field-max-240 {
   max-width: 240px;
 }
@@ -508,9 +503,6 @@
   width: 100%;
   
   .mat-mdc-tab-header {
-    margin-top: 8px;
-    margin-bottom: 12px;
-
     .mdc-tab {
       flex: 1;
       min-width: 0;
@@ -531,6 +523,7 @@
     overflow: visible;
   }
 
+  app-property,
   app-property-information,
   app-property-welcome-letter,
   app-email-list,

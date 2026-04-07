@@ -1,0 +1,94 @@
+// =============================================================================
+// Debug layout bands (blue / purple / orange)
+// -----------------------------------------------------------------------------
+// Chrome (dashed borders + tints) shows only when body has .dbg-page-debug-on
+// (see DebugLayoutBandsService). Stack spacing (margin-bottom) stays so layout
+// does not jump when toggling.
+//
+// 1) Tab strip (blue): class `dbg-band-tabs` on <mat-tab-group> or wrapper.
+// 2) Actions band (purple): `dbg-band-actions` on the toolbar container.
+// 3) Main block (orange): `dbg-band-main` on content below the actions band.
+//
+// Property/maintenance shell: .property-tab-actions-band (purple spacing + chrome when on),
+// .property-tab-main-area (orange chrome when on). Tab strip: dbg-band-tabs on mat-tab-group.
+// =============================================================================
+
+:root {
+  --dbg-layout-stack-gap: 12px;
+  --dbg-band-tabs-border: 2px dashed #2563eb;
+  --dbg-band-tabs-radius: 4px;
+  --dbg-band-tabs-bg: rgba(37, 99, 235, 0.07);
+  --dbg-band-actions-border: 2px dashed #9333ea;
+  --dbg-band-actions-radius: 2px;
+  --dbg-band-actions-bg: rgba(147, 51, 234, 0.07);
+  --dbg-band-main-border: 2px dashed #ea580c;
+  --dbg-band-main-radius: 4px;
+  --dbg-band-main-bg: rgba(234, 88, 12, 0.06);
+}
+
+@mixin dbg-band-tabs-header-spacing {
+  margin-top: 0;
+  margin-bottom: var(--dbg-layout-stack-gap);
+  box-sizing: border-box;
+}
+
+@mixin dbg-band-tabs-header-visual {
+  border: var(--dbg-band-tabs-border);
+  border-radius: var(--dbg-band-tabs-radius);
+  background: var(--dbg-band-tabs-bg);
+}
+
+@mixin dbg-band-actions-spacing {
+  margin-bottom: var(--dbg-layout-stack-gap);
+  box-sizing: border-box;
+}
+
+@mixin dbg-band-actions-visual {
+  border: var(--dbg-band-actions-border);
+  border-radius: var(--dbg-band-actions-radius);
+  background: var(--dbg-band-actions-bg);
+}
+
+@mixin dbg-band-main-visual {
+  border: var(--dbg-band-main-border);
+  border-radius: var(--dbg-band-main-radius);
+  background: var(--dbg-band-main-bg);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.dbg-band-tabs .mat-mdc-tab-header {
+  @include dbg-band-tabs-header-spacing;
+}
+
+.dbg-band-actions {
+  @include dbg-band-actions-spacing;
+}
+
+body.dbg-page-debug-on {
+  .dbg-band-tabs .mat-mdc-tab-header {
+    @include dbg-band-tabs-header-visual;
+  }
+
+  .dbg-band-actions {
+    @include dbg-band-actions-visual;
+  }
+
+  .dbg-band-main {
+    @include dbg-band-main-visual;
+  }
+
+  .property-tabs .property-tab-main-area {
+    @include dbg-band-main-visual;
+  }
+
+  .property-tabs .property-tab-actions-band {
+    @include dbg-band-actions-visual;
+  }
+
+  .property-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+}

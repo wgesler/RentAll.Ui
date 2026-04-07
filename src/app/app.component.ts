@@ -14,6 +14,7 @@ import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
 import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
 import { PropertyService } from './authenticated/properties/services/property.service';
+import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
 import { UtilityService } from './services/utility.service';
 
 @Component({
@@ -45,10 +46,13 @@ export class AppComponent implements OnInit, OnDestroy {
     private accountingOfficeService: AccountingOfficeService,
     private utilityService: UtilityService,
     private propertyService: PropertyService,
-    private propertySelectionFilterService: PropertySelectionFilterService
+    private propertySelectionFilterService: PropertySelectionFilterService,
+    private debugLayoutBandsService: DebugLayoutBandsService
   ) { }
 
   ngOnInit(): void {
+    this.debugLayoutBandsService.setEnabled(false);
+
     // Load anonymous data on app startup
     this.loadDailyQuote();
     this.loadStates();

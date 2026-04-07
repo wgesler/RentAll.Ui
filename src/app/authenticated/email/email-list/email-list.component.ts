@@ -69,8 +69,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   globalOfficeSubscription?: Subscription;
   officeScopeResolved: boolean = false;
 
-  embeddedActiveReservationsOnly = true;
-
   emailsDisplayedColumns: ColumnSet = {
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     subject: { displayAs: 'Subject', maxWidth: '30ch' },
@@ -446,9 +444,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const activeReservationsOnly =
-      this.hideHeader && this.hideFilters && this.source === 'property'
-        ? this.embeddedActiveReservationsOnly
-        : this.activeOnly;
+      (this.hideHeader && this.hideFilters && this.source === 'property') || this.activeOnly;
     if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
       const activeReservationIds = new Set(
         this.reservations
@@ -459,11 +455,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.emails = filtered;
-  }
-
-  onEmbeddedActiveReservationsOnlyChange(checked: boolean): void {
-    this.embeddedActiveReservationsOnly = checked;
-    this.applyFilters();
   }
 
   reload(): void {

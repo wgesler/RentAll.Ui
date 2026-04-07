@@ -3,9 +3,13 @@
   width: 100%;
 }
 
+:host-context(.property-tabs) .letter-information-form-container {
+  padding-top: 0;
+}
+
 .letter-information-form {
   .property-information-form-actions {
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
 
   .form-fields {
@@ -75,6 +79,10 @@
 @media (max-width: 768px) {
   .letter-information-form-container {
     padding: 10px;
+  }
+
+  :host-context(.property-tabs) .letter-information-form-container {
+    padding-top: 0;
   }
 
   .letter-information-form {
