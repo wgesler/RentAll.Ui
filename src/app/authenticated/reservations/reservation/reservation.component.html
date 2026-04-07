@@ -28,7 +28,7 @@
               </mat-form-field>
               @if (!isAddMode) {
                 <div class="titlebar-reservation-slot">
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="'Reservation'"
                     [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
                     [required]="selectedTabIndex === 0"
@@ -38,7 +38,7 @@
                     [nullOptionLabel]="selectedTabIndex === 1 ? 'Select Reservation' : 'All Reservations'"
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="selectedHeaderReservationId = ($event == null ? null : ($event + ''))">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 </div>
               }
             </div>

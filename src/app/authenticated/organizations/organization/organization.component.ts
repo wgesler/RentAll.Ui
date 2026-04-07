@@ -335,7 +335,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     this.formatterService.formatDecimalOnEnter(event as KeyboardEvent, this.form.get(fieldName));
   }
 
-  private parseDecimal(value: string | number | null | undefined): number {
+  parseDecimal(value: string | number | null | undefined): number {
     if (value === null || value === undefined || value === '') {
       return 0;
     }
@@ -344,7 +344,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     return isNaN(parsed) ? 0 : parsed;
   }
 
-  private formatDecimalValue(value: number | null | undefined): string {
+  formatDecimalValue(value: number | null | undefined): string {
     if (value === null || value === undefined) {
       return '0.00';
     }

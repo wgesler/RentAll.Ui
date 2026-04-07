@@ -22,7 +22,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [class.mat-form-field-invalid]="showError"
         [class.mat-mdc-form-field-invalid]="showError"
         [class.searchable-invalid]="showError"
-        [class.searchable-titlebar-select]="titlebarMode">
+        [class.searchable-title-bar-select]="titleBarMode">
         @if (formFieldLabel) {
           <mat-label>{{ formFieldLabel }}</mat-label>
         }
@@ -144,7 +144,7 @@ export class SearchableSelectComponent {
   @Input() renderInFormField = false;
   @Input() formFieldLabel = '';
   @Input() formFieldClass = '';
-  @Input() titlebarMode = false;
+  @Input() titleBarMode = false;
   @Input() formFieldAppearance: 'fill' | 'outline' = 'outline';
   @Input() showError = false;
   @Input() errorText = 'Required';

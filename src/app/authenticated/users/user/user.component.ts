@@ -799,7 +799,7 @@ export class UserComponent implements OnInit, OnDestroy {
     }
   }
 
-  private hasRole(role: UserGroups): boolean {
+  hasRole(role: UserGroups): boolean {
     const groups = this.authService.getUser()?.userGroups || [];
     return groups.some(group => {
       if (typeof group === 'string') {

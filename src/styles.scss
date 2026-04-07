@@ -133,6 +133,119 @@ mat-form-field.reservation-dropdown {
   }
 }
 
+/* Property Agreements: compact expiration date (overrides global 42px form-field height). */
+mat-form-field.property-agreement-expiration-field.mat-mdc-form-field {
+  width: auto;
+  max-width: 196px;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mat-mdc-text-field-wrapper {
+    min-height: 30px !important;
+    padding: 0 8px !important;
+  }
+
+  .mat-mdc-form-field-flex {
+    min-height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    min-height: 24px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex: 1 1 auto !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    min-height: 24px !important;
+    padding-left: 0 !important;
+    padding-right: 4px !important;
+
+    input.mat-mdc-input-element,
+    textarea.mat-mdc-input-element {
+      font-size: 12px !important;
+      line-height: 1.25 !important;
+      text-align: left !important;
+      padding: 0 4px 0 0 !important;
+      margin: 0 !important;
+      vertical-align: middle !important;
+    }
+  }
+
+  /* Docked label (“Expiration”): vertically center in the outline (no horizontal overrides). */
+  .mat-mdc-floating-label.mdc-floating-label:not(.mdc-floating-label--float-above) {
+    top: 50% !important;
+    bottom: auto !important;
+  }
+
+  .mdc-floating-label,
+  .mat-mdc-form-field-label,
+  .mat-mdc-form-field .mdc-floating-label--float-above {
+    font-size: 11px !important;
+  }
+
+  .mat-mdc-form-field-icon-suffix {
+    padding: 0 2px 0 0 !important;
+  }
+
+  .mat-mdc-icon-button.mat-mdc-button-base {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    --mdc-icon-button-state-layer-size: 28px;
+  }
+
+  .mat-mdc-icon-button mat-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
+/* Agreement panel: date field on same vertical band as W9 / Insurance / Agreement titles. */
+.property-agreement-header-cell mat-form-field.property-agreement-expiration-field.mat-mdc-form-field {
+  margin-top: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  align-self: center;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+/* Property Agreements: center default / empty numeric display (0%, $0.00) in agreement row. */
+mat-form-field.property-agreement-number-field.mat-mdc-form-field {
+  .mat-mdc-form-field-infix {
+    justify-content: center !important;
+  }
+
+  .mat-mdc-form-field-input-control {
+    justify-content: center !important;
+    width: 100% !important;
+
+    input.mat-mdc-input-element {
+      text-align: center !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+    }
+  }
+}
+
 /* ==========================================================================
    Global searchable-select behavior and alignment.
    Keeps placeholder/selected text alignment consistent across all components.
@@ -536,11 +649,11 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 }
 
 /* Keep title-bar dropdown trigger text vertically centered even when no value is selected. */
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value,
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-value-text,
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mat-mdc-select-min-line,
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .searchable-trigger-value,
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .searchable-trigger-value--placeholder,
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .mat-mdc-select-value,
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .mat-mdc-select-value-text,
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .mat-mdc-select-min-line,
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .searchable-trigger-value,
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .searchable-trigger-value--placeholder,
 .header-title .mat-mdc-select-placeholder {
   height: 100% !important;
   min-height: 100% !important;
@@ -554,7 +667,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 }
 
 /* Empty title-bar selects (e.g., Office) should keep label centered with arrow. */
-.header-title app-searchable-select .searchable-select-field.searchable-titlebar-select .mdc-floating-label:not(.mdc-floating-label--float-above) {
+.header-title app-searchable-select .searchable-select-field.searchable-title-bar-select .mdc-floating-label:not(.mdc-floating-label--float-above) {
   top: 50% !important;
   transform: translateY(-50%) !important;
   line-height: 1.2 !important;

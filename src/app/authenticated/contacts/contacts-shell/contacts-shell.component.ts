@@ -11,7 +11,7 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { ContactListComponent } from '../contact-list/contact-list.component';
 import { ContactComponent } from '../contact/contact.component';
 import { EntityType } from '../models/contact-enum';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
@@ -19,7 +19,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     imports: [
     MaterialModule,
     FormsModule,
-    TitlebarSelectComponent,
+    TitleBarSelectComponent,
     ContactListComponent,
     ContactComponent
 ],

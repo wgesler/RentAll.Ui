@@ -37,7 +37,7 @@ import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normali
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -60,7 +60,7 @@ interface ExtraFeeLineDisplay {
 @Component({
     standalone: true,
     selector: 'app-reservation',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitlebarSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitleBarSelectComponent, LeaseComponent, DocumentListComponent, EmailListComponent, InvoiceListComponent],
     templateUrl: './reservation.component.html',
     styleUrl: './reservation.component.scss'
 })

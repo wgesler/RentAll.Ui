@@ -95,7 +95,7 @@ export class EmailComponent implements OnInit {
   }
   //#endregion
 
-  private formatRecipients(recipients: EmailAddress[] | undefined): string {
+  formatRecipients(recipients: EmailAddress[] | undefined): string {
     if (!recipients || recipients.length === 0) {
       return '';
     }

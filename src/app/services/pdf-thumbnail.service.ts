@@ -10,7 +10,7 @@ export class PdfThumbnailService {
     this.initWorker();
   }
 
-  private initWorker(): void {
+  initWorker(): void {
     if (this.workerInitialized) return;
     try {
       const v = typeof pdfjsVersion === 'string' ? pdfjsVersion : '4.4.168';

@@ -36,6 +36,10 @@
   min-width: 200px;
 }
 
+.field-max-240 {
+  max-width: 240px;
+}
+
 /* Stacked rows: same vertical gap as .basic-combined .basic-row (16px) */
 .property-form-section-rows {
   > *:not(:last-child) {

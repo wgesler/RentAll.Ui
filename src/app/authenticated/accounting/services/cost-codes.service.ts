@@ -22,7 +22,7 @@ export class CostCodesService {
   }
 
   // Transform API response: map "Code" property to "costCode"
-  private transformCostCodeResponse(item: any): CostCodesResponse {
+  transformCostCodeResponse(item: any): CostCodesResponse {
     return {
       ...item,
       costCode: item.code || item.Code || item.costCode || ''
@@ -91,7 +91,7 @@ export class CostCodesService {
     this.fetchAllCostCodes();
   }
 
-  private fetchAllCostCodes(): void {
+  fetchAllCostCodes(): void {
     this.isCostCodesLoading = true;
     // Call the API endpoint that gets cost codes for all offices
     this.getCostCodesForAllOffices().subscribe({

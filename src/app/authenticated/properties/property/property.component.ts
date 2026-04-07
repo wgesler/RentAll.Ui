@@ -1,20 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, distinctUntilChanged, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { MaintenanceStatus, getMaintenanceStatuses } from '../../maintenance/models/maintenance-enums';
+import { MaintenanceStatus } from '../../maintenance/models/maintenance-enums';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -33,7 +31,9 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
 import { PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyAgreementComponent } from '../property-agreement/property-agreement.component';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
@@ -48,7 +48,8 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
         MaterialModule,
         FormsModule,
         ReactiveFormsModule,
-        SearchableSelectComponent
+        SearchableSelectComponent,
+        PropertyAgreementComponent
     ],
     templateUrl: './property.component.html',
     styleUrls: ['./property.component.scss']
@@ -59,16 +60,16 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   readonly newVendorOptionValue = '__new_vendor__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
   readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
-  
+
   isAdmin = false;
   isServiceError: boolean = false;
   form: FormGroup;
+  @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
   propertyId: string;
   property: PropertyResponse;
-  propertyInformation: PropertyLetterResponse | null = null; 
   selectedReservationId: string | null = null;
   copiedPropertyInformation: PropertyLetterResponse | null = null; 
  
@@ -79,13 +80,11 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
   propertyTypes: { value: number, label: string }[] = [];
-  maintenanceStatuses: { value: number, label: string }[] = [];
   bedSizeTypes: { value: number, label: string }[] = [];
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
 
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
  
@@ -104,20 +103,19 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   
-  // Accordion expansion states - will be initialized based on isAddMode
-  expandedSections = { basic: false, features: false, trash: false, maintenance: false, description: false };
+  expandedSections = { basic: true, features: true, description: true, agreement: false };
   savedFormState: Record<string, unknown> | null = null;
+
+  @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
 
   constructor(
     public propertyService: PropertyService,
-    public router: Router,
     public fb: FormBuilder,
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private commonService: CommonService,
     private formatterService: FormatterService,
     private contactService: ContactService,
-    private mappingService: MappingService,
     private authService: AuthService,
     private officeService: OfficeService,
     private regionService: RegionService,
@@ -137,6 +135,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   //#region Property
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    const initialRouteId = this.route.snapshot.paramMap.get('id');
+    if (initialRouteId) {
+      this.expandedSections.agreement = this.isAdmin;
+    }
 
     this.loadStates();
     this.loadContacts();
@@ -152,6 +154,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
           this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null });
           this.filterLocationLookupsByOffice();
           this.filterReservations();
+          this.emitTitleBarContextToShell();
         }
       }
     });
@@ -161,48 +164,39 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.initializePropertyStyles();
     this.initializePropertyStatuses();
     this.initializePropertyTypes();
-    this.initializeMaintenanceStatuses();
     this.initializeBedSizeTypes();
     this.initializeTimeTypes();
     
     this.buildForm();
     this.applyOfficeControlState();
 
-    // Set isAddMode from route params and load property if needed
-    this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.propertyId = paramMap.get('id');
-        this.isAddMode = this.propertyId === 'new';
-        
-        // All accordions expanded when property form is opened (add or edit)
-        this.expandedSections = { basic: true, features: true, trash: true, maintenance: true, description: true };
-        
-        const codeControl = this.form.get('propertyCode');
-        if (this.isAddMode) {
-          codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
-        } else {
-          codeControl?.clearValidators();
-        }
-        codeControl?.updateValueAndValidity();
-        this.applyOwnerVendorLeaseValidators();
-        this.applyOfficeControlState();
+    this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
+      this.propertyId = id;
+      this.isAddMode = id === 'new';
+      this.expandedSections.agreement = this.isAdmin;
 
-        if (!this.isAddMode) {
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-          this.getProperty();
-          this.loadReservations();
-        } else {
-          this.loadReservations();
-          this.setAddModeDefaults();
-          // Check if we're copying from another property
-          this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-            if (queryParams['copyFrom']) {
-              this.copyFromProperty(queryParams['copyFrom']);
-            }
-          });
-        }
-        this.captureSavedStateSignature();
+      const codeControl = this.form.get('propertyCode');
+      if (this.isAddMode) {
+        codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
+      } else {
+        codeControl?.clearValidators();
       }
+      codeControl?.updateValueAndValidity();
+      this.applyOwnerVendorLeaseValidators();
+      this.applyOfficeControlState();
+
+      if (!this.isAddMode) {      
+        this.getProperty();
+      } else {
+        this.setAddModeDefaults();
+        this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
+          if (queryParams['copyFrom']) {
+            this.copyFromProperty(queryParams['copyFrom']);
+          }
+        });
+      }
+      this.loadReservations();
+      this.captureSavedStateSignature();
     });
     
     // Check query params for tab selection
@@ -212,14 +206,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.setupLeaseTypeOwnerVendorValidators();
   }
 
-  get isPropertyManagementLease(): boolean {
-    if (!this.form) {
-      return true;
-    }
-    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseId')?.value) === PropertyLeaseType.PropertyManagement;
-  }
-
   getProperty(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
@@ -228,7 +216,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       },
       error: () => {
         this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
   }
@@ -293,6 +280,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
             this.form.get('poundLimit')?.disable({ emitEvent: false });
             this.form.get('poundLimit')?.setValue('', { emitEvent: false });
           }
+          this.emitTitleBarContextToShell();
         }
       },
       error: () => {
@@ -370,7 +358,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
-    propertyRequest.maintenanceStatusId = Number(formValue.maintenanceStatusId) ?? MaintenanceStatus.UnProcessed;
+    propertyRequest.maintenanceStatusId =
+      !this.isAddMode && this.property?.maintenanceStatusId != null
+        ? Number(this.property.maintenanceStatusId)
+        : MaintenanceStatus.UnProcessed;
     
     // Handle owner2Id - set to undefined if empty string or null
     if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
@@ -436,17 +427,25 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.notes = formValue.notes || '';
 
     if (this.isAddMode) {
-      this.propertyService.createProperty(propertyRequest).pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: PropertyResponse) => {
+      this.propertyService.createProperty(propertyRequest).pipe(
+        switchMap((response: PropertyResponse) => {
+          const persist$ = this.propertyAgreementSection?.persistAgreementForNewProperty(response.propertyId) ?? of(true);
+          return persist$.pipe(map(() => response));
+        }),
+        take(1),
+        finalize(() => { this.isSubmitting = false; })
+      ).subscribe({
+        next: (response) => {
           this.toastr.success('Property created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
           this.propertyId = response.propertyId;
           this.isAddMode = false;
           this.populateForm();
           this.captureSavedStateSignature();
-          
+
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
+          this.loadReservations();
           onComplete?.(true);
         },
         error: () => {
@@ -568,18 +567,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       trashCode: new FormControl(''),
       storageCode: new FormControl(''),
       mailbox: new FormControl(''),
-      filterDescription: new FormControl(''),
-      lastFilterChangeDate: new FormControl<Date | null>(null),
-      smokeDetectors: new FormControl(''),
-      lastSmokeChangeDate: new FormControl<Date | null>(null),
-      licenseNo: new FormControl(''),
-      licenseDate: new FormControl<Date | null>(null),
-      maintenanceStatusId: new FormControl<number>(MaintenanceStatus.UnProcessed),
-      hvacNotes: new FormControl(''),
-      hvacServiced: new FormControl<Date | null>(null),
-      fireplaceNotes: new FormControl(''),
-      fireplaceServiced: new FormControl<Date | null>(null),
-      maintenanceNotes: new FormControl(''),
       gated: new FormControl(false),
       heating: new FormControl(false),
       ac: new FormControl(false),
@@ -638,7 +625,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
-      formData.maintenanceStatusId = this.property.maintenanceStatusId != null ? Number(this.property.maintenanceStatusId) : MaintenanceStatus.UnProcessed;
       formData.propertyLeaseId = this.property.propertyLeaseId != null && this.property.propertyLeaseId !== undefined
         ? Number(this.property.propertyLeaseId)
         : PropertyLeaseType.PropertyManagement;
@@ -667,18 +653,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
                            'gateCode', 'trashCode', 'storageCode',
-                           'filterDescription', 'smokeDetectors', 'licenseNo', 'maintenanceNotes',
-                           'hvacNotes', 'fireplaceNotes',
                            'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
-
-      formData.lastFilterChangeDate = null;
-      formData.lastSmokeChangeDate = null;
-      formData.licenseDate = null;
-      formData.hvacServiced = null;
-      formData.fireplaceServiced = null;
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
@@ -729,6 +707,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       this.form.markAsUntouched();
       this.form.markAsPristine();
       this.captureSavedStateSignature();
+      this.emitTitleBarContextToShell();
     }
   }
 
@@ -737,6 +716,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!officeControl) {
       return;
     }
+
+    // Only Admins can change a property's office
     if (this.isAdmin) {
       officeControl.enable({ emitEvent: false });
     } else {
@@ -764,6 +745,15 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }, { emitEvent: false });
     this.applyOwnerVendorLeaseValidators();
     this.captureSavedStateSignature();
+    this.emitTitleBarContextToShell();
+  }
+  //#endregion
+
+  //#region Validators
+  setupLeaseTypeOwnerVendorValidators(): void {
+    this.form.get('propertyLeaseId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.applyOwnerVendorLeaseValidators();
+    });
   }
 
   applyOwnerVendorLeaseValidators(): void {
@@ -784,9 +774,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     owner1.updateValueAndValidity({ emitEvent: false });
     vendor.updateValueAndValidity({ emitEvent: false });
   }
-  //#endregion
 
-  //#region Form validators
   bedSelectionValidator(control: AbstractControl): ValidationErrors | null {
     const formGroup = control as FormGroup;
     const bedroomsRaw = formGroup.get('bedrooms')?.value;
@@ -836,6 +824,28 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       ? { defaultCode: true }
       : null;
   };
+
+  showBedDropdownError(bedNumber: number): boolean {
+    if (!this.form) {
+      return false;
+    }
+    const bedSelectionErrors = this.form.errors?.['bedSelection'] as {
+      requiredBedIndexes?: number[];
+      noneRequiredBedIndexes?: number[];
+    } | undefined;
+    if (!bedSelectionErrors) {
+      return false;
+    }
+
+    const isAffected =
+      (bedSelectionErrors.requiredBedIndexes || []).includes(bedNumber) ||
+      (bedSelectionErrors.noneRequiredBedIndexes || []).includes(bedNumber);
+    if (!isAffected) {
+      return false;
+    }
+
+    return !!(this.form.get('bedrooms')?.touched || this.form.get(`bedroomId${bedNumber}`)?.touched);
+  }
   //#endregion
 
   //#region Owner/Vendor Dialog
@@ -957,13 +967,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     control?.markAsDirty();
   }
 
-  get ownerOptions(): SearchableSelectOption[] {
-    return [
-      { value: this.newOwnerOptionValue, label: 'New Owner' },
-      ...this.ownerContacts.map(contact => ({ value: contact.contactId, label: contact.fullName ?? '' }))
-    ];
-  }
-
   onNumericDropdownChange(controlName: string, value: string | number | null): void {
     const control = this.form.get(controlName);
     control?.setValue(value == null || value === '' ? null : Number(value));
@@ -971,34 +974,103 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     control?.markAsDirty();
   }
 
-  showBedDropdownError(bedNumber: number): boolean {
-    if (!this.form) {
-      return false;
+  onOwnerNameClick(event: Event, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const value = this.form?.get(ownerField)?.value;
+    if (value && value !== this.newOwnerOptionValue) {
+      this.openEditOwnerDialog(value);
     }
-    const bedSelectionErrors = this.form.errors?.['bedSelection'] as {
-      requiredBedIndexes?: number[];
-      noneRequiredBedIndexes?: number[];
-    } | undefined;
-    if (!bedSelectionErrors) {
-      return false;
-    }
-
-    const isAffected =
-      (bedSelectionErrors.requiredBedIndexes || []).includes(bedNumber) ||
-      (bedSelectionErrors.noneRequiredBedIndexes || []).includes(bedNumber);
-    if (!isAffected) {
-      return false;
-    }
-
-    return !!(this.form.get('bedrooms')?.touched || this.form.get(`bedroomId${bedNumber}`)?.touched);
   }
 
-  onOfficeDropdownChange(value: string | number | null): void {
+  hasOwnerSelected(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): boolean {
+    const value = this.form?.get(ownerField)?.value;
+    return !!value && value !== this.newOwnerOptionValue;
+  }
+  //#endregion
+
+  //#region Title Bar context 
+  emitTitleBarContextToShell(): void {
+    if (!this.form) {
+      return;
+    }
+    const officeRaw = this.form.get('officeId')?.value;
+    const resRaw = this.form.get('reservationId')?.value ?? this.selectedReservationId;
+    const codeRaw = this.form.get('propertyCode')?.value;
+    this.titleBarContextChange.emit({
+      officeId: officeRaw == null || officeRaw === '' ? null : Number(officeRaw),
+      reservationId: resRaw == null || resRaw === '' ? null : String(resRaw),
+      propertyCode: codeRaw == null || codeRaw === undefined ? null : (String(codeRaw).trim() === '' ? null : String(codeRaw).trim())
+    });
+  }
+
+  applyTitleBarOfficeSelection(value: string | number | null): void {
+    const nextId = value == null || value === '' ? null : Number(value);
+    const cur = this.form.get('officeId')?.value;
+    const curNum = cur == null || cur === '' ? null : Number(cur);
+    if (nextId === curNum) {
+      return;
+    }
     const control = this.form.get('officeId');
-    control?.setValue(value == null || value === '' ? null : Number(value));
+    control?.setValue(nextId);
     control?.markAsTouched();
     control?.markAsDirty();
     this.onOfficeChange();
+    this.emitTitleBarContextToShell();
+  }
+
+  applyTitleBarReservationSelection(value: string | number | null): void {
+    const normalizedId = value == null || value === '' ? null : String(value);
+    this.selectedReservationId = normalizedId;
+    this.form.get('reservationId')?.setValue(normalizedId, { emitEvent: false });
+    this.emitTitleBarContextToShell();
+  }
+
+  applyTitleBarPropertyCode(upperValue: string): void {
+    this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
+    this.form.get('propertyCode')?.markAsDirty();
+    this.form.get('propertyCode')?.markAsTouched();
+    this.emitTitleBarContextToShell();
+  }
+  //#endregion
+
+  //#region Getter Methods
+  get isPropertyManagementLease(): boolean {
+    if (!this.form) {
+      return true;
+    }
+    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseId')?.value) === PropertyLeaseType.PropertyManagement;
+  }
+
+  get ownerContacts(): ContactResponse[] {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) return [];
+    return this.contacts.filter(c => Number(c.officeId) === Number(officeId));
+  }
+
+  get vendorContactsForOffice(): ContactResponse[] {
+    const officeId = this.form?.get('officeId')?.value;
+    if (!officeId) return [];
+    return this.contactService
+      .getAllContactsValue()
+      .filter(c => c.entityTypeId === EntityType.Vendor && Number(c.officeId) === Number(officeId));
+  }
+
+  get ownerOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.newOwnerOptionValue, label: 'New Owner' },
+      ...this.ownerContacts.map(contact => ({ value: contact.contactId, label: contact.fullName ?? '' }))
+    ];
+  }
+
+  get vendorOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      ...this.vendorContactsForOffice.map(contact => ({
+        value: contact.contactId,
+        label: contact.fullName ?? ''
+      }))
+    ];
   }
 
   get officeOptions(): SearchableSelectOption[] {
@@ -1021,30 +1093,35 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     return this.buildings.map(building => ({ value: building.buildingId, label: `${building.buildingCode} - ${building.name}` }));
   }
 
-  getOwnerDisplayName(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): string {
-    const value = this.form?.get(ownerField)?.value;
-    if (value == null || value === '' || value === this.newOwnerOptionValue) {
-      return ownerField === 'owner1Id' ? 'Owner' : ownerField === 'owner2Id' ? 'Owner 2 (Optional)' : 'Owner 3 (Optional)';
-    }
-    const contact = this.contacts.find(c => c.contactId === value);
-    return contact?.fullName ?? value;
+  get sharedOfficeId(): number | null {
+    return this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
   }
 
-  onOwnerNameClick(event: Event, ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
-    event.preventDefault();
-    event.stopPropagation();
-    const value = this.form?.get(ownerField)?.value;
-    if (value && value !== this.newOwnerOptionValue) {
-      this.openEditOwnerDialog(value);
+  get sharedPropertyCode(): string | null {
+    const formCode = this.form?.get('propertyCode')?.value;
+    if (typeof formCode === 'string') {
+      const normalized = formCode.trim();
+      return normalized === '' ? null : normalized;
     }
+    return this.property?.propertyCode ?? null;
   }
 
-  hasOwnerSelected(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): boolean {
-    const value = this.form?.get(ownerField)?.value;
-    return !!value && value !== this.newOwnerOptionValue;
+  get sharedOfficeName(): string {
+    if (this.selectedOffice?.name) {
+      return this.selectedOffice.name;
+    }
+    const officeId = this.sharedOfficeId;
+    if (officeId != null) {
+      const office = this.offices.find(o => o.officeId === officeId);
+      if (office?.name) {
+        return office.name;
+      }
+    }
+    return this.property?.officeName || '';
   }
+
   //#endregion
- 
+
   //#region Formatting Handlers
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
@@ -1088,12 +1165,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         this.form.patchValue({ vendorId: null }, { emitEvent: false });
         this.openNewVendorDialog();
       }
-    });
-  }
-
-  setupLeaseTypeOwnerVendorValidators(): void {
-    this.form.get('propertyLeaseId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.applyOwnerVendorLeaseValidators();
     });
   }
 
@@ -1188,10 +1259,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.propertyStatuses = getPropertyStatuses();
   }
 
-  initializeMaintenanceStatuses(): void {
-    this.maintenanceStatuses = getMaintenanceStatuses();
-  }
-
   initializePropertyTypes(): void {
     this.propertyTypes = getPropertyTypes();
   }
@@ -1222,18 +1289,17 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const orgId = (this.authService.getUser()?.organizationId || '').trim();
     if (!orgId) {
       this.offices = [];
-      this.availableOffices = [];
       this.selectedOffice = null;
       this.showOfficeDropdown = true;
       this.form?.patchValue({ officeId: null }, { emitEvent: false });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.emitTitleBarContextToShell();
       return;
     }
 
     this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (offices) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
 
         if (!this.property && this.form) {
           const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
@@ -1275,13 +1341,14 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         }
 
         this.filterLocationLookupsByOffice();
+        this.emitTitleBarContextToShell();
       },
       error: () => {
         this.offices = [];
-        this.availableOffices = [];
         this.selectedOffice = null;
         this.showOfficeDropdown = true;
         this.form?.patchValue({ officeId: null }, { emitEvent: false });
+        this.emitTitleBarContextToShell();
       }
     });
   }
@@ -1388,7 +1455,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         this.states = [...states];
       },
       error: () => {
-        // States are handled globally, just log silently or handle gracefully
+        // States are handled globally, ignore
       }
     });
   }
@@ -1423,77 +1490,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   onPanelClosed(section: keyof typeof this.expandedSections): void {
     this.expandedSections[section] = false;
   }
-  
-  onWelcomeLetterReservationSelected(reservationId: string | null): void {
-     this.selectedReservationId = reservationId;
-     this.form?.patchValue({ reservationId }, { emitEvent: false });
-  }
 
-  onWelcomeLetterOfficeIdChange(officeId: number | null): void {
-    // Update form officeId when welcome-letter tab office changes
-    if (officeId !== this.form?.get('officeId')?.value) {
-      this.form?.patchValue({ officeId });
-      this.onOfficeChange();
-    }
-  }
-  
-  onDocumentsReservationSelected(reservationId: string | null): void {
-    this.selectedReservationId = reservationId;
-    this.form?.patchValue({ reservationId }, { emitEvent: false });
-  }
-
-  onEmailReservationSelected(reservationId: string | null): void {
-    this.selectedReservationId = reservationId;
-    this.form?.patchValue({ reservationId }, { emitEvent: false });
-  }
-
-  onDocumentOfficeIdChange(officeId: number | null): void {
-    // Update form officeId when document tab office changes
-    if (officeId !== this.form?.get('officeId')?.value) {
-      this.form?.patchValue({ officeId });
-      this.onOfficeChange();
-    }
-  }
-
-  onEmailOfficeIdChange(officeId: number | null): void {
-    if (officeId !== this.form?.get('officeId')?.value) {
-      this.form?.patchValue({ officeId });
-      this.onOfficeChange();
-    }
-  }
-
-  get sharedOfficeId(): number | null {
-    return this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
-  }
-
-  get sharedPropertyCode(): string | null {
-    const formCode = this.form?.get('propertyCode')?.value;
-    if (typeof formCode === 'string') {
-      const normalized = formCode.trim();
-      return normalized === '' ? null : normalized;
-    }
-    return this.property?.propertyCode ?? null;
-  }
-
-  get sharedReservationId(): string | null {
-    const value = this.form?.get('reservationId')?.value ?? this.selectedReservationId;
-    return value == null ? null : String(value);
-  }
-
-  get sharedOfficeName(): string {
-    if (this.selectedOffice?.name) {
-      return this.selectedOffice.name;
-    }
-    const officeId = this.sharedOfficeId;
-    if (officeId != null) {
-      const office = this.offices.find(o => o.officeId === officeId);
-      if (office?.name) {
-        return office.name;
-      }
-    }
-    return this.property?.officeName || '';
-  }
-  
   filterReservations(): void {
     const officeId = this.form?.get('officeId')?.value;
     if (!officeId) {
@@ -1528,46 +1525,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
   }
 
-  get ownerContacts(): ContactResponse[] {
-    const officeId = this.form?.get('officeId')?.value;
-    if (!officeId) return [];
-    return this.contacts.filter(c => Number(c.officeId) === Number(officeId));
-  }
-
-  get vendorContactsForOffice(): ContactResponse[] {
-    const officeId = this.form?.get('officeId')?.value;
-    if (!officeId) return [];
-    return this.contactService
-      .getAllContactsValue()
-      .filter(c => c.entityTypeId === EntityType.Vendor && Number(c.officeId) === Number(officeId));
-  }
-
-  get vendorOptions(): SearchableSelectOption[] {
-    return [
-      { value: this.newVendorOptionValue, label: 'New Vendor' },
-      ...this.vendorContactsForOffice.map(contact => ({
-        value: contact.contactId,
-        label: contact.fullName ?? ''
-      }))
-    ];
-  }
-
-  onReservationDropdownChange(value: string | number | null): void {
-    const normalizedId = value == null ? null : String(value);
-    this.selectedReservationId = normalizedId;
-    const control = this.form.get('reservationId');
-    control?.setValue(normalizedId, { emitEvent: false });
-  }
-
-  onCodeInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const upperValue = input.value.toUpperCase();
-    this.form.patchValue({ propertyCode: upperValue }, { emitEvent: false });
-    this.form.get('propertyCode')?.markAsDirty();
-    this.form.get('propertyCode')?.markAsTouched();
-    input.value = upperValue;
-  }
-
   onPropertyCodeFocus(event: FocusEvent): void {
     if (!this.isAddMode) {
       return;
@@ -1579,17 +1536,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
   }
 
-  /** No default dates in UI: empty unless API sends a real calendar date (sentinels like 0001-01-01 → blank). */
-  private parseMaintenanceDateOrNull(iso: string | null | undefined): Date | null {
-    if (iso == null || String(iso).trim() === '') return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const y = d.getFullYear();
-    if (y < 1900 || y > 2200) return null;
-    return d;
-  }
-
-  private formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
+  formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
     if (value === null || value === undefined || value === '') {
       return defaultValue;
     }
@@ -1600,7 +1547,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     return num.toFixed(8).replace(/\.?0+$/, '') || String(num);
   }
 
-  private parseCoordinateValue(value: string | number | null | undefined, defaultValue: number): number {
+  parseCoordinateValue(value: string | number | null | undefined, defaultValue: number): number {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
       return defaultValue;
@@ -1609,41 +1556,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
   //#endregion
 
-  //#region Utility Methods
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.confirmNavigationWithUnsavedChanges().then(canLeave => {
-      if (!canLeave) {
-        return;
-      }
-      const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
-      if (returnTo === 'reservation-board') {
-        this.router.navigateByUrl(RouterUrl.ReservationBoard);
-        return;
-      }
-      if (returnTo === 'maintenance-list') {
-        this.router.navigateByUrl(RouterUrl.MaintenanceList);
-        return;
-      }
-      this.router.navigateByUrl(RouterUrl.PropertyList);
-    });
-  }
-
-  canDeactivate(): Promise<boolean> | boolean {
-    return this.confirmNavigationWithUnsavedChanges();
-  }
-
+  //#region Save Tracking Methods
   captureSavedStateSignature(): void {
     if (!this.form) {
       return;
@@ -1654,7 +1567,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form?.dirty && !this.isSubmitting;
+    if (this.isSubmitting) {
+      return false;
+    }
+    return !!this.form?.dirty || !!this.propertyAgreementSection?.isAgreementDirty;
   }
 
   async confirmNavigationWithUnsavedChanges(): Promise<boolean> {
@@ -1667,6 +1583,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
     this.discardUnsavedChanges();
     return true;
+  }
+
+  canDeactivate(): Promise<boolean> | boolean {
+    return this.confirmNavigationWithUnsavedChanges();
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -1702,10 +1622,27 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
 
     this.form.markAsPristine();
     this.form.markAsUntouched();
+
+    this.propertyAgreementSection?.discardAndReloadIfDirty();
+    this.emitTitleBarContextToShell();
   }
 
   cloneFormState<T>(state: T): T {
     return structuredClone(state);
+  }
+  //#endregion
+
+  //#region Utility Methods
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.globalOfficeSubscription?.unsubscribe();
+    this.contactsSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

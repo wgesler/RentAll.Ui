@@ -21,7 +21,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
@@ -31,7 +31,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 @Component({
     standalone: true,
     selector: 'app-invoice',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitlebarSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent, TitleBarSelectComponent],
     templateUrl: './invoice.component.html',
     styleUrl: './invoice.component.scss'
 })
@@ -235,28 +235,28 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.saveInvoice();
   }
 
-  get officeTitlebarOptions(): { value: number, label: string }[] {
+  get officeTitleBarOptions(): { value: number, label: string }[] {
     return this.availableOffices.map(office => ({
       value: office.value,
       label: office.name
     }));
   }
 
-  get reservationTitlebarOptions(): { value: string, label: string }[] {
+  get reservationTitleBarOptions(): { value: string, label: string }[] {
     return this.availableReservations.map(reservation => ({
       value: reservation.value,
       label: reservation.label
     }));
   }
 
-  onTitlebarOfficeChange(value: string | number | null): void {
+  onTitleBarOfficeChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
     }
     this.form.get('officeId')?.setValue(value == null || value === '' ? null : Number(value));
   }
 
-  onTitlebarReservationChange(value: string | number | null): void {
+  onTitleBarReservationChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
     }

@@ -42,14 +42,14 @@ import { getBillingMethod } from '../../reservations/models/reservation-enum';
 import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 
 @Component({
     standalone: true,
     selector: 'app-invoice-create',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitlebarSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitleBarSelectComponent],
     templateUrl: './invoice-create.component.html',
     styleUrls: ['./invoice-create.component.scss']
 })
@@ -696,36 +696,36 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   //#endregion
 
   //#region Form Response Methods
-  get officeTitlebarOptions(): { value: number, label: string }[] {
+  get officeTitleBarOptions(): { value: number, label: string }[] {
     return this.offices.map(office => ({
       value: office.officeId,
       label: office.name
     }));
   }
 
-  get reservationTitlebarOptions(): { value: string, label: string }[] {
+  get reservationTitleBarOptions(): { value: string, label: string }[] {
     return this.availableReservations.map(reservation => ({
       value: reservation.value.reservationId,
       label: reservation.label
     }));
   }
 
-  get invoiceTitlebarOptions(): { value: string, label: string }[] {
+  get invoiceTitleBarOptions(): { value: string, label: string }[] {
     return this.availableInvoices.map(invoice => ({
       value: invoice.value.invoiceId,
       label: invoice.label
     }));
   }
 
-  onTitlebarOfficeChange(value: string | number | null): void {
+  onTitleBarOfficeChange(value: string | number | null): void {
     this.onOfficeSelected(value == null || value === '' ? null : Number(value));
   }
 
-  onTitlebarReservationChange(value: string | number | null): void {
+  onTitleBarReservationChange(value: string | number | null): void {
     this.onReservationSelected(value == null || value === '' ? null : String(value));
   }
 
-  onTitlebarInvoiceChange(value: string | number | null): void {
+  onTitleBarInvoiceChange(value: string | number | null): void {
     this.onInvoiceSelected(value == null || value === '' ? null : String(value));
   }
 

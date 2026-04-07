@@ -8,7 +8,7 @@
         </span>
         <div class="header-title form-titlebar-fields-wrap">
           @if (activeUsersSection?.isSuperAdminUser) {
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Organization'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="activeUsersSection?.selectedOrganizationId ?? null"
@@ -16,9 +16,9 @@
               [nullOptionLabel]="'All Organizations'"
               [noResultsText]="'No organizations match your search'"
               (valueChange)="onOrganizationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           } @else if (activeUsersSection?.showOfficeDropdown) {
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="activeUsersSection?.selectedOfficeId ?? null"
@@ -26,7 +26,7 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onOfficeDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           }
         </div>
       </div>

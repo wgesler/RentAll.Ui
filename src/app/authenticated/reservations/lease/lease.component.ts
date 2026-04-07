@@ -392,7 +392,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
   }
 
-  private applyReservationSelectionFromInput(reservationId: string | null | undefined): void {
+  applyReservationSelectionFromInput(reservationId: string | null | undefined): void {
     if (!reservationId || reservationId === 'new') {
       this.selectedReservation = null;
       this.contact = null;
@@ -1520,7 +1520,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return this.lockOfficeSelection;
   }
 
-  private applyOfficeSelectionLockState(): void {
+  applyOfficeSelectionLockState(): void {
     const officeControl = this.form?.get('selectedOfficeId');
     if (!officeControl) {
       return;

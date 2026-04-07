@@ -20,7 +20,7 @@ export class ConfigService {
     return this.configApi;
   }
 
-  private getEnvConfig(): Environment {
+  getEnvConfig(): Environment {
 
     if (environment.local && this.useDevApi) {
       return {

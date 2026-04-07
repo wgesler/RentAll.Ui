@@ -7,11 +7,11 @@
   <div class="flex content-card-wrap justify-center property-shell-embedded-wrap">
     <section class="content-card property-shell-embedded">
       @if (form) {
+      <div class="info-form mb-8 pt-5">
       <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
-            <div class="info-form mb-8 pt-5">
             <div class="flex justify-end items-center gap-3 mb-3">
               <mat-form-field appearance="outline" class="property-lease-type-field flex-shrink-0">
-                <mat-label>Lease type</mat-label>
+                <mat-label>Property Lease Type</mat-label>
                 <mat-select formControlName="propertyLeaseId">
                   @for (opt of propertyLeaseTypeOptions; track opt.value) {
                     <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
@@ -668,84 +668,18 @@
               </div>
             </mat-expansion-panel>
 
-            <!-- Maintenance Section -->
-            <mat-expansion-panel [expanded]="expandedSections.maintenance" (opened)="onPanelOpened('maintenance')" (closed)="onPanelClosed('maintenance')" class="mb-4">
+            @if (isAdmin && propertyId) {
+            <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
-                <mat-panel-title>Maintenance</mat-panel-title>
+                <mat-panel-title>Property Agreements</mat-panel-title>
               </mat-expansion-panel-header>
-              <div class="property-form-section-rows">
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-4 items-end">
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Licence No.</mat-label>
-                  <input matInput formControlName="licenseNo">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Expiration</mat-label>
-                  <input matInput [matDatepicker]="licenseDatePicker" formControlName="licenseDate" placeholder="">
-                  <mat-datepicker-toggle matIconSuffix [for]="licenseDatePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #licenseDatePicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Maintenance status</mat-label>
-                  <mat-select formControlName="maintenanceStatusId">
-                    @for (status of maintenanceStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-4 items-end">
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>HVAC notes</mat-label>
-                  <input matInput formControlName="hvacNotes">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>HVAC serviced</mat-label>
-                  <input matInput [matDatepicker]="hvacServicedPicker" formControlName="hvacServiced" placeholder="">
-                  <mat-datepicker-toggle matIconSuffix [for]="hvacServicedPicker"></mat-datepicker-toggle>
-                  <mat-datepicker #hvacServicedPicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Fireplace notes</mat-label>
-                  <input matInput formControlName="fireplaceNotes">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Fireplace serviced</mat-label>
-                  <input matInput [matDatepicker]="fireplaceServicedPicker" formControlName="fireplaceServiced" placeholder="">
-                  <mat-datepicker-toggle matIconSuffix [for]="fireplaceServicedPicker"></mat-datepicker-toggle>
-                  <mat-datepicker #fireplaceServicedPicker></mat-datepicker>
-                </mat-form-field>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-4 items-end">
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Filter description</mat-label>
-                  <input matInput formControlName="filterDescription">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Last Filter Change Date</mat-label>
-                  <input matInput [matDatepicker]="lastFilterChangePicker" formControlName="lastFilterChangeDate" placeholder="">
-                  <mat-datepicker-toggle matIconSuffix [for]="lastFilterChangePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #lastFilterChangePicker></mat-datepicker>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Smoke detectors</mat-label>
-                  <input matInput formControlName="smokeDetectors">
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="min-w-0">
-                  <mat-label>Last Smoke Change Date</mat-label>
-                  <input matInput [matDatepicker]="lastSmokeChangePicker" formControlName="lastSmokeChangeDate" placeholder="">
-                  <mat-datepicker-toggle matIconSuffix [for]="lastSmokeChangePicker"></mat-datepicker-toggle>
-                  <mat-datepicker #lastSmokeChangePicker></mat-datepicker>
-                </mat-form-field>
-              </div>
-              <div class="grid grid-cols-1 gap-x-4 gap-y-4">
-                <mat-form-field appearance="outline" class="w-full">
-                  <mat-label>Maintenance notes</mat-label>
-                  <textarea matInput formControlName="maintenanceNotes" rows="3"></textarea>
-                </mat-form-field>
-              </div>
-              </div>
+              <app-property-agreement
+                [propertyId]="propertyId"
+                [isAddMode]="isAddMode"
+                [isAdmin]="isAdmin"
+              />
             </mat-expansion-panel>
+            }
             </mat-accordion>
 
             @if (isSubmitting) {
@@ -754,8 +688,9 @@
                 <span>Saving...</span>
               </div>
             }
-            </div>
       </form>
+
+      </div>
       }
     </section>
   </div>

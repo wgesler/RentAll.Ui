@@ -305,7 +305,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       w9FileDetails: this.compactDialogMode && this.contact ? (this.w9FileDetails ?? this.contact.w9FileDetails ?? null) : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
       insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
       insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
-      insuranceExpiration: this.compactDialogMode && this.contact ? (this.formatExpirationDate(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.formatExpirationDate(formValue.insuranceExpiration)),
+      insuranceExpiration: this.compactDialogMode && this.contact ? (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration)),
       agreementPath: this.compactDialogMode && this.contact ? (this.agreementPath ?? this.contact.agreementPath ?? null) : (this.hasNewAgreementUpload ? undefined : this.agreementPath),
       agreementFileDetails: this.compactDialogMode && this.contact ? (this.agreementFileDetails ?? this.contact.agreementFileDetails ?? null) : (this.hasNewAgreementUpload ? (this.agreementFileDetails ?? null) : undefined),
       revenueSplitOwner: this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
@@ -360,10 +360,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     });
   }
 
-  private formatExpirationDate(value: Date | null | undefined): string | null {
-    if (!value || !(value instanceof Date) || isNaN(value.getTime())) return null;
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
-  }
   //#endregion
 
   //#region Form Methods
@@ -480,9 +476,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
-      const insDateStr = this.contact.insuranceExpiration?.split('T')[0] ?? '';
-      const insD = insDateStr ? new Date(insDateStr + 'T00:00:00') : null;
-      const insuranceExpirationDate = insD && !isNaN(insD.getTime()) ? insD : null;
+      const insuranceExpirationDate = this.utilityService.parseApiDateOnlyToDate(this.contact.insuranceExpiration ?? null);
       this.form.patchValue({
         contactCode: this.contact.contactCode,
         contactTypeId: contactTypeId,
@@ -657,7 +651,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   }
 
-  private setPdfThumbnail(
+  setPdfThumbnail(
     dataUrl: string | null,
     contentType: string | null,
     setter: (url: string | null) => void
@@ -683,7 +677,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   }
 
-  private dataUrlToBlob(dataUrl: string): Blob {
+  dataUrlToBlob(dataUrl: string): Blob {
     const [header, base64] = dataUrl.split(',');
     const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/pdf';
     const binary = atob(base64 ?? '');
@@ -920,7 +914,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 25);
   }
 
-  /** Agreement numeric fields: default 0% or 0.00, select-all on focus, number-only input. */
   formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
     if (value == null || value === '') return '0%';
     const n = Number(String(value).replace(/%\s*$/, ''));
@@ -933,7 +926,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     return isNaN(n) ? '$0.00' : this.formatAgreementCurrency(n);
   }
 
-  private formatAgreementCurrency(n: number): string {
+  formatAgreementCurrency(n: number): string {
     return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
@@ -978,7 +971,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     (event.target as HTMLInputElement)?.select();
   }
 
-  /** Allow only digits and optionally one decimal point. */
   allowNumericOnly(event: KeyboardEvent, allowDecimal: boolean): void {
     const key = event.key;
     if (['Backspace', 'Tab', 'End', 'Home', 'ArrowLeft', 'ArrowRight', 'Delete'].includes(key)) return;

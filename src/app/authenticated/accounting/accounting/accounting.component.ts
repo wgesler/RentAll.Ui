@@ -16,7 +16,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
@@ -33,7 +33,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     GeneralLedgerComponent,
     DocumentListComponent,
     EmailListComponent,
-    TitlebarSelectComponent
+    TitleBarSelectComponent
 ],
     templateUrl: './accounting.component.html',
     styleUrls: ['./accounting.component.scss']
@@ -275,7 +275,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return documentTypes || [];
   }
 
-  get organizationTitlebarOptions(): { value: string, label: string }[] {
+  get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
       label: organization.name || ''

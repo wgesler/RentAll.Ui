@@ -15,7 +15,7 @@ import { GlobalOfficeSelectionService } from '../../organizations/services/globa
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
@@ -25,7 +25,7 @@ import { ContactService } from '../services/contact.service';
     selector: 'app-contact-list',
     templateUrl: './contact-list.component.html',
     styleUrls: ['./contact-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent]
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {

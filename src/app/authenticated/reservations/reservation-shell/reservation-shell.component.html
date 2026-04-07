@@ -17,7 +17,7 @@
         @if (reservationSection?.form) {
           <div class="header-title form-titlebar-fields-wrap">
             @if (showOfficeDropdown) {
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
                 [value]="selectedOfficeId"
@@ -26,7 +26,7 @@
                 [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
                 (valueChange)="onOfficeDropdownChange($event)">
-              </app-titlebar-select>
+              </app-title-bar-select>
             } @else {
               <mat-form-field appearance="outline" class="titlebar-field-office">
                 <mat-label>Office</mat-label>
@@ -39,7 +39,7 @@
             </mat-form-field>
             @if (!(reservationSection?.isAddMode ?? true)) {
               <div class="titlebar-reservation-slot">
-                <app-titlebar-select
+                <app-title-bar-select
                   [label]="'Reservation'"
                   [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
                   [required]="false"
@@ -49,7 +49,7 @@
                   [nullOptionLabel]="'Select Reservation'"
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onHeaderReservationDropdownChange($event)">
-                </app-titlebar-select>
+                </app-title-bar-select>
               </div>
             }
           </div>

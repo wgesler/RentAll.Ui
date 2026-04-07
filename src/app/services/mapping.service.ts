@@ -21,7 +21,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { PropertyType, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { ManagementFeeType, PropertyType, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -239,7 +239,7 @@ export class MappingService {
     }));
   }
 
-  private getPrimaryRecipientEmail(recipients: any, fallback: string = ''): string {
+  getPrimaryRecipientEmail(recipients: any, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
       return first?.email ?? fallback ?? '';
@@ -248,7 +248,7 @@ export class MappingService {
     return fallback ?? '';
   }
 
-  private getPrimaryRecipientName(recipients: any, fallback: string = ''): string {
+  getPrimaryRecipientName(recipients: any, fallback: string = ''): string {
     if (Array.isArray(recipients) && recipients.length > 0) {
       const first = recipients[0];
       return first?.name ?? fallback ?? '';
@@ -381,6 +381,20 @@ export class MappingService {
       ...inspection,
       isActive: this.toBooleanFlag((inspection as unknown as Record<string, unknown>)['isActive'])
     };
+  }
+
+  mapManagementFeeTypeIdFromApi(raw: number | string | null | undefined): ManagementFeeType {
+    if (raw === null || raw === undefined) {
+      return ManagementFeeType.FlatRate;
+    }
+    if (typeof raw === 'string' && raw.toLowerCase() === 'percentage') {
+      return ManagementFeeType.Percentage;
+    }
+    const n = Number(raw);
+    if (n === ManagementFeeType.Percentage) {
+      return ManagementFeeType.Percentage;
+    }
+    return ManagementFeeType.FlatRate;
   }
 
   mapOffices(offices: OfficeResponse[]): OfficeListDisplay[] {
@@ -843,7 +857,7 @@ export class MappingService {
   //#endregion
 
   //#region Helper/Format Functions
-  private buildMaintenanceStatusDropdownCell(label: string): { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string } {
+  buildMaintenanceStatusDropdownCell(label: string): { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string } {
     return {
       value: label,
       isOverridable: true,
@@ -852,7 +866,7 @@ export class MappingService {
     };
   }
 
-  private buildMaintenanceUserDropdownCell(label: string, options: string[]): { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string } {
+  buildMaintenanceUserDropdownCell(label: string, options: string[]): { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string } {
     return {
       value: label,
       isOverridable: true,
@@ -862,7 +876,7 @@ export class MappingService {
     };
   }
 
-  private resolveMaintenanceUserName(
+  resolveMaintenanceUserName(
     userIdOrName: string,
     officeId: number,
     users: UserResponse[],
@@ -879,7 +893,7 @@ export class MappingService {
     return userById.get(userIdOrName) ?? userIdOrName;
   }
 
-  private getMaintenanceUserOptionsForOffice(users: UserResponse[], officeId: number, defaultLabel: string): string[] {
+  getMaintenanceUserOptionsForOffice(users: UserResponse[], officeId: number, defaultLabel: string): string[] {
     const names = users
       .filter(user => (user.officeAccess || []).includes(officeId))
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
@@ -887,7 +901,7 @@ export class MappingService {
     return [defaultLabel, ...names];
   }
 
-  private getCurrentReservationHasPetsValue(
+  getCurrentReservationHasPetsValue(
     propertyId: string | null | undefined,
     currentReservationHasPetsByPropertyId: Map<string, boolean>
   ): boolean {
@@ -924,7 +938,7 @@ export class MappingService {
     return null;
   }
 
-  private toBooleanValue(value: unknown): boolean {
+  toBooleanValue(value: unknown): boolean {
     if (typeof value === 'boolean') {
       return value;
     }

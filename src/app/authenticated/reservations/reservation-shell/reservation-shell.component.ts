@@ -17,7 +17,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { LeaseComponent } from '../lease/lease.component';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationComponent } from '../reservation/reservation.component';
@@ -31,7 +31,7 @@ import { ReservationService } from '../services/reservation.service';
     FormsModule,
     MaterialModule,
     ReservationComponent,
-    TitlebarSelectComponent,
+    TitleBarSelectComponent,
     LeaseComponent,
     InvoiceListComponent,
     EmailListComponent,

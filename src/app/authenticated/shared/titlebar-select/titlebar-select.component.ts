@@ -4,11 +4,11 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../searchable
 
 @Component({
   standalone: true,
-  selector: 'app-titlebar-select',
+  selector: 'app-title-bar-select',
   imports: [CommonModule, SearchableSelectComponent],
   template: `
     <app-searchable-select
-      [titlebarMode]="true"
+      [titleBarMode]="true"
       [renderInFormField]="true"
       [formFieldLabel]="label"
       [formFieldClass]="formFieldClass"
@@ -29,7 +29,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../searchable
     </app-searchable-select>
   `
 })
-export class TitlebarSelectComponent {
+export class TitleBarSelectComponent {
   @Input() label = '';
   @Input() formFieldClass = '';
   @Input() value: string | number | null = null;

@@ -227,7 +227,7 @@ export class AuthService {
         return this.isLoggingOut$.value;
     }
 
-    private clearSensitiveData(): void {
+    clearSensitiveData(): void {
         this.authData$.next(new AuthResponse());
         this.jwtContainer$.next(undefined);
         this.storageService.removeItem(StorageKey.AuthData);
@@ -235,7 +235,7 @@ export class AuthService {
     }
 
 
-  private buildRefreshAuthData(response: AuthResponse): void {
+  buildRefreshAuthData(response: AuthResponse): void {
         this.setAuthData(response);
   }
 }

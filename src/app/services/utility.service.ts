@@ -80,6 +80,27 @@ export class UtilityService {
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${day}_${h}-${min}`;
   }
+
+  /** Local calendar date → `YYYY-MM-DD` for API date-only fields (e.g. insurance expiration). */
+  formatDateOnlyForApi(value: Date | null | undefined): string | null {
+    if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
+      return null;
+    }
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+
+  /** API ISO or date-only string → local `Date` at midnight for datepicker controls. */
+  parseApiDateOnlyToDate(value: string | null | undefined): Date | null {
+    if (value == null || String(value).trim() === '') {
+      return null;
+    }
+    const datePart = String(value).split('T')[0] ?? '';
+    if (!datePart) {
+      return null;
+    }
+    const d = new Date(`${datePart}T00:00:00`);
+    return !isNaN(d.getTime()) ? d : null;
+  }
   
   hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
     if (!groups || groups.length === 0) {

@@ -28,7 +28,7 @@
     @if (showOfficeDropdown && (entityTypeId === undefined || entityTypeId === null)) {
       <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4 flex-wrap row-height-56">
         <div class="flex items-center gap-3 row-height-56">
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="selectedOffice ? 'Office' : 'All Offices'"
             [formFieldClass]="'office-dropdown'"
             [value]="selectedOfficeId"
@@ -36,7 +36,7 @@
             [nullOptionLabel]="'All Offices'"
             [noResultsText]="'No offices match your search'"
             (valueChange)="onOfficeDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         </div>
       </div>
     }

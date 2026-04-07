@@ -1,0 +1,209 @@
+@if (isAgreementLoading) {
+  <div class="flex items-center gap-3 py-4">
+    <mat-spinner [diameter]="32"></mat-spinner>
+    <span>Loading agreement…</span>
+  </div>
+} @else if (agreementForm) {
+  <div [formGroup]="agreementForm" class="property-agreement-panel-content">
+    <div class="property-agreement-uploads-layout mb-6">
+      <div class="property-agreement-upload-section property-agreement-upload-col--w9">
+        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">W9 Form</h4>
+        </div>
+        <div class="property-agreement-upload-col min-w-0">
+          <div class="property-agreement-col-body">
+            <div class="property-agreement-upload-row">
+              <div class="property-agreement-col-actions">
+                @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                } @else if (agreementW9FileName) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                } @else {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                }
+                <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
+              </div>
+              <div class="property-agreement-col-preview">
+                @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
+                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="W9" [src]="agreementW9FileDataUrl" />
+                } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    @if (agreementW9PdfThumbnailUrl) {
+                      <img class="object-contain max-h-28 w-full" [src]="agreementW9PdfThumbnailUrl" alt="W9 PDF" />
+                    } @else {
+                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                    }
+                  </div>
+                } @else if (agreementW9FileName) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                  </div>
+                } @else {
+                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="property-agreement-upload-section">
+        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 shrink-0">Insurance</h4>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
+            <mat-label>Expiration</mat-label>
+            <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
+            <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+            <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+        <div class="property-agreement-upload-col min-w-0">
+          <div class="property-agreement-col-body">
+            <div class="property-agreement-upload-row">
+              <div class="property-agreement-col-actions">
+                @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                } @else if (agreementInsuranceFileName) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                } @else {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                }
+                <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+              </div>
+              <div class="property-agreement-col-preview">
+                @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
+                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="Insurance" [src]="agreementInsuranceFileDataUrl" />
+                } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    @if (agreementInsurancePdfThumbnailUrl) {
+                      <img class="object-contain max-h-28 w-full" [src]="agreementInsurancePdfThumbnailUrl" alt="Insurance PDF" />
+                    } @else {
+                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                    }
+                  </div>
+                } @else if (agreementInsuranceFileName) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                  </div>
+                } @else {
+                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="property-agreement-upload-section">
+        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Agreement</h4>
+        </div>
+        <div class="property-agreement-upload-col min-w-0">
+          <div class="property-agreement-col-body">
+            <div class="property-agreement-upload-row">
+              <div class="property-agreement-col-actions">
+                @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                } @else if (agreementDocFileName && agreementDocFileDataUrl) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                } @else if (agreementDocFileName) {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                } @else {
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                }
+                <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
+              </div>
+              <div class="property-agreement-col-preview">
+                @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
+                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="Agreement" [src]="agreementDocFileDataUrl" />
+                } @else if (agreementDocFileName && agreementDocFileDataUrl) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    @if (agreementDocPdfThumbnailUrl) {
+                      <img class="object-contain max-h-28 w-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
+                    } @else {
+                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                    }
+                  </div>
+                } @else if (agreementDocFileName) {
+                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
+                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                  </div>
+                } @else {
+                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="property-agreement-management-section mb-4 min-w-0">
+      <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
+      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-center gap-x-3 gap-y-2 w-full min-w-0">
+        <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-row flex flex-row flex-wrap lg:flex-nowrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
+          <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
+          <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
+            <mat-label>Flat Rate Amount</mat-label>
+            <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
+          </mat-form-field>
+          <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
+          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+            <mat-label>Revenue Split (Owner) %</mat-label>
+            <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+            <mat-label>Revenue Split (Office) %</mat-label>
+            <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
+          </mat-form-field>
+        </mat-radio-group>
+        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving || !agreementForm.valid">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Markup</mat-label>
+        <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Working Capital Balance</mat-label>
+        <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Linen and Towel Fee</mat-label>
+        <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+      </mat-form-field>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Bank Name</mat-label>
+        <input matInput formControlName="bankName" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Routing Number</mat-label>
+        <input matInput formControlName="routingNumber" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Account Number</mat-label>
+        <input matInput formControlName="accountNumber" />
+      </mat-form-field>
+    </div>
+    <mat-form-field appearance="outline" class="w-full min-w-0 mb-4">
+      <mat-label>Notes</mat-label>
+      <textarea matInput formControlName="notes" rows="3"></textarea>
+    </mat-form-field>
+  </div>
+}

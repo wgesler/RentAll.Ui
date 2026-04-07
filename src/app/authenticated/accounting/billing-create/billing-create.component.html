@@ -9,15 +9,15 @@
           </span>
           @if (form) {
             <div class="header-title form-titlebar-fields-wrap">
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Organization'"
                 [formFieldClass]="'titlebar-field-company'"
                 [value]="form.get('selectedOrganizationId')?.value ?? null"
-                [options]="organizationTitlebarOptions"
+                [options]="organizationTitleBarOptions"
                 [nullOptionLabel]="'Select Organization'"
                 [noResultsText]="'No organizations match your search'"
-                (valueChange)="onTitlebarOrganizationChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarOrganizationChange($event)">
+              </app-title-bar-select>
 
               <mat-form-field appearance="outline" class="field-width-18ch">
                 <mat-label>Invoice No</mat-label>

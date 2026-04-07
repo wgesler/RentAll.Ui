@@ -8,7 +8,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -34,14 +33,12 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
   @Input() hideOfficeAndPropertyCode: boolean = false;
-  isServiceError: boolean = false;
+
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
-  propertyInformation: PropertyLetterResponse | null = null;
   organization: OrganizationResponse | null = null;
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = true;
   officesSubscription?: Subscription;
@@ -60,7 +57,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
-    private mappingService: MappingService,
     private utilityService: UtilityService
   ) {
     this.form = this.buildForm();
@@ -69,22 +65,16 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#region Property-Information
   ngOnInit(): void {
     this.loadOffices();
+    this.loadOrganization();
     
     if (!this.propertyId) {
-      if (this.copiedPropertyInformation) {
+      if (this.copiedPropertyInformation) 
         this.populateFormFromCopiedData();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
-        this.loadOrganizationSettings();
-        return;
-      }
-      
-      const currentSet = this.itemsToLoad$.value;
-      currentSet.forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
     }
-    
-    this.loadOrganizationSettings();
+
     this.loadPropertyData();
     this.getPropertyLetter();
   }
@@ -100,23 +90,15 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       if (!this.organization) {
-        this.loadOrganizationSettings();
+        this.loadOrganization();
       }
     }
     
     if (changes['officeId'] && this.offices.length > 0) {
-      const newOfficeId = changes['officeId'].currentValue;
-      if (newOfficeId) {
-        this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
-      } else {
-        this.selectedOffice = null;
-      }
+      this.onTitleBarOfficeIdUpdate(changes['officeId'].currentValue as number | null);
     }
   }
-
-  onOfficeChange(): void {
-  }
-
+  
   getPropertyLetter(): void {
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
@@ -126,7 +108,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
-          this.propertyInformation = response;
           this.form.patchValue({
             arrivalInstructions: response.arrivalInstructions || '',
             access: response.access || '',
@@ -216,7 +197,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#endregion
 
   //#region Data Loading Methods
-  loadOrganizationSettings(): void {
+  loadOrganization(): void {
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
@@ -232,7 +213,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.globalOfficeSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
           next: uiState => {
@@ -297,7 +277,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       return;
     }
 
-    this.propertyInformation = this.copiedPropertyInformation;
     this.form.patchValue({
       arrivalInstructions: this.copiedPropertyInformation.arrivalInstructions || '',
       access: this.copiedPropertyInformation.access || '',
@@ -379,18 +358,22 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     }
   }
   //#endregion
-
-  //#region Phone Helpers
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
-  }
-
-  onPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('emergencyContactNumber'));
+  
+  //#region Title Bar Updates
+  onTitleBarOfficeIdUpdate(newOfficeId: number | null): void {
+    if (newOfficeId) {
+      this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
+    } else {
+      this.selectedOffice = null;
+    }
   }
   //#endregion
 
   //#region Utility Methods
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

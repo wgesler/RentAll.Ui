@@ -413,11 +413,11 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private getOfficeName(officeId: number): string {
+  getOfficeName(officeId: number): string {
     return this.offices.find(o => o.officeId === officeId)?.name || '';
   }
 
-  private isCreditLine(line: LedgerLineWithDateFields, officeId: number): boolean {
+  isCreditLine(line: LedgerLineWithDateFields, officeId: number): boolean {
     const transactionTypeId = this.resolveTransactionTypeId(line, officeId);
     if (transactionTypeId === null) {
       return false;
@@ -425,7 +425,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     return transactionTypeId === TransactionType.Payment;
   }
 
-  private resolveTransactionTypeId(line: LedgerLineWithDateFields, officeId: number): number | null {
+  resolveTransactionTypeId(line: LedgerLineWithDateFields, officeId: number): number | null {
     if (line.transactionTypeId !== undefined && line.transactionTypeId !== null) {
       return line.transactionTypeId;
     }
@@ -439,13 +439,13 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     return matchingCostCode?.transactionTypeId ?? null;
   }
 
-  private getSortDateValue(invoice: InvoiceResponse, line: LedgerLineWithDateFields): number {
+  getSortDateValue(invoice: InvoiceResponse, line: LedgerLineWithDateFields): number {
     const sourceDate = this.getSourceDate(invoice, line);
     const parsedDate = sourceDate ? new Date(sourceDate).getTime() : Number.NaN;
     return Number.isNaN(parsedDate) ? 0 : parsedDate;
   }
 
-  private getSourceDate(invoice: InvoiceResponse, line: LedgerLineWithDateFields): string {
+  getSourceDate(invoice: InvoiceResponse, line: LedgerLineWithDateFields): string {
     const lineDate = typeof line.transactionDate === 'string'
       ? line.transactionDate
       : typeof line.createdOn === 'string'
@@ -456,11 +456,11 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     return lineDate || invoice.invoiceDate || invoice.createdOn || invoice.modifiedOn || '';
   }
 
-  private formatCurrency(value: number): string {
+  formatCurrency(value: number): string {
     return '$' + this.formatter.currency(value);
   }
 
-  private formatSignedCurrency(value: number): string {
+  formatSignedCurrency(value: number): string {
     const absoluteValue = Math.abs(value);
     const formatted = this.formatCurrency(absoluteValue);
     return value < 0 ? `-${formatted}` : formatted;

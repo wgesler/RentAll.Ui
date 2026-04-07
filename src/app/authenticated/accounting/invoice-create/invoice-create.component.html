@@ -9,38 +9,38 @@
           </span>
           @if (form) {
             <div class="header-title form-titlebar-fields-wrap">
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
                 [value]="form.get('selectedOfficeId')?.value ?? null"
-                [options]="officeTitlebarOptions"
+                [options]="officeTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'Offices'"
                 [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitlebarOfficeChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarOfficeChange($event)">
+              </app-title-bar-select>
 
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Reservation'"
                 [formFieldClass]="'titlebar-field-reservation'"
                 [value]="form.get('selectedReservationId')?.value ?? null"
-                [options]="reservationTitlebarOptions"
+                [options]="reservationTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'All Reservations'"
                 [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitlebarReservationChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarReservationChange($event)">
+              </app-title-bar-select>
 
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Invoice No'"
                 [formFieldClass]="'field-width-18ch'"
                 [value]="form.get('selectedInvoiceId')?.value ?? null"
-                [options]="invoiceTitlebarOptions"
+                [options]="invoiceTitleBarOptions"
                 [disabled]="false"
                 [nullOptionLabel]="'Select Invoice'"
                 [noResultsText]="'No invoices match your search'"
-                (valueChange)="onTitlebarInvoiceChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarInvoiceChange($event)">
+              </app-title-bar-select>
             </div>
           }
         </div>
@@ -71,38 +71,38 @@
           </span>
           @if (form) {
             <div class="header-title form-titlebar-fields-wrap">
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
                 [value]="form.get('selectedOfficeId')?.value ?? null"
-                [options]="officeTitlebarOptions"
+                [options]="officeTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'Offices'"
                 [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitlebarOfficeChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarOfficeChange($event)">
+              </app-title-bar-select>
 
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Reservation'"
                 [formFieldClass]="'titlebar-field-reservation'"
                 [value]="form.get('selectedReservationId')?.value ?? null"
-                [options]="reservationTitlebarOptions"
+                [options]="reservationTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'All Reservations'"
                 [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitlebarReservationChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarReservationChange($event)">
+              </app-title-bar-select>
 
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Invoice No'"
                 [formFieldClass]="'field-width-18ch'"
                 [value]="form.get('selectedInvoiceId')?.value ?? null"
-                [options]="invoiceTitlebarOptions"
+                [options]="invoiceTitleBarOptions"
                 [disabled]="false"
                 [nullOptionLabel]="'Select Invoice'"
                 [noResultsText]="'No invoices match your search'"
-                (valueChange)="onTitlebarInvoiceChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarInvoiceChange($event)">
+              </app-title-bar-select>
             </div>
           }
         </div>

@@ -342,7 +342,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   /** After selection + lookups load, track form edits for global Selection button highlight. */
-  private setupFormFilterTrackingOnce(): void {
+  setupFormFilterTrackingOnce(): void {
     if (this.formFilterTrackingSetup || !this.form) return;
     this.formFilterTrackingSetup = true;
     this.form.valueChanges.pipe(debounceTime(250), takeUntil(this.destroy$)).subscribe(() => {
@@ -350,7 +350,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     });
   }
 
-  private buildSyntheticResponseFromForm(): PropertySelectionResponse {
+  buildSyntheticResponseFromForm(): PropertySelectionResponse {
     const req = this.buildRequestFromForm();
     if (!req) {
       return {
@@ -435,7 +435,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     });
   }
 
-  private buildRequestFromForm(): PropertySelectionRequest | null {
+  buildRequestFromForm(): PropertySelectionRequest | null {
     if (!this.form) return null;
     const userId = this.authService.getUser()?.userId || '';
     if (!userId) return null;
@@ -590,7 +590,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.itemsToLoad$.complete();
   }
 
-  private navigateBackFromSelection(): void {
+  navigateBackFromSelection(): void {
     if (this.returnSource === 'property-list') {
       this.router.navigateByUrl(RouterUrl.PropertyList);
       return;

@@ -461,7 +461,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     }
   }
 
-  private isOwnerTypeSelected(): boolean {
+  isOwnerTypeSelected(): boolean {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
   }
 

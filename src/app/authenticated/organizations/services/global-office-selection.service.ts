@@ -105,7 +105,7 @@ export class GlobalOfficeSelectionService {
     );
   }
 
-  private readFromStorage(): number | null {
+  readFromStorage(): number | null {
     const rawValue = localStorage.getItem(this.storageKey);
     if (!rawValue) {
       return null;
@@ -115,7 +115,7 @@ export class GlobalOfficeSelectionService {
     return Number.isFinite(parsedValue) ? parsedValue : null;
   }
 
-  private writeToStorage(officeId: number | null): void {
+  writeToStorage(officeId: number | null): void {
     if (officeId === null) {
       localStorage.removeItem(this.storageKey);
       return;

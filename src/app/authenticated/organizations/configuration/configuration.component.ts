@@ -30,7 +30,7 @@ import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
 import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
@@ -54,7 +54,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     CostCodesListComponent,
     ColorListComponent,
     ColorComponent,
-    TitlebarSelectComponent
+    TitleBarSelectComponent
 ],
     templateUrl: './configuration.component.html',
     styleUrls: ['./configuration.component.scss']
@@ -174,7 +174,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  get organizationTitlebarOptions(): { value: string, label: string }[] {
+  get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
       label: organization.name || ''
@@ -194,14 +194,14 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     return this.selectedOrganizationId || this.currentUserOrganizationId;
   }
 
-  get officeTitlebarOptions(): { value: number; label: string }[] {
+  get officeTitleBarOptions(): { value: number; label: string }[] {
     return (this.offices || []).map((office) => ({
       value: office.officeId,
       label: office.name || ''
     }));
   }
 
-  get shouldShowOfficeTitlebarDropdown(): boolean {
+  get shouldShowOfficeTitleBarDropdown(): boolean {
     return (this.offices || []).length > 1;
   }
 

@@ -186,9 +186,8 @@ function handle409Error(req: HttpRequest<PurposefulAny>, error: HttpErrorRespons
   return throwError(() => error);
 }
 
-// 404 NotFound: show API message globally when available
-function handle404Error(error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
-  showErrorToast(error, toastrService, CommonMessage.Error, false);
+// 404 NotFound: rethrow so callers can treat missing resources (e.g. optional GETs) without a global toast
+function handle404Error(error: HttpErrorResponse): Observable<HttpEvent<PurposefulAny>> {
   return throwError(() => error);
 }
 
@@ -236,7 +235,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           case 401:
             return handle401Error(req, error, next, loadingBarService, authService, toastrService);
           case 404:
-            return handle404Error(error, toastrService);
+            return handle404Error(error);
           case 409:
             return handle409Error(req, error, toastrService);
           default:

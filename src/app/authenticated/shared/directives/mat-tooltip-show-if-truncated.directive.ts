@@ -35,7 +35,7 @@ export class MatToolTipShowIfTruncatedDirective implements OnInit, AfterViewInit
 		}
 	}
 
-	private updateToolTip(): void {
+	updateToolTip(): void {
 		setTimeout(() => {
 			const element = this.el.nativeElement;
 			this.matTooltip.disabled = element.scrollWidth <= element.clientWidth;

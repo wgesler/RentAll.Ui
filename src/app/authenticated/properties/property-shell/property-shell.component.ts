@@ -9,11 +9,12 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
+import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
   standalone: true,
@@ -22,7 +23,7 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     CommonModule,
     FormsModule,
     MaterialModule,
-    TitlebarSelectComponent,
+    TitleBarSelectComponent,
     PropertyComponent,
     PropertyInformationComponent,
     PropertyWelcomeLetterComponent,
@@ -34,17 +35,18 @@ import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 })
 export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   @ViewChild('propertySection') propertySection?: PropertyComponent;
-  @ViewChild('propertyInformationSection') propertyInformationSection?: PropertyInformationComponent;
-  @ViewChild('propertyWelcomeLetterSection') propertyWelcomeLetterSection?: PropertyWelcomeLetterComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
 
   selectedTabIndex = 0;
-  listIsActiveFilter = true;
   isHandlingTabGuard = false;
 
   readonly DocumentType = DocumentType;
   readonly EmailType = EmailType;
+
+  titleBarOfficeId: number | null = null;
+  titleBarReservationId: string | null = null;
+  titleBarPropertyCode = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -65,7 +67,15 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   }
   //#endregion
 
-  //#region Header Methods
+  //#region Getter Methods
+  get isHeaderOfficeEditable(): boolean {
+    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
+  }
+
+  get isHeaderPropertyCodeEditable(): boolean {
+    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
+  }
+
   get officeOptions(): SearchableSelectOption[] {
     return this.propertySection?.officeOptions ?? [];
   }
@@ -78,28 +88,44 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
     }));
   }
 
+  get selectedReservationId(): string | null {
+    return this.titleBarReservationId;
+  }
+
   get sharedOfficeName(): string {
-    return this.propertySection?.sharedOfficeName ?? '';
+    const id = this.titleBarOfficeId;
+    const offices = this.propertySection?.offices ?? [];
+    if (id != null) {
+      const o = offices.find(x => x.officeId === id);
+      if (o?.name) {
+        return o.name;
+      }
+    }
+    return this.propertySection?.property?.officeName ?? '';
   }
 
-  get sharedPropertyCode(): string {
-    return this.propertySection?.sharedPropertyCode ?? '';
+  get sharedPropertyCode(): string | null {
+    const shell = this.titleBarPropertyCode?.trim();
+    if (shell) {
+      return shell;
+    }
+    return this.propertySection?.sharedPropertyCode ?? null;
   }
+  //#endregion
 
-  get isHeaderOfficeEditable(): boolean {
-    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
-  }
-
-  get isHeaderPropertyCodeEditable(): boolean {
-    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
+  //#region Top Bar Event Methods
+  onTitleBarContextFromProperty(ctx: PropertyTitleBarContext): void {
+    this.titleBarOfficeId = ctx.officeId;
+    this.titleBarReservationId = ctx.reservationId;
+    this.titleBarPropertyCode = ctx.propertyCode ?? '';
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
-    this.propertySection?.onOfficeDropdownChange(value);
+    this.propertySection?.applyTitleBarOfficeSelection(value);
   }
 
   onReservationDropdownChange(value: string | number | null): void {
-    this.propertySection?.onReservationDropdownChange(value);
+    this.propertySection?.applyTitleBarReservationSelection(value);
     if (this.selectedTabIndex === 3) {
       this.propertyEmailList?.reload();
     }
@@ -109,15 +135,25 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   }
 
   onPropertyCodeInput(event: Event): void {
-    this.propertySection?.onCodeInput(event);
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    input.value = upperValue;
+    this.titleBarPropertyCode = upperValue;
+    this.propertySection?.applyTitleBarPropertyCode(upperValue);
   }
 
   onPropertyCodeFocus(event: FocusEvent): void {
     this.propertySection?.onPropertyCodeFocus(event);
   }
+  //#endregion
 
-  get selectedReservationId(): string | null {
-    return this.propertySection?.sharedReservationId ?? null;
+  //#region Top Bar Child Updates
+  onChildTabReservationChange(reservationId: string | null): void {
+    this.propertySection?.applyTitleBarReservationSelection(reservationId);
+  }
+
+  onChildTabOfficeChange(officeId: number | null): void {
+    this.propertySection?.applyTitleBarOfficeSelection(officeId);
   }
   //#endregion
 
@@ -165,53 +201,6 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
       queryParams: { tab },
       queryParamsHandling: 'merge'
     });
-  }
-
-  get contextualIsActiveValue(): boolean {
-    if (this.selectedTabIndex <= 2) {
-      return !!this.propertySection?.form?.get('isActive')?.value;
-    }
-    return this.listIsActiveFilter;
-  }
-
-  onContextualIsActiveChange(checked: boolean): void {
-    if (this.selectedTabIndex <= 2) {
-      this.propertySection?.form?.patchValue({ isActive: checked });
-      return;
-    }
-
-    this.listIsActiveFilter = checked;
-    if (this.selectedTabIndex === 3) {
-      this.propertyEmailList?.applyFilters();
-    } else if (this.selectedTabIndex === 4) {
-      this.propertyDocumentList?.applyFilters();
-    }
-  }
-
-  get showContextualSave(): boolean {
-    return this.selectedTabIndex <= 2;
-  }
-
-  get contextualSaveDisabled(): boolean {
-    if (this.selectedTabIndex === 1) {
-      return !this.propertyInformationSection || this.propertyInformationSection.isSubmitting || !this.propertyInformationSection.form?.valid;
-    }
-    if (this.selectedTabIndex === 2) {
-      return !this.propertyWelcomeLetterSection || this.propertyWelcomeLetterSection.isSubmitting;
-    }
-    return !!this.propertySection?.isSubmitting || !this.propertySection?.form;
-  }
-
-  onContextualSave(): void {
-    if (this.selectedTabIndex === 1) {
-      this.propertyInformationSection?.savePropertyLetter();
-      return;
-    }
-    if (this.selectedTabIndex === 2) {
-      this.propertyWelcomeLetterSection?.saveWelcomeLetter();
-      return;
-    }
-    this.propertySection?.saveProperty();
   }
   //#endregion
 

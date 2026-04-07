@@ -84,21 +84,6 @@
   min-width: 0;
 }
 
-.name-row-min-0 {
-  min-width: 0;
-}
-
-.code-field-fixed-20 {
-  flex: 0 0 20%;
-  min-width: 0;
-  max-width: 20%;
-}
-
-.name-flex-field {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
 .btn-full-width {
   width: 100%;
 }
@@ -127,22 +112,6 @@
   
   input.readonly-field {
     background-color: transparent !important;
-  }
-}
-
-.contact-form-panel-content {
-  .panel-grid {
-    gap: 0.25rem 0.375rem;
-  }
-  .panel-rows {
-    gap: 0.25rem;
-  }
-}
-
-::ng-deep .agreement-number-field {
-  .mat-mdc-form-field-input-control,
-  input.mat-mdc-input-element {
-    text-align: right;
   }
 }
 

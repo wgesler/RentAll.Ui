@@ -503,7 +503,7 @@ export class DataTableComponent implements OnChanges, OnInit {
    * by padding numeric parts with zeros.
    * Example: "CODE1" -> "CODE0000000001", "CODE10" -> "CODE0000000010"
    */
-  private naturalSortKey(value: string): string {
+  naturalSortKey(value: string): string {
     if (!value) return '';
     
     // Split the string into text and number parts
@@ -520,7 +520,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     }).join('');
   }
 
-  private setTableColumns(): void {
+  setTableColumns(): void {
     let columns = {} as ColumnSet;
     // order here is important
     if (this.hasActionsSelect)
@@ -555,7 +555,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     }
   }
 
-  private setActions(): void {
+  setActions(): void {
     this.buttons = [];
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
@@ -573,7 +573,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsCancel)   this.buttons.push({name: 'cancel', callback: (event, rowItem) => this.emitCancelEvent(event, rowItem), color: '#3F51B5', tooltip: 'Cancel', tooltipPosition: 'after', icon: 'cancel', suspendOnUpdate: false});
   }
 
-  private setTableTools(): void {
+  setTableTools(): void {
     this.isDataLoaded = false;
     this.zone.onStable.pipe(take(1)).subscribe(() => {
       this.setData();
@@ -584,7 +584,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     });
   }
 
-  private setData(): void {
+  setData(): void {
     this.dataSource.data = this.data;
     this.selection.clear();
     this.selectionSet.emit(this.selection);

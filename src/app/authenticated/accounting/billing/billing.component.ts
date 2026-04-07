@@ -20,12 +20,12 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
     standalone: true,
     selector: 'app-billing',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitlebarSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitleBarSelectComponent],
     templateUrl: './billing.component.html',
     styleUrl: './billing.component.scss'
 })
@@ -456,14 +456,14 @@ export class BillingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Dropdown Methods
-  get organizationTitlebarOptions(): { value: string, label: string }[] {
+  get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map(organization => ({
       value: organization.organizationId,
       label: organization.name
     }));
   }
 
-  onTitlebarOrganizationChange(value: string | number | null): void {
+  onTitleBarOrganizationChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
     }

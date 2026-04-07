@@ -21,12 +21,12 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
   selector: 'app-email-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, TitlebarSelectComponent, DataTableComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, DataTableComponent],
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss'
 })
@@ -68,6 +68,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   officeScopeResolved: boolean = false;
+
+  embeddedActiveReservationsOnly = true;
 
   emailsDisplayedColumns: ColumnSet = {
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -138,15 +140,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     if (changes['officeId']) {
-      this.selectedOfficeId = changes['officeId'].currentValue;
-      this.filterCompanies();
-      this.filterReservations();
-      this.applyFilters();
+      this.onTitleBarOfficeIdUpdate(changes['officeId'].currentValue);
     }
 
     if (changes['reservationId']) {
-      this.selectedReservationId = changes['reservationId'].currentValue;
-      this.applyFilters();
+      this.onTitleBarReservationIdUpdate(changes['reservationId'].currentValue);
     }
 
     if (changes['companyId']) {
@@ -167,6 +165,21 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
   }
+
+  //#region Title Bar Updates
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    this.filterCompanies();
+    this.filterReservations();
+    this.applyFilters();
+  }
+
+  onTitleBarReservationIdUpdate(reservationId: string | null): void {
+    this.selectedReservationId = reservationId;
+    this.applyFilters();
+  }
+  //#endregion
+
   //#endregion
 
   //#region Data Loading Methods
@@ -432,7 +445,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(email => email.emailTypeId === this.emailTypeId);
     }
 
-    if (this.activeOnly && this.reservations && this.reservations.length > 0) {
+    const activeReservationsOnly =
+      this.hideHeader && this.hideFilters && this.source === 'property'
+        ? this.embeddedActiveReservationsOnly
+        : this.activeOnly;
+    if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
       const activeReservationIds = new Set(
         this.reservations
           .filter(r => r.isActive)
@@ -442,6 +459,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.emails = filtered;
+  }
+
+  onEmbeddedActiveReservationsOnlyChange(checked: boolean): void {
+    this.embeddedActiveReservationsOnly = checked;
+    this.applyFilters();
   }
 
   reload(): void {

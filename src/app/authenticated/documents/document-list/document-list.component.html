@@ -2,11 +2,22 @@
   @if (hideHeader) {
     <!-- Full-page layout when inside a tab -->
     <div class="document-list-tab-container list-layout-tabbed">
+      @if (hideFilters && source === 'property') {
+        <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+          <mat-checkbox
+            color="primary"
+            class="flex-shrink-0"
+            [checked]="embeddedActiveReservationsOnly"
+            (change)="onEmbeddedActiveReservationsOnlyChange($event.checked)">
+            IsActive
+          </mat-checkbox>
+        </div>
+      }
       @if (!hideFilters) {
       <!-- Office and conditional field dropdown row -->
       <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
         @if (showOfficeDropdown) {
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="selectedOfficeId ? 'Office' : 'All Offices'"
             [formFieldClass]="'titlebar-field-office'"
             [value]="selectedOfficeId"
@@ -15,7 +26,7 @@
             [nullOptionLabel]="'All Offices'"
             [noResultsText]="'No offices match your search'"
             (valueChange)="onOfficeDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         }
         @if (source === 'reservation' || source === 'invoice') {
           @if (source === 'reservation') {
@@ -36,7 +47,7 @@
             </mat-form-field>
           }
           <!-- Reservation field for Reservations or Accounting source -->
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="'Reservation'"
             [formFieldClass]="'reservation-dropdown'"
             [value]="selectedReservationId"
@@ -45,14 +56,14 @@
             [nullOptionLabel]="'Select Reservation'"
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         } @else if (source === 'property') {
           <!-- Property Code and Reservation fields for Properties source -->
           <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
             <mat-label>Property Code</mat-label>
             <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
           </mat-form-field>
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="'Reservation'"
             [formFieldClass]="'reservation-dropdown'"
             [value]="selectedReservationId"
@@ -60,10 +71,10 @@
             [nullOptionLabel]="'Select Reservation'"
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         } @else if (source === 'documents') {
           <!-- Reservation and DocumentType fields for Documents source -->
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="'Reservations'"
             [formFieldClass]="'titlebar-field-reservation'"
             [value]="selectedReservationId"
@@ -71,8 +82,8 @@
             [nullOptionLabel]="'All Reservations'"
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
-          </app-titlebar-select>
-          <app-titlebar-select
+          </app-title-bar-select>
+          <app-title-bar-select
             [label]="'Document Types'"
             [formFieldClass]="'titlebar-field-document-type'"
             [value]="selectedDocumentTypeId"
@@ -80,10 +91,10 @@
             [nullOptionLabel]="'All Document Types'"
             [noResultsText]="'No document types match your search'"
             (valueChange)="onDocumentTypeDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         } @else if (source === 'maintenance') {
           <!-- Document Type (Inspection / Work Order) for Maintenance Documents tab -->
-          <app-titlebar-select
+          <app-title-bar-select
             [label]="'Document Types'"
             [formFieldClass]="'titlebar-field-document-type'"
             [value]="selectedDocumentTypeId"
@@ -91,13 +102,13 @@
             [nullOptionLabel]="'All Document Types'"
             [noResultsText]="'No document types match your search'"
             (valueChange)="onDocumentTypeDropdownChange($event)">
-          </app-titlebar-select>
+          </app-title-bar-select>
         }
       </div>
       }
       @if (hideFilters && showReservationFilterOnly && source === 'property') {
       <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
-        <app-titlebar-select
+        <app-title-bar-select
           [label]="'Reservation'"
           [formFieldClass]="'reservation-dropdown'"
           [value]="selectedReservationId"
@@ -105,7 +116,7 @@
           [nullOptionLabel]="'Select Reservation'"
           [noResultsText]="'No reservations match your search'"
           (valueChange)="onReservationDropdownChange($event)">
-        </app-titlebar-select>
+        </app-title-bar-select>
       </div>
       }
       <mat-card class="full-height-card">
@@ -146,7 +157,7 @@
             @if (!hideFilters) {
               <div class="header-title form-titlebar-fields-wrap">
                 @if (showOfficeDropdown) {
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="selectedOfficeId ? 'Office' : 'All Offices'"
                     [formFieldClass]="'titlebar-field-office'"
                     [value]="selectedOfficeId"
@@ -155,7 +166,7 @@
                     [nullOptionLabel]="'All Offices'"
                     [noResultsText]="'No offices match your search'"
                     (valueChange)="onOfficeDropdownChange($event)">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 }
                 @if (source === 'reservation' || source === 'invoice') {
                   @if (source === 'reservation') {
@@ -175,7 +186,7 @@
                       </mat-select>
                     </mat-form-field>
                   }
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="'Reservation'"
                     [formFieldClass]="'reservation-dropdown'"
                     [value]="selectedReservationId"
@@ -184,13 +195,13 @@
                     [nullOptionLabel]="'Select Reservation'"
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="onReservationDropdownChange($event)">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 } @else if (source === 'property') {
                   <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
                     <mat-label>Property Code</mat-label>
                     <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                   </mat-form-field>
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="'Reservation'"
                     [formFieldClass]="'reservation-dropdown'"
                     [value]="selectedReservationId"
@@ -198,9 +209,9 @@
                     [nullOptionLabel]="'Select Reservation'"
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="onReservationDropdownChange($event)">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 } @else if (source === 'documents') {
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="'Reservations'"
                     [formFieldClass]="'titlebar-field-reservation'"
                     [value]="selectedReservationId"
@@ -208,8 +219,8 @@
                     [nullOptionLabel]="'All Reservations'"
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="onReservationDropdownChange($event)">
-                  </app-titlebar-select>
-                  <app-titlebar-select
+                  </app-title-bar-select>
+                  <app-title-bar-select
                     [label]="'Document Types'"
                     [formFieldClass]="'titlebar-field-document-type'"
                     [value]="selectedDocumentTypeId"
@@ -217,9 +228,9 @@
                     [nullOptionLabel]="'All Document Types'"
                     [noResultsText]="'No document types match your search'"
                     (valueChange)="onDocumentTypeDropdownChange($event)">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 } @else if (source === 'maintenance') {
-                  <app-titlebar-select
+                  <app-title-bar-select
                     [label]="'Document Types'"
                     [formFieldClass]="'titlebar-field-document-type'"
                     [value]="selectedDocumentTypeId"
@@ -227,7 +238,7 @@
                     [nullOptionLabel]="'All Document Types'"
                     [noResultsText]="'No document types match your search'"
                     (valueChange)="onDocumentTypeDropdownChange($event)">
-                  </app-titlebar-select>
+                  </app-title-bar-select>
                 }
               </div>
             }

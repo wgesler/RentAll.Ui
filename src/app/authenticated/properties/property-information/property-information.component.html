@@ -9,7 +9,7 @@
       <div class="flex gap-4 items-center mt-3 px-4">
         <mat-form-field appearance="outline" class="field-width-300">
           <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-          <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" placeholder="All Offices" [disabled]="true">
+          <mat-select [(ngModel)]="selectedOffice" [ngModelOptions]="{ standalone: true }" placeholder="All Offices" [disabled]="true">
             <mat-option [value]="null">All Offices</mat-option>
             @for (office of offices; track office.officeId) {
               <mat-option [value]="office">{{ office.name }}</mat-option>
@@ -23,7 +23,13 @@
       </div>
     }
     <form [formGroup]="form" class="letter-information-form">
-      <div class="property-information-top-spacer"></div>
+      <div class="flex justify-end items-center gap-3 property-information-form-actions">
+        <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyLetter()"
+          class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
       <mat-accordion multi="true">
         <mat-expansion-panel [expanded]="true">
           <mat-expansion-panel-header>
@@ -130,8 +136,6 @@
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>After Hours Phone</mat-label>
               <input matInput formControlName="emergencyContactNumber" maxlength="20"
-                (blur)="formatPhone()"
-                (input)="onPhoneInput($event)"
                 placeholder="(555) 123-4567 or +1 234 567 8900"
                 readonly class="readonly-field">
             </mat-form-field>

@@ -10,28 +10,28 @@
         </span>
         @if (isSuperAdmin) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Organization'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="selectedOrganizationId"
-              [options]="organizationTitlebarOptions"
+              [options]="organizationTitleBarOptions"
               [nullOptionLabel]="'Select Organization'"
               [noResultsText]="'No organizations match your search'"
               (valueChange)="onSettingsOrganizationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         }
-        @if (shouldShowOfficeTitlebarDropdown) {
+        @if (shouldShowOfficeTitleBarDropdown) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="selectedCostCodesOfficeId"
-              [options]="officeTitlebarOptions"
+              [options]="officeTitleBarOptions"
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onSettingsOfficeDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         }
       </div>

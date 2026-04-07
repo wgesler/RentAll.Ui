@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
-import { TitlebarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { UserListComponent } from '../user-list/user-list.component';
 
 @Component({
@@ -10,7 +10,7 @@ import { UserListComponent } from '../user-list/user-list.component';
   selector: 'app-users-shell',
   templateUrl: './users-shell.component.html',
   styleUrl: './users-shell.component.scss',
-  imports: [CommonModule, MaterialModule, FormsModule, TitlebarSelectComponent, UserListComponent]
+  imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, UserListComponent]
 })
 export class UsersShellComponent implements AfterViewInit {
   @ViewChildren(UserListComponent) userSections?: QueryList<UserListComponent>;

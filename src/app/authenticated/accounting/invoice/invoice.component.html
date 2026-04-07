@@ -18,27 +18,27 @@
           </span>
           @if (form) {
             <div class="header-title form-titlebar-fields-wrap">
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
                 [value]="form.get('officeId')?.value ?? null"
-                [options]="officeTitlebarOptions"
+                [options]="officeTitleBarOptions"
                 [disabled]="!isAddMode"
                 [nullOptionLabel]="'Select Office'"
                 [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitlebarOfficeChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarOfficeChange($event)">
+              </app-title-bar-select>
 
-              <app-titlebar-select
+              <app-title-bar-select
                 [label]="'Reservation'"
                 [formFieldClass]="'titlebar-field-reservation'"
                 [value]="form.get('reservationId')?.value ?? null"
-                [options]="reservationTitlebarOptions"
+                [options]="reservationTitleBarOptions"
                 [disabled]="!isAddMode"
                 [nullOptionLabel]="'Select Reservation'"
                 [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitlebarReservationChange($event)">
-              </app-titlebar-select>
+                (valueChange)="onTitleBarReservationChange($event)">
+              </app-title-bar-select>
 
               <mat-form-field appearance="outline" class="field-width-18ch">
                 <mat-label>Invoice No</mat-label>

@@ -154,7 +154,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return this.offices.find(office => office.officeId === this.selectedGlobalOfficeId)?.name || 'All Offices';
   }
 
-  private loadGlobalOfficeOptions(): void {
+  loadGlobalOfficeOptions(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription?.unsubscribe();
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {

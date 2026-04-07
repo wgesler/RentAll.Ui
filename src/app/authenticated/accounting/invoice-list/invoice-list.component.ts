@@ -655,7 +655,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateIsAllExpanded();
   }
 
-  private getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
+  getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
     if (!ledgerLines || ledgerLines.length === 0) {
       return 0;
     }
@@ -674,7 +674,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }, 0);
   }
 
-  private getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
+  getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
     if (!costCodeId) {
       return null;
     }
@@ -1598,7 +1598,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.queryParamsSubscription?.unsubscribe();
   }
 
-  private hasRole(role: UserGroups): boolean {
+  hasRole(role: UserGroups): boolean {
     const groups = this.authService.getUser()?.userGroups;
     if (!groups) {
       return false;

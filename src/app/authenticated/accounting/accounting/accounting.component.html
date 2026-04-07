@@ -8,19 +8,19 @@
         </span>
         @if (isSuperAdmin) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Organization'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="selectedOrganizationId"
-              [options]="organizationTitlebarOptions"
+              [options]="organizationTitleBarOptions"
               [nullOptionLabel]="'Select Organization'"
               [noResultsText]="'No organizations match your search'"
               (valueChange)="onAccountingOrganizationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 0 && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="accountingInvoiceList.selectedOffice?.officeId ?? null"
@@ -28,8 +28,8 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingInvoiceOfficeDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="accountingInvoiceList.selectedCompanyContact?.contactId ?? null"
@@ -37,8 +37,8 @@
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingInvoiceCompanyDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
               [value]="accountingInvoiceList.selectedReservation?.reservationId ?? null"
@@ -46,11 +46,11 @@
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingInvoiceReservationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="accountingCostCodes.selectedOffice?.officeId ?? null"
@@ -58,11 +58,11 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingCostCodesOfficeDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 2 && !isSuperAdmin && accountingGeneralLedger) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="accountingGeneralLedger.selectedOfficeId"
@@ -70,8 +70,8 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingGeneralLedgerOfficeDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="accountingGeneralLedger.selectedCompanyContact?.contactId ?? null"
@@ -79,8 +79,8 @@
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingGeneralLedgerCompanyDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
               [value]="accountingGeneralLedger.selectedReservationId"
@@ -88,11 +88,11 @@
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingGeneralLedgerReservationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 3 && !isSuperAdmin && accountingEmailList) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="accountingEmailList.selectedOfficeId"
@@ -100,8 +100,8 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingEmailOfficeDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="accountingEmailList.selectedCompanyContact?.contactId ?? null"
@@ -109,8 +109,8 @@
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingEmailCompanyDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
               [value]="accountingEmailList.selectedReservationId"
@@ -118,11 +118,11 @@
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingEmailReservationDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 4 && !isSuperAdmin && accountingDocumentList) {
           <div class="header-title form-titlebar-fields-wrap">
-            <app-titlebar-select
+            <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
               [value]="accountingDocumentList.selectedOfficeId"
@@ -130,8 +130,8 @@
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingDocumentOfficeDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="accountingDocumentList.selectedCompany?.contactId ?? null"
@@ -139,8 +139,8 @@
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingDocumentCompanyDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
               [value]="accountingDocumentList.selectedReservationId"
@@ -148,8 +148,8 @@
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
-            </app-titlebar-select>
-            <app-titlebar-select
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Document Types'"
               [formFieldClass]="'titlebar-field-document-type'"
               [value]="accountingDocumentList.selectedDocumentTypeId"
@@ -157,7 +157,7 @@
               [nullOptionLabel]="'All Document Types'"
               [noResultsText]="'No document types match your search'"
               (valueChange)="onAccountingDocumentTypeDropdownChange($event)">
-            </app-titlebar-select>
+            </app-title-bar-select>
           </div>
         }
       </div>

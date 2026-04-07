@@ -92,7 +92,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-    this.loadTitlebarOfficeScope();
+    this.loadTitleBarOfficeScope();
 
     // If the user is an inspector, the admin can limit their view of properties to a sub-set
     this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
@@ -124,7 +124,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
       next: (property) => {
         this.property = property;
-        this.syncTitlebarSelections();
+        this.syncTitleBarSelections();
       },
       error: () => {
         this.property = null;
@@ -133,11 +133,11 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     });
   }
 
-  loadTitlebarOfficeScope(): void {
+  loadTitleBarOfficeScope(): void {
     if (!this.organizationId) {
       this.showOfficeDropdown = false;
       this.selectedOfficeId = null;
-      this.loadTitlebarProperties();
+      this.loadTitleBarProperties();
       return;
     }
 
@@ -148,7 +148,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.selectedOfficeId = uiState.selectedOfficeId;
-            this.loadTitlebarProperties();
+            this.loadTitleBarProperties();
           }
         });
       },
@@ -156,12 +156,12 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         this.offices = [];
         this.showOfficeDropdown = false;
         this.selectedOfficeId = null;
-        this.loadTitlebarProperties();
+        this.loadTitleBarProperties();
       }
     });
   }
 
-  loadTitlebarProperties(): void {
+  loadTitleBarProperties(): void {
     if (!this.userId) {
       this.allProperties = [];
       this.availableProperties = [];
@@ -175,7 +175,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
           ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
           : propertyRows;
-        this.syncTitlebarSelections();
+        this.syncTitleBarSelections();
       },
       error: () => {
         this.allProperties = [];
@@ -305,7 +305,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.router.navigateByUrl(url).then(() => window.location.reload());
   }
 
-  syncTitlebarSelections(): void {
+  syncTitleBarSelections(): void {
     if (!this.property && !this.selectedOfficeId) {
       this.updateAvailableProperties();
       return;

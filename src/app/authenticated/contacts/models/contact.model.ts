@@ -28,9 +28,9 @@ export interface ContactRequest {
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
+  markup?: number | null;
   agreementPath?: string | null;
   agreementFileDetails?: FileDetails | null;
-  markup?: number | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;
   workingCapitalBalance?: number | null;
@@ -71,9 +71,9 @@ export interface ContactResponse {
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
+  markup?: number | null;
   agreementPath?: string | null;
   agreementFileDetails?: FileDetails | null;
-  markup?: number | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;
   workingCapitalBalance?: number | null;
