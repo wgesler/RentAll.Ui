@@ -1,7 +1,7 @@
-<div class="general-ledger-container list-layout-tabbed">
+<div class="mat general-ledger-container list-layout-standard">
   @if (!hideFilters) {
     <!-- Shared dropdown row -->
-    <div class="list-top-controls list-top-controls--tabbed flex gap-4 items-center mt-3 px-4">
+    <div class="list-top-controls list-top-controls--standard flex gap-4 items-center mt-4">
       @if (showOfficeDropdown) {
         <mat-form-field appearance="outline" style="width: 300px;">
           <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
@@ -34,24 +34,13 @@
     </div>
   }
   
-  <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact mt-4">
+  <div class="tableDiv" [class.mt-4]="!hideFilters">
     @if (isLoading) {
       <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading ledger lines...</p>
       </div>
     } @else {
-      @if (!hideFilters) {
-        <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4">
-          <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-            Inactive
-          </mat-slide-toggle>
-          <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
-      }
       <app-data-table
         [data]="ledgerRows"
         [columns]="generalLedgerColumns"
@@ -62,6 +51,19 @@
         [totalsRow]="totalsRow"
         [totalsLabel]="'Totals:'"
         [itemsPerPage]="100">
+        @if (!hideFilters) {
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                Inactive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        }
       </app-data-table>
     }
   </div>

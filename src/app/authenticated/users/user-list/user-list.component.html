@@ -1,15 +1,6 @@
 @if (!(isLoading$ | async)) {
   <div class="mat list-layout-standard">
-    <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-      <div class="table-filter-row-actions form-titlebar-actions-wrap">
-        <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-          InActive
-        </mat-slide-toggle>
-        <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addUser()">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
-      </div>
+    <div class="tableDiv">
       <app-data-table
         [data]="usersDisplay"
         [columns]="usersDisplayedColumns"
@@ -27,7 +18,19 @@
         (editEvent)="goToUser($event)"
         (checkboxChangeEvent)="onUserCheckboxChange($event)"
         (rowClickEvent)="goToUser($event)"
-        (deleteEvent)="deleteUser($event)"/>
+        (deleteEvent)="deleteUser($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+              InActive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addUser()">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          </div>
+        </div>
+      </app-data-table>
     </div>
   </div>
 }

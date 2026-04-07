@@ -1,14 +1,7 @@
 @if (!(isLoading$ | async)) {
   @if (embeddedInSettings) {
     <div class="mat list-layout-tabbed">
-      <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-        <div class="table-filter-row-actions list-top-actions list-top-actions--tabbed flex justify-end items-center gap-5 px-4 mt-3">
-          <mat-slide-toggle id="toggle-accounting-offices-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">InActive</mat-slide-toggle>
-          <button mat-raised-button type="button" color="primary" id="add-button" (click)="addAccountingOffice()" class="whitespace-nowrap items-center flex gap-1">
-            <mat-icon class="text-base">add</mat-icon>
-            <span>Add</span>
-          </button>
-        </div>
+      <div class="tableDiv">
         <app-data-table
           [data]="accountingOfficesDisplay"
           [columns]="accountingOfficesDisplayedColumns"
@@ -25,7 +18,17 @@
           (editEvent)="goToAccountingOffice($event)"
           (rowClickEvent)="goToAccountingOffice($event)"
           (copyEvent)="copyAccountingOffice($event)"
-          (deleteEvent)="deleteAccountingOffice($event)"/>
+          (deleteEvent)="deleteAccountingOffice($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle id="toggle-accounting-offices-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">InActive</mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-button" (click)="addAccountingOffice()" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        </app-data-table>
       </div>
     </div>
   } @else {

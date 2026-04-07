@@ -1,3 +1,12 @@
+/* Pass-through wrapper unless layout-debug orange is active (see dbgBandMainBelowFilter). */
+:host .datatable-main-block:not(.dbg-band-main) {
+    display: contents;
+}
+
+:host .datatable-main-block.dbg-band-main {
+    display: block;
+}
+
 .mobile-checkbox {
     display: none;
     position: fixed;
@@ -69,9 +78,55 @@ tr.mat-mdc-row.mat-no-data-row,
 }
 
 .datatable-search-wrap {
-    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    min-height: var(--datatable-search-wrap-min-height);
+    padding-top: var(--property-tab-actions-band-inner-padding-block);
+    padding-bottom: var(--property-tab-actions-band-inner-padding-block);
     height: auto;
     overflow: visible;
+    margin-bottom: var(--datatable-search-wrap-margin-bottom);
+    box-sizing: border-box;
+}
+
+/*
+ * List filter band height (--datatable-search-wrap-min-height): shorter than shell .property-tab-actions-band.
+ * Row stretch → filter and actions columns share cross-axis height when both exist.
+ */
+.datatable-search-wrap__row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 2rem;
+    width: 100%;
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    min-height: 0;
+}
+
+.datatable-search-wrap__row:not(:has(> .datatable-search-field)) {
+    justify-content: flex-end;
+}
+
+.datatable-search-wrap__actions {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+:host ::ng-deep .datatable-search-wrap__row > mat-form-field.datatable-search-field {
+    max-width: 100%;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .datatable-subheader-label {
@@ -556,9 +611,23 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
 
 @media screen and (max-width: 959px) {
     .datatable-search-wrap {
-        flex-direction: column;
-        align-items: flex-start !important;
-        margin-bottom: 1em;
+        margin-bottom: var(--datatable-search-wrap-margin-bottom);
+        min-height: 0;
+        justify-content: flex-start;
+    }
+
+    .datatable-search-wrap__row {
+        flex: none !important;
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+        align-content: stretch;
+        justify-content: flex-start;
+    }
+
+    .datatable-search-wrap__actions {
+        align-items: stretch;
+        width: 100%;
+        justify-content: center;
     }
 
     .mat-table,

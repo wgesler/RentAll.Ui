@@ -13,6 +13,11 @@
   gap: 1.5rem;
 }
 
+/* Match Property / Information tabs: stack gap comes only from .property-tab-actions-band margin-bottom, not flex gap. */
+:host-context(.property-tabs) .welcome-letter-form {
+  gap: 0;
+}
+
 .top-controls:not(.property-tab-actions-band) {
   display: flex;
   justify-content: flex-end;

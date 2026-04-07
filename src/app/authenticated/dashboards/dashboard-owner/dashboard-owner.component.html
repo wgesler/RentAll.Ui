@@ -1,6 +1,6 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 dbg-band-actions">
       <span class="flex flex-column items-center gap-3 py-4">
         <mat-icon class="flex-shrink-0">dashboard</mat-icon>
         <span class="flex-shrink-0 text-xl font-medium dashboard-title">Dashboard</span>
@@ -10,7 +10,7 @@
       </div>
     </div>
     <mat-card>
-      <div class="dashboard-content">
+      <div class="dashboard-content dbg-band-main">
         <app-reservation-board [ownerUserId]="user?.userId || null" [readOnly]="true"></app-reservation-board>
 
         <div class="dashboard-main-content">

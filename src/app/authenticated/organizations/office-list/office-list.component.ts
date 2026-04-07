@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeListDisplay, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
@@ -25,7 +26,7 @@ export interface OfficeCopyPayload {
     selector: 'app-office-list',
     templateUrl: './office-list.component.html',
     styleUrls: ['./office-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {

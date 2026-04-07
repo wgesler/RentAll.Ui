@@ -14,6 +14,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { EntityType } from '../models/contact-enum';
@@ -25,7 +26,7 @@ import { ContactService } from '../services/contact.service';
     selector: 'app-contact-list',
     templateUrl: './contact-list.component.html',
     styleUrls: ['./contact-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
@@ -64,7 +65,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
   private readonly ownerColumns: ColumnSet = {
@@ -73,7 +74,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
   get contactsDisplayedColumns(): ColumnSet {

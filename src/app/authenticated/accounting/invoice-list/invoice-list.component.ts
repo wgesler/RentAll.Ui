@@ -21,6 +21,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
@@ -36,7 +37,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     standalone: true,
     templateUrl: './invoice-list.component.html',
     styleUrls: ['./invoice-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
@@ -115,7 +116,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    applyAmount: { displayAs: 'Apply', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' }
   };
 
   get invoicesDisplayedColumns(): ColumnSet {

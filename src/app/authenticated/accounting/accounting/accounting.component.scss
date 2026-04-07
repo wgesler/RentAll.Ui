@@ -1,6 +1,8 @@
 .accounting-tabs {
+  width: 100%;
+  box-sizing: border-box;
+
   ::ng-deep {
-    // Make all tabs equal width
     .mat-mdc-tab-header {
       .mdc-tab {
         flex: 1;
@@ -8,16 +10,57 @@
       }
     }
 
-    // Prevent tab content from causing horizontal overflow
     .mat-mdc-tab-body-wrapper {
-      overflow-x: hidden;
+      width: 100%;
       max-width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+
+    .mat-mdc-tab-body {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .mat-mdc-tab-body-content {
+      width: 100% !important;
+      max-width: 100% !important;
       overflow-x: hidden;
-      max-width: 100%;
-      padding: var(--global-page-inner-padding);
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    app-invoice-list,
+    app-cost-codes-list,
+    app-general-ledger,
+    app-email-list,
+    app-document-list {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    /*
+     * Invoices use .list-layout-standard; Emails/Documents use .list-layout-tabbed — global rules differ
+     * (margin-top, action gaps, add-button size) so the purple filter band jumps between tabs. Force one set.
+     */
+    app-data-table .datatable-search-wrap {
+      margin-top: 1.125rem !important;
+    }
+
+    .list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap {
+      margin-top: 0 !important;
+    }
+
+    app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
+      gap: 0.5rem !important;
+    }
+
+    app-data-table .datatable-add-btn {
+      min-height: 34px !important;
+      border-radius: 4px !important;
     }
 
     // Remove slide animation for Print Invoice tab (index 3)
@@ -43,10 +86,11 @@
   }
 }
 
-// Ensure mat-card doesn't overflow
 mat-card {
+  width: 100% !important;
   overflow-x: hidden;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 

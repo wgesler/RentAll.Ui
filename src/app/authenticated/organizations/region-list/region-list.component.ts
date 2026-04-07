@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { RegionListDisplay, RegionResponse } from '../models/region.model';
 import { OfficeResponse } from '../models/office.model';
@@ -23,7 +24,7 @@ import { RegionService } from '../services/region.service';
     selector: 'app-region-list',
     templateUrl: './region-list.component.html',
     styleUrls: ['./region-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class RegionListComponent implements OnInit, OnDestroy {

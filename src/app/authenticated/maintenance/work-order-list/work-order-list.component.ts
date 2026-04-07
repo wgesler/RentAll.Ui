@@ -8,6 +8,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
 import { WorkOrderService } from '../services/work-order.service';
@@ -15,7 +16,7 @@ import { WorkOrderService } from '../services/work-order.service';
 @Component({
   standalone: true,
   selector: 'app-work-order-list',
-  imports: [CommonModule, MaterialModule, DataTableComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './work-order-list.component.html',
   styleUrl: './work-order-list.component.scss'
 })

@@ -19,6 +19,7 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -30,7 +31,7 @@ import { ReservationService } from '../services/reservation.service';
     selector: 'app-reservation-list',
     templateUrl: './reservation-list.component.html',
     styleUrls: ['./reservation-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {

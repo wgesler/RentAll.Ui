@@ -3,22 +3,11 @@
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading work orders...</p>
   </div>
+} @else if (isServiceError) {
+  <p class="empty-msg">Unable to load work orders.</p>
 } @else {
-  @if (isServiceError) {
-    <p class="empty-msg">Unable to load work orders.</p>
-  }
-
-  <div class="mat list-layout-standard">
-    <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-      <div class="table-filter-row-actions form-titlebar-actions-wrap">
-        <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
-          InActive
-        </mat-slide-toggle>
-        <button mat-raised-button type="button" color="primary" id="add-work-order-button" class="text-nowrap flex-shrink-0" (click)="addWorkOrder()">
-          <mat-icon>add</mat-icon>
-          Add
-        </button>
-      </div>
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
       <app-data-table
         [data]="workOrdersDisplay"
         [columns]="workOrderDisplayedColumns"
@@ -36,7 +25,19 @@
         (viewEvent)="viewWorkOrder($event)"
         (editEvent)="goToWorkOrder($event)"
         (rowClickEvent)="goToWorkOrder($event)"
-        (deleteEvent)="deleteWorkOrder($event)" />
+        (deleteEvent)="deleteWorkOrder($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
+              InActive
+            </mat-slide-toggle>
+            <button mat-raised-button type="button" color="primary" id="add-work-order-button" class="text-nowrap flex-shrink-0" (click)="addWorkOrder()">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
+          </div>
+        </div>
+      </app-data-table>
     </div>
   </div>
 }

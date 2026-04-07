@@ -8,12 +8,12 @@
   gap: 1.5rem;
 }
 
-.top-controls {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+.lease-form--shell-bands {
+  gap: 0;
+}
+
+:host-context(.reservation-tabs) .lease-container.lease-shell-mode {
+  padding-top: 0;
 }
 
 .property-code-field {

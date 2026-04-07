@@ -1,6 +1,6 @@
 <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
       <div class="flex items-center flex-wrap py-4">
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
@@ -52,17 +52,8 @@
           </div>
         </div>
       } @else {
-        <div class="mat list-layout-standard">
-          <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-            <div class="table-filter-row-actions form-titlebar-actions-wrap">
-              <mat-slide-toggle color="primary" [checked]="showInactive" (change)="toggleInactive()">
-                InActive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addReservation()">
-                <mat-icon>add</mat-icon>
-                Add
-              </button>
-            </div>
+        <div class="mat list-layout-standard dbg-band-main">
+          <div class="tableDiv">
             <app-data-table
               [class.compact-code-only-table]="isCompactView"
               [data]="reservationsDisplay"
@@ -86,7 +77,19 @@
               (copyEvent)="copyReservation($event)"
               (deleteEvent)="deleteReservation($event)"
               (contactClickEvent)="goToContact($event)"
-              (checkboxChangeEvent)="onReservationCheckboxChange($event)"/>
+              (checkboxChangeEvent)="onReservationCheckboxChange($event)">
+              <div dataTableFilterActions>
+                <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                  <mat-slide-toggle color="primary" [checked]="showInactive" (change)="toggleInactive()">
+                    InActive
+                  </mat-slide-toggle>
+                  <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addReservation()">
+                    <mat-icon>add</mat-icon>
+                    Add
+                  </button>
+                </div>
+              </div>
+            </app-data-table>
           </div>
         </div>
       }

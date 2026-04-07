@@ -13,6 +13,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -50,7 +51,7 @@ interface LedgerLineWithDateFields {
 @Component({
     selector: 'app-general-ledger',
     standalone: true,
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
     templateUrl: './general-ledger.component.html',
     styleUrls: ['./general-ledger.component.scss']
 })

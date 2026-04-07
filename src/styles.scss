@@ -12,10 +12,18 @@
 
 :root {
   --global-page-inner-padding: 15px;
-  --property-tab-actions-band-height: calc(6.5rem * 5 / 6);
+  /* Slate list/shell title row (.property-titlebar + dbg-band-actions). */
+  --property-titlebar-height: 70px;
+  /* Property / reservation shell purple band + list filter row: same compact height. */
+  --property-tab-actions-band-height: 4rem;
   /* Tab actions band (shell): gap from control bottoms to inner top/bottom of the band (same on every tab). */
   --property-tab-actions-band-inner-padding-block: 2px;
   /* Stack gap between debug bands: see --dbg-layout-stack-gap in styles/_debug-layout-bands.scss */
+  /* List filter row + shell Save band: space before orange / table (matches --datatable-search-wrap-margin-bottom). */
+  --datatable-search-wrap-min-height: 4rem;
+  --datatable-search-wrap-margin-bottom: 1.25rem;
+  /* app-data-table filter row: add to right (beyond component px-4 / 1rem) for space past green actions. */
+  --datatable-search-wrap-extra-padding-right: var(--global-page-inner-padding);
   --property-tab-list-band-row-padding-top: 0.75rem;
   --global-form-field-gap-x: 6px;
   --global-form-field-gap-y: 4px;
@@ -75,12 +83,13 @@ html {
   align-items: center;
 }
 
-/* Band between tabs and main content (purple spacing always; chrome when body.dbg-page-debug-on). */
+/* Band between tabs and main content (purple spacing always; colored chrome when body.dbg-page-debug-on). */
 .property-tabs .property-tab-actions-band {
-  margin-bottom: var(--dbg-layout-stack-gap);
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
   box-sizing: border-box;
   min-height: var(--property-tab-actions-band-height);
-  padding-inline: var(--global-page-inner-padding);
+  padding-left: var(--global-page-inner-padding);
+  padding-right: calc(2 * var(--global-page-inner-padding));
   padding-top: var(--property-tab-actions-band-inner-padding-block);
   padding-bottom: var(--property-tab-actions-band-inner-padding-block);
 }
@@ -160,6 +169,59 @@ html {
 .property-tabs .document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
   padding-top: 0;
   margin-top: 0;
+}
+
+/* Reservation shell: same band stack as property-tabs (purple actions band, then orange main). */
+.reservation-tabs .property-tab-actions-band > .property-tab-actions-band__row {
+  align-items: flex-end;
+}
+
+.reservation-tabs .property-tab-actions-band {
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
+  box-sizing: border-box;
+  min-height: var(--property-tab-actions-band-height);
+  padding-left: var(--global-page-inner-padding);
+  padding-right: calc(2 * var(--global-page-inner-padding));
+  padding-top: var(--property-tab-actions-band-inner-padding-block);
+  padding-bottom: var(--property-tab-actions-band-inner-padding-block);
+}
+
+.reservation-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-actions-band:first-child {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.reservation-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-main-area {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.reservation-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-actions-band:first-child {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.reservation-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-main-area {
+  margin-inline: calc(-1 * var(--global-page-inner-padding));
+  width: calc(100% + 2 * var(--global-page-inner-padding));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* Compact actions row when not in reservation shell (same DOM as shell band; lighter spacing). */
+.reservation-tabs .property-tab-actions-band.reservation-inline-actions,
+.reservation-tabs .property-tab-actions-band.lease-inline-actions {
+  min-height: 0;
+  margin-bottom: 0.75rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-inline: 0;
 }
 
 /* Reservation dropdown: wider to accommodate "ReservationCode: displayName" labels */
@@ -1351,12 +1413,43 @@ mat-form-field input,
 }
 
 /* Shared app-data-table top-row styles for non-tabbed pages */
-.list-layout-standard app-data-table .datatable-search-wrap {
-  margin-top: 1rem !important;
+.list-layout-standard:not(.dbg-band-main) app-data-table .datatable-search-wrap {
+  margin-top: 1.5rem !important;
 }
 
-.list-layout-standard app-data-table .datatable-search-wrap .flex.justify-center {
+/* Orange debug (and real layout) wraps filter+table; top margin would sit inside that box and read as orange strip. */
+.list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap {
+  margin-top: 0 !important;
+}
+
+/*
+ * Shell tab bodies (orange in layout debug): filters live in the shell title bar, so the list often starts with
+ * .tableDiv. Drop filter top margin so there is no tinted strip above the purple band (invoices, embedded GL, etc.).
+ * Lists that render .list-top-controls above .tableDiv keep the default margin from :not(.dbg-band-main) above.
+ */
+.property-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.reservation-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.accounting-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.contacts-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.users-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.property-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.reservation-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.accounting-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.contacts-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.users-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap {
+  margin-top: 0 !important;
+}
+
+/* Data-table filter row (all lists: Properties, Reservations, tabbed Invoices, etc.): right inset past green actions. Baseline left from component px-4 (1rem). */
+app-data-table .datatable-search-wrap {
+  padding-right: calc(1rem + var(--datatable-search-wrap-extra-padding-right));
+}
+
+.list-layout-standard app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
   gap: 0.75rem !important;
+}
+
+.list-layout-standard app-data-table .datatable-search-wrap__actions {
   margin-bottom: 0 !important;
 }
 
@@ -1365,13 +1458,33 @@ mat-form-field input,
   border-radius: 6px;
 }
 
-/* Shared app-data-table top-row styles for tabbed pages */
-.list-layout-tabbed app-data-table .datatable-search-wrap {
-  margin-top: 0.75rem !important;
+/*
+ * Shell purple bands (Edit Property / Edit Reservation): green cluster matches list .list-layout-standard
+ * app-data-table filter actions (e.g. Invoices tab — gap, vertical center, button height).
+ */
+.property-tabs .property-tab-actions-band .table-filter-actions-group,
+.reservation-tabs .property-tab-actions-band .table-filter-actions-group {
+  gap: 0.75rem !important;
+  align-self: center;
+  min-height: 0;
 }
 
-.list-layout-tabbed app-data-table .datatable-search-wrap .flex.justify-center {
+.property-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button,
+.reservation-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button {
+  min-height: 36px;
+  border-radius: 6px;
+}
+
+/* Shared app-data-table top-row styles for tabbed pages */
+.list-layout-tabbed app-data-table .datatable-search-wrap {
+  margin-top: 1.125rem !important;
+}
+
+.list-layout-tabbed app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
   gap: 0.5rem !important;
+}
+
+.list-layout-tabbed app-data-table .datatable-search-wrap__actions {
   margin-bottom: 0 !important;
 }
 
@@ -1380,27 +1493,93 @@ mat-form-field input,
   border-radius: 4px;
 }
 
+/* Desktop: stretch filter + actions to same row height (mobile column layout unchanged). */
+@media (min-width: 960px) {
+  app-data-table .datatable-search-wrap__row {
+    align-items: stretch !important;
+  }
+}
+
 /* Shared pattern: align external action buttons with data-table filter row */
 .table-filter-row-actions-wrap {
-  --filter-row-actions-top: 2.6rem;
+  --filter-row-actions-search-margin: 1.5rem;
   --filter-row-actions-reserve: 24rem;
   position: relative;
+}
+
+.content-card-wrap .list-layout-tabbed .table-filter-row-actions-wrap {
+  --filter-row-actions-search-margin: 1.125rem;
 }
 
 .table-filter-row-actions-wrap--compact {
   --filter-row-actions-reserve: 18rem;
 }
 
+/* Group for filter-row / data-table actions: one bottom-aligned band cell; controls vertically centered together. */
+.table-filter-actions-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+/* Match filter field bottom: form-titlebar used 4px padding on all sides, which sat buttons above the aligned flex-end edge. */
+.table-filter-actions-group.form-titlebar-actions-wrap {
+  padding-bottom: 0;
+}
+
+.table-filter-row-actions.list-top-actions--standard .table-filter-actions-group {
+  gap: 0.75rem;
+}
+
+.table-filter-row-actions.list-top-actions--tabbed .table-filter-actions-group {
+  gap: 0.5rem;
+}
+
+/*
+ * Default overlay layout without :has() — if :has is invalid/missing, old rules were dropped entirely and
+ * .list-top-actions { align-items: center } won (looked like “no effect”).
+ */
 .table-filter-row-actions {
   position: absolute;
-  top: var(--filter-row-actions-top);
+  top: var(--filter-row-actions-search-margin);
   right: calc(var(--global-page-inner-padding) + 1rem);
   z-index: 2;
   margin-top: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  min-height: 0;
+  padding-top: var(--property-tab-actions-band-inner-padding-block);
+  padding-bottom: var(--property-tab-actions-band-inner-padding-block);
+  box-sizing: border-box;
+  gap: 0.5rem;
 }
 
-.table-filter-row-actions-wrap app-data-table .datatable-search-wrap {
-  padding-right: var(--filter-row-actions-reserve) !important;
+/* Invoice payment bar: row of fields + green group. */
+.table-filter-row-actions:has(.payment-form-box) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+/* Invoice payment row projected into app-data-table purple band */
+.datatable-search-wrap__actions:has(.payment-form-box) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Beats .list-top-actions { align-items: center } regardless of chunk order. */
+.table-filter-row-actions.list-top-actions {
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
 }
 
 /* Work Order Items table: force even column spacing (overrides reset and component encapsulation) */

@@ -14,6 +14,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
@@ -25,7 +26,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     selector: 'app-cost-codes-list',
     templateUrl: './cost-codes-list.component.html',
     styleUrls: ['./cost-codes-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, CostCodesComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective, CostCodesComponent]
 })
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {

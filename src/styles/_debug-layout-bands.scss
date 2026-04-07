@@ -1,16 +1,14 @@
 // =============================================================================
-// Debug layout bands (blue / purple / orange)
+// Debug layout bands (blue / purple / green / orange)
 // -----------------------------------------------------------------------------
-// Chrome (dashed borders + tints) shows only when body has .dbg-page-debug-on
-// (see DebugLayoutBandsService). Stack spacing (margin-bottom) stays so layout
-// does not jump when toggling.
+// Chrome (dashed borders + tints) shows when body has .dbg-page-debug-on
+// (toggle via app root “Layout debug” or DebugLayoutBandsService). Stack spacing
+// stays on when chrome is off so layout does not jump.
 //
 // 1) Tab strip (blue): class `dbg-band-tabs` on <mat-tab-group> or wrapper.
 // 2) Actions band (purple): `dbg-band-actions` on the toolbar container.
-// 3) Main block (orange): `dbg-band-main` on content below the actions band.
-//
-// Property/maintenance shell: .property-tab-actions-band (purple spacing + chrome when on),
-// .property-tab-main-area (orange chrome when on). Tab strip: dbg-band-tabs on mat-tab-group.
+// 3) Right-side action cluster (green): `.table-filter-actions-group` in the purple band.
+// 4) Main block (orange): `dbg-band-main` on the table body (or tab main areas below).
 // =============================================================================
 
 :root {
@@ -24,6 +22,9 @@
   --dbg-band-main-border: 2px dashed #ea580c;
   --dbg-band-main-radius: 4px;
   --dbg-band-main-bg: rgba(234, 88, 12, 0.06);
+  --dbg-band-actions-group-border: 2px dashed #15803d;
+  --dbg-band-actions-group-radius: 2px;
+  --dbg-band-actions-group-bg: rgba(22, 163, 74, 0.08);
 }
 
 @mixin dbg-band-tabs-header-spacing {
@@ -57,12 +58,24 @@
   box-sizing: border-box;
 }
 
+@mixin dbg-band-actions-group-visual {
+  border: var(--dbg-band-actions-group-border);
+  border-radius: var(--dbg-band-actions-group-radius);
+  background: var(--dbg-band-actions-group-bg);
+  box-sizing: border-box;
+}
+
 .dbg-band-tabs .mat-mdc-tab-header {
   @include dbg-band-tabs-header-spacing;
 }
 
 .dbg-band-actions {
   @include dbg-band-actions-spacing;
+}
+
+/* List shells: title row is directly above mat-card; drop actions-band stack margin so debug tints do not frame a dead gap. */
+.content-card > .dbg-band-actions {
+  margin-bottom: 0;
 }
 
 body.dbg-page-debug-on {
@@ -78,6 +91,10 @@ body.dbg-page-debug-on {
     @include dbg-band-main-visual;
   }
 
+  .table-filter-actions-group {
+    @include dbg-band-actions-group-visual;
+  }
+
   .property-tabs .property-tab-main-area {
     @include dbg-band-main-visual;
   }
@@ -87,6 +104,58 @@ body.dbg-page-debug-on {
   }
 
   .property-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .users-tabs .mat-mdc-tab-body-content {
+    @include dbg-band-main-visual;
+  }
+
+  .contacts-tabs .mat-mdc-tab-body-content {
+    @include dbg-band-main-visual;
+  }
+
+  .accounting-tabs .mat-mdc-tab-body-content {
+    @include dbg-band-main-visual;
+  }
+
+  .reservation-tabs .mat-mdc-tab-body-content {
+    @include dbg-band-main-visual;
+  }
+
+  .reservation-tabs .mat-mdc-tab-body-content:has(.property-tab-main-area) {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .reservation-tabs .property-tab-actions-band {
+    @include dbg-band-actions-visual;
+  }
+
+  .reservation-tabs .property-tab-actions-band.reservation-inline-actions,
+  .reservation-tabs .property-tab-actions-band.lease-inline-actions {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .reservation-tabs .property-tab-main-area {
+    @include dbg-band-main-visual;
+  }
+
+  .reservation-shell-mode .reservation-tabs .mat-mdc-tab-body-content {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .reservation-tabs .mat-mdc-tab-body-content .dbg-band-main,
+  .accounting-tabs .mat-mdc-tab-body-content .dbg-band-main,
+  .users-tabs .mat-mdc-tab-body-content .dbg-band-main,
+  .contacts-tabs .mat-mdc-tab-body-content .dbg-band-main {
     border: none;
     background: transparent;
     border-radius: 0;

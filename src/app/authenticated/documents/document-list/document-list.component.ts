@@ -19,6 +19,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { DocumentType, getDocumentTypes } from '../models/document.enum';
@@ -32,7 +33,7 @@ import { ContactService } from "../../contacts/services/contact.service";
     standalone: true,
     templateUrl: './document-list.component.html',
     styleUrls: ['./document-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
@@ -87,7 +88,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '30ch', alignment: 'center' },
+    'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
 
   tabColumns: ColumnSet = {
@@ -95,7 +96,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
-    'createdOn': { displayAs: 'Created', maxWidth: '30ch', alignment: 'center' },
+    'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());

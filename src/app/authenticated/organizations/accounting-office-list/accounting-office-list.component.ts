@@ -12,6 +12,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../models/accounting-office.model';
 import { OfficeResponse } from '../models/office.model';
@@ -23,7 +24,7 @@ import { OfficeService } from '../services/office.service';
     selector: 'app-accounting-office-list',
     templateUrl: './accounting-office-list.component.html',
     styleUrls: ['./accounting-office-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {

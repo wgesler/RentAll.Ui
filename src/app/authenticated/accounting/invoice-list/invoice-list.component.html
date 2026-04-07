@@ -43,9 +43,9 @@
 </ng-template>
 
 @if (!(isLoading$ | async)) {
-  <div class="mat list-layout-tabbed">
+  <div class="mat list-layout-standard">
       @if (source === null) {
-        <div class="list-top-controls list-top-controls--tabbed flex justify-between items-center gap-3 mt-3 px-4">
+        <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4">
           @if (!hideFilters) {
             <div class="header-title form-titlebar-fields-wrap">
               @if (showOfficeDropdown) {
@@ -137,9 +137,44 @@
         </div>
       }
       <!-- Filter and data table below -->
-      <div class="tableDiv table-filter-row-actions-wrap">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="invoicesDisplay"
+          [columns]="invoicesDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+                [hasActionsRowClick]="!showPaymentForm"
+          [hasActionsView]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete Invoice'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this invoice?'"
+          [hasActionsPayable]="true"
+          [hasActionsPrint]="true"
+          [hasDetailRow]="true"
+          [detailRowTemplate]="ledgerLinesTemplate"
+          [includeDetailRowHeader]="false"
+          [expandAllCallback]="toggleExpandAll.bind(this)"
+          [isAllExpanded]="isAllExpanded"
+          [isManualApplyMode]="isManualApplyMode"
+          [applyAmountChangeCallback]="onApplyAmountChange.bind(this)"
+          [applyAmountInputCallback]="onApplyAmountInput.bind(this)"
+          [applyAmountBlurCallback]="onApplyAmountBlur.bind(this)"
+          [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
+          [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
+          [itemsPerPage]="100"
+          [totalsRow]="totalsRow"
+          [totalsLabel]="'Totals:'"
+          (editEvent)="goToInvoice($event, true)"
+          (viewEvent)="goToInvoiceCreateView($event)"
+          (rowClickEvent)="goToInvoice($event, false)"
+          (deleteEvent)="deleteInvoice($event)"
+          (payableEvent)="onPayable($event)"
+          (printEvent)="printInvoice($event)">
         @if (showPaymentForm && source !== null) {
-          <div class="table-filter-row-actions form-titlebar-actions-wrap">
+          <div dataTableFilterActions>
             <div class="payment-form-box" style="font-size: 11px !important;">
               <div class="flex gap-2 items-center payment-inline-row">
                 <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
@@ -181,65 +216,35 @@
                 }
               </div>
             </div>
-            <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
-              Submit
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
-              Cancel
-            </button>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
+                Submit
+              </button>
+              <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
+                Cancel
+              </button>
+            </div>
           </div>
         }
         @if (!showPaymentForm && (source === 'accounting' || source === 'reservation')) {
-          <div class="table-filter-row-actions form-titlebar-actions-wrap">
-            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-              InActive
-            </mat-slide-toggle>
-            @if (canShowApplyPaymentButton) {
-              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                Apply Payment
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
+                InActive
+              </mat-slide-toggle>
+              @if (canShowApplyPaymentButton) {
+                <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                  Apply Payment
+                </button>
+              }
+              <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
               </button>
-            }
-            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">add</mat-icon>
-              <span>Add</span>
-            </button>
+            </div>
           </div>
         }
-        <app-data-table
-          [data]="invoicesDisplay"
-          [columns]="invoicesDisplayedColumns"
-          [hasColumnIndex]="false"
-          [hasFilter]="true"
-          [hasToggleTop]="false"
-          [hasButtonTop]="false"
-                [hasActionsRowClick]="!showPaymentForm"
-          [hasActionsView]="true"
-          [hasActionsEdit]="true"
-          [hasActionsDelete]="true"
-          [deleteConfirmTitle]="'Delete Invoice'"
-          [deleteConfirmMessage]="'Are you sure you want to delete this invoice?'"
-          [hasActionsPayable]="true"
-          [hasActionsPrint]="true"
-          [hasDetailRow]="true"
-          [detailRowTemplate]="ledgerLinesTemplate"
-          [includeDetailRowHeader]="false"
-          [expandAllCallback]="toggleExpandAll.bind(this)"
-          [isAllExpanded]="isAllExpanded"
-          [isManualApplyMode]="isManualApplyMode"
-          [applyAmountChangeCallback]="onApplyAmountChange.bind(this)"
-          [applyAmountInputCallback]="onApplyAmountInput.bind(this)"
-          [applyAmountBlurCallback]="onApplyAmountBlur.bind(this)"
-          [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
-          [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
-          [itemsPerPage]="100"
-          [totalsRow]="totalsRow"
-          [totalsLabel]="'Totals:'"
-          (editEvent)="goToInvoice($event, true)"
-          (viewEvent)="goToInvoiceCreateView($event)"
-          (rowClickEvent)="goToInvoice($event, false)"
-          (deleteEvent)="deleteInvoice($event)"
-          (payableEvent)="onPayable($event)"
-          (printEvent)="printInvoice($event)"/>
+        </app-data-table>
       </div>
     </div>
 } @else {

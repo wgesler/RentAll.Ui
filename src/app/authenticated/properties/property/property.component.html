@@ -11,27 +11,29 @@
       <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
             <div class="property-tab-actions-band">
               <div class="property-tab-actions-band__row">
-                <div class="header-title flex-shrink-0">
-                  <mat-form-field appearance="outline" class="titlebar-field-company">
-                    <mat-label>Property Lease Type</mat-label>
-                    <mat-select formControlName="propertyLeaseId">
-                      @for (opt of propertyLeaseTypeOptions; track opt.value) {
-                        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
+                <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                  <div class="header-title flex-shrink-0">
+                    <mat-form-field appearance="outline" class="titlebar-field-company">
+                      <mat-label>Property Lease Type</mat-label>
+                      <mat-select formControlName="propertyLeaseId">
+                        @for (opt of propertyLeaseTypeOptions; track opt.value) {
+                          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+                  <mat-checkbox
+                    color="primary"
+                    class="flex-shrink-0"
+                    formControlName="isActive">
+                    IsActive
+                  </mat-checkbox>
+                  <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
+                    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
                 </div>
-                <mat-checkbox
-                  color="primary"
-                  class="flex-shrink-0"
-                  formControlName="isActive">
-                  IsActive
-                </mat-checkbox>
-                <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
-                  <mat-icon>save</mat-icon>
-                  Save
-                </button>
               </div>
             </div>
             <div class="property-tab-main-area">

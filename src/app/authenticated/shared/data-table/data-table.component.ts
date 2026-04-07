@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
@@ -17,6 +17,7 @@ import { PurposefulAny } from '../../../shared/models/amorphous';
 import { ButtonData } from './models/button-data';
 import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
+import { DataTableFilterActionsDirective } from './data-table-filter-actions.directive';
 
 @Component({
     standalone: true,
@@ -29,7 +30,9 @@ import { TableItem } from './models/table-item';
 export class DataTableComponent implements OnChanges, OnInit {
   // Expose Math for use in template
   Math = Math;
-  
+
+  readonly filterActionsSlot = contentChild(DataTableFilterActionsDirective);
+
   @ViewChild(MatPaginator) paginator: MatPaginator;
   @ViewChild(MatSort) sort: MatSort;
   @Input() data: PurposefulAny[];
@@ -114,6 +117,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
+  /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
+  @Input() dbgBandMainBelowFilter = false;
 
   @Output() buttonEvent = new EventEmitter<PurposefulAny>();
   @Output() calendarEvent = new EventEmitter<PurposefulAny>();

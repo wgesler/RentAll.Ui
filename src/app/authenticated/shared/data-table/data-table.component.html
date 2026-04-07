@@ -1,8 +1,10 @@
-@if (hasFilter || hasToggleTop || hasToggleTop2 || hasButtonTop) {
-  <div class="flex justify-between gap-8 items-center mt-4 mobile-flex-column-reverse datatable-search-wrap px-4">
+@if (hasFilter || hasToggleTop || hasToggleTop2 || hasButtonTop || filterActionsSlot()) {
+  <div class="datatable-search-wrap dbg-band-actions px-4">
+    <div class="datatable-search-wrap__row mobile-flex-column-reverse">
     @if (hasFilter) {
       <mat-form-field id="datatable-search-field-{{templateTableId}}"
         floatLabel="always"
+        subscriptSizing="dynamic"
         class="mobile-view-full datatable-search-field">
         <mat-label>Filter</mat-label>
         <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
@@ -18,14 +20,18 @@
         }
       </mat-form-field>
     }
-    <div class="flex justify-center lg:justify-end items-center form-titlebar-actions-wrap uniform-gap flex-wrap mobile-view-full mb-4">
+    @if (hasToggleTop2 || hasToggleTop || hasButtonTop || filterActionsSlot()) {
+    <div class="datatable-search-wrap__actions mobile-view-full">
+      <ng-content select="[dataTableFilterActions]"></ng-content>
+      @if (hasToggleTop2 || hasToggleTop || hasButtonTop) {
+      <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap flex-wrap">
       @if (hasToggleTop2) {
-        <mat-slide-toggle [checked]="isToggle2Checked" color="primary" (change)="emitToggle2Event()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
+        <mat-slide-toggle [checked]="isToggle2Checked" color="primary" (change)="emitToggle2Event()" class="whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
           {{buttonToggleTextTop2}}
         </mat-slide-toggle>
       }
       @if (hasToggleTop) {
-        <mat-slide-toggle id="toggle-users" [checked]="isToggle" color="primary" (change)="emitToggleEvent()" class="mr-6 whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
+        <mat-slide-toggle id="toggle-users" [checked]="isToggle" color="primary" (change)="emitToggleEvent()" class="whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
           {{buttonToggleTextTop}}
         </mat-slide-toggle>
       }
@@ -38,9 +44,14 @@
           </button>
         }
       </div>
+      }
+    </div>
+    }
+    </div>
     </div>
   }
 
+  <div class="datatable-main-block" [class.dbg-band-main]="dbgBandMainBelowFilter">
   @if (subheaderLabel) {
     <div class="datatable-subheader-label">{{ subheaderLabel }}</div>
   }
@@ -409,3 +420,4 @@
           aria-label="Select page"
           (page)="hasButtonSelectAll ? onPageChange() : null">
         </mat-paginator>
+  </div>

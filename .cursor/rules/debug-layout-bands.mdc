@@ -1,5 +1,5 @@
 ---
-description: Global toggle for blue/purple/orange layout debug bands (body class + DebugLayoutBandsService) and dbg-band-* template hooks
+description: Global toggle for blue/purple/green/orange layout debug bands (body class + DebugLayoutBandsService), dbg-band-* hooks, and .table-filter-actions-group green chrome
 globs: src/**/*.html,src/styles/**/*.scss,src/app/services/debug-layout-bands.service.ts,src/app/app.component.ts
 alwaysApply: true
 ---
@@ -19,7 +19,7 @@ Do **not** remove `dbg-band-*` classes from templates to hide chrome; toggle the
 
 ## New pages
 
-1. Add hooks: **`dbg-band-tabs`** (on `mat-tab-group` or wrapper), **`dbg-band-actions`**, **`dbg-band-main`** as needed.
+1. Add hooks: **`dbg-band-tabs`** (on `mat-tab-group` or wrapper), **`dbg-band-actions`**, **`dbg-band-main`** as needed. List/table right-side toggle+buttons use **`.table-filter-actions-group`** (green when debug is on).
 2. Property/maintenance-style shells already use **`.property-tabs`** + **`.property-tab-actions-band`** / **`.property-tab-main-area`**; tab strip still needs **`dbg-band-tabs`** on the tab group.
 3. Tune colors/gap in `src/styles/_debug-layout-bands.scss` (`:root` `--dbg-*`).
 

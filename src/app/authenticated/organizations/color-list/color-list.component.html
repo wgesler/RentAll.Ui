@@ -1,7 +1,7 @@
 @if (!(isLoading$ | async)) {
   @if (embeddedInSettings) {
     <div class="mat list-layout-tabbed">
-      <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact mt-3 px-4">
+      <div class="tableDiv mt-3 px-4">
         <app-data-table
           [data]="colorsDisplay"
           [columns]="colorsDisplayedColumns"

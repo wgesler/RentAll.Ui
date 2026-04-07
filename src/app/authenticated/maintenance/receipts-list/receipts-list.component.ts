@@ -12,6 +12,7 @@ import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptDisplayList, ReceiptResponse } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -19,7 +20,7 @@ import { ReceiptService } from '../services/receipt.service';
 @Component({
   standalone: true,
   selector: 'app-receipts-list',
-  imports: [CommonModule, MaterialModule, DataTableComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './receipts-list.component.html',
   styleUrl: './receipts-list.component.scss'
 })

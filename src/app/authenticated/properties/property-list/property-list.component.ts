@@ -16,6 +16,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { getPropertyStatuses } from '../models/property-enums';
@@ -39,7 +40,7 @@ type PropertyListDisplayRow = PropertyListDisplay & {
     selector: 'app-property-list',
     templateUrl: './property-list.component.html',
     styleUrls: ['./property-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {

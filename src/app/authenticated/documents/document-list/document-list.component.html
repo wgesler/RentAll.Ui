@@ -1,117 +1,145 @@
 @if (!(isLoading$ | async)) {
   @if (hideHeader) {
-    <!-- Full-page layout when inside a tab -->
-    <div class="document-list-tab-container list-layout-tabbed">
-      <div class="property-tab-main-area">
-      <div class="property-tab-actions-band">
-      @if (!hideFilters) {
-      <!-- Office and conditional field dropdown row -->
-      <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
-        @if (showOfficeDropdown) {
-          <app-title-bar-select
-            [label]="selectedOfficeId ? 'Office' : 'All Offices'"
-            [formFieldClass]="'titlebar-field-office'"
-            [value]="selectedOfficeId"
-            [options]="officeOptions"
-            [disabled]="isOfficeDisabled"
-            [nullOptionLabel]="'All Offices'"
-            [noResultsText]="'No offices match your search'"
-            (valueChange)="onOfficeDropdownChange($event)">
-          </app-title-bar-select>
-        }
-        @if (source === 'reservation' || source === 'invoice') {
-          @if (source === 'reservation') {
+    @if (hideFilters) {
+      <!-- Same shell as receipts / work orders: title-bar filters only; table block matches maintenance lists. -->
+      <div class="mat list-layout-standard dbg-band-main">
+        <div class="tableDiv">
+          <app-data-table
+            [data]="documentsDisplay"
+            [columns]="documentsDisplayedColumns"
+            [hasColumnIndex]="false"
+            [hasFilter]="true"
+            [hasToggleTop]="false"
+            [hasButtonTop]="false"
+            [hasActionsRowClick]="true"
+            [hasActionsView]="true"
+            [hasActionsEdit]="false"
+            [hasActionsDownload]="true"
+            [hasActionsDelete]="true"
+            [deleteConfirmTitle]="'Delete Document'"
+            [deleteConfirmMessage]="'Are you sure you want to delete this document?'"
+            [itemsPerPage]="100"
+            (viewEvent)="viewDocument($event)"
+            (downloadEvent)="downloadDocument($event)"
+            (rowClickEvent)="viewDocument($event)"
+            (deleteEvent)="deleteDocument($event)">
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addDocument()">
+                  <mat-icon>add</mat-icon>
+                  Add
+                </button>
+              </div>
+            </div>
+          </app-data-table>
+        </div>
+      </div>
+    } @else {
+      <div class="document-list-tab-container list-layout-tabbed">
+        <div class="property-tab-main-area">
+        <div class="property-tab-actions-band">
+        @if (!hideFilters) {
+        <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
+          @if (showOfficeDropdown) {
+            <app-title-bar-select
+              [label]="selectedOfficeId ? 'Office' : 'All Offices'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeOptions"
+              [disabled]="isOfficeDisabled"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-title-bar-select>
+          }
+          @if (source === 'reservation' || source === 'invoice') {
+            @if (source === 'reservation') {
+              <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
+                <mat-label>Property Code</mat-label>
+                <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+              </mat-form-field>
+            }
+            @if (source === 'invoice') {
+              <mat-form-field appearance="outline" class="field-width-300">
+                <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
+                <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
+                  <mat-option [value]="null">All Companies</mat-option>
+                  @for (company of availableCompanies; track company.value.contactId) {
+                    <mat-option [value]="company.value">{{ company.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+            <app-title-bar-select
+              [label]="'Reservation'"
+              [formFieldClass]="'reservation-dropdown'"
+              [value]="selectedReservationId"
+              [options]="reservationOptions"
+              [disabled]="isReservationDisabled"
+              [nullOptionLabel]="'Select Reservation'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onReservationDropdownChange($event)">
+            </app-title-bar-select>
+          } @else if (source === 'property') {
             <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
               <mat-label>Property Code</mat-label>
               <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
             </mat-form-field>
+            <app-title-bar-select
+              [label]="'Reservation'"
+              [formFieldClass]="'reservation-dropdown'"
+              [value]="selectedReservationId"
+              [options]="reservationOptions"
+              [nullOptionLabel]="'Select Reservation'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onReservationDropdownChange($event)">
+            </app-title-bar-select>
+          } @else if (source === 'documents') {
+            <app-title-bar-select
+              [label]="'Reservations'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="selectedReservationId"
+              [options]="reservationOptions"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onReservationDropdownChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Document Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="selectedDocumentTypeId"
+              [options]="documentTypeOptions"
+              [nullOptionLabel]="'All Document Types'"
+              [noResultsText]="'No document types match your search'"
+              (valueChange)="onDocumentTypeDropdownChange($event)">
+            </app-title-bar-select>
+          } @else if (source === 'maintenance') {
+            <app-title-bar-select
+              [label]="'Document Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="selectedDocumentTypeId"
+              [options]="documentTypeOptions"
+              [nullOptionLabel]="'All Document Types'"
+              [noResultsText]="'No document types match your search'"
+              (valueChange)="onDocumentTypeDropdownChange($event)">
+            </app-title-bar-select>
           }
-          @if (source === 'invoice') {
-            <mat-form-field appearance="outline" class="field-width-300">
-              <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
-              <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
-                <mat-option [value]="null">All Companies</mat-option>
-                @for (company of availableCompanies; track company.value.contactId) {
-                  <mat-option [value]="company.value">{{ company.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          }
-          <!-- Reservation field for Reservations or Accounting source -->
-          <app-title-bar-select
-            [label]="'Reservation'"
-            [formFieldClass]="'reservation-dropdown'"
-            [value]="selectedReservationId"
-            [options]="reservationOptions"
-            [disabled]="isReservationDisabled"
-            [nullOptionLabel]="'Select Reservation'"
-            [noResultsText]="'No reservations match your search'"
-            (valueChange)="onReservationDropdownChange($event)">
-          </app-title-bar-select>
-        } @else if (source === 'property') {
-          <!-- Property Code and Reservation fields for Properties source -->
-          <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
-            <mat-label>Property Code</mat-label>
-            <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
-          </mat-form-field>
-          <app-title-bar-select
-            [label]="'Reservation'"
-            [formFieldClass]="'reservation-dropdown'"
-            [value]="selectedReservationId"
-            [options]="reservationOptions"
-            [nullOptionLabel]="'Select Reservation'"
-            [noResultsText]="'No reservations match your search'"
-            (valueChange)="onReservationDropdownChange($event)">
-          </app-title-bar-select>
-        } @else if (source === 'documents') {
-          <!-- Reservation and DocumentType fields for Documents source -->
-          <app-title-bar-select
-            [label]="'Reservations'"
-            [formFieldClass]="'titlebar-field-reservation'"
-            [value]="selectedReservationId"
-            [options]="reservationOptions"
-            [nullOptionLabel]="'All Reservations'"
-            [noResultsText]="'No reservations match your search'"
-            (valueChange)="onReservationDropdownChange($event)">
-          </app-title-bar-select>
-          <app-title-bar-select
-            [label]="'Document Types'"
-            [formFieldClass]="'titlebar-field-document-type'"
-            [value]="selectedDocumentTypeId"
-            [options]="documentTypeOptions"
-            [nullOptionLabel]="'All Document Types'"
-            [noResultsText]="'No document types match your search'"
-            (valueChange)="onDocumentTypeDropdownChange($event)">
-          </app-title-bar-select>
-        } @else if (source === 'maintenance') {
-          <!-- Document Type (Inspection / Work Order) for Maintenance Documents tab -->
-          <app-title-bar-select
-            [label]="'Document Types'"
-            [formFieldClass]="'titlebar-field-document-type'"
-            [value]="selectedDocumentTypeId"
-            [options]="documentTypeOptions"
-            [nullOptionLabel]="'All Document Types'"
-            [noResultsText]="'No document types match your search'"
-            (valueChange)="onDocumentTypeDropdownChange($event)">
-          </app-title-bar-select>
+        </div>
         }
-      </div>
-      }
-      @if (hideFilters && showReservationFilterOnly && source === 'property') {
-      <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
-        <app-title-bar-select
-          [label]="'Reservation'"
-          [formFieldClass]="'reservation-dropdown'"
-          [value]="selectedReservationId"
-          [options]="reservationOptions"
-          [nullOptionLabel]="'Select Reservation'"
-          [noResultsText]="'No reservations match your search'"
-          (valueChange)="onReservationDropdownChange($event)">
-        </app-title-bar-select>
-      </div>
-      }
-      </div>
-      <mat-card class="full-height-card">
+        @if (hideFilters && showReservationFilterOnly && source === 'property') {
+        <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
+          <app-title-bar-select
+            [label]="'Reservation'"
+            [formFieldClass]="'reservation-dropdown'"
+            [value]="selectedReservationId"
+            [options]="reservationOptions"
+            [nullOptionLabel]="'Select Reservation'"
+            [noResultsText]="'No reservations match your search'"
+            (valueChange)="onReservationDropdownChange($event)">
+          </app-title-bar-select>
+        </div>
+        }
+        </div>
         <div class="mat list-layout-tabbed">
           <div class="tableDiv">
             <app-data-table
@@ -120,6 +148,7 @@
               [hasColumnIndex]="false"
               [hasFilter]="true"
               [hasToggleTop]="false"
+              [hasButtonTop]="false"
               [hasActionsRowClick]="true"
               [hasActionsView]="true"
               [hasActionsEdit]="false"
@@ -131,17 +160,26 @@
               (viewEvent)="viewDocument($event)"
               (downloadEvent)="downloadDocument($event)"
               (rowClickEvent)="viewDocument($event)"
-              (deleteEvent)="deleteDocument($event)"/>
+              (deleteEvent)="deleteDocument($event)">
+              <div dataTableFilterActions>
+                <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                  <button mat-raised-button type="button" color="primary" id="add-button-embedded" class="text-nowrap flex-shrink-0" (click)="addDocument()">
+                    <mat-icon>add</mat-icon>
+                    Add
+                  </button>
+                </div>
+              </div>
+            </app-data-table>
           </div>
         </div>
-      </mat-card>
+        </div>
       </div>
-    </div>
+    }
   } @else {
     <!-- Standard layout with header -->
     <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
       <section class="content-card">
-        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
           <div class="flex items-center flex-wrap py-4">
             <span class="flex flex-column items-center gap-3 flex-shrink-0">
               <mat-icon class="flex-shrink-0">description</mat-icon>
@@ -238,14 +276,8 @@
           </div>
         </div>
         <mat-card>
-          <div class="mat list-layout-standard">
-            <div class="tableDiv table-filter-row-actions-wrap table-filter-row-actions-wrap--compact">
-              <div class="table-filter-row-actions form-titlebar-actions-wrap">
-                <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addDocument()">
-                  <mat-icon>add</mat-icon>
-                  Add
-                </button>
-              </div>
+          <div class="mat list-layout-standard dbg-band-main">
+            <div class="tableDiv">
               <app-data-table
                 [data]="documentsDisplay"
                 [columns]="documentsDisplayedColumns"
@@ -264,7 +296,16 @@
                 (viewEvent)="viewDocument($event)"
                 (downloadEvent)="downloadDocument($event)"
                 (rowClickEvent)="viewDocument($event)"
-                (deleteEvent)="deleteDocument($event)"/>
+                (deleteEvent)="deleteDocument($event)">
+                <div dataTableFilterActions>
+                  <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                    <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addDocument()">
+                      <mat-icon>add</mat-icon>
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </app-data-table>
             </div>
           </div>
         </mat-card>
@@ -277,4 +318,3 @@
     <p>Loading documents...</p>
   </div>
 }
-

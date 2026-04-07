@@ -10,6 +10,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AgentListDisplay, AgentResponse } from '../models/agent.model';
 import { AgentService } from '../services/agent.service';
@@ -20,7 +21,7 @@ import { OfficeService } from '../services/office.service';
     selector: 'app-agent-list',
     templateUrl: './agent-list.component.html',
     styleUrls: ['./agent-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
 })
 
 export class AgentListComponent implements OnInit, OnDestroy {

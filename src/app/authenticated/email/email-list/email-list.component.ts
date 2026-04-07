@@ -42,7 +42,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;
   @Input() emailTypeId?: number;
   @Input() activeOnly: boolean = false;
-  @Input() showReservationFilterWhenHidden: boolean = false;
   @Input() reservations: ReservationListResponse[] = []; // Shared reservations list from parent (or loaded internally)
   @Output() organizationIdChange = new EventEmitter<string | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
@@ -75,7 +74,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
     attachmentPath: { displayAs: 'Attachment', maxWidth: '20ch', sort: false, alignment: 'center' },
-    createdOn: { displayAs: 'Sent', maxWidth: '24ch', alignment: 'center' }
+    createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
 
   constructor(

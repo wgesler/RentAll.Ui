@@ -1,1 +1,11 @@
 <router-outlet/>
+@if (showLayoutDebugToggle) {
+  <div class="debug-layout-bands-toggle" title="Show dashed layout bands (blue tabs / purple actions / orange main)">
+    <mat-slide-toggle
+      color="primary"
+      [checked]="debugLayoutBandsEnabled"
+      (change)="onDebugLayoutBandsToggle($event.checked)">
+      Layout debug
+    </mat-slide-toggle>
+  </div>
+}

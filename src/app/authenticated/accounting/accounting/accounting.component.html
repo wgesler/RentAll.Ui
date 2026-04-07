@@ -163,7 +163,7 @@
       </div>
     </div>
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs" (selectedTabChange)="onTabChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
           <app-invoice-list 
             [hideFilters]="true"

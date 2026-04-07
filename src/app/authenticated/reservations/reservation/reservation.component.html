@@ -56,24 +56,29 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs dbg-band-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
           <mat-tab label="Reservation">
             @if (form) {
             <div class="mat">
             </div>
             <form [formGroup]="form" (ngSubmit)="saveReservation()" [ngClass]="shellMode ? 'info-form mb-8 reservation-shell-form form-hide-error-text' : 'info-form mb-8 pt-5 form-hide-error-text'">
-            <div class="flex justify-end mb-3 gap-2">
-              @if (!isAddMode) {
-                <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">
-                  <mat-icon>delete</mat-icon>
-                  Delete
-                </button>
-              }
-              <button mat-raised-button type="submit" color="primary" id="save-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
+            <div class="property-tab-actions-band" [class.reservation-inline-actions]="!shellMode">
+              <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
+                <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                  @if (!isAddMode) {
+                    <button mat-raised-button type="button" color="accent" id="delete-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting" (click)="deleteReservation()">
+                      <mat-icon>delete</mat-icon>
+                      Delete
+                    </button>
+                  }
+                  <button mat-raised-button type="submit" color="primary" id="save-button" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                </div>
+              </div>
             </div>
+            <div class="property-tab-main-area">
             <div class="reservation-accordion-wrap">
             <mat-accordion multi>
               <!-- Reservation Section -->
@@ -776,6 +781,7 @@
                 <span>Saving...</span>
               </div>
             }
+            </div>
           </form>
             }
           </mat-tab>

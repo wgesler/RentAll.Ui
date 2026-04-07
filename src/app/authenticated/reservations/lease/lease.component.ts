@@ -56,6 +56,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
   @Input() lockOfficeSelection: boolean = false;
+  /** When true (reservation shell), use property-tab-actions-band + property-tab-main-area like property shell. */
+  @Input() shellMode: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
   isSubmitting: boolean = false;
