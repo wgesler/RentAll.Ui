@@ -494,7 +494,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
-      result = result.replace(/\{\{building\}\}/g, this.getBuildingDescription() || 'N/A');
+      result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
       result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
       result = result.replace(/\{\{unitFloorLevel\}\}/g, this.property.suite || 'N/A');
       result = result.replace(/\{\{buildingInfo\}\}/g, this.getBuildingInfo());
@@ -685,6 +685,16 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
     return building?.name || null;
   }
+
+  getBuildingCommunityDescription(): string | null {
+    if (!this.property?.buildingId && !this.buildings && !this.property.neighborhood) {
+      return null;
+    }
+
+    const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
+    return building?.name || this.property?.neighborhood || null;
+  }
+
   //#endregion
 
   //#region Html Processing

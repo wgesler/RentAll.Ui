@@ -49,11 +49,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    if (environment.production) {
-      this.debugLayoutBandsService.setEnabled(false);
-    } else {
-      this.debugLayoutBandsService.setEnabled(true);
-    }
+    this.debugLayoutBandsService.setEnabled(false);
 
     // Load anonymous data on app startup
     this.loadDailyQuote();
