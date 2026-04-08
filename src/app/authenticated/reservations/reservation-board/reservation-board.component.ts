@@ -519,7 +519,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
    * EOM = last day of month - 1 (or -2 if last day is Departure).
    * SOM = 1 if first day visible and not arrival; 3 if day 1 is Arrival; arrival+2 if arrival in middle; or board first day if partial month.
    * Available = EOM - SOM (number of character slots from SOM through EOM).
-   * Rules: name length <= available -> center with equal blanks; name length > available -> last character at EOM, print backwards.
+   * Rules: name length <= available -> center with equal blanks; name length > available -> plain character cap (drop from the end of the string).
    */
   getCharactersForMonth(fullName: string, date: Date, arrivalDate?: Date | null, departureDate?: Date | null): string {
     const requestedDate = new Date(date);
@@ -572,8 +572,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       const trailingBlanks = availableForBlanks - leadingBlanks;
       content = ' '.repeat(leadingBlanks) + normalizedName + ' '.repeat(trailingBlanks);
     } else {
-      // Rule 2: start at EOM and print name backwards (use last availableSpaces characters)
-      content = normalizedName.slice(-availableSpaces);
+      content = normalizedName.slice(0, availableSpaces);
     }
 
     // Build full month string: spaces before SOM, content in SOM..EOM, spaces after EOM
@@ -593,8 +592,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     if (normalizedName.length > availableSpaces) {
-      // Last character at end of span, work backward (use last availableSpaces chars)
-      return normalizedName.slice(-availableSpaces);
+      return normalizedName.slice(0, availableSpaces);
     }
 
     const availableForBlanks = availableSpaces - normalizedName.length;
