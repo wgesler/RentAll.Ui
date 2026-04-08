@@ -343,7 +343,8 @@ export function getBedSizeTypes(): { value: number, label: string }[] {
 //#region ManagementFeeType
 export enum ManagementFeeType {
   FlatRate = 0,
-  Percentage = 1
+  Percentage = 1,
+  Minimum = 2
 }
 
 export function getManagementFeeType(managementFeeTypeId: number | undefined | null): string {
@@ -352,7 +353,8 @@ export function getManagementFeeType(managementFeeTypeId: number | undefined | n
   }
   const typeMap: { [key: number]: string } = {
     [ManagementFeeType.FlatRate]: 'Flat Rate',
-    [ManagementFeeType.Percentage]: 'Percentage'
+    [ManagementFeeType.Percentage]: 'Percentage',
+    [ManagementFeeType.Minimum]: 'Minimum'
   };
   return typeMap[managementFeeTypeId] || '';
 }
@@ -367,8 +369,15 @@ export function getManagementFeeTypes(): { value: number; label: string }[] {
 }
 
 export function normalizeManagementFeeTypeId(value: number | null | undefined): ManagementFeeType {
-  if (value !== null && value !== undefined && Number(value) === ManagementFeeType.Percentage) {
+  if (value === null || value === undefined) {
+    return ManagementFeeType.FlatRate;
+  }
+  const n = Number(value);
+  if (n === ManagementFeeType.Percentage) {
     return ManagementFeeType.Percentage;
+  }
+  if (n === ManagementFeeType.Minimum) {
+    return ManagementFeeType.Minimum;
   }
   return ManagementFeeType.FlatRate;
 }

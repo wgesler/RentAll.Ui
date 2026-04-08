@@ -416,6 +416,9 @@ export class MappingService {
     if (n === ManagementFeeType.Percentage) {
       return ManagementFeeType.Percentage;
     }
+    if (n === ManagementFeeType.Minimum) {
+      return ManagementFeeType.Minimum;
+    }
     return ManagementFeeType.FlatRate;
   }
 

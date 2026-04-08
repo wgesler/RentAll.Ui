@@ -7,23 +7,28 @@
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">
     <div class="property-agreement-management-section mb-6 min-w-0">
       <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
-      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-center gap-x-3 gap-y-2 w-full min-w-0">
-        <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-row flex flex-row flex-wrap lg:flex-nowrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
-          <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
-          <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
-            <mat-label>Flat Rate Amount</mat-label>
-            <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
-          </mat-form-field>
-          <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
-          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-            <mat-label>Revenue Split (Owner) %</mat-label>
-            <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-            <mat-label>Revenue Split (Office) %</mat-label>
-            <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
-          </mat-form-field>
-        </mat-radio-group>
+      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-start gap-x-3 gap-y-2 w-full min-w-0">
+        <div class="property-agreement-management-mode-column flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
+          <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-radios flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 shrink-0">
+            <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
+            <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
+            <mat-radio-button [value]="ManagementFeeType.Minimum" class="property-agreement-management-radio shrink-0">Minimum</mat-radio-button>
+          </mat-radio-group>
+          <div class="property-agreement-management-inputs flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 min-w-0">
+            <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
+              <mat-label>{{ managementFlatRateFieldLabel }}</mat-label>
+              <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+              <mat-label>Revenue Split (Owner) %</mat-label>
+              <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+              <mat-label>Revenue Split (Office) %</mat-label>
+              <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
+            </mat-form-field>
+          </div>
+        </div>
         <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving || !agreementForm.valid">
           <mat-icon>save</mat-icon>
           Save

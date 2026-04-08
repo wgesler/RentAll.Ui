@@ -67,6 +67,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     return !!this.agreementForm?.dirty;
   }
 
+  get managementFlatRateFieldLabel(): string {
+    const mode = this.agreementForm?.get('managementFeeMode')?.value;
+    return mode === ManagementFeeType.Minimum ? 'Minimum Amount' : 'Flat Rate Amount';
+  }
+
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
@@ -308,10 +313,14 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       agreementPath: this.agreementHasNewDocUpload ? undefined : (this.agreementDocPath ?? null),
       agreementFileDetails: this.agreementHasNewDocUpload ? (this.agreementDocFileDetails ?? null) : undefined,
       markup: this.formatterService.parsePercentageValue(v?.markup, 0),
-      revenueSplitOwner: v?.managementFeeMode === ManagementFeeType.Percentage
-        ? this.parseAgreementPercentFromForm(v?.revenueSplitOwner) : null,
-      revenueSplitOffice: v?.managementFeeMode === ManagementFeeType.Percentage
-        ? this.parseAgreementPercentFromForm(v?.revenueSplitOffice) : null,
+      revenueSplitOwner:
+        v?.managementFeeMode === ManagementFeeType.Percentage || v?.managementFeeMode === ManagementFeeType.Minimum
+          ? this.parseAgreementPercentFromForm(v?.revenueSplitOwner)
+          : null,
+      revenueSplitOffice:
+        v?.managementFeeMode === ManagementFeeType.Percentage || v?.managementFeeMode === ManagementFeeType.Minimum
+          ? this.parseAgreementPercentFromForm(v?.revenueSplitOffice)
+          : null,
       workingCapitalBalance: this.parseAgreementDecimalFromForm(v?.workingCapitalBalance),
       linenAndTowelFee: this.parseAgreementDecimalFromForm(v?.linenAndTowelFee),
       bankName: (v?.bankName || '').trim() || null,
@@ -615,6 +624,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const office = this.agreementForm.get('revenueSplitOffice');
     if (mode === ManagementFeeType.Percentage) {
       flat?.disable({ emitEvent: false });
+      owner?.enable({ emitEvent: false });
+      office?.enable({ emitEvent: false });
+    } else if (mode === ManagementFeeType.Minimum) {
+      flat?.enable({ emitEvent: false });
       owner?.enable({ emitEvent: false });
       office?.enable({ emitEvent: false });
     } else {
