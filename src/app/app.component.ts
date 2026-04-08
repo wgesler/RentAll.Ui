@@ -1,7 +1,4 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterOutlet } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
@@ -22,9 +19,8 @@ import { UtilityService } from './services/utility.service';
 @Component({
     standalone: true,
     selector: 'app-root',
-    imports: [RouterOutlet, MatButtonModule, MatIconModule, MatSlideToggleModule],
-    templateUrl: './app.component.html',
-    styleUrl: './app.component.scss'
+    imports: [RouterOutlet],
+    templateUrl: './app.component.html'
 })
 
 export class AppComponent implements OnInit, OnDestroy {
@@ -35,8 +31,6 @@ export class AppComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  debugLayoutBandsEnabled = false;
-  showLayoutDebugToggle = !environment.production;
 
   constructor(
     private authService: AuthService,
@@ -57,10 +51,8 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (environment.production) {
       this.debugLayoutBandsService.setEnabled(false);
-      this.debugLayoutBandsEnabled = false;
     } else {
       this.debugLayoutBandsService.setEnabled(true);
-      this.debugLayoutBandsEnabled = true;
     }
 
     // Load anonymous data on app startup
@@ -88,11 +80,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.propertySelectionFilterService.clear();
       }
     });
-  }
-
-  onDebugLayoutBandsToggle(checked: boolean): void {
-    this.debugLayoutBandsService.setEnabled(checked);
-    this.debugLayoutBandsEnabled = checked;
   }
 
   loadStates(): void {

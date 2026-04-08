@@ -1227,6 +1227,10 @@ mat-form-field input,
   .quote-content span {
     white-space: normal !important;
   }
+
+  .header-layout-debug-toggle .mat-mdc-slide-toggle .mdc-label {
+    color: #fff;
+  }
 }
 
 // dialog styles

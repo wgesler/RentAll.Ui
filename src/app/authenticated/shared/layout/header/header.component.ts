@@ -3,9 +3,11 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, Subscription, filter, map, shareReplay, take } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
 import { MaterialModule } from '../../../../material.module';
 import { JwtUser } from '../../../../public/login/models/jwt';
 import { AuthService } from '../../../../services/auth.service';
+import { DebugLayoutBandsService } from '../../../../services/debug-layout-bands.service';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
 import { UserResponse } from '../../../users/models/user.model';
@@ -28,6 +30,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   user: JwtUser = this.authService.getUser();
   dailyQuote: Observable<DailyQuote> = this.commonService.getDailyQuote();
+  layoutDebugEnabled$: Observable<boolean> = this.debugLayoutBandsService.enabled$;
+  showLayoutDebugToggle = !environment.production;
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall).pipe( map(result => result.matches), shareReplay() );
   isMobile: boolean = false;
   isSidebarExpanded = true;
@@ -50,7 +54,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private officeService: OfficeService,
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
-    private sidebarStateService: SidebarStateService
+    private sidebarStateService: SidebarStateService,
+    private debugLayoutBandsService: DebugLayoutBandsService
   ) { }
   
   ngOnInit(): void {
@@ -135,6 +140,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.sidebarStateService.requestToggle();
+  }
+
+  onLayoutDebugToggle(checked: boolean): void {
+    this.debugLayoutBandsService.setEnabled(checked);
   }
 
   onGlobalOfficeSelect(officeId: number | null): void {

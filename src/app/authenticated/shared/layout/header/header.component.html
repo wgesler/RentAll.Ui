@@ -10,11 +10,11 @@
       }
     </mat-icon>
   </button>
-  <span class="flex items-center h-full" [class.mobile-left-offset]="(isHandset$ | async)">
+  <span class="flex items-center h-full flex-1 min-w-0 gap-3" [class.mobile-left-offset]="(isHandset$ | async)">
     @if ((isHandset$ | async) || isSidebarExpanded) {
       <img src="assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png" alt="RentAll Exchange" class="header-brand-logo mr-6" />
     }
-    <span class="quote flex items-center">
+    <span class="quote flex items-center min-w-0 flex-1">
       <mat-icon class="quote-icon mr-2">auto_awesome</mat-icon>
       <span class="quote-content">
         <span>“<i> {{(dailyQuote | async)?.quote}}</i>”</span>
@@ -23,8 +23,18 @@
         }
       </span>
     </span>
+    @if (showLayoutDebugToggle) {
+      <div class="header-layout-debug-toggle" title="Show dashed layout bands (blue tabs / purple actions / orange main)">
+        <mat-slide-toggle
+          color="accent"
+          [checked]="(layoutDebugEnabled$ | async) ?? false"
+          (change)="onLayoutDebugToggle($event.checked)">
+          Layout debug
+        </mat-slide-toggle>
+      </div>
+    }
   </span>
-  <span>
+  <span class="header-toolbar-right flex items-center shrink-0">
 
     @if (isLoggedIn | async) {
       <div class="mat-toolbar-rightside">
