@@ -349,6 +349,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
     propertyRequest.bathrooms = formValue.bathrooms ? Number(formValue.bathrooms) : 0;
     propertyRequest.squareFeet = formValue.squareFeet ? Number(formValue.squareFeet) : 0;
+    propertyRequest.unitLevel = formValue.unitLevel != null && formValue.unitLevel !== '' ? Number(formValue.unitLevel) : 1;
     propertyRequest.bedroomId1 = formValue.bedroomId1 ? Number(formValue.bedroomId1) : 0;
     propertyRequest.bedroomId2 = formValue.bedroomId2 ? Number(formValue.bedroomId2) : 0;
     propertyRequest.bedroomId3 = formValue.bedroomId3 ? Number(formValue.bedroomId3) : 0;
@@ -374,7 +375,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     
     // Handle optional nullable string fields - keep as undefined if empty
     const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet',
-                                   'phone', 'view', 'mailbox', 'amenities', 'alarmCode',
+                                   'view', 'mailbox', 'amenities', 'alarmCode',
                                    'unitMstrCode', 'unitTenantCode', 'bldgMstrCode', 'bldgTenantCode',
                                    'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'notes'];
     optionalStringFields.forEach(field => {
@@ -383,12 +384,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       }
     });
 
-    // Handle phone formatting
-    if (formValue.phone) {
-      propertyRequest.phone = this.formatterService.stripPhoneFormatting(formValue.phone);
-    } else {
-      propertyRequest.phone = '';
-    }
+    const existingPhone = this.property?.phone;
+    propertyRequest.phone = !this.isAddMode && existingPhone != null && String(existingPhone).trim() !== '' ? String(existingPhone).trim() : undefined;
     
     // Handle boolean defaults
     if (propertyRequest.yard === undefined) {
@@ -491,7 +488,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
-      phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
+      unitLevel: new FormControl<number>(1, [Validators.required, Validators.min(0)]),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),
@@ -658,7 +655,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
                            'gateCode', 'trashCode', 'storageCode',
-                           'mailbox', 'phone', 'description', 'notes', 'poundLimit'];
+                           'mailbox', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
@@ -670,11 +667,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.dogsOkay = this.property.dogsOkay ?? false;
       formData.catsOkay = this.property.catsOkay ?? false;
       
-      // Handle phone - ensure empty string if null/undefined, then format if present
-      formData.phone = this.property.phone || '';
-      if (formData.phone) {
-        formData.phone = this.formatterService.phoneNumber(formData.phone);
-      }
+      formData.unitLevel =
+        this.property.unitLevel != null && this.property.unitLevel !== undefined
+          ? Number(this.property.unitLevel)
+          : 1;
 
       // Assign location IDs directly from API (now GUIDs)
       formData.officeId = this.property.officeId || null;
@@ -700,6 +696,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       
       // Remove reservationId from formData (it's not a property field, only used in title bar)
       delete formData.reservationId;
+      delete formData.phone;
       
       // Reset reservationId to null BEFORE patching to ensure clean state
       this.form.get('reservationId')?.setValue(null, { emitEvent: false });
@@ -736,6 +733,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       propertyCode: this.propertyCodeDefaultPrompt,
       propertyLeaseId: PropertyLeaseType.PropertyManagement,
       vendorId: null,
+      unitLevel: 1,
       checkInTimeId: CheckinTimes.FourPM,
       checkOutTimeId: CheckoutTimes.ElevenAM,
       heating: true,
@@ -1230,14 +1228,6 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   //#endregion
 
   //#region Formatting Handlers
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
-  }
-
-  onPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('phone'));
-  }
-
   formatDecimal(fieldName: string): void {
     this.formatterService.formatDecimalControl(this.form.get(fieldName));
   }

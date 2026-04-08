@@ -105,7 +105,7 @@
                     <a [routerLink]="getPropertyRoute(property.propertyId)" [queryParams]="{ returnTo: 'reservation-board' }">{{ property.propertyCode }}</a>
                   }
                 </td>
-                <td class="property-cell address-cell">{{ property.address }}</td>
+                <td class="property-cell address-cell" [title]="property.address">{{ formatBoardAddressForCell(property.address) }}</td>
                 <td class="property-cell rent-cell">${{ property.monthlyRate }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">

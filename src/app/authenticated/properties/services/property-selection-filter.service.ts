@@ -10,7 +10,14 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
   if (s.propertyStatusId != null && Number(s.propertyStatusId) !== 0) {
     return true;
   }
-  if (nonZero(s.fromBeds) || nonZero(s.toBeds) || nonZero(s.accomodates) || nonZero(s.maxRent)) {
+  if (
+    nonZero(s.fromUnitLevel) ||
+    nonZero(s.toUnitLevel) ||
+    nonZero(s.fromBeds) ||
+    nonZero(s.toBeds) ||
+    nonZero(s.accomodates) ||
+    nonZero(s.maxRent)
+  ) {
     return true;
   }
   if (hasText(s.propertyCode) || hasText(s.city) || hasText(s.state)) {

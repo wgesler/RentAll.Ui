@@ -514,6 +514,7 @@ export class MappingService {
         owner1Id: o.owner1Id,
         vendorId: o.vendorId,
         contactName: o.contactName,
+        unitLevel: o.unitLevel,
         bedrooms: o.bedrooms,
         bathrooms: o.bathrooms,
         accomodates: o.accomodates,

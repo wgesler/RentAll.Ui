@@ -124,7 +124,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.loadEmailHtml();
     this.loadOrganization();
     this.loadContacts();
-    
+    this.loadBuildings();
+
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
@@ -134,7 +135,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       return;
     }
 
-    this.loadBuildings();
     if (this.reservations && this.reservations.length > 0) {
       this.filterReservations();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
@@ -145,8 +145,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.loadProperty();
     this.loadPropertyLetterInformation();
     this.getWelcomeLetter();
-    
-    
+
     this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
       this.reloadWelcomeLetter();
     });
@@ -286,9 +285,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         if (response.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === response.officeId) || null;
           this.filterReservations();
-          if (this.selectedOffice && this.selectedReservation) {
-            this.generatePreviewIframe();
-          }
+        }
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
         }
       },
       error: () => {}
@@ -304,7 +303,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (buildings: BuildingResponse[]) => {
-        this.buildings = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        this.buildings = (buildings || []).filter(b => b.isActive);
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
+        }
       },
       error: () => {
         this.buildings = [];
@@ -327,6 +329,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         } else if (this.property?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
           this.filterReservations();
+        }
+        if (this.selectedOffice && this.selectedReservation) {
+          this.generatePreviewIframe();
         }
       });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
@@ -495,9 +500,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
+      result = result.replace(/\{\{buildingName\}\}/g, this.getBuildingDescription() || 'N/A');
       result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
-      result = result.replace(/\{\{unitFloorLevel\}\}/g, this.property.suite || 'N/A');
-      result = result.replace(/\{\{buildingInfo\}\}/g, this.getBuildingInfo());
+      result = result.replace(/\{\{unitLevel\}\}/g, this.getUnitFloorLevel());
       result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
@@ -667,32 +672,44 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     return 'N/A';
   }
 
-  getBuildingInfo(): string {
-    if (!this.property) return 'Building: N/A\t\tSize: N/A\t\t\tUnit Floor level: N/A';
+  getUnitFloorLevel(): string {  
+    if (!this.property || this.property.unitLevel == null || !Number.isFinite(Number(this.property.unitLevel))) 
+      return 'N/A';
     
-    const building = this.getBuildingDescription() || 'N/A';
-    const size = this.property.bedrooms && this.property.bathrooms ? `${this.property.bedrooms}/${this.property.bathrooms}` : 'N/A';
-    const unitFloorLevel = this.property.suite || 'N/A'; // Using suite as unit/floor level, adjust if needed
-    
-    return `Building: ${building}\t\tSize: ${size}\t\t\tUnit Floor level: ${unitFloorLevel}`;
+    const ordinal = this.formatterService.ordinal(Number(this.property.unitLevel));
+    if (!ordinal) {
+      return 'N/A';
+    }
+    return `${ordinal} Floor`;
   }
 
   getBuildingDescription(): string | null {
-    if (!this.property?.buildingId || !this.buildings || this.buildings.length === 0) {
+    const buildingId = this.property?.buildingId;
+    const buildingsLen = this.buildings?.length ?? 0;
+
+    if (buildingId == null) {
       return null;
     }
 
-    const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
-    return building?.name || null;
+    if (!buildingsLen) {
+      return null;
+    }
+
+    const building = this.buildings.find(b => this.buildingIdsMatch(b.buildingId, this.property!.buildingId));
+    return building?.name ?? null;
   }
 
   getBuildingCommunityDescription(): string | null {
-    if (!this.property?.buildingId && !this.buildings && !this.property.neighborhood) {
+    if (!this.property) {
       return null;
     }
-
-    const building = this.buildings.find(b => b.buildingId === this.property.buildingId);
-    return building?.name || this.property?.neighborhood || null;
+    if (this.property.buildingId != null && this.buildings?.length) {
+      const building = this.buildings.find(b => this.buildingIdsMatch(b.buildingId, this.property!.buildingId));
+      if (building?.name) {
+        return building.name;
+      }
+    }
+    return this.property.neighborhood || null;
   }
 
   //#endregion
@@ -714,10 +731,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         }
 
         if (selectedDocuments.length === 0) {
-      this.previewIframeHtml = '';
-      this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
-      return;
-    }
+          this.previewIframeHtml = '';
+          this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+          return;
+        }
 
         try {
           if (selectedDocuments.length === 1) {
@@ -904,6 +921,15 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   //#endregion
 
   //#region Utility Methods
+  buildingIdsMatch(a: number | string | null | undefined, b: number | string | null | undefined): boolean {
+    if (a == null || b == null) {
+      return false;
+    }
+    const na = Number(a);
+    const nb = Number(b);
+    return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.contactsSubscription?.unsubscribe();

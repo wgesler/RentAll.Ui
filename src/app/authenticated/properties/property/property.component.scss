@@ -278,7 +278,7 @@
     gap: 4px 6px;
   }
 
-  /* Phone row: 8 “slices” — Phone & Mailbox = 1; Neighborhood, Cross, View = 2 */
+  /* Address extras row: Unit level & Mailbox = 1; Neighborhood, Cross, View = 2 */
   .phone-line-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
@@ -627,4 +627,15 @@ section.content-card {
    When empty, do not hide so the dropdown arrow is visible. */
 :host ::ng-deep .owner-select-field.owner-has-value .mat-mdc-select-arrow-wrapper {
   display: none;
+}
+
+input.no-spinner[type='number']::-webkit-outer-spin-button,
+input.no-spinner[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

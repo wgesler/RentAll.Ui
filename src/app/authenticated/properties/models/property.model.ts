@@ -27,6 +27,7 @@ export interface PropertyRequest {
   departureFee: number;
   maidServiceFee: number;
   petFee: number;
+  unitLevel: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -151,6 +152,7 @@ export interface PropertyResponse {
   departureFee: number;
   maidServiceFee: number;
   petFee: number;
+  unitLevel: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -260,6 +262,7 @@ export interface PropertyListResponse{
   owner1Id?: string | null;
   vendorId?: string| null;
   contactName: string;
+  unitLevel: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -292,6 +295,7 @@ export interface PropertyListDisplay {
   owner1Id?: string | null;
   vendorId?: string| null;
   contactName: string;
+  unitLevel: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;

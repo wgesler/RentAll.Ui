@@ -70,6 +70,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   private isLoadingReservations = false;
   private lastLoadedOfficeId: number | null | undefined = undefined;
 
+  private readonly boardAddressMaxChars = 25;
+
   constructor(
     private propertyService: PropertyService,
     private reservationService: ReservationService,
@@ -887,6 +889,14 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  formatBoardAddressForCell(address: string | null | undefined): string {
+    const text = address ?? '';
+    if (text.length <= this.boardAddressMaxChars) {
+      return text;
+    }
+    return text.slice(0, this.boardAddressMaxChars) + '…';
+  }
+
   buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
     const { officeName: _officeName, parkingNotes, ...requestBase } = property;
     return {

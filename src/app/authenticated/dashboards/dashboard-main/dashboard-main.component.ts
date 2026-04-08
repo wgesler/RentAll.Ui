@@ -998,6 +998,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         owner1Id: property.owner1Id,
         vendorId: property.vendorId,
         contactName: property.contactName,
+        unitLevel: property.unitLevel,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
         accomodates: property.accomodates,

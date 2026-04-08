@@ -205,13 +205,24 @@
                     }
                   </mat-form-field>
                 </div>
-                <!-- Under address: Phone (1), Neighborhood/Cross/View (2 each), Mailbox (1) — 8 slices -->
+                <!-- Under address: Unit level (1), Neighborhood/Cross/View (2 each), Mailbox (1) -->
                 <div class="basic-row phone-line-grid gap-x-1.5 gap-y-1">
                   <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Phone</mat-label>
-                    <input matInput formControlName="phone" (input)="onPhoneInput($event)" (blur)="formatPhone()" maxlength="20" placeholder="(555) 555-5555">
-                    @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched) {
-                      <mat-error>Invalid</mat-error>
+                    <mat-label>Unit Level</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      class="no-spinner"
+                      inputmode="numeric"
+                      min="0"
+                      step="1"
+                      formControlName="unitLevel"
+                      required>
+                    @if (form.get('unitLevel')?.hasError('required') && form.get('unitLevel')?.touched) {
+                      <mat-error>Required</mat-error>
+                    }
+                    @if (form.get('unitLevel')?.hasError('min') && form.get('unitLevel')?.touched) {
+                      <mat-error>Must be 0 or greater</mat-error>
                     }
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="basic-compact min-w-0">

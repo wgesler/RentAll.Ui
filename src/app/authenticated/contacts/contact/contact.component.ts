@@ -853,6 +853,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       officeId,
       officeName,
       contactName: '',
+      unitLevel: 0,
       bedrooms: 0,
       bathrooms: 0,
       accomodates: 0,

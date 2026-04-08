@@ -282,6 +282,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       // Use '' to match other dropdowns (e.g. Office) where All is selected by default
       propertyStatusId: new FormControl<number | ''>(''),
+      fromUnitLevel: new FormControl<number | null>(null),
+      toUnitLevel: new FormControl<number | null>(null),
       fromBeds: new FormControl<number | null>(null),
       toBeds: new FormControl<number | null>(null),
       accomodates: new FormControl<number | null>(null),
@@ -314,6 +316,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       : '';
 
     this.form.patchValue({
+      fromUnitLevel: response?.fromUnitLevel ?? null,
+      toUnitLevel: response?.toUnitLevel ?? null,
       fromBeds: response?.fromBeds ?? null,
       toBeds: response?.toBeds ?? null,
       accomodates: response?.accomodates ?? null,
@@ -355,6 +359,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     if (!req) {
       return {
         userId: '',
+        fromUnitLevel: 0,
+        toUnitLevel: 0,
         fromBeds: 0,
         toBeds: 0,
         accomodates: 0,
@@ -388,6 +394,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     this.form.reset({
       propertyStatusId: '',
+      fromUnitLevel: null,
+      toUnitLevel: null,
       fromBeds: null,
       toBeds: null,
       accomodates: null,
@@ -442,6 +450,8 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     const v = this.form.getRawValue() as any;
     return {
       userId,
+      fromUnitLevel: this.toNumber(v.fromUnitLevel, 0),
+      toUnitLevel: this.toNumber(v.toUnitLevel, 0),
       fromBeds: this.toNumber(v.fromBeds, 0),
       toBeds: this.toNumber(v.toBeds, 0),
       accomodates: this.toNumber(v.accomodates, 0),

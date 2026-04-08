@@ -211,6 +211,29 @@ export class FormatterService {
         return Number.isFinite(parsed) ? parsed : defaultValue;
     }
 
+    // English ordinal (1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, …). Truncates toward zero.
+    ordinal(value: number): string {
+        const n = Math.trunc(Number(value));
+        if (!Number.isFinite(n)) {
+            return '';
+        }
+        const sign = n < 0 ? '-' : '';
+        const abs = Math.abs(n);
+        const j = abs % 10;
+        const k = abs % 100;
+        let suffix: string;
+        if (j === 1 && k !== 11) {
+            suffix = 'st';
+        } else if (j === 2 && k !== 12) {
+            suffix = 'nd';
+        } else if (j === 3 && k !== 13) {
+            suffix = 'rd';
+        } else {
+            suffix = 'th';
+        }
+        return `${sign}${abs}${suffix}`;
+    }
+
     // Formats percentage on Enter and exits the field.
     formatPercentageOnEnter(event: KeyboardEvent, control: AbstractControl | null, defaultValue: number = 25): void {
         if (event.key !== 'Enter') {

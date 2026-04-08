@@ -1,5 +1,7 @@
 export interface PropertySelectionRequest {
   userId: string;
+  fromUnitLevel: number;
+  toUnitLevel: number;
   fromBeds: number;
   toBeds: number;
   accomodates: number;
@@ -26,6 +28,8 @@ export interface PropertySelectionRequest {
 
 export interface PropertySelectionResponse {
   userId: string;
+  fromUnitLevel: number;
+  toUnitLevel: number;
   fromBeds: number;
   toBeds: number;
   accomodates: number;

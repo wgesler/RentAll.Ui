@@ -50,125 +50,157 @@
           </button>
         </div>
         <form [formGroup]="form" class="info-form mb-8 pt-5">
-          <div class="grid grid-cols-4 gap-x-3 gap-y-3 px-6 pb-2">
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Property Status</mat-label>
-              <mat-select formControlName="propertyStatusId">
-                <mat-option value="">All</mat-option>
-                @for (s of propertyStatuses; track s.value) {
-                  <mat-option [value]="s.value">{{ s.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+          <div class="px-6 pb-2 flex flex-col gap-3">
+            <div class="grid grid-cols-5 gap-x-3 gap-y-3">
+              <mat-form-field appearance="outline">
+                <mat-label>From Unit Level</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="fromUnitLevel"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>From Beds</mat-label>
-              <input
-                matInput
-                type="number"
-                class="no-spinner"
-                inputmode="numeric"
-                min="0"
-                step="1"
-                formControlName="fromBeds"
-                (keydown)="numbersOnly($event)">
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>To Unit Level</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="toUnitLevel"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>To Beds</mat-label>
-              <input
-                matInput
-                type="number"
-                class="no-spinner"
-                inputmode="numeric"
-                min="0"
-                step="1"
-                formControlName="toBeds"
-                (keydown)="numbersOnly($event)">
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>From Beds</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="fromBeds"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Accomodates</mat-label>
-              <input
-                matInput
-                type="number"
-                class="no-spinner"
-                inputmode="numeric"
-                min="0"
-                step="1"
-                formControlName="accomodates"
-                (keydown)="numbersOnly($event)">
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>To Beds</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="toBeds"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Property Code</mat-label>
-              <input matInput type="text" formControlName="propertyCode">
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Accomodates</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="accomodates"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
+            </div>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>City</mat-label>
-              <input matInput type="text" formControlName="city">
-            </mat-form-field>
+            <div class="grid grid-cols-5 gap-x-3 gap-y-3">
+              <mat-form-field appearance="outline">
+                <mat-label>Property Status</mat-label>
+                <mat-select formControlName="propertyStatusId">
+                  <mat-option value="">All</mat-option>
+                  @for (s of propertyStatuses; track s.value) {
+                    <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>State</mat-label>
-              <mat-select formControlName="state">
-                <mat-option value="">All</mat-option>
-                @for (s of states; track s) {
-                  <mat-option [value]="s">{{ s }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Property Code</mat-label>
+                <input matInput type="text" formControlName="propertyCode">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Max Rent</mat-label>
-              <input
-                matInput
-                type="number"
-                class="no-spinner"
-                inputmode="numeric"
-                min="0"
-                step="1"
-                formControlName="maxRent"
-                (keydown)="numbersOnly($event)">
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>City</mat-label>
+                <input matInput type="text" formControlName="city">
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Office</mat-label>
-              <mat-select formControlName="officeId">
-                <mat-option value="">All</mat-option>
-                @for (f of offices; track f.officeId) {
-                  <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>State</mat-label>
+                <mat-select formControlName="state">
+                  <mat-option value="">All</mat-option>
+                  @for (s of states; track s) {
+                    <mat-option [value]="s">{{ s }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Regions</mat-label>
-              <mat-select formControlName="regionCodes" multiple placeholder="All">
-                @for (r of regions; track r.regionId) {
-                  <mat-option [value]="r.regionCode">{{ r.regionCode }} - {{ r.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Max Rent</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="maxRent"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
+            </div>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Areas</mat-label>
-              <mat-select formControlName="areaCodes" multiple placeholder="All">
-                @for (a of areas; track a.areaId) {
-                  <mat-option [value]="a.areaCode">{{ a.areaCode }} - {{ a.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <div class="grid grid-cols-4 gap-x-3 gap-y-3">
+              <mat-form-field appearance="outline">
+                <mat-label>Office</mat-label>
+                <mat-select formControlName="officeId">
+                  <mat-option value="">All</mat-option>
+                  @for (f of offices; track f.officeId) {
+                    <mat-option [value]="f.officeId">{{ f.officeCode }} - {{ f.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Buildings</mat-label>
-              <mat-select formControlName="buildingCodes" multiple placeholder="All">
-                @for (b of buildings; track b.buildingId) {
-                  <mat-option [value]="b.buildingCode">{{ b.buildingCode }} - {{ b.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Regions</mat-label>
+                <mat-select formControlName="regionCodes" multiple placeholder="All">
+                  @for (r of regions; track r.regionId) {
+                    <mat-option [value]="r.regionCode">{{ r.regionCode }} - {{ r.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Areas</mat-label>
+                <mat-select formControlName="areaCodes" multiple placeholder="All">
+                  @for (a of areas; track a.areaId) {
+                    <mat-option [value]="a.areaCode">{{ a.areaCode }} - {{ a.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Buildings</mat-label>
+                <mat-select formControlName="buildingCodes" multiple placeholder="All">
+                  @for (b of buildings; track b.buildingId) {
+                    <mat-option [value]="b.buildingCode">{{ b.buildingCode }} - {{ b.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
           </div>
 
           <div class="px-6 pb-6">
