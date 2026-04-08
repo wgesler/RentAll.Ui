@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, HostListener, Input, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
-import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -318,7 +318,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       notes: source.notes || ''
     }, { emitEvent: false });
 
-    this.departureDateStartAt = today;
+    const departurePickerStart = new Date(today);
+    departurePickerStart.setDate(departurePickerStart.getDate() + 1);
+    this.departureDateStartAt = departurePickerStart;
     this.updateContactFields();
     this.applyPlatformCompanyDetails(source.companyId ?? null, source.companyName ?? null);
     this.updatePetFields();
@@ -350,7 +352,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       const parsedStartDate = this.parseDateFromQuery(startDateParam);
       if (parsedStartDate) {
         patch['arrivalDate'] = parsedStartDate;
-        this.departureDateStartAt = new Date(parsedStartDate);
+        const start = new Date(parsedStartDate);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() + 1);
+        this.departureDateStartAt = start;
       }
 
       if (Object.keys(patch).length > 0) {
@@ -464,7 +469,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       ).subscribe({
         next: () => {
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.router.navigateByUrl(RouterUrl.ReservationList);
+          this.navigateToReservationEntryOrigin();
         },
         error: () => {
           this.toastr.error('Failed to delete reservation', CommonMessage.Error);
@@ -634,7 +639,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationStatusId: new FormControl(null, [Validators.required]),
       reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
       arrivalDate: new FormControl(null, [Validators.required]),
-      departureDate: new FormControl(null, [Validators.required]),
+      departureDate: new FormControl(null, [Validators.required, this.departureAfterArrivalValidator]),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
       lockBoxCode: new FormControl(''),
@@ -742,6 +747,32 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadExtraFeeLines();
     this.updateMaidStartDate();
     this.updatePropertyIdEditState();
+
+    const arr = this.form.get('arrivalDate')?.value;
+    const dep = this.form.get('departureDate')?.value;
+    if (arr && dep) {
+      const a = new Date(arr);
+      a.setHours(0, 0, 0, 0);
+      const d = new Date(dep);
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() > a.getTime()) {
+        this.departureDateStartAt = new Date(dep);
+      } else {
+        const s = new Date(arr);
+        s.setHours(0, 0, 0, 0);
+        s.setDate(s.getDate() + 1);
+        this.departureDateStartAt = s;
+      }
+    } else if (arr && !dep) {
+      const s = new Date(arr);
+      s.setHours(0, 0, 0, 0);
+      s.setDate(s.getDate() + 1);
+      this.departureDateStartAt = s;
+    } else {
+      this.departureDateStartAt = null;
+    }
+    this.form.get('departureDate')?.updateValueAndValidity({ emitEvent: false });
+
     this.captureSavedStateSignature();
   }
 
@@ -771,7 +802,50 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       control.disable({ emitEvent: false });
     }
   }
-  //#endregion
+
+  departureAfterArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const arrivalRaw = group.get('arrivalDate')?.value;
+    const departureRaw = control.value;
+    if (!arrivalRaw || !departureRaw) {
+      return null;
+    }
+    const arrival = new Date(arrivalRaw);
+    const departure = new Date(departureRaw);
+    arrival.setHours(0, 0, 0, 0);
+    departure.setHours(0, 0, 0, 0);
+    return departure.getTime() > arrival.getTime() ? null : { departureAfterArrival: true };
+  };
+
+  getMinDepartureDate(): Date | null {
+    if (!this.form) {
+      return null;
+    }
+    const arrivalDate = this.form.get('arrivalDate')?.value;
+    if (!arrivalDate) {
+      return null;
+    }
+    const d = new Date(arrivalDate);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    return d;
+  }
+
+  departureDateCalendarFilter = (date: Date | null): boolean => {
+    if (!date) {
+      return false;
+    }
+    const min = this.getMinDepartureDate();
+    if (!min) {
+      return true;
+    }
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() >= min.getTime();
+  }; //#endregion
 
   //#region Form Value Change Handlers
   setupFormHandlers(): void {
@@ -924,14 +998,30 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   setupDepartureDateStartAtHandler(): void {
     this.form.get('arrivalDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(arrivalDate => {
-      const departureDate = this.form.get('departureDate')?.value;
-      
-      // If arrival date is set and departure date is unset, start calendar at arrival date
+      const departureControl = this.form.get('departureDate');
+      const departureDate = departureControl?.value;
+
+      // If arrival date is set and departure date is unset, start calendar at first allowed departure day
       if (arrivalDate && !departureDate) {
-        this.departureDateStartAt = new Date(arrivalDate);
+        const start = new Date(arrivalDate);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() + 1);
+        this.departureDateStartAt = start;
       } else if (!arrivalDate) {
         this.departureDateStartAt = null;
       }
+
+      if (arrivalDate && departureDate) {
+        const a = new Date(arrivalDate);
+        a.setHours(0, 0, 0, 0);
+        const dep = new Date(departureDate);
+        dep.setHours(0, 0, 0, 0);
+        if (dep.getTime() <= a.getTime()) {
+          departureControl?.setValue(null, { emitEvent: true });
+        }
+      }
+      departureControl?.updateValueAndValidity({ emitEvent: false });
+
       this.updatePropertyIdEditState();
       if (this.canEditProperty) {
         this.filterPropertiesByOffice();
@@ -1140,7 +1230,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       const arrivalDate = this.form.get('arrivalDate')?.value;
       const departureDate = this.form.get('departureDate')?.value;
       if (arrivalDate && !departureDate) {
-        this.departureDateStartAt = new Date(arrivalDate);
+        const start = new Date(arrivalDate);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() + 1);
+        this.departureDateStartAt = start;
       }
     }
 
@@ -1531,8 +1624,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         if (!r.arrivalDate || !r.departureDate) continue;
         const rArr = this.normalizeDateForConflict(r.arrivalDate);
         const rDep = this.normalizeDateForConflict(r.departureDate);
-        // Same rule as validateDates: strict inequality so checkout day may equal next arrival day.
-        if (arrival < rDep && departure > rArr) {
+        if (arrival <= rDep && departure >= rArr) {
           propertyIdsWithConflict.add(r.propertyId);
         }
       }
@@ -1870,6 +1962,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     // Reset time to compare dates only
     arrival.setHours(0, 0, 0, 0);
     departure.setHours(0, 0, 0, 0);
+
+    if (departure.getTime() <= arrival.getTime()) {
+      this.toastr.error('Departure date must be after the arrival date.', CommonMessage.Error);
+      return;
+    }
 
     const selectedProperty = this.selectedProperty?.propertyId === propertyId
       ? this.selectedProperty : this.properties.find(p => p.propertyId === propertyId) || null;

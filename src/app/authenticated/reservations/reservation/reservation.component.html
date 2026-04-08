@@ -444,11 +444,19 @@
 
                 <mat-form-field appearance="outline">
                   <mat-label>Departure Date</mat-label>
-                  <input matInput [matDatepicker]="departurePicker" formControlName="departureDate" required>
+                  <input
+                    matInput
+                    [matDatepicker]="departurePicker"
+                    formControlName="departureDate"
+                    required
+                    [min]="getMinDepartureDate()"
+                    [matDatepickerFilter]="departureDateCalendarFilter">
                   <mat-datepicker-toggle matIconSuffix [for]="departurePicker"></mat-datepicker-toggle>
                   <mat-datepicker #departurePicker [startAt]="departureDateStartAt"></mat-datepicker>
                   @if (form.get('departureDate')?.hasError('required') && form.get('departureDate')?.touched) {
                     <mat-error>Departure Date is required</mat-error>
+                  } @else if (form.get('departureDate')?.hasError('departureAfterArrival') && form.get('departureDate')?.touched) {
+                    <mat-error>Departure must be after arrival date</mat-error>
                   }
                 </mat-form-field>
 
