@@ -16,3 +16,15 @@
   width: 18ch;
   min-width: 18ch;
 }
+
+:host ::ng-deep .property-titlebar .titlebar-label-required-asterisk,
+.property-titlebar-mat-required-asterisk {
+  color: rgba(0, 0, 0, 0.54);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+:host ::ng-deep .property-titlebar .titlebar-label-required-asterisk--error,
+.property-titlebar-mat-required-asterisk--error {
+  color: red;
+}

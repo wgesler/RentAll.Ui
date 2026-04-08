@@ -20,18 +20,48 @@
                   [options]="officeOptions"
                   [nullOptionLabel]="'Select Office'"
                   [noResultsText]="'No offices match your search'"
+                  [labelRequiredAsterisk]="!!propertySection?.isAddMode"
+                  [showError]="!!propertySection?.showTitleBarOfficeError"
+                  [errorText]="'Required'"
                   (valueChange)="onOfficeDropdownChange($event)">
                 </app-title-bar-select>
               } @else {
-                <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-office">
-                  <mat-label>Office</mat-label>
+                <mat-form-field
+                  appearance="outline"
+                  class="flex-shrink-0 titlebar-field-office"
+                  [class.mat-form-field-invalid]="propertySection?.showTitleBarOfficeError"
+                  [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarOfficeError">
+                  <mat-label>
+                    Office
+                    @if (propertySection?.isAddMode) {
+                      <span
+                        class="property-titlebar-mat-required-asterisk"
+                        [class.property-titlebar-mat-required-asterisk--error]="propertySection?.showTitleBarOfficeError"
+                        aria-hidden="true">*</span>
+                    }
+                  </mat-label>
                   <input matInput [value]="sharedOfficeName" readonly [disabled]="true" class="readonly-field">
+                  @if (propertySection?.showTitleBarOfficeError) {
+                    <mat-error>Required</mat-error>
+                  }
                 </mat-form-field>
               }
             }
 
-            <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
-              <mat-label>Property Code</mat-label>
+            <mat-form-field
+              appearance="outline"
+              class="flex-shrink-0 titlebar-field-property-code"
+              [class.mat-form-field-invalid]="propertySection?.showTitleBarPropertyCodeError"
+              [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarPropertyCodeError">
+              <mat-label>
+                Property Code
+                @if (propertySection?.isAddMode) {
+                  <span
+                    class="property-titlebar-mat-required-asterisk"
+                    [class.property-titlebar-mat-required-asterisk--error]="propertySection?.showTitleBarPropertyCodeError"
+                    aria-hidden="true">*</span>
+                }
+              </mat-label>
               @if (!(propertySection?.isAddMode ?? false)) {
                 <input
                   matInput
@@ -53,6 +83,9 @@
                   readonly
                   [disabled]="true"
                   class="readonly-field">
+              }
+              @if (propertySection?.showTitleBarPropertyCodeError) {
+                <mat-error>Required</mat-error>
               }
             </mat-form-field>
 

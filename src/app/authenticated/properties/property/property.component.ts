@@ -33,6 +33,7 @@ import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, Propert
 import { PropertyLetterResponse } from '../models/property-letter.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyCodeDialogComponent, PropertyCodeDialogResult } from '../property-code-dialog/property-code-dialog.component';
 import { PropertyAgreementComponent } from '../property-agreement/property-agreement.component';
 import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
@@ -394,6 +395,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     // Assign location IDs directly
     const officeId = formValue.officeId ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
+      this.form.get('officeId')?.markAsTouched();
       this.toastr.error('Office is required', CommonMessage.Error);
       this.isSubmitting = false;
       onComplete?.(false);
@@ -849,17 +851,85 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   //#endregion
 
   //#region Owner/Vendor Dialog
+  isPropertyCodeMissingForAdd(): boolean {
+    if (!this.isAddMode || !this.form) {
+      return false;
+    }
+    const raw = String(this.form.get('propertyCode')?.value ?? '').trim();
+    if (!raw) {
+      return true;
+    }
+    return raw.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase();
+  }
+
+  openPropertyCodeDialog(): Observable<string | null> {
+    const ref = this.dialog.open(PropertyCodeDialogComponent, {
+      width: '28rem',
+      maxWidth: '95vw'
+    });
+    return ref.afterClosed().pipe(
+      map((r: PropertyCodeDialogResult | undefined) => {
+        const c = r?.code?.trim();
+        return c ? c.toUpperCase() : null;
+      })
+    );
+  }
+
+  buildNewContactDialogData(entityTypeId: number): {
+    compactDialogMode: true;
+    entityTypeId: number;
+    preselectPropertyCodes?: string[];
+    preselectPropertyOfficeId?: number;
+  } {
+    const base = { compactDialogMode: true as const, entityTypeId };
+    if (!this.isAddMode || !this.form) {
+      return base;
+    }
+    const rawCode = String(this.form.get('propertyCode')?.value ?? '').trim();
+    if (!rawCode || rawCode.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()) {
+      return base;
+    }
+    const officeId =
+      this.form.getRawValue().officeId ??
+      this.selectedOffice?.officeId ??
+      this.globalOfficeSelectionService.getSelectedOfficeIdValue() ??
+      this.offices[0]?.officeId ??
+      null;
+    if (officeId == null || officeId === '') {
+      return base;
+    }
+    return {
+      ...base,
+      preselectPropertyCodes: [rawCode.toUpperCase()],
+      preselectPropertyOfficeId: Number(officeId)
+    };
+  }
+
   openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    const openContact = () => this.openNewOwnerContactDialog(ownerField);
+    if (!this.isPropertyCodeMissingForAdd()) {
+      openContact();
+      return;
+    }
+    this.openPropertyCodeDialog().pipe(take(1)).subscribe(code => {
+      if (code == null) {
+        return;
+      }
+      this.applyTitleBarPropertyCode(code);
+      openContact();
+    });
+  }
+
+  openNewOwnerContactDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
     const dialogRef = this.dialog.open(ContactComponent, {
       width: '1200px',
       maxWidth: '95vw',
-      disableClose: true
+      disableClose: true,
+      data: this.buildNewContactDialogData(EntityType.Owner)
     });
 
     dialogRef.componentInstance.id = 'new';
     dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.entityTypeId = EntityType.Owner;
-    dialogRef.componentInstance.compactDialogMode = true;
     dialogRef.componentInstance.closed
       .pipe(take(1))
       .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
@@ -880,16 +950,30 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   openNewVendorDialog(): void {
+    const openContact = () => this.openNewVendorContactDialog();
+    if (!this.isPropertyCodeMissingForAdd()) {
+      openContact();
+      return;
+    }
+    this.openPropertyCodeDialog().pipe(take(1)).subscribe(code => {
+      if (code == null) {
+        return;
+      }
+      this.applyTitleBarPropertyCode(code);
+      openContact();
+    });
+  }
+
+  openNewVendorContactDialog(): void {
     const dialogRef = this.dialog.open(ContactComponent, {
       width: '1200px',
       maxWidth: '95vw',
-      disableClose: true
+      disableClose: true,
+      data: this.buildNewContactDialogData(EntityType.Vendor)
     });
 
     dialogRef.componentInstance.id = 'new';
     dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.entityTypeId = EntityType.Vendor;
-    dialogRef.componentInstance.compactDialogMode = true;
     dialogRef.componentInstance.closed
       .pipe(take(1))
       .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
@@ -1118,6 +1202,26 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       }
     }
     return this.property?.officeName || '';
+  }
+
+  get showTitleBarOfficeError(): boolean {
+    if (!this.isAddMode || !this.form) {
+      return false;
+    }
+    const c = this.form.get('officeId');
+    if (!c?.touched) {
+      return false;
+    }
+    const effectiveId = this.form.getRawValue().officeId ?? this.selectedOffice?.officeId ?? null;
+    return effectiveId == null || effectiveId === '';
+  }
+
+  get showTitleBarPropertyCodeError(): boolean {
+    if (!this.isAddMode || !this.form) {
+      return false;
+    }
+    const c = this.form.get('propertyCode');
+    return !!(c?.invalid && c.touched);
   }
 
   //#endregion

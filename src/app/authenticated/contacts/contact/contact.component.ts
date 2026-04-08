@@ -112,7 +112,14 @@ export class ContactComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
-    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: { preloadedContact?: ContactResponse; entityTypeId?: number; compactDialogMode?: boolean }
+    @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
+      preloadedContact?: ContactResponse;
+      entityTypeId?: number;
+      compactDialogMode?: boolean;
+      /** Codes not yet on the server (e.g. new property) — merged into Properties list and pre-selected for owners. */
+      preselectPropertyCodes?: string[];
+      preselectPropertyOfficeId?: number;
+    }
   ) {
   }
   //#region Contacts
@@ -138,6 +145,14 @@ export class ContactComponent implements OnInit, OnDestroy {
       if (this.dialogData.entityTypeId != null) this.entityTypeId = this.dialogData.entityTypeId;
       if (this.dialogData.compactDialogMode != null) this.compactDialogMode = this.dialogData.compactDialogMode;
     } else {
+      if (this.dialogData) {
+        if (this.dialogData.entityTypeId != null) {
+          this.entityTypeId = this.dialogData.entityTypeId;
+        }
+        if (this.dialogData.compactDialogMode != null) {
+          this.compactDialogMode = this.dialogData.compactDialogMode;
+        }
+      }
       // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
       // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
       const url = this.router.url;
@@ -802,10 +817,84 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: (list) => {
         this.allProperties = list || [];
+        this.mergePreselectPropertiesFromDialogData();
         this.filterPropertiesByGlobalOffice();
+        this.patchPreselectedOwnerPropertyCodes();
       },
       error: () => {}
     });
+  }
+
+  mergePreselectPropertiesFromDialogData(): void {
+    const codes = (this.dialogData?.preselectPropertyCodes ?? [])
+      .map(c => String(c ?? '').trim())
+      .filter(c => c.length > 0);
+    const officeId = this.dialogData?.preselectPropertyOfficeId;
+    if (!codes.length || officeId == null || !Number.isFinite(Number(officeId))) {
+      return;
+    }
+    const oid = Number(officeId);
+    const officeName = this.offices.find(o => o.officeId === oid)?.name ?? '';
+    for (const code of codes) {
+      const upper = code.toUpperCase();
+      const exists = this.allProperties.some(p => (p.propertyCode || '').toUpperCase() === upper);
+      if (!exists) {
+        this.allProperties.push(this.createSyntheticPropertyListItem(upper, oid, officeName));
+      }
+    }
+  }
+
+  createSyntheticPropertyListItem(propertyCode: string, officeId: number, officeName: string): PropertyListResponse {
+    return {
+      propertyId: '',
+      propertyCode,
+      propertyLeaseId: 0,
+      shortAddress: '',
+      officeId,
+      officeName,
+      contactName: '',
+      bedrooms: 0,
+      bathrooms: 0,
+      accomodates: 0,
+      squareFeet: 0,
+      monthlyRate: 0,
+      dailyRate: 0,
+      propertyTypeId: 0,
+      departureFee: 0,
+      petFee: 0,
+      maidServiceFee: 0,
+      propertyStatusId: 0,
+      bedroomId1: 0,
+      bedroomId2: 0,
+      bedroomId3: 0,
+      bedroomId4: 0,
+      isActive: true
+    };
+  }
+
+  patchPreselectedOwnerPropertyCodes(): void {
+    if (!this.form || !this.isAddMode || this.entityTypeId !== EntityType.Owner) {
+      return;
+    }
+    const codes = (this.dialogData?.preselectPropertyCodes ?? [])
+      .map(c => String(c ?? '').trim().toUpperCase())
+      .filter(c => c.length > 0);
+    if (!codes.length) {
+      return;
+    }
+    const cur = (this.form.get('propertyCodes')?.value as string[]) ?? [];
+    const merged: string[] = [...cur];
+    const seen = new Set(merged.map(c => String(c).toUpperCase()));
+    for (const want of codes) {
+      const opt = this.availablePropertyCodes.find(o => (o.value || '').toUpperCase() === want);
+      const v = opt?.value ?? want;
+      const key = v.toUpperCase();
+      if (!seen.has(key)) {
+        merged.push(v);
+        seen.add(key);
+      }
+    }
+    this.form.patchValue({ propertyCodes: merged }, { emitEvent: false });
   }
   //#endregion
 

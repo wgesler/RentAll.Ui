@@ -25,6 +25,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../searchable
       [noResultsText]="noResultsText"
       [showError]="showError"
       [errorText]="errorText"
+      [labelRequiredAsterisk]="labelRequiredAsterisk"
       (valueChange)="valueChange.emit($event)">
     </app-searchable-select>
   `
@@ -42,6 +43,7 @@ export class TitleBarSelectComponent {
   @Input() noResultsText = 'No matches found';
   @Input() showError = false;
   @Input() errorText = 'Required';
+  @Input() labelRequiredAsterisk = false;
 
   // Title-bar defaults (keeps current UX preference).
   @Input() showSearchInput = true;

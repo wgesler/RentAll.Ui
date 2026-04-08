@@ -570,10 +570,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         
-        // If in add mode, navigate back to reservation list
         if (this.isAddMode && response) {
           this.captureSavedStateSignature();
-          this.router.navigateByUrl(RouterUrl.ReservationList);
+          this.navigateToReservationEntryOrigin();
         } else if (!this.isAddMode && response) {
           // Update the reservation data with the response
           this.reservation = response;
@@ -2206,17 +2205,37 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
+  /** Safe targets after create or Back from new reservation (board vs rentals vs reservations list). */
+  navigateToReservationEntryOrigin(): void {
+    const qp = this.route.snapshot.queryParamMap;
+    const returnTo = qp.get('returnTo');
+    if (returnTo === 'reservation-board') {
+      this.router.navigateByUrl(RouterUrl.ReservationBoard);
+      return;
+    }
+    if (returnTo === 'reservation-list') {
+      const path = qp.get('listReturnPath')?.trim();
+      if (path && this.isAllowedReservationListReturnPath(path)) {
+        this.router.navigateByUrl(path.startsWith('/') ? path : `/${path}`);
+        return;
+      }
+      this.router.navigateByUrl(RouterUrl.ReservationList);
+      return;
+    }
+    this.router.navigateByUrl(RouterUrl.ReservationList);
+  }
+
+  isAllowedReservationListReturnPath(path: string): boolean {
+    const normalized = path.split('?')[0].replace(/^\/+/, '');
+    return normalized === RouterUrl.RentalList || normalized === RouterUrl.ReservationList;
+  }
+
   back(): void {
     this.confirmNavigationWithUnsavedChanges().then(canLeave => {
       if (!canLeave) {
         return;
       }
-      const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
-      if (returnTo === 'reservation-board') {
-        this.router.navigateByUrl(RouterUrl.ReservationBoard);
-        return;
-      }
-      this.router.navigateByUrl(RouterUrl.ReservationList);
+      this.navigateToReservationEntryOrigin();
     });
   }
 

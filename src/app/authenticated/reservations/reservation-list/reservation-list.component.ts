@@ -183,15 +183,17 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   addReservation(): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']);
-    const queryParams: any = {};
-    
+    const listReturnPath = this.router.url.split('?')[0];
+    const queryParams: Record<string, string | number> = {
+      returnTo: 'reservation-list',
+      listReturnPath
+    };
+
     if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
+      queryParams['officeId'] = this.selectedOffice.officeId;
     }
-    
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
-    });
+
+    this.router.navigate([url], { queryParams });
   }
 
   getReservations(): void {
@@ -215,12 +217,16 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationByGuid(row.reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         const url = RouterUrl.replaceTokens(RouterUrl.Reservation, ['new']);
-        const queryParams: Record<string, unknown> = {};
+        const listReturnPath = this.router.url.split('?')[0];
+        const queryParams: Record<string, string | number> = {
+          returnTo: 'reservation-list',
+          listReturnPath
+        };
         if (this.selectedOffice) {
           queryParams['officeId'] = this.selectedOffice.officeId;
         }
         this.router.navigate([url], {
-          queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+          queryParams,
           state: { copyFromReservation: reservation }
         });
       },
@@ -334,16 +340,17 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Routing Methods
   goToReservation(event: ReservationListDisplay): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
-    const queryParams: any = {};
-    
+    const listReturnPath = this.router.url.split('?')[0];
+    const queryParams: Record<string, string | number> = {
+      returnTo: 'reservation-list',
+      listReturnPath
+    };
+
     if (this.selectedOffice) {
-      queryParams.officeId = this.selectedOffice.officeId;
+      queryParams['officeId'] = this.selectedOffice.officeId;
     }
-    queryParams.returnTo = 'reservation-list';
-    
-    this.router.navigate([url], {
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined
-    });
+
+    this.router.navigate([url], { queryParams });
   }
 
   goToPropertySelection(): void {

@@ -1,0 +1,44 @@
+<div class="flex flex-col">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">domain</mat-icon>
+      Property Code
+    </span>
+    <button mat-mini-fab mat-dialog-close type="button" class="bg-transparent property-code-dialog-close" id="property-code-dialog-exit" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="flex-shrink-0 w-full p-6 property-code-dialog-body">
+    <div class="mb-2">
+      <p class="text-base">Please enter the Code for this Property</p>
+    </div>
+    <mat-form-field appearance="outline" class="property-code-dialog-field w-full">
+      <mat-label>Code</mat-label>
+      <input
+        matInput
+        [(ngModel)]="code"
+        maxlength="15"
+        autocomplete="off"
+        cdkFocusInitial
+        (keydown.enter)="onEnterKey($event)" />
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full" />
+
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="accent" (click)="onCancel()" id="property-code-dialog-cancel">
+      Cancel
+    </button>
+    <button
+      mat-raised-button
+      type="button"
+      color="primary"
+      id="property-code-dialog-ok"
+      [disabled]="!canConfirm"
+      (click)="onConfirm()">
+      Okay
+    </button>
+  </div>
+</div>

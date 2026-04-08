@@ -24,7 +24,15 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [class.searchable-invalid]="showError"
         [class.searchable-title-bar-select]="titleBarMode">
         @if (formFieldLabel) {
-          <mat-label>{{ formFieldLabel }}</mat-label>
+          <mat-label>
+            {{ formFieldLabel }}
+            @if (labelRequiredAsterisk) {
+              <span
+                class="titlebar-label-required-asterisk"
+                [class.titlebar-label-required-asterisk--error]="showError"
+                aria-hidden="true">*</span>
+            }
+          </mat-label>
         }
         <mat-select
           [value]="normalizedValue"
@@ -148,6 +156,7 @@ export class SearchableSelectComponent {
   @Input() formFieldAppearance: 'fill' | 'outline' = 'outline';
   @Input() showError = false;
   @Input() errorText = 'Required';
+  @Input() labelRequiredAsterisk = false;
   @Input() triggerValueClickable = false;
   @Output() valueChange = new EventEmitter<string | number | null>();
   @Output() triggerValueClick = new EventEmitter<Event>();
