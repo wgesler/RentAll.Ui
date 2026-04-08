@@ -5,8 +5,61 @@
   </div>
 } @else if (agreementForm) {
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">
-    <div class="property-agreement-uploads-layout mb-6">
-      <div class="property-agreement-upload-section property-agreement-upload-col--w9">
+    <div class="property-agreement-management-section mb-6 min-w-0">
+      <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
+      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-center gap-x-3 gap-y-2 w-full min-w-0">
+        <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-row flex flex-row flex-wrap lg:flex-nowrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
+          <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
+          <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
+            <mat-label>Flat Rate Amount</mat-label>
+            <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
+          </mat-form-field>
+          <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
+          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+            <mat-label>Revenue Split (Owner) %</mat-label>
+            <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+            <mat-label>Revenue Split (Office) %</mat-label>
+            <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
+          </mat-form-field>
+        </mat-radio-group>
+        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving || !agreementForm.valid">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Markup</mat-label>
+        <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Working Capital Balance</mat-label>
+        <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Linen and Towel Fee</mat-label>
+        <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+      </mat-form-field>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Bank Name</mat-label>
+        <input matInput formControlName="bankName" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Routing Number</mat-label>
+        <input matInput formControlName="routingNumber" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Account Number</mat-label>
+        <input matInput formControlName="accountNumber" />
+      </mat-form-field>
+    </div>
+    <div class="property-agreement-uploads-layout mb-4">
+      <div class="property-agreement-upload-section">
         <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
           <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">W9 Form</h4>
         </div>
@@ -147,59 +200,6 @@
           </div>
         </div>
       </div>
-    </div>
-    <div class="property-agreement-management-section mb-4 min-w-0">
-      <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
-      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-center gap-x-3 gap-y-2 w-full min-w-0">
-        <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-row flex flex-row flex-wrap lg:flex-nowrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
-          <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
-          <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
-            <mat-label>Flat Rate Amount</mat-label>
-            <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
-          </mat-form-field>
-          <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
-          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-            <mat-label>Revenue Split (Owner) %</mat-label>
-            <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-            <mat-label>Revenue Split (Office) %</mat-label>
-            <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
-          </mat-form-field>
-        </mat-radio-group>
-        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving || !agreementForm.valid">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
-      </div>
-    </div>
-    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Markup</mat-label>
-        <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Working Capital Balance</mat-label>
-        <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Linen and Towel Fee</mat-label>
-        <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
-      </mat-form-field>
-    </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Bank Name</mat-label>
-        <input matInput formControlName="bankName" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Routing Number</mat-label>
-        <input matInput formControlName="routingNumber" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Account Number</mat-label>
-        <input matInput formControlName="accountNumber" />
-      </mat-form-field>
     </div>
     <mat-form-field appearance="outline" class="w-full min-w-0 mb-4">
       <mat-label>Notes</mat-label>

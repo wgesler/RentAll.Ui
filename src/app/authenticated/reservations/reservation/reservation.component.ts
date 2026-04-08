@@ -1530,7 +1530,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         if (!r.arrivalDate || !r.departureDate) continue;
         const rArr = this.normalizeDateForConflict(r.arrivalDate);
         const rDep = this.normalizeDateForConflict(r.departureDate);
-        if (arrival <= rDep && departure >= rArr) {
+        // Same rule as validateDates: strict inequality so checkout day may equal next arrival day.
+        if (arrival < rDep && departure > rArr) {
           propertyIdsWithConflict.add(r.propertyId);
         }
       }
@@ -1905,9 +1906,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         rArrival.setHours(0, 0, 0, 0);
         rDeparture.setHours(0, 0, 0, 0);
 
-        // Check if dates overlap
-        // Overlap occurs if: (arrival <= rDeparture && departure >= rArrival)
-        return arrival <= rDeparture && departure >= rArrival;
+        // Strict overlap: both `arrival < rDeparture` and `departure > rArrival`. Boundary equality = no conflict
+        // (same calendar day for one's departure and the other's arrival is allowed).
+        return arrival < rDeparture && departure > rArrival;
       });
 
       if (conflictingReservation) {
