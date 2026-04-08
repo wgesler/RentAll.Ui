@@ -123,6 +123,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '15ch' , alignment: 'center' },
     'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '18ch', options: this.propertyStatusLabels },
     'paymentReceived': { displayAs: 'Payment', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'welcomeLetterChecked': { displayAs: 'Ck Ltr', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'welcomeLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'readyForArrival': { displayAs: 'Ready', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'code': { displayAs: 'Code', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
@@ -137,6 +138,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     'companyName': { displayAs: 'Company', maxWidth: '20ch' , wrap: false},
     'departureDate': { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
     'propertyStatusDropdown': { displayAs: 'Status', maxWidth: '18ch', options: this.propertyStatusLabels },
+    'departureLetterChecked': { displayAs: 'Ck Ltr', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'departureLetterSent': { displayAs: 'Letter', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
   };
 
@@ -812,9 +814,11 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   isTurnoverCheckboxColumn(value: string | undefined): value is TurnoverCheckboxColumn {
     return value === 'paymentReceived'
+      || value === 'welcomeLetterChecked'
       || value === 'welcomeLetterSent'
       || value === 'readyForArrival'
       || value === 'code'
+      || value === 'departureLetterChecked'
       || value === 'departureLetterSent';
   }
 
