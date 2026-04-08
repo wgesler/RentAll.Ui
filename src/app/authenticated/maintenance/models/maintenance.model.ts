@@ -1,3 +1,5 @@
+import type { PropertyListDisplay } from '../../properties/models/property.model';
+
 export interface MaintenanceRequest {
   maintenanceId?: string;
   organizationId: string;
@@ -63,4 +65,72 @@ export interface MaintenanceListResponse {
   licenseDate?: string | null;
   hvacServiced?: string | null;
   fireplaceServiced?: string | null;
+}
+
+export interface MaintenanceListUserDropdownCell {
+  value: string;
+  isOverridable: boolean;
+  options?: string[];
+  panelClass?: string | string[];
+  toString: () => string;
+}
+
+export interface MaintenanceListBedDropdownCell {
+  value: string;
+  isOverridable: boolean;
+  panelClass?: string | string[];
+  toString: () => string;
+}
+
+export interface MaintenanceListStatusDropdownCell {
+  value: string;
+  isOverridable: boolean;
+  panelClass?: string | string[];
+  toString: () => string;
+}
+
+/** Property + maintenance API merge; assignee fields are raw user ids until list display mapping runs. */
+export interface MaintenanceListPropertyRow extends PropertyListDisplay {
+  propertyAddress: string;
+  propertyStatusText: string;
+  propertyStatusDropdown: MaintenanceListStatusDropdownCell;
+  cleaner: string;
+  cleaningDate: string;
+  carpet: string;
+  carpetDate: string;
+  inspector: string;
+  inspectingDate: string;
+  bed1Text: MaintenanceListBedDropdownCell;
+  bed2Text: MaintenanceListBedDropdownCell;
+  bed3Text: MaintenanceListBedDropdownCell;
+  bed4Text: MaintenanceListBedDropdownCell;
+  petsAllowed: boolean;
+  needsMaintenance: boolean;
+  needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
+}
+
+/** Maintenance grid row (data table). */
+export interface MaintenanceListDisplay extends PropertyListDisplay {
+  propertyAddress: string;
+  propertyStatusText: string;
+  propertyStatusDropdown: MaintenanceListStatusDropdownCell;
+  cleaner: MaintenanceListUserDropdownCell;
+  cleanerUserId?: string | null;
+  cleaningDate: string;
+  carpet: MaintenanceListUserDropdownCell;
+  carpetUserId?: string | null;
+  carpetDate: string;
+  inspector: MaintenanceListUserDropdownCell;
+  inspectorUserId?: string | null;
+  inspectingDate: string;
+  bed1Text: MaintenanceListBedDropdownCell;
+  bed2Text: MaintenanceListBedDropdownCell;
+  bed3Text: MaintenanceListBedDropdownCell;
+  bed4Text: MaintenanceListBedDropdownCell;
+  departureDate: string;
+  /** Epoch ms at start of checkout day; `Number.MAX_SAFE_INTEGER` when no current stay (sorts last). */
+  departureSortTime: number;
+  petsAllowed: boolean;
+  needsMaintenance: boolean;
+  needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
 }

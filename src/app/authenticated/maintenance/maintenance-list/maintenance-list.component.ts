@@ -10,18 +10,18 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MaintenanceListMappingContext, MappingService } from '../../../services/mapping.service';
+import { MaintenanceListCurrentReservationByPropertyId, MaintenanceListMappingContext, MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getBedSizeType, getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
-import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
+import { PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { hasInspectorRole } from '../../shared/access/role-access';
-import { MaintenanceRequest } from '../models/maintenance.model';
+import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceService } from '../services/maintenance.service';
@@ -31,46 +31,6 @@ import { UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-
-type UserDropdownCell = {
-  value: string;
-  isOverridable: boolean;
-  options?: string[];
-  panelClass?: string | string[];
-  toString: () => string;
-};
-
-type BedDropdownCell = {
-  value: string;
-  isOverridable: boolean;
-  toString: () => string;
-};
-
-type MaintenanceListDisplay = PropertyListDisplay & {
-  propertyStatusText: string;
-  propertyStatusDropdown: {
-    value: string;
-    isOverridable: boolean;
-    panelClass?: string | string[];
-    toString: () => string;
-  };
-  cleaner: UserDropdownCell;
-  cleanerUserId?: string | null;
-  cleaningDate: string;
-  carpet: UserDropdownCell;
-  carpetUserId?: string | null;
-  carpetDate: string;
-  inspector: UserDropdownCell;
-  inspectorUserId?: string | null;
-  inspectingDate: string;
-  bed1Text: BedDropdownCell;
-  bed2Text: BedDropdownCell;
-  bed3Text: BedDropdownCell;
-  bed4Text: BedDropdownCell;
-  petsAllowed: boolean;
-  needsMaintenance: boolean;
-  needsMaintenanceState?: 'red' | 'yellow' | 'green' | 'grey';
-};
 
 @Component({
   standalone: true,
@@ -110,7 +70,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   isInspectorView = false;
   inspectorPropertyIds = new Set<string>();
   upcomingDeparturePropertyIds = new Set<string>();
-  currentReservationHasPetsByPropertyId = new Map<string, boolean>();
+  currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId = new Map();
   maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
 
   private readonly compactViewportWidth = 1024;
@@ -126,6 +86,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
@@ -138,11 +99,13 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     };
     
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '20ch', sortType: 'natural', wrap: false }
+    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false }
   };
 
   private readonly inspectorPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false },
     'propertyAddress': { displayAs: 'Address', maxWidth: '25ch', sortType: 'natural', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '12ch', alignment: 'center'},
@@ -267,6 +230,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
     }
 
+    filtered = [...filtered].sort((a, b) => {
+      const byDeparture = a.departureSortTime - b.departureSortTime;
+      if (byDeparture !== 0) {
+        return byDeparture;
+      }
+      return (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' });
+    });
+
     this.propertiesDisplay = filtered;
     this.splitPropertiesByUpcomingDepartures();
   }
@@ -277,19 +248,19 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getActiveReservationList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         this.upcomingDeparturePropertyIds = this.buildUpcomingDeparturePropertyIds(reservations || []);
-        this.currentReservationHasPetsByPropertyId = this.buildCurrentReservationHasPetsByPropertyId(reservations || []);
-        this.allProperties = this.mappingService.mapMaintenancePetsFromCurrentReservations(
+        this.currentReservationByPropertyId = this.mappingService.getReservationData(reservations || []);
+        this.allProperties = this.mappingService.mapMaintenanceListRowsFromCurrentReservationData(
           this.allProperties,
-          this.currentReservationHasPetsByPropertyId
+          this.currentReservationByPropertyId
         );
         this.applyFilters();
       },
       error: () => {
         this.upcomingDeparturePropertyIds = new Set<string>();
-        this.currentReservationHasPetsByPropertyId = new Map<string, boolean>();
-        this.allProperties = this.mappingService.mapMaintenancePetsFromCurrentReservations(
+        this.currentReservationByPropertyId = new Map();
+        this.allProperties = this.mappingService.mapMaintenanceListRowsFromCurrentReservationData(
           this.allProperties,
-          this.currentReservationHasPetsByPropertyId
+          this.currentReservationByPropertyId
         );
         this.applyFilters();
       }
@@ -357,12 +328,12 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           inspectorById: this.inspectorById,
           isInspectorView: this.isInspectorView,
           inspectorPropertyIds: this.inspectorPropertyIds,
-          currentReservationHasPetsByPropertyId: this.currentReservationHasPetsByPropertyId
+          currentReservationByPropertyId: this.currentReservationByPropertyId
         };
         this.allProperties = this.mappingService.mapMaintenanceListDisplayRowsFromLoadResponse(
           loadResponse,
           mappingContext
-        ) as MaintenanceListDisplay[];
+        );
         this.applyMaintenanceStatusFromServiceDates();
         this.remapCleanerInspectorDropdowns();
       },
@@ -787,7 +758,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     };
   }
 
-  buildUserDropdownCell(label: string, options: string[]): UserDropdownCell {
+  buildUserDropdownCell(label: string, options: string[]): MaintenanceListUserDropdownCell {
     return {
       value: label,
       isOverridable: true,
@@ -974,7 +945,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
  //#endregion
 
   //#region Bedroom Display
-  buildBedDropdownCell(bedId: number): BedDropdownCell {
+  buildBedDropdownCell(bedId: number): MaintenanceListBedDropdownCell {
     const value = getBedSizeType(bedId);
     return {
       value,
@@ -1055,42 +1026,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     return propertyIds;
-  }
-
-  buildCurrentReservationHasPetsByPropertyId(reservations: ReservationListResponse[]): Map<string, boolean> {
-    const propertyHasPetsById = new Map<string, boolean>();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    reservations.forEach(reservation => {
-      if (!reservation.isActive || !reservation.propertyId || !reservation.arrivalDate || !reservation.departureDate) {
-        return;
-      }
-
-      const arrivalDate = new Date(reservation.arrivalDate);
-      const departureDate = new Date(reservation.departureDate);
-      if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
-        return;
-      }
-      arrivalDate.setHours(0, 0, 0, 0);
-      departureDate.setHours(0, 0, 0, 0);
-
-      const isCurrentReservation = today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime();
-      if (!isCurrentReservation) {
-        return;
-      }
-
-      const normalizedPropertyId = this.normalizePropertyId(reservation.propertyId);
-      if (!normalizedPropertyId) {
-        return;
-      }
-
-      const hasPets = reservation.hasPets === true;
-      const existingValue = propertyHasPetsById.get(normalizedPropertyId) === true;
-      propertyHasPetsById.set(normalizedPropertyId, existingValue || hasPets);
-    });
-
-    return propertyHasPetsById;
   }
 
   normalizePropertyId(propertyId: string | null | undefined): string {

@@ -29,7 +29,7 @@ export class ConfigService {
         dev: true,
         local: false,
         title: 'RentAll - Dev',
-        apiUrl: 'https://dev.escheatr.4t.services/',
+        apiUrl: 'https://localhost:7154/api/',
       } as Environment;
 	}
 

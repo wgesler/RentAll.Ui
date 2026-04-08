@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceStatus } from '../../maintenance/models/maintenance-enums';
 import { ContactComponent } from '../../contacts/contact/contact.component';
@@ -116,6 +117,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     private toastr: ToastrService,
     private commonService: CommonService,
     private formatterService: FormatterService,
+    private mappingService: MappingService,
     private contactService: ContactService,
     private authService: AuthService,
     private officeService: OfficeService,
@@ -202,6 +204,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     
     // Check query params for tab selection
     this.setupConditionalFields();
+    this.setupBuildingAmenitySyncFromSelection();
     this.setupOwnerSelectionHandlers();
     this.setupVendorSelectionHandlers();
     this.setupLeaseTypeOwnerVendorValidators();
@@ -1510,7 +1513,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
 
     this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
       next: (buildings) => {
-        this.allBuildingsByOrg = (buildings || []).filter(b => b.organizationId === orgId && b.isActive);
+        this.allBuildingsByOrg = (buildings || []).filter(b => b.isActive);
         this.filterLocationLookupsByOffice();
       },
       error: () => {
@@ -1583,6 +1586,25 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         this.availableReservations = [];
       }
     });
+  }
+  //#endregion
+
+  //#region Building amenity sync from selection
+  setupBuildingAmenitySyncFromSelection(): void {
+    this.form.get('buildingId')?.valueChanges.pipe(distinctUntilChanged(), takeUntil(this.destroy$)).subscribe(buildingId => {
+      if (buildingId != null && typeof buildingId === 'number') {
+        const building = this.allBuildingsByOrg.find(b => b.buildingId === buildingId);
+        if (building) {
+          this.applyBuildingAmenitiesToPropertyForm(building);
+        }
+      }
+    });
+  }
+
+  applyBuildingAmenitiesToPropertyForm(building: BuildingResponse): void {
+    const patch = this.mappingService.mapBuildingAmenitiesToPropertyFormPatch(building);
+    this.form.patchValue(patch, { emitEvent: false });
+    this.syncConditionalFieldState();
   }
   //#endregion
 

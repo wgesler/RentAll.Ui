@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { TrashDays } from '../../properties/models/property-enums';
 import { BuildingRequest, BuildingResponse } from '../models/building.model';
 import { OfficeResponse } from '../models/office.model';
 import { BuildingService } from '../services/building.service';
@@ -39,6 +40,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
+  trashDays: { value: number, label: string }[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -60,6 +62,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Buildings
   ngOnInit(): void {
+    this.initializeTrashDays();
     this.loadOffices();
     // Check for returnTo query parameter
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -132,11 +135,32 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       buildingCode: formValue.buildingCode,
       name: formValue.name,
       description: formValue.description || undefined,
-      officeId: formValue.officeId ? formValue.officeId.toString() : undefined,
+      officeId: formValue.officeId != null ? String(formValue.officeId) : '',
       hoaName: formValue.hoaName || undefined,
       hoaPhone: formValue.hoaPhone ? this.formatterService.stripPhoneFormatting(formValue.hoaPhone) : undefined,
       hoaEmail: formValue.hoaEmail || undefined,
-      isActive: formValue.isActive
+      heating: !!formValue.heating,
+      ac: !!formValue.ac,
+      elevator: !!formValue.elevator,
+      security: !!formValue.security,
+      gated: !!formValue.gated,
+      petsAllowed: !!formValue.petsAllowed,
+      dogsOkay: !!formValue.dogsOkay,
+      catsOkay: !!formValue.catsOkay,
+      poundLimit: formValue.poundLimit ?? '',
+      trashPickupId: this.normalizeTrashPickupId(formValue.trashPickupId),
+      trashRemoval: formValue.trashRemoval?.trim() ? formValue.trashRemoval.trim() : null,
+      washerDryerInBldg: !!formValue.washerDryerInBldg,
+      deck: !!formValue.deck,
+      patio: !!formValue.patio,
+      yard: !!formValue.yard,
+      garden: !!formValue.garden,
+      commonPool: !!formValue.commonPool,
+      privatePool: !!formValue.privatePool,
+      jacuzzi: !!formValue.jacuzzi,
+      sauna: !!formValue.sauna,
+      gym: !!formValue.gym,
+      isActive: !!formValue.isActive
     };
 
     if (this.isAddMode) {
@@ -192,6 +216,27 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
         Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)
       ]),
       hoaEmail: new FormControl('', [Validators.email]),
+      heating: new FormControl(false),
+      ac: new FormControl(false),
+      elevator: new FormControl(false),
+      security: new FormControl(false),
+      gated: new FormControl(false),
+      petsAllowed: new FormControl(false),
+      dogsOkay: new FormControl(false),
+      catsOkay: new FormControl(false),
+      poundLimit: new FormControl(''),
+      trashPickupId: new FormControl<number | null>(null, [Validators.required]),
+      trashRemoval: new FormControl(''),
+      washerDryerInBldg: new FormControl(false),
+      deck: new FormControl(false),
+      patio: new FormControl(false),
+      yard: new FormControl(false),
+      garden: new FormControl(false),
+      commonPool: new FormControl(false),
+      privatePool: new FormControl(false),
+      jacuzzi: new FormControl(false),
+      sauna: new FormControl(false),
+      gym: new FormControl(false),
       isActive: new FormControl(true)
     });
   }
@@ -206,9 +251,47 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
         hoaName: this.building.hoaName || '',
         hoaPhone: this.formatterService.phoneNumber(this.building.hoaPhone) || '',
         hoaEmail: this.building.hoaEmail || '',
+        heating: this.building.heating ?? false,
+        ac: this.building.ac ?? false,
+        elevator: this.building.elevator ?? false,
+        security: this.building.security ?? false,
+        gated: this.building.gated ?? false,
+        petsAllowed: this.building.petsAllowed ?? false,
+        dogsOkay: this.building.dogsOkay ?? false,
+        catsOkay: this.building.catsOkay ?? false,
+        poundLimit: this.building.poundLimit ?? '',
+        trashPickupId:
+          this.building.trashPickupId == null || this.building.trashPickupId === undefined
+            ? TrashDays.None
+            : this.building.trashPickupId,
+        trashRemoval: this.building.trashRemoval ?? '',
+        washerDryerInBldg: this.building.washerDryerInBldg ?? false,
+        deck: this.building.deck ?? false,
+        patio: this.building.patio ?? false,
+        yard: this.building.yard ?? false,
+        garden: this.building.garden ?? false,
+        commonPool: this.building.commonPool ?? false,
+        privatePool: this.building.privatePool ?? false,
+        jacuzzi: this.building.jacuzzi ?? false,
+        sauna: this.building.sauna ?? false,
+        gym: this.building.gym ?? false,
         isActive: this.building.isActive
       });
     }
+  }
+
+  initializeTrashDays(): void {
+    this.trashDays = (Object.keys(TrashDays) as (keyof typeof TrashDays)[])
+      .filter(key => typeof TrashDays[key] === 'number')
+      .map(key => ({ value: TrashDays[key] as number, label: key as string }));
+  }
+
+  normalizeTrashPickupId(value: unknown): number {
+    if (value === '' || value === null || value === undefined) {
+      return TrashDays.None;
+    }
+    const n = Number(value);
+    return Number.isNaN(n) ? TrashDays.None : n;
   }
   //#endregion
 

@@ -93,6 +93,66 @@
                   }
                 </mat-form-field>
               </div>
+
+              <mat-accordion class="col-span-4 building-features-accordion" multi="true">
+                <mat-expansion-panel [expanded]="true" class="mb-4 features-panel-compact">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>Building Ammenities</mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <div class="features-container property-form-section-rows">
+                    <div class="basic-row flex items-center gap-4 flex-wrap features-content">
+                      <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
+                      <mat-checkbox formControlName="dogsOkay">DogsOkay</mat-checkbox>
+                      <mat-checkbox formControlName="catsOkay">CatsOkay</mat-checkbox>
+                      <mat-form-field appearance="outline" class="flex-1 min-w-0 field-min-15ch">
+                        <mat-label>Pound Limit / Notes</mat-label>
+                        <input matInput formControlName="poundLimit">
+                      </mat-form-field>
+                    </div>
+                    <div class="basic-row flex items-center gap-4 flex-wrap features-content">
+                      <mat-form-field appearance="outline" class="field-width-220">
+                        <mat-label>Trash Pickup</mat-label>
+                        <mat-select formControlName="trashPickupId">
+                          <mat-option value="">Select Day</mat-option>
+                          @for (day of trashDays; track day.value) {
+                            <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                          }
+                        </mat-select>
+                        @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                          <mat-error>Trash pickup is required</mat-error>
+                        }
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="flex-1 min-w-0">
+                        <mat-label>Trash Removal</mat-label>
+                        <input matInput formControlName="trashRemoval">
+                      </mat-form-field>
+                    </div>
+                    <div class="building-features-first-row features-content">
+                      <mat-checkbox formControlName="heating">Heating</mat-checkbox>
+                      <mat-checkbox formControlName="ac">A/C</mat-checkbox>
+                      <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
+                      <mat-checkbox formControlName="security">Security</mat-checkbox>
+                      <mat-checkbox formControlName="gated">Gated</mat-checkbox>
+                      <div class="building-features-washer-cell">
+                        <mat-checkbox formControlName="washerDryerInBldg">Washer/Dryer In Bldg</mat-checkbox>
+                      </div>
+                      <div class="building-features-grid-spacer" aria-hidden="true"></div>
+                      <div class="building-features-grid-spacer" aria-hidden="true"></div>
+                    </div>
+                    <div class="outdoor-spaces-one-row features-content">
+                      <mat-checkbox formControlName="deck">Deck</mat-checkbox>
+                      <mat-checkbox formControlName="patio">Patio</mat-checkbox>
+                      <mat-checkbox formControlName="yard">Yard</mat-checkbox>
+                      <mat-checkbox formControlName="garden">Garden</mat-checkbox>
+                      <mat-checkbox formControlName="commonPool">Common Pool</mat-checkbox>
+                      <mat-checkbox formControlName="privatePool">Private Pool</mat-checkbox>
+                      <mat-checkbox formControlName="sauna">Sauna</mat-checkbox>
+                      <mat-checkbox formControlName="jacuzzi">Jacuzzi</mat-checkbox>
+                      <mat-checkbox formControlName="gym">Gym</mat-checkbox>
+                    </div>
+                  </div>
+                </mat-expansion-panel>
+              </mat-accordion>
             </div>
 
             @if (isSubmitting) {

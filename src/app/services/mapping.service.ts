@@ -8,7 +8,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
-import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
+import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListPropertyRow, MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
 import { getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -21,7 +21,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { ManagementFeeType, PropertyType, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { ManagementFeeType, PropertyType, TrashDays, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -34,6 +34,15 @@ export type MaintenanceListLoadResponse = {
   maintenanceList?: MaintenanceListResponse[] | null;
 };
 
+/** Per-property snapshot from the active reservation list for maintenance rows (current stay only). */
+export type MaintenanceListCurrentReservationSnapshot = {
+  petsAllowed: boolean;
+  departureDate: string;
+  departureSortTime: number;
+};
+
+export type MaintenanceListCurrentReservationByPropertyId = Map<string, MaintenanceListCurrentReservationSnapshot>;
+
 export type MaintenanceListMappingContext = {
   housekeepingUsers: UserResponse[];
   inspectorUsers: UserResponse[];
@@ -41,7 +50,7 @@ export type MaintenanceListMappingContext = {
   inspectorById: Map<string, string>;
   isInspectorView: boolean;
   inspectorPropertyIds: Set<string>;
-  currentReservationHasPetsByPropertyId: Map<string, boolean>;
+  currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId;
 };
 
 @Injectable({
@@ -80,20 +89,33 @@ export class MappingService {
   }
 
   mapBuildings(buildings: BuildingResponse[]): BuildingListDisplay[] {
-    return buildings.map<BuildingListDisplay>((o: BuildingResponse) => {
-      return {
-        buildingId: o.buildingId,
-        buildingCode: o.buildingCode,
-        name: o.name,
-        description: o.description,
-        officeId: o.officeId,
-        officeName: o.officeName,
-        hoaName: o.hoaName,
-        hoaPhone: o.hoaPhone,
-        hoaEmail: o.hoaEmail,
-        isActive: o.isActive
-      };
-    });
+    return (buildings || []).map(o => ({ ...o }));
+  }
+
+  mapBuildingAmenitiesToPropertyFormPatch(building: BuildingResponse): Record<string, unknown> {
+    return {
+      heating: building.heating ?? false,
+      ac: building.ac ?? false,
+      elevator: building.elevator ?? false,
+      security: building.security ?? false,
+      gated: building.gated ?? false,
+      petsAllowed: building.petsAllowed ?? false,
+      dogsOkay: building.dogsOkay ?? false,
+      catsOkay: building.catsOkay ?? false,
+      poundLimit: building.poundLimit ?? '',
+      trashPickupId: building.trashPickupId ?? TrashDays.None,
+      trashRemoval: building.trashRemoval ?? '',
+      washerDryerInBldg: building.washerDryerInBldg ?? false,
+      deck: building.deck ?? false,
+      patio: building.patio ?? false,
+      yard: building.yard ?? false,
+      garden: building.garden ?? false,
+      commonPool: building.commonPool ?? false,
+      privatePool: building.privatePool ?? false,
+      jacuzzi: building.jacuzzi ?? false,
+      sauna: building.sauna ?? false,
+      gym: building.gym ?? false
+    };
   }
 
   mapColors(colors: ColorResponse[]): ColorListDisplay[] {
@@ -542,24 +564,7 @@ export class MappingService {
   mapMaintenancePropertyDisplayRows(
     properties: PropertyListResponse[],
     maintenanceRows: MaintenanceListResponse[]
-  ): Array<PropertyListDisplay & {
-    propertyAddress: string;
-    propertyStatusText: string;
-    propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string };
-    cleaner: string;
-    cleaningDate: string;
-    carpet: string;
-    carpetDate: string;
-    inspector: string;
-    inspectingDate: string;
-    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    petsAllowed: boolean;
-    needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
-  }> {
+  ): MaintenanceListPropertyRow[] {
     const propertyRows = this.mapPropertyListRows(properties || []);
     const maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
     (maintenanceRows || []).forEach(row => { if (row?.propertyId) { maintenanceByPropertyId.set(row.propertyId, row);} });
@@ -635,7 +640,7 @@ export class MappingService {
             ? 'yellow'
             : 'green';
       const needsMaintenance = needsMaintenanceState !== 'green';
-      const mapBedDropdown = (bedroomId?: number) => {
+      const mapBedDropdown = (bedroomId?: number): MaintenanceListBedDropdownCell => {
         const value = getBedSizeType(bedroomId);
         return {
           value,
@@ -645,7 +650,7 @@ export class MappingService {
         };
       };
 
-      return {
+      const row: MaintenanceListPropertyRow = {
         ...property,
         propertyAddress: property.shortAddress ?? '',
         cleaner: maintenanceRow?.cleanerUserId ?? '',
@@ -667,6 +672,7 @@ export class MappingService {
         hvacServiced: this.formatter.formatDateString(maintenanceRow?.hvacServiced ?? undefined),
         fireplaceServiced: this.formatter.formatDateString(maintenanceRow?.fireplaceServiced ?? undefined)
       };
+      return row;
     });
   }
 
@@ -674,27 +680,7 @@ export class MappingService {
     properties: PropertyListResponse[],
     maintenanceRows: MaintenanceListResponse[],
     context: MaintenanceListMappingContext
-  ): Array<PropertyListDisplay & {
-    propertyAddress: string;
-    propertyStatusText: string;
-    propertyStatusDropdown: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    cleanerUserId?: string | null;
-    cleaningDate: string;
-    carpet: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    carpetUserId?: string | null;
-    carpetDate: string;
-    inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    inspectorUserId?: string | null;
-    inspectingDate: string;
-    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    petsAllowed: boolean;
-    needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
-  }> {
+  ): MaintenanceListDisplay[] {
     const {
       housekeepingUsers,
       inspectorUsers,
@@ -702,69 +688,54 @@ export class MappingService {
       inspectorById,
       isInspectorView,
       inspectorPropertyIds,
-      currentReservationHasPetsByPropertyId
+      currentReservationByPropertyId
     } = context;
 
-    const rows = this.mapMaintenancePropertyDisplayRows(properties || [], maintenanceRows || []).map(property => ({
-      ...property,
-      cleanerUserId: property.cleaner ?? null,
-      carpetUserId: property.carpet ?? null,
-      inspectorUserId: property.inspector ?? null,
-      propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
-      cleaner: this.buildMaintenanceUserDropdownCell(
-        this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
-        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
-      ),
-      carpet: this.buildMaintenanceUserDropdownCell(
-        this.resolveMaintenanceUserName(property.carpet ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
-        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
-      ),
-      inspector: this.buildMaintenanceUserDropdownCell(
-        this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, ''),
-        this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Clear Selection')
-      ),
-      petsAllowed: this.getCurrentReservationHasPetsValue(property.propertyId, currentReservationHasPetsByPropertyId)
-    }));
+    const rows = this.mapMaintenancePropertyDisplayRows(properties || [], maintenanceRows || []).map((property): MaintenanceListDisplay => {
+      const reservationRow = this.getMaintenanceListCurrentReservationFields(property.propertyId, currentReservationByPropertyId);
+      return {
+        ...property,
+        cleanerUserId: property.cleaner ?? null,
+        carpetUserId: property.carpet ?? null,
+        inspectorUserId: property.inspector ?? null,
+        propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(property.propertyStatusText),
+        cleaner: this.buildMaintenanceUserDropdownCell(
+          this.resolveMaintenanceUserName(property.cleaner ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
+          this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
+        ),
+        carpet: this.buildMaintenanceUserDropdownCell(
+          this.resolveMaintenanceUserName(property.carpet ?? '', property.officeId, housekeepingUsers, housekeepingById, ''),
+          this.getMaintenanceUserOptionsForOffice(housekeepingUsers, property.officeId, 'Clear Selection')
+        ),
+        inspector: this.buildMaintenanceUserDropdownCell(
+          this.resolveMaintenanceUserName(property.inspector ?? '', property.officeId, inspectorUsers, inspectorById, ''),
+          this.getMaintenanceUserOptionsForOffice(inspectorUsers, property.officeId, 'Clear Selection')
+        ),
+        departureDate: reservationRow.departureDate,
+        departureSortTime: reservationRow.departureSortTime,
+        petsAllowed: reservationRow.petsAllowed
+      };
+    });
 
     return isInspectorView && inspectorPropertyIds.size > 0
       ? rows.filter(property => inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
       : rows;
   }
 
-  mapMaintenancePetsFromCurrentReservations<T extends { propertyId: string; petsAllowed: boolean }>(
-    rows: T[],
-    currentReservationHasPetsByPropertyId: Map<string, boolean>
-  ): T[] {
+  mapMaintenanceListRowsFromCurrentReservationData(
+    rows: MaintenanceListDisplay[],
+    currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId
+  ): MaintenanceListDisplay[] {
     return (rows || []).map(row => ({
       ...row,
-      petsAllowed: this.getCurrentReservationHasPetsValue(row.propertyId, currentReservationHasPetsByPropertyId)
+      ...this.getMaintenanceListCurrentReservationFields(row.propertyId, currentReservationByPropertyId)
     }));
   }
 
   mapMaintenanceListDisplayRowsFromLoadResponse(
     loadResponse: MaintenanceListLoadResponse,
     context: MaintenanceListMappingContext
-  ): Array<PropertyListDisplay & {
-    propertyAddress: string;
-    propertyStatusText: string;
-    propertyStatusDropdown: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    cleaner: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    cleanerUserId?: string | null;
-    cleaningDate: string;
-    carpet: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    carpetUserId?: string | null;
-    carpetDate: string;
-    inspector: { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string };
-    inspectorUserId?: string | null;
-    inspectingDate: string;
-    bed1Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed2Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed3Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    bed4Text: { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string };
-    petsAllowed: boolean;
-    needsMaintenance: boolean;
-    needsMaintenanceState: 'red' | 'yellow' | 'green' | 'grey';
-  }> {
+  ): MaintenanceListDisplay[] {
     return this.mapMaintenanceListDisplayRows(
       loadResponse.properties || [],
       loadResponse.maintenanceList || [],
@@ -859,7 +830,7 @@ export class MappingService {
   //#endregion
 
   //#region Helper/Format Functions
-  buildMaintenanceStatusDropdownCell(label: string): { value: string; isOverridable: boolean; panelClass?: string | string[]; toString: () => string } {
+  buildMaintenanceStatusDropdownCell(label: string): MaintenanceListStatusDropdownCell {
     return {
       value: label,
       isOverridable: true,
@@ -868,7 +839,7 @@ export class MappingService {
     };
   }
 
-  buildMaintenanceUserDropdownCell(label: string, options: string[]): { value: string; isOverridable: boolean; options?: string[]; panelClass?: string | string[]; toString: () => string } {
+  buildMaintenanceUserDropdownCell(label: string, options: string[]): MaintenanceListUserDropdownCell {
     return {
       value: label,
       isOverridable: true,
@@ -903,15 +874,87 @@ export class MappingService {
     return [defaultLabel, ...names];
   }
 
-  getCurrentReservationHasPetsValue(
+  private static readonly maintenanceListNoDepartureSortTime = Number.MAX_SAFE_INTEGER;
+
+  getMaintenanceListCurrentReservationFields(
     propertyId: string | null | undefined,
-    currentReservationHasPetsByPropertyId: Map<string, boolean>
-  ): boolean {
+    currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId
+  ): MaintenanceListCurrentReservationSnapshot {
     const normalizedPropertyId = String(propertyId || '').trim().toLowerCase();
     if (!normalizedPropertyId) {
-      return false;
+      return {
+        petsAllowed: false,
+        departureDate: 'N/A',
+        departureSortTime: MappingService.maintenanceListNoDepartureSortTime
+      };
     }
-    return currentReservationHasPetsByPropertyId.get(normalizedPropertyId) === true;
+    return (
+      currentReservationByPropertyId.get(normalizedPropertyId) ?? {
+        petsAllowed: false,
+        departureDate: 'N/A',
+        departureSortTime: MappingService.maintenanceListNoDepartureSortTime
+      }
+    );
+  }
+
+  /** Single pass: current stay per property → maintenance list row fields (pets + departure display). */
+  getReservationData(reservations: ReservationListResponse[] | null | undefined): MaintenanceListCurrentReservationByPropertyId {
+    type Agg = { departureTime: number; departureDate: string; petsAllowed: boolean };
+    const byProperty = new Map<string, Agg>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const reservation of reservations || []) {
+      if (!reservation.isActive || !reservation.propertyId || !reservation.arrivalDate || !reservation.departureDate) {
+        continue;
+      }
+
+      const arrivalDate = new Date(reservation.arrivalDate);
+      const departureDate = new Date(reservation.departureDate);
+      if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+        continue;
+      }
+      arrivalDate.setHours(0, 0, 0, 0);
+      departureDate.setHours(0, 0, 0, 0);
+
+      if (today.getTime() < arrivalDate.getTime() || today.getTime() > departureDate.getTime()) {
+        continue;
+      }
+
+      const normalizedPropertyId = String(reservation.propertyId ?? '').trim().toLowerCase();
+      if (!normalizedPropertyId) {
+        continue;
+      }
+
+      const departureTime = departureDate.getTime();
+      const departureDateDisplay = this.formatter.formatDateString(reservation.departureDate) || '';
+      const hasPets = reservation.hasPets === true;
+      const existing = byProperty.get(normalizedPropertyId);
+
+      if (!existing || departureTime > existing.departureTime) {
+        byProperty.set(normalizedPropertyId, {
+          departureTime,
+          departureDate: departureDateDisplay,
+          petsAllowed: (existing?.petsAllowed ?? false) || hasPets
+        });
+      } else {
+        byProperty.set(normalizedPropertyId, {
+          ...existing,
+          petsAllowed: existing.petsAllowed || hasPets
+        });
+      }
+    }
+
+    const result: MaintenanceListCurrentReservationByPropertyId = new Map();
+    byProperty.forEach((v, k) => {
+      const departureDate = v.departureDate.trim() !== '' ? v.departureDate : 'N/A';
+      result.set(k, {
+        departureDate,
+        petsAllowed: v.petsAllowed,
+        departureSortTime: v.departureTime
+      });
+    });
+    return result;
   }
 
   parseDateOrNull(value: string | null | undefined): Date | null {

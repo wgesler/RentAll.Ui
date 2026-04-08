@@ -12,6 +12,96 @@
   }
 }
 
+/* Features & Security block — aligned with property.component.html layout */
+.property-form-section-rows {
+  > *:not(:last-child) {
+    margin-bottom: 16px;
+  }
+}
+
+.features-container {
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  border-radius: 4px;
+  padding: 18px;
+  margin-top: 8px;
+
+  .features-content {
+    margin-top: 0;
+  }
+
+  /* 9 columns: 5×1 (heating…gated) + 2 (washer/dryer) + 2 empty */
+  .building-features-first-row {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 8px 12px;
+    align-items: center;
+    justify-items: stretch;
+    width: 100%;
+
+    > mat-checkbox {
+      min-width: 0;
+      display: flex;
+      width: 100%;
+
+      ::ng-deep .mdc-form-field {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 100%;
+      }
+    }
+
+    .building-features-washer-cell {
+      grid-column: span 2;
+      min-width: 0;
+      display: flex;
+      width: 100%;
+
+      mat-checkbox {
+        min-width: 0;
+        display: flex;
+        width: 100%;
+
+        ::ng-deep .mdc-form-field {
+          flex: 1 1 auto;
+          min-width: 0;
+          max-width: 100%;
+        }
+      }
+    }
+
+    .building-features-grid-spacer {
+      min-width: 0;
+      pointer-events: none;
+    }
+  }
+
+  .outdoor-spaces-one-row {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 8px 12px;
+    align-items: center;
+    justify-items: stretch;
+    width: 100%;
+
+    > mat-checkbox {
+      min-width: 0;
+      display: flex;
+      width: 100%;
+
+      ::ng-deep .mdc-form-field {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 100%;
+      }
+    }
+  }
+}
+
+.building-features-accordion {
+  width: 100%;
+}
+
 .embedded-mode {
   .content-card-wrap {
     justify-content: flex-start;
