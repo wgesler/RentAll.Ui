@@ -70,7 +70,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   private isLoadingReservations = false;
   private lastLoadedOfficeId: number | null | undefined = undefined;
 
-  private readonly boardAddressMaxChars = 25;
+  private readonly boardAddressMaxChars = 23;
 
   constructor(
     private propertyService: PropertyService,
