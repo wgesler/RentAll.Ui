@@ -87,7 +87,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
+    'fileName': { displayAs: 'File Name', maxWidth: '60ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
 
@@ -95,7 +95,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
+    'fileName': { displayAs: 'File Name', maxWidth: '60ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
   

@@ -252,6 +252,10 @@ export class MappingService {
       attachmentPath: email?.attachmentPath ?? '',
       documentId: email?.documentId ?? email?.attachmentDocumentId ?? undefined,
       emailTypeId: Number(email?.emailTypeId ?? 0),
+      documentTypeId:
+        email?.documentTypeId !== undefined && email?.documentTypeId !== null
+          ? Number(email.documentTypeId)
+          : undefined,
       canView: Boolean(
         email?.documentId ??
         email?.attachmentDocumentId ??

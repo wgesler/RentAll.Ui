@@ -38,6 +38,7 @@ export type ChecklistIssuesDialogData = {
   officeId?: number | null;
   officeName?: string | null;
   propertyId?: string | null;
+  reservationId?: string | null;
   fromEmail?: string | null;
   fromName?: string | null;
   toEmail?: string | null;
@@ -357,13 +358,14 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
   }
 
   getDocumentConfig(): DocumentConfig {
+    const reservationId = (this.data?.reservationId || '').trim();
     return {
       previewIframeHtml: this.buildIssuesPreviewHtml(),
       previewIframeStyles: this.buildIssuesPreviewStyles(),
       organizationId: this.data?.organizationId ?? null,
       selectedOfficeId: this.data?.officeId ?? null,
       selectedOfficeName: this.data?.officeName ?? '',
-      selectedReservationId: null,
+      selectedReservationId: reservationId.length > 0 ? reservationId : null,
       propertyId: this.data?.propertyId ?? null,
       contacts: [],
       isDownloading: this.isDownloading

@@ -41,6 +41,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() companyId: string | null = null;
   @Input() reservationId: string | null = null;
   @Input() emailTypeId?: number;
+  /** When set, keep only rows with this document type (e.g. Inspection). Rows without `documentTypeId` match if subject starts with "Inspection Issues". */
+  @Input() filterDocumentTypeId?: number;
   @Input() activeOnly: boolean = false;
   @Input() reservations: ReservationListResponse[] = []; // Shared reservations list from parent (or loaded internally)
   @Output() organizationIdChange = new EventEmitter<string | null>();
@@ -159,6 +161,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (changes['activeOnly'] && !changes['activeOnly'].firstChange) {
+      this.applyFilters();
+    }
+
+    if (changes['propertyId'] && !changes['propertyId'].firstChange) {
+      this.applyFilters();
+    }
+
+    if (changes['filterDocumentTypeId']) {
       this.applyFilters();
     }
   }
@@ -442,6 +452,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(email => email.emailTypeId === this.emailTypeId);
     }
 
+    if (this.filterDocumentTypeId !== null && this.filterDocumentTypeId !== undefined) {
+      filtered = filtered.filter(email => this.emailMatchesDocumentTypeFilter(email));
+    }
+
     const activeReservationsOnly =
       (this.hideHeader && this.hideFilters && this.source === 'property') || this.activeOnly;
     if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
@@ -494,7 +508,22 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-    //#region Utility Methods
+  //#region Utility Methods
+  private emailMatchesDocumentTypeFilter(email: EmailListDisplay): boolean {
+    const want = this.filterDocumentTypeId;
+    if (want === null || want === undefined) {
+      return true;
+    }
+    const rowDt = email.documentTypeId;
+    if (rowDt === want) {
+      return true;
+    }
+    if (rowDt === undefined || rowDt === null || Number.isNaN(Number(rowDt))) {
+      return (email.subject || '').trim().startsWith('Inspection Issues');
+    }
+    return false;
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();

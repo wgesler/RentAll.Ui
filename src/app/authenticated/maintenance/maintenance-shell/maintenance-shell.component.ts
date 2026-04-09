@@ -21,6 +21,8 @@ import { ReceiptsListComponent } from '../receipts-list/receipts-list.component'
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
+import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { hasInspectorRole } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -41,6 +43,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptComponent,
     WorkOrderComponent,
     DocumentListComponent,
+    EmailListComponent,
     MaintenanceComponent
   ],
   templateUrl: './maintenance-shell.component.html',
@@ -52,6 +55,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
+  @ViewChild('maintenanceEmailList') maintenanceEmailList?: EmailListComponent;
 
   property: PropertyResponse | null = null;
   isServiceError = false;
@@ -84,6 +88,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
+  readonly inspectionEmailDocumentType = DocumentType.Inspection;
 
   constructor(
     private route: ActivatedRoute,
@@ -225,8 +231,12 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     return 3;
   }
 
-  get documentsTabIndex(): number {
+  get emailTabIndex(): number {
     return this.showWorkOrdersTab ? 4 : 3;
+  }
+
+  get documentsTabIndex(): number {
+    return this.showWorkOrdersTab ? 5 : 4;
   }
 
   get receiptsTabIndex(): number {
@@ -333,16 +343,22 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     const previousTabIndex = this.selectedTabIndex;
     this.selectedTabIndex = nextTabIndex;
     try {
-      const canLeave = await this.confirmChecklistNavigation();
+      const canLeave = await this.confirmChecklistNavigation({
+        previousIndex: previousTabIndex,
+        nextIndex: nextTabIndex
+      });
       if (!canLeave) {
         this.selectedTabIndex = previousTabIndex;
         return;
       }
-      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
+      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex || nextTabIndex === this.emailTabIndex) {
         this.titleBarReservationId = null;
       }
       if (nextTabIndex === this.documentsTabIndex) {
         this.maintenanceDocumentList?.reload();
+      }
+      if (nextTabIndex === this.emailTabIndex) {
+        this.maintenanceEmailList?.reload();
       }
       if (nextTabIndex === 0) {
         setTimeout(() => this.inspectionChecklist?.pushTitleBarReservationToShell(), 0);
@@ -419,7 +435,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       return null;
     }
 
-    const maxTab = this.showWorkOrdersTab ? 4 : 3;
+    const maxTab = this.showWorkOrdersTab ? 5 : 4;
     if (tabParam > maxTab) {
       return maxTab;
     }
@@ -441,9 +457,30 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     return this.confirmChecklistNavigation();
   }
 
-  async confirmChecklistNavigation(): Promise<boolean> {
+  /**
+   * @param tabChange When set (mat-tab switch): prompt only when leaving Inspection (index 0) if that
+   * checklist has unsaved changes, or when leaving Maintenance (index 1) if the maintenance form has
+   * unsaved changes (maintenance-only edits do not require leaving Inspection). Other tabs stay mounted, so
+   * inspection `dirty` must not block moves like Emails ↔ Work Orders. Omit for property change, Back,
+   * and route deactivate — then both sections are checked.
+   */
+  async confirmChecklistNavigation(tabChange?: { previousIndex: number; nextIndex: number }): Promise<boolean> {
     const hasInspectionChanges = this.inspectionChecklist?.hasUnsavedChanges() ?? false;
     const hasMaintenanceChanges = this.maintenanceSection?.hasUnsavedChanges() ?? false;
+
+    if (tabChange) {
+      const { previousIndex, nextIndex } = tabChange;
+      const leavingInspectionTab = previousIndex === 0 && nextIndex !== 0;
+      const leavingMaintenanceTab = previousIndex === 1 && nextIndex !== 1;
+      if (leavingInspectionTab && hasInspectionChanges) {
+        return this.resolveUnsavedChangesForSection('inspection');
+      }
+      if (leavingMaintenanceTab && hasMaintenanceChanges) {
+        return this.resolveUnsavedChangesForSection('maintenance');
+      }
+      return true;
+    }
+
     if (!hasInspectionChanges && !hasMaintenanceChanges) {
       return true;
     }
@@ -456,7 +493,10 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     } else {
       targetSection = hasInspectionChanges ? 'inspection' : 'maintenance';
     }
+    return this.resolveUnsavedChangesForSection(targetSection);
+  }
 
+  private async resolveUnsavedChangesForSection(targetSection: 'inspection' | 'maintenance'): Promise<boolean> {
     const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
     if (action === 'save') {
       if (targetSection === 'inspection') {

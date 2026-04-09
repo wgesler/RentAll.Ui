@@ -40,6 +40,7 @@ export interface EmailResponse {
   fileDetails?: FileDetails | null;
   emailTypeId: number;
   emailStatusId: number;
+  documentTypeId?: number;
   attemptCount: number;
   lastError: string;
   lastAttemptedOn?: string | null;
@@ -66,6 +67,8 @@ export interface EmailListDisplay {
   attachmentPath: string;
   documentId?: string;
   emailTypeId: number;
+  /** Present when API returns document type (e.g. inspection issue PDFs). */
+  documentTypeId?: number;
   canView?: boolean;
   createdOn: string;
 }

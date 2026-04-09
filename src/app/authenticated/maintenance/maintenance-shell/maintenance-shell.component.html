@@ -152,6 +152,22 @@
               }
             </mat-tab>
           }
+          <mat-tab label="Emails">
+            @if (property) {
+              <app-email-list
+                #maintenanceEmailList
+                [source]="'property'"
+                [propertyId]="property.propertyId"
+                [propertyCode]="property.propertyCode ?? null"
+                [organizationId]="organizationId"
+                [officeId]="property.officeId ?? null"
+                [reservations]="shellReservations"
+                [filterDocumentTypeId]="inspectionEmailDocumentType"
+                [hideHeader]="true"
+                [hideFilters]="true"
+              />
+            }
+          </mat-tab>
           <mat-tab label="Documents">
             <app-document-list
               #maintenanceDocumentList

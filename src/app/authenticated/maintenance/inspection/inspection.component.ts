@@ -135,7 +135,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         return;
       }
       if (type === InspectionType.MoveIn || type === InspectionType.MoveOut) {
-        if (!this.hasReservationResolved) {
+        if (!this.hasShellReservationSelected) {
           this.shellReservationFieldTouched = true;
         }
       } else {
@@ -176,7 +176,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       this.patchInspectionTypeFromContext();
     }
 
-    if (this.hasInitialized && changes['titleBarReservationId'] && this.hasReservationResolved) {
+    if (this.hasInitialized && changes['titleBarReservationId'] && this.hasShellReservationSelected) {
       this.shellReservationFieldTouched = false;
       this.cdr.markForCheck();
     }
@@ -671,7 +671,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   get showTitleBarReservationError(): boolean {
-    return this.shellReservationRequired && !this.hasReservationResolved && this.shellReservationFieldTouched;
+    return this.shellReservationRequired && !this.hasShellReservationSelected && this.shellReservationFieldTouched;
   }
 
   get titleBarReservationRequired(): boolean {
@@ -693,7 +693,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   validateShellReservationForSave(): boolean {
-    if (!this.shellReservationRequired || this.hasReservationResolved) {
+    if (!this.shellReservationRequired || this.hasShellReservationSelected) {
       return true;
     }
     this.shellReservationFieldTouched = true;
@@ -2115,6 +2115,9 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   openIssuesDialog(): void {
     const fromName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'RentAll User';
     const fromEmail = this.user?.email || '';
+    const reservationFromShell = (this.titleBarReservationId || '').trim();
+    const reservationFromInspection = (this.activeInspection?.reservationId || '').trim();
+    const reservationId = reservationFromShell || reservationFromInspection || null;
     this.dialog.open(DialogChecklistIssuesComponent, {
       width: '55rem',
       maxWidth: '95vw',
@@ -2126,6 +2129,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         officeId: this.property?.officeId ?? null,
         officeName: this.property?.officeName ?? null,
         propertyId: this.property?.propertyId ?? null,
+        reservationId,
         fromEmail,
         fromName,
         toEmail: fromEmail,

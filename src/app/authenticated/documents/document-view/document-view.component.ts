@@ -10,7 +10,9 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
+import { hasInspectorRole } from '../../shared/access/role-access';
 import { DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
@@ -50,7 +52,8 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     private sanitizer: DomSanitizer,
     private documentExportService: DocumentExportService,
     private documentHtmlService: DocumentHtmlService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private authService: AuthService
   ) {
   }
 
@@ -435,6 +438,12 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   //#endregion 
 
   //#region Utility Methods
+  private getMaintenanceShellDocumentsTabIndex(): number {
+    const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    const showWorkOrdersTab = !isInspector;
+    return showWorkOrdersTab ? 5 : 4;
+  }
+
   back(): void {
     if (this.returnTo === 'email') {
       this.router.navigateByUrl(RouterUrl.EmailList);
@@ -444,7 +453,8 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     // If we came from Maintenance > Documents tab
     if (this.returnTo === 'maintenance' && this.propertyId) {
       const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.propertyId]);
-      this.router.navigateByUrl(maintenanceUrl + '?tab=4'); // Documents tab index
+      const documentsTabIndex = this.getMaintenanceShellDocumentsTabIndex();
+      this.router.navigateByUrl(`${maintenanceUrl}?tab=${documentsTabIndex}`);
       return;
     }
 
