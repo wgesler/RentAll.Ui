@@ -62,7 +62,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   readonly inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
   shellReservationFieldTouched = false;
-  private inspectionTypeSubscription?: Subscription;
+  inspectionTypeSubscription?: Subscription;
 
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
   readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
@@ -116,10 +116,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   //#region Checklist
   ngOnInit(): void {
     this.user = this.authService.getUser();
-    this.isAdmin =
-      this.utilityService.hasRole(this.user?.userGroups, UserGroups.SuperAdmin) ||
-      this.utilityService.hasRole(this.user?.userGroups, UserGroups.Admin) ||
-      this.utilityService.hasRole(this.user?.userGroups, UserGroups.PropertyManagerAdmin);
+    this.isAdmin = this.authService.isAdmin() || this.utilityService.hasRole(this.user?.userGroups, UserGroups.PropertyManagerAdmin);
     this.todayDate = new Date().toLocaleDateString();
     this.inspectorName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'Unknown User';
     this.sectionTemplates = INSPECTION_SECTIONS;
@@ -201,6 +198,27 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
 
     this.applyModeState();
+  }
+
+  //#region Checklist Template Manipulation
+  parseSavedSections(rawChecklistJson: string): SavedChecklistSection[] | null {
+    try {
+      let checklistRoot = JSON.parse(rawChecklistJson) as {
+        sections?: SavedChecklistSection[];
+        inspectionCheckList?: string;
+      };
+
+      if (typeof checklistRoot.inspectionCheckList === 'string') {
+        checklistRoot = JSON.parse(checklistRoot.inspectionCheckList) as { sections?: SavedChecklistSection[] };
+      }
+
+      const rawSections = Array.isArray(checklistRoot.sections) ? checklistRoot.sections : [];
+      const validSections = rawSections.filter(section => typeof section?.key === 'string' && Array.isArray(section.sets));
+
+      return validSections.length > 0 ? validSections : null;
+    } catch {
+      return null;
+    }
   }
 
   applySavedChecklistJson(rawChecklistJson: string): boolean {
@@ -291,6 +309,178 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.applyModeState();
     return true;
   }
+
+  buildChecklistTemplateJson(): string {
+    const payload = {
+      sections: this.sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
+        notes: this.form.get(this.notesControlName(section.key))?.value || '',
+        sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
+          this.getSetItems(section.key, repeatIndex).map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            requiresCount: item.requiresCount,
+            count: item.requiresCount
+              ? this.getCountValue(section.key, repeatIndex, item.id)
+              : null,
+            isEditable: item.isEditable,
+            photoPath: item.photoPath ?? null,
+            issue: item.issue ?? null,
+            hasIssue: item.hasIssue === true
+          }))
+        )
+      }))
+    };
+
+    return JSON.stringify(payload);
+  }
+
+  buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
+    const payload = {
+      sections: sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        selectionMode: section.selectionMode ?? 'allRequired',
+        notes: '',
+        sets: [
+          section.items.map(item => ({
+            text: item.text,
+            requiresPhoto: item.requiresPhoto,
+            requiresCount: false,
+            count: null,
+            isEditable: defaultIsEditable,
+            photoPath: null as string | null,
+            issue: null as string | null,
+            hasIssue: false
+          }))
+        ]
+      }))
+    };
+    return JSON.stringify(payload);
+  }
+
+  upsertMaintenanceTemplate(checklistJson: string) {
+    if (!this.property) {
+      return of(null);
+    }
+
+    return this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(take(1),
+      switchMap((latest) => {
+        const existing = latest ?? this.maintenanceRecord ?? null;
+        const payload: MaintenanceRequest = {
+          maintenanceId: existing?.maintenanceId,
+          organizationId: existing?.organizationId ?? this.user?.organizationId ?? this.property!.organizationId,
+          officeId: existing?.officeId ?? this.property!.officeId,
+          officeName: existing?.officeName ?? this.property!.officeName ?? '',
+          propertyId: this.property!.propertyId,
+          inspectionCheckList: checklistJson,
+          cleanerUserId: existing?.cleanerUserId ?? this.user?.userId ?? '',
+          cleaningDate: existing?.cleaningDate ?? undefined,
+          inspectorUserId: existing?.inspectorUserId ?? this.user?.userId ?? '',
+          inspectingDate: existing?.inspectingDate ?? undefined,
+          notes: existing?.notes ?? null,
+          isActive: existing?.isActive ?? true
+        };
+
+        return payload.maintenanceId
+          ? this.maintenanceService.updateMaintenance(payload)
+          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
+      })
+    );
+  }
+
+  saveTemplate(onComplete?: (saved: boolean) => void): void {
+    if (!this.property) {
+      onComplete?.(false);
+      return;
+    }
+
+    const checklistJson = this.buildChecklistTemplateJson();
+    const emptyAnswersJson = this.buildEmptyChecklistAnswersJson();
+    this.isSavingTemplateInternal = true;
+    this.isServiceError = false;
+    this.syncInspectionTypeIdControlDisabledForSave();
+
+    this.upsertMaintenanceTemplate(checklistJson).pipe(take(1),
+      switchMap((savedMaintenance) => {
+        this.maintenanceRecord = savedMaintenance;
+        const createDraftPayload: InspectionRequest = {
+          organizationId: savedMaintenance.organizationId || this.user?.organizationId || this.property?.organizationId || '',
+          officeId: savedMaintenance.officeId || this.property.officeId,
+          propertyId: this.property!.propertyId,
+          maintenanceId: savedMaintenance.maintenanceId || '',
+          inspectionTypeId: this.inspectionTypeIdControl.value,
+          inspectionCheckList: emptyAnswersJson,
+          documentPath: null,
+          isActive: true,
+          reservationId: this.reservationIdForInspectionPayload(undefined)
+        };
+        return this.inspectionService.createInspection(createDraftPayload).pipe(take(1),
+          map((savedInspectionResponse) => ({ savedMaintenance, savedInspectionResponse }))
+        );
+      }),
+      finalize(() => {
+        this.isSavingTemplateInternal = false;
+        this.syncInspectionTypeIdControlDisabledForSave();
+      })
+    ).subscribe({
+      next: ({ savedMaintenance, savedInspectionResponse }: { savedMaintenance: MaintenanceResponse; savedInspectionResponse: InspectionResponse }) => {
+        this.maintenanceRecord = savedMaintenance;
+        this.activeInspection = this.mappingService.mapInspection(savedInspectionResponse);
+        this.patchInspectionTypeFromContext();
+        this.activeMode = 'answer';
+        this.applyModeState();
+        this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
+        this.captureSavedStateSignature();
+        this.toastr.success('Template saved successfully', CommonMessage.Success);
+        onComplete?.(true);
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.toastr.error('Failed to save template/inspection draft', CommonMessage.Error);
+        onComplete?.(false);
+      }
+    });
+  }
+
+  createMaintenanceWithDefaultTemplate(propertyId: string): void {
+    if (!this.property) {
+      return;
+    }
+
+    const payload: MaintenanceRequest = {
+      organizationId: this.property.organizationId ?? this.user?.organizationId ?? '',
+      officeId: this.property.officeId ?? 0,
+      officeName: this.property.officeName ?? '',
+      propertyId,
+      inspectionCheckList: this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false),
+      cleanerUserId: this.user?.userId ?? '',
+      cleaningDate: undefined,
+      inspectorUserId: this.user?.userId ?? '',
+      inspectingDate: undefined,
+      notes: null,
+      isActive: true
+    };
+
+    this.maintenanceService.createMaintenance(payload).pipe(take(1)).subscribe({
+      next: (saved) => {
+        this.maintenanceRecord = saved;
+        const savedTemplateJson = saved?.inspectionCheckList?.trim() ?? '';
+        if (savedTemplateJson.length > 0) {
+          this.applySavedChecklistJson(savedTemplateJson);
+        }
+        this.activeMode = 'template';
+        this.applyModeState();
+        this.loadChecklistAnswers(propertyId);
+      },
+      error: () => {
+        this.maintenanceRecord = null;
+      }
+    });
+  }
+  //#endregion
 
   applySavedAnswersJson(rawChecklistJson: string): boolean {
     try {
@@ -404,7 +594,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
   }
 
-  /** Load viewable image URLs for saved photos via photo API (getPhotoByGuid), not document API. Same pattern as user profile picture. */
   loadPhotoBlobUrls(): void {
     const documentIdsToLoad = new Set<string>();
     Object.values(this.sectionSetItems).forEach(sets => {
@@ -437,107 +626,9 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       });
     });
   }
-
-  ngOnDestroy(): void {
-    this.inspectionTypeSubscription?.unsubscribe();
-    this.photoBlobUrlCache.forEach(url => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-    this.photoBlobUrlCache.clear();
-  }
-
-  parseSavedSections(rawChecklistJson: string): SavedChecklistSection[] | null {
-    try {
-      let checklistRoot = JSON.parse(rawChecklistJson) as {
-        sections?: SavedChecklistSection[];
-        inspectionCheckList?: string;
-      };
-
-      if (typeof checklistRoot.inspectionCheckList === 'string') {
-        checklistRoot = JSON.parse(checklistRoot.inspectionCheckList) as { sections?: SavedChecklistSection[] };
-      }
-
-      const rawSections = Array.isArray(checklistRoot.sections) ? checklistRoot.sections : [];
-      const validSections = rawSections.filter(section => typeof section?.key === 'string' && Array.isArray(section.sets));
-
-      return validSections.length > 0 ? validSections : null;
-    } catch {
-      return null;
-    }
-  }
   //#endregion
 
   //#region CheckList Top Buttons
-  get totalItems(): number {
-    return this.sections.reduce((total, section) => {
-      if (this.isSectionCountedAsSingleUnit(section)) {
-        return total + 1;
-      }
-      return total + this.getRepeatIndexes(section.key).reduce((setTotal, repeatIndex) => {
-        return setTotal + this.getSetItems(section.key, repeatIndex).length;
-      }, 0);
-    }, 0);
-  }
-
-  get completedCount(): number {
-    let completed = 0;
-    this.sections.forEach(section => {
-      if (this.isSectionCountedAsSingleUnit(section)) {
-        if (this.isSelectionModeSectionComplete(section)) {
-          completed += 1;
-        }
-        return;
-      }
-
-      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
-        this.getSetItems(section.key, repeatIndex).forEach(item => {
-          if (this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value && item.hasIssue !== true) {
-            completed += 1;
-          }
-        });
-      }
-    });
-    return completed;
-  }
-
-  get errorsCount(): number {
-    let errors = 0;
-    this.sections.forEach(section => {
-      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
-        this.getSetItems(section.key, repeatIndex).forEach(item => {
-          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
-          if (isChecked && item.hasIssue === true) {
-            errors += 1;
-          }
-        });
-      }
-    });
-    return errors;
-  }
-
-  get issueEntries(): ChecklistIssueEntry[] {
-    const issues: ChecklistIssueEntry[] = [];
-    this.sections.forEach(section => {
-      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
-        this.getSetItems(section.key, repeatIndex).forEach(item => {
-          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
-          if (!isChecked || item.hasIssue !== true) {
-            return;
-          }
-          issues.push({
-            sectionTitle: section.title,
-            setLabel: this.getSetInstruction(section.key, repeatIndex) || undefined,
-            issueText: (item.issue || '').trim() || 'No issue text provided',
-            photoSrc: this.getItemPhotoSrc(item)
-          });
-        });
-      }
-    });
-    return issues;
-  }
-
   isSectionCountedAsSingleUnit(section: ChecklistSection): boolean {
     return section.selectionMode === 'exactlyOne' || section.selectionMode === 'atLeastOne';
   }
@@ -627,58 +718,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.initializeChecklistState();
     this.applyModeState();
   }
-
-  get saveButtonText(): string {
-    if (!this.isTemplateMode && this.canSubmitInspection) {
-      return 'Submit';
-    }
-
-    return 'Save';
-  } 
-
-  get canSubmitInspection(): boolean {
-    if (this.isTemplateMode || this.isReadonlyMode || !this.form || this.sections.length === 0) {
-      return false;
-    }
-    return this.isChecklistFullyComplete(this.buildChecklistAnswersJson());
-  }
   //#endregion
 
   //#region Saving Methods
-  get isSavingInProgress(): boolean {
-    return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
-  }
-
-  get shellReservationRequired(): boolean {
-    if (this.isReadonlyMode || this.isTemplateMode) {
-      return false;
-    }
-    const t = this.inspectionTypeIdControl.value;
-    return t === InspectionType.MoveIn || t === InspectionType.MoveOut;
-  }
-
-  get hasShellReservationSelected(): boolean {
-    const id = this.titleBarReservationId;
-    return id != null && String(id).trim().length > 0;
-  }
-
-  get hasReservationResolved(): boolean {
-    if (this.hasShellReservationSelected) {
-      return true;
-    }
-    const sid = this.activeInspection?.reservationId;
-    return sid != null && String(sid).trim().length > 0;
-  }
-
-  get showTitleBarReservationError(): boolean {
-    return this.shellReservationRequired && !this.hasShellReservationSelected && this.shellReservationFieldTouched;
-  }
-
-  get titleBarReservationRequired(): boolean {
-    return this.shellReservationRequired;
-  }
-
-  private reservationIdForInspectionPayload(serverReservation: string | null | undefined): string | null {
+  reservationIdForInspectionPayload(serverReservation: string | null | undefined): string | null {
     if (this.inspectionTypeIdControl.value === InspectionType.Online) {
       return null;
     }
@@ -702,7 +745,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return false;
   }
 
-  private syncInspectionTypeIdControlDisabledForSave(): void {
+  syncInspectionTypeIdControlDisabledForSave(): void {
     if (this.isSavingTemplateInternal || this.isSavingAnswersInternal) {
       this.inspectionTypeIdControl.disable({ emitEvent: false });
     } else {
@@ -729,7 +772,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.emitTitleBarReservationSync();
   }
 
-  private emitTitleBarReservationSync(): void {
+  emitTitleBarReservationSync(): void {
     const rid = (this.activeInspection?.reservationId || '').trim();
     this.titleBarReservationSync.emit(rid.length > 0 ? rid : null);
   }
@@ -737,18 +780,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   /** Call from maintenance shell when switching back to the Inspection tab so the reservation dropdown matches persisted inspection data. */
   pushTitleBarReservationToShell(): void {
     this.emitTitleBarReservationSync();
-  }
-
-  get titleBarReservationDirty(): boolean {
-    if (this.isReadonlyMode || this.isTemplateMode) {
-      return false;
-    }
-    if (this.inspectionTypeIdControl.value === InspectionType.Online) {
-      return false;
-    }
-    const shell = (this.titleBarReservationId || '').trim();
-    const persisted = (this.activeInspection?.reservationId || '').trim();
-    return shell !== persisted;
   }
 
   hasUnsavedChanges(): boolean {
@@ -825,33 +856,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return new Promise(resolve => this.saveChecklistData(submitRequested, resolve));
   }
 
-  buildChecklistTemplateJson(): string {
-    const payload = {
-      sections: this.sections.map(section => ({
-        key: section.key,
-        title: section.title,
-        selectionMode: section.selectionMode ?? 'allRequired',
-        notes: this.form.get(this.notesControlName(section.key))?.value || '',
-        sets: this.getRepeatIndexes(section.key).map(repeatIndex =>
-          this.getSetItems(section.key, repeatIndex).map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            requiresCount: item.requiresCount,
-            count: item.requiresCount
-              ? this.getCountValue(section.key, repeatIndex, item.id)
-              : null,
-            isEditable: item.isEditable,
-            photoPath: item.photoPath ?? null,
-            issue: item.issue ?? null,
-            hasIssue: item.hasIssue === true
-          }))
-        )
-      }))
-    };
-
-    return JSON.stringify(payload);
-  }
-
   buildChecklistAnswersJson(): string {
     const payload = {
       sections: this.sections.map(section => ({
@@ -908,124 +912,13 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return JSON.stringify(payload);
   }
 
-  buildDefaultTemplateJson(sections: ChecklistSection[], defaultIsEditable: boolean): string {
-    const payload = {
-      sections: sections.map(section => ({
-        key: section.key,
-        title: section.title,
-        selectionMode: section.selectionMode ?? 'allRequired',
-        notes: '',
-        sets: [
-          section.items.map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            requiresCount: false,
-            count: null,
-            isEditable: defaultIsEditable,
-            photoPath: null as string | null,
-            issue: null as string | null,
-            hasIssue: false
-          }))
-        ]
-      }))
-    };
-    return JSON.stringify(payload);
-  }
-
-  saveTemplate(onComplete?: (saved: boolean) => void): void {
-    if (!this.property) {
-      onComplete?.(false);
-      return;
-    }
-
-    const checklistJson = this.buildChecklistTemplateJson();
-    const emptyAnswersJson = this.buildEmptyChecklistAnswersJson();
-    this.isSavingTemplateInternal = true;
-    this.isServiceError = false;
-    this.syncInspectionTypeIdControlDisabledForSave();
-
-    this.upsertMaintenanceTemplate(checklistJson).pipe(
-      take(1),
-      switchMap((savedMaintenance) => {
-        this.maintenanceRecord = savedMaintenance;
-        const createDraftPayload: InspectionRequest = {
-          organizationId: savedMaintenance.organizationId || this.user?.organizationId || this.property?.organizationId || '',
-          officeId: savedMaintenance.officeId || this.property.officeId,
-          propertyId: this.property!.propertyId,
-          maintenanceId: savedMaintenance.maintenanceId || '',
-          inspectionTypeId: this.inspectionTypeIdControl.value,
-          inspectionCheckList: emptyAnswersJson,
-          documentPath: null,
-          isActive: true,
-          reservationId: this.reservationIdForInspectionPayload(undefined)
-        };
-        return this.inspectionService.createInspection(createDraftPayload).pipe(
-          take(1),
-          map((savedInspectionResponse) => ({ savedMaintenance, savedInspectionResponse }))
-        );
-      }),
-      finalize(() => {
-        this.isSavingTemplateInternal = false;
-        this.syncInspectionTypeIdControlDisabledForSave();
-      })
-    ).subscribe({
-      next: ({ savedMaintenance, savedInspectionResponse }: { savedMaintenance: MaintenanceResponse; savedInspectionResponse: InspectionResponse }) => {
-        this.maintenanceRecord = savedMaintenance;
-        this.activeInspection = this.mappingService.mapInspection(savedInspectionResponse);
-        this.patchInspectionTypeFromContext();
-        this.activeMode = 'answer';
-        this.applyModeState();
-        this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
-        this.captureSavedStateSignature();
-        this.toastr.success('Template saved successfully', CommonMessage.Success);
-        onComplete?.(true);
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.toastr.error('Failed to save template/inspection draft', CommonMessage.Error);
-        onComplete?.(false);
-      }
-    });
-  }
-
-  upsertMaintenanceTemplate(checklistJson: string) {
-    if (!this.property) {
-      return of(null);
-    }
-
-    return this.maintenanceService.getByPropertyId(this.property.propertyId).pipe(take(1),
-      switchMap((latest) => {
-        const existing = latest ?? this.maintenanceRecord ?? null;
-        const payload: MaintenanceRequest = {
-          maintenanceId: existing?.maintenanceId,
-          organizationId: existing?.organizationId ?? this.user?.organizationId ?? this.property!.organizationId,
-          officeId: existing?.officeId ?? this.property!.officeId,
-          officeName: existing?.officeName ?? this.property!.officeName ?? '',
-          propertyId: this.property!.propertyId,
-          inspectionCheckList: checklistJson,
-          cleanerUserId: existing?.cleanerUserId ?? this.user?.userId ?? '',
-          cleaningDate: existing?.cleaningDate ?? undefined,
-          inspectorUserId: existing?.inspectorUserId ?? this.user?.userId ?? '',
-          inspectingDate: existing?.inspectingDate ?? undefined,
-          notes: existing?.notes ?? null,
-          isActive: existing?.isActive ?? true
-        };
-
-        return payload.maintenanceId
-          ? this.maintenanceService.updateMaintenance(payload)
-          : this.maintenanceService.createMaintenance({ ...payload, maintenanceId: undefined });
-      })
-    );
-  }
-
   deleteActiveChecklistRecords() {
     const propertyId = this.property?.propertyId ?? '';
     if (!propertyId) {
       return of(void 0);
     }
 
-    return this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(
-      take(1),
+    return this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1),
       map((inspections) => (inspections || [])
         .filter(inspection => inspection.isActive == true)
         .map(inspection => this.inspectionService.deleteInspection(inspection.inspectionId).pipe(take(1)))),
@@ -1362,42 +1255,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         }
 
         this.createMaintenanceWithDefaultTemplate(propertyId);
-      },
-      error: () => {
-        this.maintenanceRecord = null;
-      }
-    });
-  }
-
-  createMaintenanceWithDefaultTemplate(propertyId: string): void {
-    if (!this.property) {
-      return;
-    }
-
-    const payload: MaintenanceRequest = {
-      organizationId: this.property.organizationId ?? this.user?.organizationId ?? '',
-      officeId: this.property.officeId ?? 0,
-      officeName: this.property.officeName ?? '',
-      propertyId,
-      inspectionCheckList: this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false),
-      cleanerUserId: this.user?.userId ?? '',
-      cleaningDate: undefined,
-      inspectorUserId: this.user?.userId ?? '',
-      inspectingDate: undefined,
-      notes: null,
-      isActive: true
-    };
-
-    this.maintenanceService.createMaintenance(payload).pipe(take(1)).subscribe({
-      next: (saved) => {
-        this.maintenanceRecord = saved;
-        const savedTemplateJson = saved?.inspectionCheckList?.trim() ?? '';
-        if (savedTemplateJson.length > 0) {
-          this.applySavedChecklistJson(savedTemplateJson);
-        }
-        this.activeMode = 'template';
-        this.applyModeState();
-        this.loadChecklistAnswers(propertyId);
       },
       error: () => {
         this.maintenanceRecord = null;
@@ -2098,7 +1955,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   }
   //#endregion
 
-  //#region Dialog Methods
+  //#region Dialog — Missing Count
   openMissingCountDialog() {
     return this.dialog.open(DialogMissingCountComponent, {
       width: '24rem'
@@ -2548,6 +2405,173 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.syncSectionSetCount('bedrooms', this.toSectionCount(this.property.bedrooms));
     this.syncSectionSetCount('bathrooms', this.toSectionCount(this.property.bathrooms));
   }
+  //#endregion
+
+  //#region Form Mode Methods
+  applyModeState(): void {
+    if (!this.form) return;
+
+    if (this.isReadonlyMode) {
+      this.form.disable({ emitEvent: false });
+      return;
+    }
+
+    this.form.enable({ emitEvent: false });
+
+    // In template mode, disable only the checkbox controls so they can't be checked;
+    if (this.isTemplateMode) {
+      this.sections.forEach(section => {
+        this.getRepeatIndexes(section.key).forEach(repeatIndex => {
+          this.getSetItems(section.key, repeatIndex).forEach(item => {
+            const ctrl = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
+            if (ctrl) ctrl.disable({ emitEvent: false });
+            const countCtrl = this.form.get(this.countControlNameById(section.key, repeatIndex, item.id));
+            if (countCtrl) countCtrl.disable({ emitEvent: false });
+          });
+        });
+      });
+    }
+  }
+
+  toggleTemplateMode(): void {
+    if (this.isReadonlyMode || !this.isAdmin) return;
+    this.activeMode = this.isTemplateMode ? 'answer' : 'template';
+    this.applyModeState();
+  }
+
+  getDefaultItemEditable(): boolean {
+    return false;
+  }
+  //#endregion
+
+  //#region Getter Methods
+  get totalItems(): number {
+    return this.sections.reduce((total, section) => {
+      if (this.isSectionCountedAsSingleUnit(section)) {
+        return total + 1;
+      }
+      return total + this.getRepeatIndexes(section.key).reduce((setTotal, repeatIndex) => {
+        return setTotal + this.getSetItems(section.key, repeatIndex).length;
+      }, 0);
+    }, 0);
+  }
+
+  get completedCount(): number {
+    let completed = 0;
+    this.sections.forEach(section => {
+      if (this.isSectionCountedAsSingleUnit(section)) {
+        if (this.isSelectionModeSectionComplete(section)) {
+          completed += 1;
+        }
+        return;
+      }
+
+      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          if (this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value && item.hasIssue !== true) {
+            completed += 1;
+          }
+        });
+      }
+    });
+    return completed;
+  }
+
+  get errorsCount(): number {
+    let errors = 0;
+    this.sections.forEach(section => {
+      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
+          if (isChecked && item.hasIssue === true) {
+            errors += 1;
+          }
+        });
+      }
+    });
+    return errors;
+  }
+
+  get issueEntries(): ChecklistIssueEntry[] {
+    const issues: ChecklistIssueEntry[] = [];
+    this.sections.forEach(section => {
+      for (let repeatIndex = 0; repeatIndex < this.getSetCount(section.key); repeatIndex += 1) {
+        this.getSetItems(section.key, repeatIndex).forEach(item => {
+          const isChecked = !!this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id))?.value;
+          if (!isChecked || item.hasIssue !== true) {
+            return;
+          }
+          issues.push({
+            sectionTitle: section.title,
+            setLabel: this.getSetInstruction(section.key, repeatIndex) || undefined,
+            issueText: (item.issue || '').trim() || 'No issue text provided',
+            photoSrc: this.getItemPhotoSrc(item)
+          });
+        });
+      }
+    });
+    return issues;
+  }
+
+  get saveButtonText(): string {
+    if (!this.isTemplateMode && this.canSubmitInspection) {
+      return 'Submit';
+    }
+
+    return 'Save';
+  }
+
+  get canSubmitInspection(): boolean {
+    if (this.isTemplateMode || this.isReadonlyMode || !this.form || this.sections.length === 0) {
+      return false;
+    }
+    return this.isChecklistFullyComplete(this.buildChecklistAnswersJson());
+  }
+
+  get isSavingInProgress(): boolean {
+    return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
+  }
+
+  get shellReservationRequired(): boolean {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return false;
+    }
+    const t = this.inspectionTypeIdControl.value;
+    return t === InspectionType.MoveIn || t === InspectionType.MoveOut;
+  }
+
+  get hasShellReservationSelected(): boolean {
+    const id = this.titleBarReservationId;
+    return id != null && String(id).trim().length > 0;
+  }
+
+  get hasReservationResolved(): boolean {
+    if (this.hasShellReservationSelected) {
+      return true;
+    }
+    const sid = this.activeInspection?.reservationId;
+    return sid != null && String(sid).trim().length > 0;
+  }
+
+  get showTitleBarReservationError(): boolean {
+    return this.shellReservationRequired && !this.hasShellReservationSelected && this.shellReservationFieldTouched;
+  }
+
+  get titleBarReservationRequired(): boolean {
+    return this.shellReservationRequired;
+  }
+
+  get titleBarReservationDirty(): boolean {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return false;
+    }
+    if (this.inspectionTypeIdControl.value === InspectionType.Online) {
+      return false;
+    }
+    const shell = (this.titleBarReservationId || '').trim();
+    const persisted = (this.activeInspection?.reservationId || '').trim();
+    return shell !== persisted;
+  }
 
   get propertyAddress(): string {
     if (!this.property) return 'N/A';
@@ -2588,33 +2612,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   get wirelessPasswordDisplay(): string {
     return this.property?.internetPassword || 'N/A';
   }
-  //#endregion
-
-  //#region Form Mode Methods
-  applyModeState(): void {
-    if (!this.form) return;
-
-    if (this.isReadonlyMode) {
-      this.form.disable({ emitEvent: false });
-      return;
-    }
-
-    this.form.enable({ emitEvent: false });
-
-    // In template mode, disable only the checkbox controls so they can't be checked;
-    if (this.isTemplateMode) {
-      this.sections.forEach(section => {
-        this.getRepeatIndexes(section.key).forEach(repeatIndex => {
-          this.getSetItems(section.key, repeatIndex).forEach(item => {
-            const ctrl = this.form.get(this.itemControlNameById(section.key, repeatIndex, item.id));
-            if (ctrl) ctrl.disable({ emitEvent: false });
-            const countCtrl = this.form.get(this.countControlNameById(section.key, repeatIndex, item.id));
-            if (countCtrl) countCtrl.disable({ emitEvent: false });
-          });
-        });
-      });
-    }
-  }
 
   get inspectionTypeReadonlyLabel(): string {
     if (!this.isReadonlyMode) {
@@ -2638,15 +2635,17 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   get isReadonlyMode(): boolean {
     return this.activeMode === 'readonly';
   }
+  //#endregion
 
-  toggleTemplateMode(): void {
-    if (this.isReadonlyMode || !this.isAdmin) return;
-    this.activeMode = this.isTemplateMode ? 'answer' : 'template';
-    this.applyModeState();
-  }
-
-  getDefaultItemEditable(): boolean {
-    return false;
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.inspectionTypeSubscription?.unsubscribe();
+    this.photoBlobUrlCache.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    this.photoBlobUrlCache.clear();
   }
   //#endregion
 }

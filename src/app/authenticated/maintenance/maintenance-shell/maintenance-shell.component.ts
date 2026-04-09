@@ -135,11 +135,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   //#region Data Load Methods
   loadProperty(propertyId: string): void {
-    this.propertyService.getPropertyByGuid(propertyId).pipe(
-      take(1),
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),
       switchMap(property =>
-        this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(
-          take(1),
+        this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(take(1),
           map(reservations => ({ property, reservations: reservations || [] }))
         )
       ),
@@ -496,7 +494,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     return this.resolveUnsavedChangesForSection(targetSection);
   }
 
-  private async resolveUnsavedChangesForSection(targetSection: 'inspection' | 'maintenance'): Promise<boolean> {
+  async resolveUnsavedChangesForSection(targetSection: 'inspection' | 'maintenance'): Promise<boolean> {
     const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
     if (action === 'save') {
       if (targetSection === 'inspection') {
