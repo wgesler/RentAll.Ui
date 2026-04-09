@@ -45,6 +45,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() hideFilters: boolean = false;
   @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
+  @Input() organizationName: string | null = null; // Selected organization display name for SuperAdmin recipient column
+  @Input() organizationOptions: { value: string, label: string }[] = []; // SuperAdmin org lookup for recipient display
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
@@ -121,6 +123,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   get invoicesDisplayedColumns(): ColumnSet {
     const columns = { ...this.baseInvoicesDisplayedColumns };
+    if (this.source === 'accounting' && this.isSuperUser) {
+      columns['reservationCode'] = { ...columns['reservationCode'], displayAs: 'Company' };
+    }
     
     // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
     if (!this.isManualApplyMode) {
@@ -299,6 +304,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const previousOrganizationId = changes['organizationId'].previousValue;
 
       if (previousOrganizationId === undefined || newOrganizationId !== previousOrganizationId) {
+        this.applyFilters();
+      }
+    }
+
+    if (changes['organizationName']) {
+      const newOrganizationName = changes['organizationName'].currentValue;
+      const previousOrganizationName = changes['organizationName'].previousValue;
+
+      if (previousOrganizationName === undefined || newOrganizationName !== previousOrganizationName) {
         this.applyFilters();
       }
     }
@@ -623,8 +637,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return {
       ...invoice,
       invoiceNumber: invoice.invoiceCode || '',
-      reservationCode: invoice.reservationCode || '-',
-      responsibleParty: invoice.responsibleParty || '',
+      reservationCode: this.getCompanyCodeDisplay(invoice),
+      responsibleParty: this.getRecipientDisplay(invoice),
       totalAmount: '$' + this.formatter.currency(totalAmount),
       totalAmountValue: totalAmount, // Store raw value for validation
       paidAmount: '$' + this.formatter.currency(paidAmount), // Always display as formatted (read-only)
@@ -684,6 +698,30 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     const matchingCostCode = this.allCostCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId);
     return matchingCostCode?.transactionTypeId ?? null;
+  }
+
+  getRecipientDisplay(invoice: InvoiceResponse): string {
+    if (this.source === 'accounting' && this.isSuperUser) {
+      return this.getOrganizationNameById(invoice.reservationId)
+        || this.organizationName
+        || invoice.responsibleParty
+        || '';
+    }
+    return invoice.responsibleParty || '';
+  }
+
+  getCompanyCodeDisplay(invoice: InvoiceResponse): string {
+    if (this.source === 'accounting' && this.isSuperUser) {
+      return invoice.reservationCode || '-';
+    }
+    return invoice.reservationCode || '-';
+  }
+
+  getOrganizationNameById(organizationId: string | null | undefined): string | null {
+    if (!organizationId) {
+      return null;
+    }
+    return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
   }
 
   filterReservations(): void {

@@ -278,6 +278,13 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }));
   }
 
+  get selectedOrganizationName(): string | null {
+    if (!this.selectedOrganizationId) {
+      return null;
+    }
+    return this.organizations.find(organization => organization.organizationId === this.selectedOrganizationId)?.name || null;
+  }
+
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
     const organizationId = value == null || value === '' ? null : String(value);
     this.selectedOrganizationId = organizationId;
