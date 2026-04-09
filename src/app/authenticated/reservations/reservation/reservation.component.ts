@@ -845,7 +845,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     return d.getTime() >= min.getTime();
-  }; //#endregion
+  }; 
+  //#endregion
 
   //#region Form Value Change Handlers
   setupFormHandlers(): void {
@@ -1411,7 +1412,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     let entityTypeId: number | null = null;
 
-    if (reservationTypeId === ReservationType.Individual) {
+    if (reservationTypeId === ReservationType.Individual || reservationTypeId === ReservationType.Platform) {
       entityTypeId = EntityType.Tenant;
     } else if (reservationTypeId === ReservationType.Corporate) {
       entityTypeId = EntityType.Company;
