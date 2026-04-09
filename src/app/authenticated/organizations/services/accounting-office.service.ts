@@ -1,83 +1,117 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 
 export class AccountingOfficeService {
-  
+
+  /** Matches OrganizationController: [Route("api/organization")] + [HttpGet("accounting-office")] (no org id in path). */
   private readonly controller = this.configService.config().apiUrl + 'organization/accounting-office/';
   private allAccountingOffices$ = new BehaviorSubject<AccountingOfficeResponse[]>([]);
   private accountingOfficesLoaded$ = new BehaviorSubject<boolean>(false);
+  private loadedOrganizationId: string | null = null;
 
   constructor(
       private http: HttpClient,
       private configService: ConfigService) {
   }
 
-  // Load all accounting offices on startup
-  loadAllAccountingOffices(): void {
-    const url = this.controller;
-    
-    this.http.get<AccountingOfficeResponse[]>(url).subscribe({
-      next: (accountingOffices) => {
-        this.allAccountingOffices$.next(accountingOffices || []);
+  /** GET api/organization/accounting-office; organizationId only drives client cache scope. */
+  loadAllAccountingOffices(organizationId: string): Observable<AccountingOfficeResponse[]> {
+    const id = organizationId?.trim();
+    if (!id) {
+      this.allAccountingOffices$.next([]);
+      this.accountingOfficesLoaded$.next(true);
+      this.loadedOrganizationId = null;
+      return of([]);
+    }
+    return this.http.get<AccountingOfficeResponse[]>(this.controller).pipe(
+      tap((rows) => {
+        const list = rows || [];
+        const hasOrgIds = list.some(o => (o.organizationId || '').trim().length > 0);
+        const scoped = hasOrgIds ? list.filter(o => (o.organizationId || '').trim() === id) : list;
+        this.allAccountingOffices$.next(scoped);
         this.accountingOfficesLoaded$.next(true);
-      },
-      error: (err: HttpErrorResponse) => {
+        this.loadedOrganizationId = id;
+      }),
+      catchError((err: HttpErrorResponse) => {
         console.error('Accounting Office Service - Error loading all accounting offices:', err);
         this.allAccountingOffices$.next([]);
-        this.accountingOfficesLoaded$.next(true); // Mark as loaded even on error
-      }
-    });
+        this.accountingOfficesLoaded$.next(true);
+        this.loadedOrganizationId = id;
+        return of([]);
+      })
+    );
   }
 
-  // Check if accounting offices have been loaded
+  ensureAccountingOfficesLoaded(organizationId: string): Observable<AccountingOfficeResponse[]> {
+    const id = organizationId?.trim();
+    if (!id) {
+      this.clearAccountingOffices();
+      return of([]);
+    }
+    if (this.accountingOfficesLoaded$.value && this.loadedOrganizationId === id) {
+      return this.getAllAccountingOffices().pipe(take(1));
+    }
+    return this.loadAllAccountingOffices(id).pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
+  }
+
+  refreshAccountingOffices(organizationId: string): Observable<AccountingOfficeResponse[]> {
+    this.accountingOfficesLoaded$.next(false);
+    this.loadedOrganizationId = null;
+    return this.loadAllAccountingOffices(organizationId).pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
+  }
+
   areAccountingOfficesLoaded(): Observable<boolean> {
     return this.accountingOfficesLoaded$.asObservable();
   }
 
-  // Clear all accounting offices (e.g., on logout)
   clearAccountingOffices(): void {
     this.allAccountingOffices$.next([]);
     this.accountingOfficesLoaded$.next(false);
+    this.loadedOrganizationId = null;
   }
 
-  // Get all accounting offices as observable (returns BehaviorSubject - components should filter for non-empty)
   getAllAccountingOffices(): Observable<AccountingOfficeResponse[]> {
     return this.allAccountingOffices$.asObservable();
   }
 
-  // Get all accounting offices value synchronously (returns current value)
   getAllAccountingOfficesValue(): AccountingOfficeResponse[] {
     return this.allAccountingOffices$.value;
   }
 
-  // GET: Get all offices
-  getAccountingOffices(): Observable<AccountingOfficeResponse[]> {
-     return this.http.get<AccountingOfficeResponse[]>(this.controller);
+  /** GET accounting offices for an organization (one-shot HTTP; prefer ensureAccountingOfficesLoaded for cache). */
+  getAccountingOffices(organizationId: string): Observable<AccountingOfficeResponse[]> {
+    const id = organizationId?.trim();
+    if (!id) {
+      return throwError(() => new Error('organizationId is required to load accounting offices'));
+    }
+    return this.http.get<AccountingOfficeResponse[]>(this.controller).pipe(
+      map(list => {
+        const rows = list || [];
+        const hasOrgIds = rows.some(o => (o.organizationId || '').trim().length > 0);
+        return hasOrgIds ? rows.filter(o => (o.organizationId || '').trim() === id) : rows;
+      })
+    );
   }
 
-  // GET: Get office by ID
   getAccountingOfficeById(officeId: number): Observable<AccountingOfficeResponse> {
     return this.http.get<AccountingOfficeResponse>(this.controller + officeId);
   }
 
-  // POST: Create a new office
   createAccountingOffice(office: AccountingOfficeRequest): Observable<AccountingOfficeResponse> {
     return this.http.post<AccountingOfficeResponse>(this.controller, office);
   }
 
-  // PUT: Update entire office
   updateAccountingOffice(office: AccountingOfficeRequest): Observable<AccountingOfficeResponse> {
     return this.http.put<AccountingOfficeResponse>(this.controller, office);
   }
 
-  // DELETE: Delete office
   deleteAccountingOffice(officeId: number): Observable<void> {
     return this.http.delete<void>(this.controller + officeId);
   }

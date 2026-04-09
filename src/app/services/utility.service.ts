@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
-import { ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 
@@ -49,26 +49,40 @@ export class UtilityService {
     return `${code}: ${contactName}`;
   }
 
-  // Generates document file name for saving/downloading documents
-   generateDocumentFileName(type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection', propertyCode?: string, reservationCode?: string): string {
-    let fileName = '';
+  generateDocumentFileName(
+    type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection',
+    propertyCode?: string | null,
+    codeName?: string | null,
+    subType?: string | null
+  ): string {
+    const stamp = this.getFilenameTimestamp();
+    const pc = this.sanitizeFileNameSegment(String(propertyCode ?? ''));
+    const code = this.sanitizeFileNameSegment(String(codeName ?? ''));
+    const sub = this.sanitizeFileNameSegment(String(subType ?? ''));
+    const seg = (x: string) => (x ? `_${x}` : '');
 
     switch (type) {
       case 'lease':
-        fileName = `Lease_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
-        break;
+        return `${pc || 'Property'}${seg(code)}${seg(stamp)}.pdf`;
       case 'welcomeLetter':
-         fileName = `Letter_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
-        break;
+        return `${pc || 'Property'}${seg(code)}${seg(stamp)}.pdf`;
       case 'invoice':
-        fileName = `Invoice_${propertyCode}_${reservationCode}_${this.getFilenameTimestamp()}.pdf`;
-        break;
+        return `${pc || 'Invoice'}${seg(code)}${seg(stamp)}.pdf`;
       case 'inspection':
-        fileName = `Inspection_${propertyCode}_${this.getFilenameTimestamp()}.pdf`;
-        break;
+        return `${pc || 'Property'}${seg(sub)}${seg(code)}${seg(stamp)}.pdf`;
     }
+  }
 
-    return fileName;
+  sanitizeFileNameSegment(value: string): string {
+    const raw = value.trim();
+    if (!raw) {
+      return '';
+    }
+    return raw
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
   }
 
   getFilenameTimestamp(): string {
@@ -159,4 +173,16 @@ export class UtilityService {
     const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
     return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
   }
+
+  buildReservationCodeNameLabel(
+    reservation: ReservationListResponse | ReservationResponse | null | undefined,
+    contact: ContactResponse | null
+  ): string | undefined {
+    if (!reservation) {
+      return undefined;
+    }
+    const label = this.getReservationDropdownLabel(reservation as ReservationListResponse, contact).trim();
+    return label.length > 0 ? label : undefined;
+  }
+
 }

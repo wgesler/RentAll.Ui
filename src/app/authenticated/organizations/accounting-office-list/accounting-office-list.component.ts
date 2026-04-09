@@ -10,6 +10,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -61,6 +62,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public formatterService: FormatterService,
+    private authService: AuthService,
     private officeService: OfficeService,
     private mappingService: MappingService,
     private utilityService: UtilityService) {
@@ -82,24 +84,43 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   }
 
   getAccountingOffices(): void {
-    this.accountingOfficeService.getAccountingOffices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.allAccountingOffices = [];
+      this.accountingOfficesDisplay = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      return;
+    }
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
       next: (response: AccountingOfficeResponse[]) => {
         this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       }
     });
   }
 
   deleteAccountingOffice(office: AccountingOfficeListDisplay): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.accountingOfficeService.deleteAccountingOffice(office.officeId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Accounting Office deleted successfully', CommonMessage.Success);
+        if (!organizationId) {
+          this.getAccountingOffices();
+          return;
+        }
         this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
-        this.getAccountingOffices();
+        this.accountingOfficeService.refreshAccountingOffices(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+          next: (list) => {
+            this.allAccountingOffices = this.mappingService.mapAccountingOffices(list, this.offices);
+            this.applyFilters();
+          },
+          error: () => {
+            this.getAccountingOffices();
+          }
+        });
       },
       error: (_err: HttpErrorResponse) => {}
     });

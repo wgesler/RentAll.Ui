@@ -224,7 +224,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.previewIframeStyles
     );
 
-    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName(
+      'welcomeLetter',
+      this.propertyCode,
+      this.utilityService.buildReservationCodeNameLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+      )
+    );
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
       organizationId: this.organization.organizationId,
@@ -855,7 +862,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onDownload(): Promise<void> {
-    const fileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
+    const fileName = this.utilityService.generateDocumentFileName(
+      'welcomeLetter',
+      this.propertyCode,
+      this.utilityService.buildReservationCodeNameLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+      )
+    );
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
@@ -883,7 +897,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const fromEmail = currentUser?.email || '';
     const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const plainTextContent = '';
-    const attachmentFileName = this.utilityService.generateDocumentFileName('welcomeLetter', this.propertyCode, this.selectedReservation?.reservationCode);
+    const attachmentFileName = this.utilityService.generateDocumentFileName(
+      'welcomeLetter',
+      this.propertyCode,
+      this.utilityService.buildReservationCodeNameLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+      )
+    );
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
     const emailTemplateHtml = (contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLetter || '') : (this.emailHtml?.welcomeLetter || '');
 

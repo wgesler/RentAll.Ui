@@ -85,16 +85,16 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   sidebarColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
 
   tabColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
+    'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     'fileName': { displayAs: 'File Name', maxWidth: '50ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
@@ -151,7 +151,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
-      if (this.source === 'property' && this.reservations && this.reservations.length > 0) {
+      if (this.useParentProvidedReservationList) {
         this.filterReservations();
       } else {
         this.loadReservations();
@@ -237,7 +237,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       const previousPropertyId = changes['propertyId'].previousValue;
       
       if (newPropertyId && (!previousPropertyId || newPropertyId !== previousPropertyId)) {
-        this.loadReservations();
+        if (this.useParentProvidedReservationList) {
+          this.filterReservations();
+        } else {
+          this.loadReservations();
+        }
       }
     }
     
@@ -268,6 +272,18 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  /** Property shell passes a loaded list when non-empty; maintenance shell always passes the list (may be empty). */
+  private get useParentProvidedReservationList(): boolean {
+    const hasPropertyId = !!this.propertyId && this.propertyId !== '';
+    if (this.source === 'property' && hasPropertyId) {
+      return (this.reservations?.length ?? 0) > 0;
+    }
+    if (this.source === 'maintenance' && hasPropertyId) {
+      return true;
+    }
+    return false;
+  }
+
   //#region Title Bar Updates
   onTitleBarOfficeIdUpdate(newOfficeId: number | null): void {
     this.selectedOfficeId = newOfficeId;
@@ -276,6 +292,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.loadReservations();
     } else if (this.source === 'property') {
       this.loadProperties();
+    } else if (this.source === 'maintenance' && this.useParentProvidedReservationList) {
+      this.filterReservations();
     }
 
     this.applyFilters();
@@ -289,7 +307,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   onTitleBarReservationIdUpdate(newReservationId: string | null): void {
     this.selectedReservationId = newReservationId;
-    if ((this.source === 'invoice' || this.propertyId || newReservationId) && !(this.source === 'property' && this.reservations && this.reservations.length > 0)) {
+    if ((this.source === 'invoice' || this.propertyId || newReservationId) && !this.useParentProvidedReservationList) {
       this.loadReservations();
     }
     this.applyFilters();
@@ -602,7 +620,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         }));
         return;
       }
-      if (this.source === 'property' && this.propertyId) {
+      if ((this.source === 'property' || this.source === 'maintenance') && this.propertyId) {
         const propertyReservations = this.reservations.filter(r => r.propertyId === this.propertyId);
         this.availableReservations = propertyReservations.map(r => ({
           value: r,
@@ -629,7 +647,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOfficeId);
-    const sourceFilteredReservations = (this.source === 'property' && this.propertyId)
+    const sourceFilteredReservations = ((this.source === 'property' || this.source === 'maintenance') && this.propertyId)
       ? filteredReservations.filter(r => r.propertyId === this.propertyId)
       : filteredReservations;
     const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompany?.contactId)
@@ -764,7 +782,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     } else if (this.source === 'documents') {
       this.filterReservations();
       this.selectedReservationId = null;
-    } else if (this.source === 'property') {
+    } else if (this.source === 'property' || this.source === 'maintenance') {
       this.filterReservations();
       this.selectedReservationId = null;
       this.reservationIdChange.emit(this.selectedReservationId);
@@ -806,13 +824,16 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.propertyId !== null && this.propertyId !== undefined && this.propertyId !== '') {
         filtered = filtered.filter(doc => doc.propertyId === this.propertyId);
       }
+      if (this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
+        filtered = filtered.filter(doc => doc.reservationId === this.selectedReservationId);
+      }
       if (this.selectedDocumentTypeId !== null && this.selectedDocumentTypeId !== undefined) {
         filtered = filtered.filter(doc => doc.documentTypeId === this.selectedDocumentTypeId);
       }
     }
 
     const activeReservationsOnly =
-      (this.hideHeader && this.hideFilters && this.source === 'property') || this.activeOnly;
+      (this.hideHeader && this.hideFilters && (this.source === 'property' || this.source === 'maintenance')) || this.activeOnly;
     if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
       const activeReservationIds = new Set(
         this.reservations
@@ -876,7 +897,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     } else if (this.source === 'documents') {
       this.filterReservations();
       this.selectedReservationId = null;
-    } else if (this.source === 'property') {
+    } else if (this.source === 'property' || this.source === 'maintenance') {
       this.filterReservations();
       this.selectedReservationId = null;
       this.reservationIdChange.emit(this.selectedReservationId);

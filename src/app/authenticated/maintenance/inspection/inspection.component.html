@@ -41,38 +41,58 @@
     </div>
   </div>
 
-  <div class="controls-row">
-  <div class="controls-left-group">
-    @if (!isReadonlyMode && isAdmin) {
-      <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
-        Template
-      </mat-slide-toggle>
-    }
-  </div>
+  <div class="controls-row inspection-controls-row">
+    <div class="inspection-controls-cell inspection-controls-cell--template dbg-band-inspection-control-group">
+      @if (!isReadonlyMode && isAdmin) {
+        <mat-slide-toggle [checked]="isTemplateMode" (change)="toggleTemplateMode()">
+          Template
+        </mat-slide-toggle>
+      }
+    </div>
 
-  <div class="controls-right-group form-titlebar-actions-wrap uniform-gap">
-    @if (errorsCount > 0) {
-      <span class="errors-count-text">{{ errorsCount }} issues</span>
-    }
-    <span class="text-sm completion-count-text">{{ completedCount }}/{{ totalItems }} complete</span>
-    @if (!isReadonlyMode) {
-      @if (!isTemplateMode) {
-        <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">Clear</button>
+    <div class="inspection-controls-cell inspection-controls-cell--type dbg-band-inspection-control-group">
+      @if (!isReadonlyMode && !isTemplateMode) {
+        <div class="inspection-type-radio-group-wrap">
+          <mat-radio-group
+            class="inspection-type-radio-group"
+            [formControl]="inspectionTypeIdControl"
+            aria-label="Inspection type">
+            @for (opt of inspectionTypeOptions; track opt.value) {
+              <mat-radio-button [value]="opt.value">{{ opt.label }}</mat-radio-button>
+            }
+          </mat-radio-group>
+        </div>
       }
-      @if (isTemplateMode) {
-        <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="resetChecklist()">Reset</button>
+      @if (isReadonlyMode && inspectionTypeReadonlyLabel) {
+        <span class="inspection-type-readonly">{{ inspectionTypeReadonlyLabel }}</span>
       }
-      <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
-        {{ saveButtonText }}
-      </button>
-      @if (errorsCount > 0) {
-        <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="openIssuesDialog()">
-          Issues
-        </button>
-      }
-    }
+    </div>
+
+    <div class="inspection-controls-cell inspection-controls-cell--actions dbg-band-inspection-control-group">
+      <div class="inspection-actions-cluster form-titlebar-actions-wrap uniform-gap">
+        @if (errorsCount > 0) {
+          <span class="errors-count-text">{{ errorsCount }} issues</span>
+        }
+        <span class="text-sm completion-count-text">{{ completedCount }}/{{ totalItems }} complete</span>
+        @if (!isReadonlyMode) {
+          @if (!isTemplateMode) {
+            <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">Clear</button>
+          }
+          @if (isTemplateMode) {
+            <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="resetChecklist()">Reset</button>
+          }
+          <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
+            {{ saveButtonText }}
+          </button>
+          @if (errorsCount > 0) {
+            <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="openIssuesDialog()">
+              Issues
+            </button>
+          }
+        }
+      </div>
+    </div>
   </div>
-</div>
 
   <form [formGroup]="form" class="section-list">
     @if (isReadonlyMode) {

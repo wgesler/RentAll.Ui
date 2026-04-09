@@ -1,10 +1,10 @@
 @if (isLoading) {
-  <div class="appliance-loading">
+  <div class="maintenance-appliance-loading">
     <mat-spinner [diameter]="28"></mat-spinner>
     <span>Loading appliances...</span>
   </div>
 } @else {
-  <div class="appliance-actions">
+  <div class="maintenance-appliance-actions">
     <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="addRow()">
       <mat-icon>add</mat-icon>
       Add
@@ -17,8 +17,8 @@
     }
   </div>
 
-  <div class="appliance-lines-wrap overflow-x-auto">
-    <table class="line-items-table appliance-lines-table">
+  <div class="maintenance-appliance-lines-wrap overflow-x-auto">
+    <table class="line-items-table maintenance-appliance-lines-table">
       <thead>
         <tr>
           <th>Appliance Name</th>
@@ -31,7 +31,7 @@
       <tbody>
         @if (!rows || rows.length === 0) {
           <tr>
-            <td class="appliance-empty" colspan="5">No appliances found for this property.</td>
+            <td class="maintenance-appliance-empty" colspan="5">No appliances found for this property.</td>
           </tr>
         } @else {
           @for (row of rows; track trackByRowId($index, row)) {

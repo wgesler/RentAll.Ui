@@ -1,11 +1,11 @@
-.appliance-loading {
+.maintenance-appliance-loading {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0;
 }
 
-.appliance-actions {
+.maintenance-appliance-actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -13,19 +13,19 @@
   margin-bottom: 0.5rem;
 }
 
-.appliance-empty {
+.maintenance-appliance-empty {
   color: rgba(0, 0, 0, 0.7);
   font-style: italic;
 }
 
-.appliance-lines-wrap {
+.maintenance-appliance-lines-wrap {
   width: 100%;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.line-items-table.appliance-lines-table {
+.line-items-table.maintenance-appliance-lines-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;

@@ -16,12 +16,12 @@ interface ApplianceEditRow {
 
 @Component({
   standalone: true,
-  selector: 'app-appliance-list',
+  selector: 'app-maintenance-appliance-list',
   imports: [CommonModule, FormsModule, MaterialModule],
-  templateUrl: './appliance-list.component.html',
-  styleUrl: './appliance-list.component.scss'
+  templateUrl: './maintenance-appliance-list.component.html',
+  styleUrl: './maintenance-appliance-list.component.scss'
 })
-export class ApplianceListComponent implements OnChanges {
+export class MaintenanceApplianceListComponent implements OnChanges {
   @Input() appliances: ApplianceResponse[] = [];
   @Input() isLoading = false;
   @Input() isSaving = false;
@@ -33,7 +33,7 @@ export class ApplianceListComponent implements OnChanges {
   originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string }>();
   rowCounter = 0;
 
-  //#region Appliance-List
+  //#region Maintenance Appliance List
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['appliances']) {
       this.resetRowsFromInput();

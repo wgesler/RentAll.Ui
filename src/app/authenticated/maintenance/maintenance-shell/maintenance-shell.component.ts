@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, filter, finalize, map, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -13,7 +13,9 @@ import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ChecklistComponent } from '../checklist/checklist.component';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 import { ReceiptComponent } from '../receipt/receipt.component';
@@ -22,6 +24,8 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { hasInspectorRole } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
   standalone: true,
@@ -30,7 +34,8 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
     CommonModule,
     FormsModule,
     MaterialModule,
-    ChecklistComponent,
+    TitleBarSelectComponent,
+    InspectionComponent,
     WorkOrderListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
@@ -42,11 +47,12 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
   styleUrl: './maintenance-shell.component.scss'
 })
 export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate {
-  @ViewChild('inspectionChecklist') inspectionChecklist?: ChecklistComponent;
+  @ViewChild('inspectionChecklist') inspectionChecklist?: InspectionComponent;
   @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
+
   property: PropertyResponse | null = null;
   isServiceError = false;
   selectedTabIndex = 0;
@@ -57,6 +63,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   showOfficeDropdown = true;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
+
+  titleBarReservationId: string | null = null;
+  shellReservations: ReservationListResponse[] = [];
 
   showReceiptDetail = false;
   selectedReceiptId: number | null = null;
@@ -80,6 +89,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
+    private reservationService: ReservationService,
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
@@ -87,14 +97,13 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {}
 
-  //#region Maintenance
+  //#region Maintenance-Shell
   ngOnInit(): void {
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadTitleBarOfficeScope();
 
-    // If the user is an inspector, the admin can limit their view of properties to a sub-set
     this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.showWorkOrdersTab = !this.isInspectorView;
     this.inspectorPropertyIds = new Set(
@@ -102,7 +111,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         .map(propertyId => propertyId.trim().toLowerCase())
         .filter(propertyId => propertyId !== '')
     );
- 
+
     this.route.queryParamMap.pipe(take(1)).subscribe(params => {
       const tabParam = Number(params.get('tab'));
       const normalizedTab = this.normalizeRequestedTab(tabParam);
@@ -116,18 +125,30 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       this.loadProperty(id);
     });
   }
-
   //#endregion
 
   //#region Data Load Methods
   loadProperty(propertyId: string): void {
-    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
-      next: (property) => {
+    this.propertyService.getPropertyByGuid(propertyId).pipe(
+      take(1),
+      switchMap(property =>
+        this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(
+          take(1),
+          map(reservations => ({ property, reservations: reservations || [] }))
+        )
+      ),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))
+    ).subscribe({
+      next: ({ property, reservations }) => {
         this.property = property;
+        this.shellReservations = reservations;
+        this.titleBarReservationId = null;
         this.syncTitleBarSelections();
       },
       error: () => {
         this.property = null;
+        this.shellReservations = [];
+        this.titleBarReservationId = null;
         this.isServiceError = true;
       }
     });
@@ -186,29 +207,57 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
   //#endregion
 
-  //#region Route/Reload Methods
-  async onTabIndexChange(nextTabIndex: number): Promise<void> {
-    if (this.isHandlingTabGuard || nextTabIndex === this.selectedTabIndex) {
-      return;
-    }
-
-    this.isHandlingTabGuard = true;
-    const previousTabIndex = this.selectedTabIndex;
-    this.selectedTabIndex = nextTabIndex;
-    try {
-      const canLeave = await this.confirmChecklistNavigation();
-      if (!canLeave) {
-        this.selectedTabIndex = previousTabIndex;
-      }
-    } finally {
-      this.isHandlingTabGuard = false;
-    }
+  //#region Getter Methods
+  get reservationOptions(): SearchableSelectOption[] {
+    const officeId = this.property?.officeId ?? null;
+    const rows = (this.shellReservations || []).filter(r => officeId == null || r.officeId === officeId);
+    return rows.map(r => ({
+      value: r.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(r, null)
+    }));
   }
 
-  onInspectionSubmitted(): void {
-    this.navigateToMaintenanceTabs(0);
+  get selectedReservationId(): string | null {
+    return this.titleBarReservationId;
   }
 
+  get workOrdersTabIndex(): number {
+    return 3;
+  }
+
+  get documentsTabIndex(): number {
+    return this.showWorkOrdersTab ? 4 : 3;
+  }
+
+  get receiptsTabIndex(): number {
+    return 2;
+  }
+
+  get showTitleBarReservationDropdown(): boolean {
+    if (!this.property) {
+      return false;
+    }
+    if (this.selectedTabIndex === 0) {
+      return true;
+    }
+    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex;
+  }
+
+  get titleBarReservationNullLabel(): string {
+    return 'Select Reservation';
+  }
+
+  get titleBarReservationDisplayLabel(): string {
+    const id = this.titleBarReservationId?.trim();
+    if (!id) {
+      return '';
+    }
+    const row = (this.shellReservations || []).find(r => String(r.reservationId ?? '').trim() === id);
+    return row ? this.utilityService.getReservationDropdownLabel(row, null).trim() : '';
+  }
+  //#endregion
+
+  //#region Top Bar Event Methods
   onOfficeChange(): void {
     this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.updateAvailableProperties();
@@ -232,6 +281,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.selectedReceiptId = null;
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.titleBarReservationId = null;
+    this.shellReservations = [];
     this.property = null;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
@@ -239,16 +290,74 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
   }
 
-  get workOrdersTabIndex(): number {
-    return 3;
+  onReservationDropdownChange(value: string | number | null): void {
+    this.titleBarReservationId = value == null || value === '' ? null : String(value);
+  }
+  //#endregion
+
+  //#region Title Bar Sync
+  syncTitleBarSelections(): void {
+    if (!this.property && !this.selectedOfficeId) {
+      this.updateAvailableProperties();
+      return;
+    }
+    if (this.property) {
+      this.selectedOfficeId = this.property.officeId ?? this.selectedOfficeId;
+      this.selectedPropertyId = this.property.propertyId ?? null;
+    }
+    this.updateAvailableProperties();
   }
 
-  get documentsTabIndex(): number {
-    return this.showWorkOrdersTab ? 4 : 3;
+  updateAvailableProperties(): void {
+    const scopedProperties = this.selectedOfficeId
+      ? this.allProperties.filter(property => property.officeId === this.selectedOfficeId)
+      : this.allProperties;
+
+    this.availableProperties = scopedProperties
+      .map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }))
+      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
+
+    if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
+      this.selectedPropertyId = null;
+    }
+  }
+  //#endregion
+
+  //#region Tab Methods
+  async onTabIndexChange(nextTabIndex: number): Promise<void> {
+    if (this.isHandlingTabGuard || nextTabIndex === this.selectedTabIndex) {
+      return;
+    }
+
+    this.isHandlingTabGuard = true;
+    const previousTabIndex = this.selectedTabIndex;
+    this.selectedTabIndex = nextTabIndex;
+    try {
+      const canLeave = await this.confirmChecklistNavigation();
+      if (!canLeave) {
+        this.selectedTabIndex = previousTabIndex;
+        return;
+      }
+      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
+        this.titleBarReservationId = null;
+      }
+      if (nextTabIndex === this.documentsTabIndex) {
+        this.maintenanceDocumentList?.reload();
+      }
+      if (nextTabIndex === 0) {
+        setTimeout(() => this.inspectionChecklist?.pushTitleBarReservationToShell(), 0);
+      }
+    } finally {
+      this.isHandlingTabGuard = false;
+    }
   }
 
-  get receiptsTabIndex(): number {
-    return 2;
+  onInspectionTitleBarReservationSync(id: string | null): void {
+    this.titleBarReservationId = id;
+  }
+
+  onInspectionSubmitted(): void {
+    this.navigateToMaintenanceTabs(0);
   }
 
   onReceiptSelect(receiptId: number | null): void {
@@ -305,32 +414,6 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.router.navigateByUrl(url).then(() => window.location.reload());
   }
 
-  syncTitleBarSelections(): void {
-    if (!this.property && !this.selectedOfficeId) {
-      this.updateAvailableProperties();
-      return;
-    }
-    if (this.property) {
-      this.selectedOfficeId = this.property.officeId ?? this.selectedOfficeId;
-      this.selectedPropertyId = this.property.propertyId ?? null;
-    }
-    this.updateAvailableProperties();
-  }
-
-  updateAvailableProperties(): void {
-    const scopedProperties = this.selectedOfficeId
-      ? this.allProperties.filter(property => property.officeId === this.selectedOfficeId)
-      : this.allProperties;
-
-    this.availableProperties = scopedProperties
-      .map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }))
-      .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode));
-
-    if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
-      this.selectedPropertyId = null;
-    }
-  }
-
   normalizeRequestedTab(tabParam: number): number | null {
     if (Number.isNaN(tabParam) || tabParam < 0) {
       return null;
@@ -343,7 +426,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
     return tabParam;
   }
+  //#endregion
 
+  //#region Navigation Methods
   async back(): Promise<void> {
     const canLeave = await this.confirmChecklistNavigation();
     if (!canLeave) {

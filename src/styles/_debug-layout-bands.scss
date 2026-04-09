@@ -8,6 +8,7 @@
 // 1) Tab strip (blue): class `dbg-band-tabs` on <mat-tab-group> or wrapper.
 // 2) Actions band (purple): `dbg-band-actions` on the toolbar container.
 // 3) Right-side action cluster (green): `.table-filter-actions-group` in the purple band.
+//    Inspection checklist: `.dbg-band-inspection-control-group` on each of three equal toolbar cells.
 // 4) Main block (orange): `dbg-band-main` on the table body (or tab main areas below).
 // =============================================================================
 
@@ -93,6 +94,11 @@ body.dbg-page-debug-on {
 
   .table-filter-actions-group {
     @include dbg-band-actions-group-visual;
+  }
+
+  .dbg-band-inspection-control-group {
+    @include dbg-band-actions-group-visual;
+    padding: 4px 8px;
   }
 
   .property-tabs .property-tab-main-area {

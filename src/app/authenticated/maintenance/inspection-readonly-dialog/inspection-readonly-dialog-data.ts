@@ -1,6 +1,6 @@
 import { PropertyResponse } from '../../properties/models/property.model';
 
-export interface ChecklistReadonlyDialogData {
+export interface InspectionReadonlyDialogData {
   title: string;
   property: PropertyResponse | null;
   templateJson: string | null;

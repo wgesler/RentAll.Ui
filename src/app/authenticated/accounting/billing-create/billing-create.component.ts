@@ -184,8 +184,11 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         { marginBottom: '0.25in' }
       );
 
-      const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
-      const fileName = this.utilityService.generateDocumentFileName('invoice', invoiceCode);
+      const fileName = this.utilityService.generateDocumentFileName(
+        'invoice',
+        this.billingOrganization?.name || this.selectedInvoice.officeName || 'Billing',
+        this.selectedInvoice.invoiceCode || this.selectedInvoice.invoiceId || 'Invoice'
+      );
 
       const generateDto: GenerateDocumentFromHtmlDto = {
         htmlContent: htmlWithStyles,
@@ -368,17 +371,15 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.accountingOfficeService.getAccountingOffices().pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))
-    ).subscribe({
+    const orgId = this.billingOrganization.organizationId.trim();
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
-        const organizationOffices = (offices || []).filter(o => o.organizationId === this.billingOrganization?.organizationId);
+        const list = offices || [];
         const preferredOfficeId = this.selectedInvoice?.officeId || 1;
         this.selectedAccountingOffice =
-          organizationOffices.find(o => o.officeId === preferredOfficeId) ||
-          organizationOffices.find(o => o.officeId === 1) ||
-          organizationOffices[0] ||
+          list.find(o => o.officeId === preferredOfficeId) ||
+          list.find(o => o.officeId === 1) ||
+          list[0] ||
           null;
         this.updateAccountingOfficeLogo();
       },

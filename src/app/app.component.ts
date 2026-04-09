@@ -63,7 +63,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.initializeOrganizationList();
         this.loadContacts();
         this.loadOffices();
-        this.loadAccountingOffices();
         this.loadPropertySelectionFilterState();
       } else {
         this.organizationId = '';
@@ -108,25 +107,20 @@ export class AppComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     if (!this.organizationId) {
       this.officeService.clearOffices();
+      this.accountingOfficeService.clearAccountingOffices();
       this.globalOfficeSelectionService.setSelectedOfficeId(null);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+    })).subscribe({
       next: () => {
         this.loadCostCodes();
       },
       error: () => {}
-    });
-  }
-
-  loadAccountingOffices(): void {
-    this.accountingOfficeService.loadAllAccountingOffices();
-    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
-      next: () => {},
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
-      }
     });
   }
 

@@ -12,6 +12,7 @@ import { DocumentService } from '../../documents/services/document.service';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailService } from '../../email/services/email.service';
+import { inlineIssuePhotoSources } from '../../email/utils/inline-email-issue-photos';
 import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 
 export type ChecklistIssueEntry = {
@@ -21,10 +22,12 @@ export type ChecklistIssueEntry = {
   photoSrc?: string | null;
 };
 
+type ChecklistIssueEntryView = ChecklistIssueEntry & { _rid: number };
+
 type ChecklistIssueGroup = {
   sectionTitle: string;
   setLabel?: string;
-  issues: ChecklistIssueEntry[];
+  issues: ChecklistIssueEntryView[];
 };
 
 export type ChecklistIssuesDialogData = {
@@ -61,11 +64,19 @@ export type ChecklistIssuesDialogData = {
       </div>
 
       <mat-dialog-content class="flex-shrink-0 w-full pt-4 issue-list-wrap">
-        @if (!data?.issues?.length) {
+        @if (hasRemovedIssues) {
+          <div class="issue-restore-bar">
+            <button mat-stroked-button type="button" color="primary" (click)="restoreRemovedIssues()">
+              <mat-icon>undo</mat-icon>
+              Restore removed issues
+            </button>
+          </div>
+        }
+        @if (!displayIssues.length) {
           <p>No issues found.</p>
         } @else {
           <div class="issue-list">
-            @for (group of getGroupedIssues(); track group.sectionTitle + '-' + (group.setLabel || '') + '-' + ($index || 0)) {
+            @for (group of getGroupedIssues(); track groupTrackId(group, $index)) {
               <div class="issue-group">
                 <div class="issue-meta">
                   <span class="issue-section">{{ group.sectionTitle }}</span>
@@ -73,8 +84,16 @@ export type ChecklistIssuesDialogData = {
                     <span class="issue-set">{{ group.setLabel }}</span>
                   }
                 </div>
-                @for (issue of group.issues; track issue.issueText + '-' + ($index || 0); let issueIndex = $index) {
+                @for (issue of group.issues; track issue._rid; let issueIndex = $index) {
                   <div class="issue-row">
+                    <button
+                      type="button"
+                      mat-icon-button
+                      class="issue-row-dismiss"
+                      aria-label="Remove this issue"
+                      (click)="removeIssue(issue)">
+                      <mat-icon>close</mat-icon>
+                    </button>
                     <div class="issue-text">{{ issueIndex + 1 }}. Issue: {{ issue.issueText }}</div>
                     @if (issue.photoSrc) {
                       <div class="issue-photo-wrap">
@@ -96,9 +115,15 @@ export type ChecklistIssuesDialogData = {
             <mat-icon>print</mat-icon>
             Print
           </button>
-          <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="emailIssues()">
+          <button
+            mat-raised-button
+            color="accent"
+            type="button"
+            class="text-nowrap flex-shrink-0"
+            [disabled]="isPreparingEmail"
+            (click)="emailIssues()">
             <mat-icon>email</mat-icon>
-            Email
+            {{ isPreparingEmail ? 'Preparing…' : 'Email' }}
           </button>
           <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="downloadIssues()">
             <mat-icon>download</mat-icon>
@@ -106,7 +131,7 @@ export type ChecklistIssuesDialogData = {
           </button>
         </div>
         <button mat-raised-button color="primary" class="text-nowrap flex-shrink-0" mat-dialog-close>
-          OK
+          Close
         </button>
       </div>
     </div>
@@ -115,6 +140,13 @@ export type ChecklistIssuesDialogData = {
     .issue-list-wrap {
       max-height: 65vh;
       overflow: auto;
+    }
+    .issue-restore-bar {
+      display: flex;
+      justify-content: flex-start;
+      margin: 0 0 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
     }
     .issue-header-title-wrap {
       display: flex;
@@ -140,11 +172,18 @@ export type ChecklistIssuesDialogData = {
       gap: 0.65rem;
     }
     .issue-row {
+      position: relative;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 0.55rem 0.7rem;
+      padding: 0.55rem 2.25rem 0.55rem 0.7rem;
       background: #fff;
       margin-top: 0.4rem;
+    }
+    .issue-row-dismiss {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 1;
     }
     .issue-group {
       border: 1px solid #e2e8f0;
@@ -197,6 +236,14 @@ export type ChecklistIssuesDialogData = {
 })
 export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
   isDownloading = false;
+  isPreparingEmail = false;
+  displayIssues: ChecklistIssueEntryView[] = [];
+  private initialDisplayIssues: ChecklistIssueEntryView[] = [];
+  private nextIssueRid = 0;
+
+  get hasRemovedIssues(): boolean {
+    return this.displayIssues.length < this.initialDisplayIssues.length;
+  }
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ChecklistIssuesDialogData,
@@ -210,6 +257,24 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     private dialogRef: MatDialogRef<DialogChecklistIssuesComponent>
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+    this.displayIssues = (this.data?.issues || []).map(issue => ({
+      ...issue,
+      _rid: this.nextIssueRid++
+    }));
+    this.initialDisplayIssues = this.displayIssues.map(issue => ({ ...issue }));
+  }
+
+  groupTrackId(group: ChecklistIssueGroup, index: number): string {
+    const first = group.issues[0]?._rid ?? index;
+    return `${group.sectionTitle}|${group.setLabel || ''}|${first}`;
+  }
+
+  removeIssue(issue: ChecklistIssueEntryView): void {
+    this.displayIssues = this.displayIssues.filter(i => i._rid !== issue._rid);
+  }
+
+  restoreRemovedIssues(): void {
+    this.displayIssues = this.initialDisplayIssues.map(issue => ({ ...issue }));
   }
 
   buildIssuesReportText(): string {
@@ -241,12 +306,22 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     });
   }
 
-  emailIssues(): void {
+  async emailIssues(): Promise<void> {
     const fromEmail = (this.data?.fromEmail || '').trim();
     const fromName = (this.data?.fromName || '').trim();
     const toEmail = (this.data?.toEmail || fromEmail).trim();
     const toName = (this.data?.toName || fromName || 'Recipient').trim();
     const propertyCode = this.data?.propertyCode || 'N/A';
+
+    this.isPreparingEmail = true;
+    let issuesForEmail = this.displayIssues;
+    try {
+      issuesForEmail = await inlineIssuePhotoSources(this.displayIssues);
+    } finally {
+      this.isPreparingEmail = false;
+    }
+
+    const baseDoc = this.getDocumentConfig();
     const emailConfig: EmailConfig = {
       subject: `Inspection Issues - ${propertyCode}`,
       toEmail,
@@ -256,7 +331,7 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
       documentType: DocumentType.Inspection,
       emailType: EmailType.Other,
       plainTextContent: this.buildIssuesReportText(),
-      htmlContent: this.buildIssuesEmailHtml(),
+      htmlContent: this.buildIssuesEmailHtml(issuesForEmail),
       fileDetails: {
         fileName: this.getReportFileName('pdf'),
         contentType: 'application/pdf',
@@ -267,7 +342,10 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
 
     this.emailCreateDraftService.setDraft({
       emailConfig,
-      documentConfig: this.getDocumentConfig(),
+      documentConfig: {
+        ...baseDoc,
+        previewIframeHtml: this.buildIssuesPreviewHtml(issuesForEmail)
+      },
       returnUrl: this.router.url
     });
     this.dialogRef.close();
@@ -302,10 +380,10 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     return `inspection-issues-${propertyCodeSafe}-${dateSafe}.${extension}`;
   }
 
-  buildIssuesPreviewHtml(): string {
+  buildIssuesPreviewHtml(issues: ChecklistIssueEntryView[] = this.displayIssues): string {
     const propertyCode = this.data?.propertyCode || 'N/A';
     const dateText = this.data?.dateText || 'N/A';
-    const groupedIssues = this.getGroupedIssues();
+    const groupedIssues = this.getGroupedIssues(issues);
     const issueRowsHtml = groupedIssues.length === 0
       ? '<p>No issues found.</p>'
       : groupedIssues.map(group => {
@@ -348,43 +426,58 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     `;
   }
 
-  buildIssuesEmailHtml(): string {
-    const propertyCode = this.data?.propertyCode || 'N/A';
-    const dateText = this.data?.dateText || 'N/A';
-    const groupedIssues = this.getGroupedIssues();
-    const groupsHtml = groupedIssues.length === 0
-      ? '<p>No issues found.</p>'
-      : groupedIssues.map(group => {
-          const setPart = group.setLabel ? ` (${this.escapeHtml(group.setLabel)})` : '';
-          const issuesHtml = group.issues.map((issue, issueIndex) => `
-            <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-top:8px;background:#fff;">
-              <div style="color:#b91c1c;font-weight:600;">${issueIndex + 1}. Issue: ${this.escapeHtml(issue.issueText)}</div>
-              ${issue.photoSrc ? `<img src="${issue.photoSrc}" alt="Issue photo" style="display:block;max-width:220px;max-height:160px;border:1px solid #cbd5e1;border-radius:4px;object-fit:cover;margin-top:6px;" />` : ''}
-            </div>
-          `).join('');
-          return `
-            <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:10px;background:#f8fafc;">
-              <div style="font-weight:700;color:#0f172a;">${this.escapeHtml(group.sectionTitle)}${setPart}</div>
-              ${issuesHtml}
-            </div>
-          `;
-        }).join('');
+  buildIssuesEmailHtml(issues: ChecklistIssueEntryView[] = this.displayIssues): string {
+    const propertyCode = this.escapeHtml(this.data?.propertyCode || 'N/A');
+    const dateText = this.escapeHtml(this.data?.dateText || 'N/A');
+    const groupedIssues = this.getGroupedIssues(issues);
+    const groupsHtml =
+      groupedIssues.length === 0
+        ? '<p class="ra-email-empty" style="margin:0;color:#475569;">No issues found.</p>'
+        : groupedIssues
+            .map(group => {
+              const setLabelHtml = group.setLabel
+                ? `<span class="ra-email-set" style="color:#475569;font-size:0.82rem;">${this.escapeHtml(group.setLabel)}</span>`
+                : '';
+              const issuesHtml = group.issues
+                .map((issue, issueIndex) => {
+                  const imgHtml = issue.photoSrc
+                    ? `<div class="ra-email-photo-wrap" style="margin-top:4px;"><img class="ra-email-photo-thumb" src="${issue.photoSrc}" alt="" style="display:block;max-width:110px;max-height:80px;width:auto;height:auto;object-fit:cover;border:1px solid #cbd5e1;border-radius:4px;background:#fff;" /></div>`
+                    : '';
+                  return `<div class="ra-email-row" style="border:1px solid #e2e8f0;border-radius:6px;padding:9px 10px;background:#fff;margin-top:6px;box-sizing:border-box;">
+              <div class="ra-email-issue-text" style="color:#b91c1c;font-weight:600;font-size:0.86rem;margin-top:2px;line-height:1.35;">${issueIndex + 1}. Issue: ${this.escapeHtml(issue.issueText)}</div>
+              ${imgHtml}
+            </div>`;
+                })
+                .join('');
+              return `<div class="ra-email-group" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 11px;background:#f8fafc;box-sizing:border-box;">
+          <div class="ra-email-group-meta" style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:6px;">
+            <span class="ra-email-section" style="font-weight:700;color:#0f172a;font-size:0.9rem;">${this.escapeHtml(group.sectionTitle)}</span>
+            ${setLabelHtml}
+          </div>
+          ${issuesHtml}
+        </div>`;
+            })
+            .join('');
 
     return `
-      <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;">
-        <h2 style="margin:0 0 8px;">Inspection Issues</h2>
-        <div style="margin-bottom:12px;color:#334155;">
-          <strong>Property:</strong> ${this.escapeHtml(propertyCode)} &nbsp;&nbsp; <strong>Date:</strong> ${this.escapeHtml(dateText)}
-        </div>
-        ${groupsHtml}
-      </div>
-    `;
+<div class="ra-email-issues" style="font-family:Arial,Helvetica,sans-serif;color:#111827;max-width:100%;box-sizing:border-box;">
+  <div class="ra-email-issues-header" style="display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;width:100%;padding:12px 14px;background:#e2e8f0;border-radius:8px;box-sizing:border-box;">
+    <span class="ra-email-header-icon" style="font-size:22px;line-height:1;color:#e11d48;" aria-hidden="true">&#9888;</span>
+    <span style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;flex:1;min-width:0;font-size:1.25rem;font-weight:600;color:#0f172a;">
+      <span>Inspection Issues:</span>
+      <span>${propertyCode}</span>
+    </span>
+    <span class="ra-email-header-date" style="margin-left:auto;font-size:0.95rem;font-weight:500;color:#334155;text-align:right;white-space:nowrap;">${dateText}</span>
+  </div>
+  <div class="ra-email-issues-list" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;box-sizing:border-box;">
+    ${groupsHtml}
+  </div>
+</div>`.trim();
   }
 
-  getGroupedIssues(): ChecklistIssueGroup[] {
+  getGroupedIssues(issues: ChecklistIssueEntryView[] = this.displayIssues): ChecklistIssueGroup[] {
     const groupedMap = new Map<string, ChecklistIssueGroup>();
     const orderedGroups: ChecklistIssueGroup[] = [];
-    const issues = this.data?.issues || [];
 
     issues.forEach(issue => {
       const sectionTitle = issue.sectionTitle || 'General';

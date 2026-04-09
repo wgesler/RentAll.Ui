@@ -274,9 +274,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       const processed = this.documentHtmlService.processHtml(processedHtml, true);
       const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(processed.processedHtml, processed.extractedStyles);
 
-      // Generate file name
-      const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId || 'Invoice';
-      const fileName = this.utilityService.generateDocumentFileName('invoice', this.property.propertyCode, invoiceCode);
+      const fileName = this.utilityService.generateDocumentFileName(
+        'invoice',
+        this.property.propertyCode,
+        this.selectedInvoice.invoiceCode || this.selectedInvoice.invoiceId || 'Invoice'
+      );
 
       const generateDto: GenerateDocumentFromHtmlDto = {
         htmlContent: htmlWithStyles,
@@ -333,10 +335,15 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     // Load accounting office if not provided
-    if (!this.selectedAccountingOffice) {
-      const accountingOffices = await firstValueFrom(this.accountingOfficeService.getAllAccountingOffices().pipe(take(1)));
-      this.selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === this.selectedOffice!.officeId) || null;
-      this.updateAccountingOfficeLogo();
+    if (!this.selectedAccountingOffice && this.selectedOffice) {
+      const orgId = this.authService.getUser()?.organizationId?.trim() ?? '';
+      if (orgId) {
+        const accountingOffices = await firstValueFrom(
+          this.accountingOfficeService.ensureAccountingOfficesLoaded(orgId).pipe(take(1))
+        );
+        this.selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === this.selectedOffice.officeId) || null;
+        this.updateAccountingOfficeLogo();
+      }
     }
 
     // Load organization if not provided
@@ -378,53 +385,37 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       });
     };
 
-    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe({
-      next: (loaded) => {
-        if (!loaded) {
-          const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-          if (!organizationId) {
-            this.offices = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-            return;
-          }
-          this.officeService.loadAllOffices(organizationId);
-        }
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.offices = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      return;
+    }
 
-        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
-          next: () => bindOfficeStream(),
-          error: () => { this.offices = []; }
-        });
-      },
-      error: () => {
-        this.offices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      }
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => bindOfficeStream(),
+      error: () => { this.offices = []; }
     });
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.areAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: (loaded) => {
-        if (!loaded) {
-          this.accountingOfficeService.loadAllAccountingOffices();
-        }
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.accountingOffices = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      return;
+    }
 
-        this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(isLoaded => isLoaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
-          next: () => {
-            this.accountingOffices = this.accountingOfficeService.getAllAccountingOfficesValue();
-            this.accountingOfficesSubscription?.unsubscribe();
-            this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
-              this.accountingOffices = accountingOffices || [];
-            });
-          },
-          error: () => {
-            this.accountingOffices = [];
-          }
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+      next: (list) => {
+        this.accountingOffices = list || [];
+        this.accountingOfficesSubscription?.unsubscribe();
+        this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
         });
       },
       error: () => {
         this.accountingOffices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       }
     });
   }

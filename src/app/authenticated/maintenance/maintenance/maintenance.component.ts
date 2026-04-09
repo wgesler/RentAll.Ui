@@ -7,7 +7,7 @@ import { MaterialModule } from '../../../material.module';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
-import { ApplianceListComponent } from '../appliance-list/appliance-list.component';
+import { MaintenanceApplianceListComponent } from '../maintenance-appliance-list/maintenance-appliance-list.component';
 import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
 import { MaintenanceItemListComponent } from '../maintenance-item-list/maintenance-item-list.component';
 import { MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
@@ -27,7 +27,7 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
 @Component({
   standalone: true,
   selector: 'app-maintenance',
-  imports: [CommonModule, ReactiveFormsModule, MaterialModule, ApplianceListComponent, MaintenanceItemListComponent],
+  imports: [CommonModule, ReactiveFormsModule, MaterialModule, MaintenanceApplianceListComponent, MaintenanceItemListComponent],
   templateUrl: './maintenance.component.html',
   styleUrl: './maintenance.component.scss'
 })

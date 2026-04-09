@@ -1,3 +1,4 @@
+//#region Work-Order Type
 export enum WorkOrderType {
   Tenant = 0,
   Owner = 1,
@@ -24,46 +25,35 @@ export function getWorkOrderTypes(): { value: number; label: string }[] {
       label: getWorkOrderType(WorkOrderType[key as keyof typeof WorkOrderType])
     }));
 }
+//#endregion
 
-export enum MaintenanceStatus {
-  UnProcessed = 0,
-  NeedToScheduleCleaners = 1,
-  CleanersScheduled = 2,
-  Cleaned = 3,
-  WaitingForInspection = 4,
-  InspectedWithIssues = 5,
-  NeedToScheduleMaintenance = 6,
-  MaintenanceScheduled = 7,
-  MaintenanceComplete = 8,
-  InspectionComplete = 9,
-  Ready = 10
+//#region InspectionType
+export enum InspectionType {
+  Online = 0,
+  MoveIn = 1,
+  MoveOut = 2
 }
 
-export function getMaintenanceStatus(maintenanceStatusId: number | undefined): string {
-  if (maintenanceStatusId === undefined || maintenanceStatusId === null) return '';
+export function getInspectionType(inspectionTypeId: number | undefined | null): string {
+  if (inspectionTypeId === undefined || inspectionTypeId === null) {
+    return '';
+  }
 
-  const statusMap: { [key: number]: string } = {
-    [MaintenanceStatus.UnProcessed]: 'UnProcessed',
-    [MaintenanceStatus.NeedToScheduleCleaners]: 'Need To Schedule Cleaners',
-    [MaintenanceStatus.CleanersScheduled]: 'Cleaners Scheduled',
-    [MaintenanceStatus.Cleaned]: 'Cleaned',
-    [MaintenanceStatus.WaitingForInspection]: 'Waiting For Inspection',
-    [MaintenanceStatus.InspectedWithIssues]: 'Inspected With Issues',
-    [MaintenanceStatus.NeedToScheduleMaintenance]: 'Need To Schedule Maintenance',
-    [MaintenanceStatus.MaintenanceScheduled]: 'Maintenance Scheduled',
-    [MaintenanceStatus.MaintenanceComplete]: 'Maintenance Complete',
-    [MaintenanceStatus.InspectionComplete]: 'Inspection Complete',
-    [MaintenanceStatus.Ready]: 'Ready'
+  const typeMap: { [key: number]: string } = {
+    [InspectionType.Online]: 'Online',
+    [InspectionType.MoveIn]: 'Move-In',
+    [InspectionType.MoveOut]: 'Move-Out'
   };
 
-  return statusMap[maintenanceStatusId] || '';
+  return typeMap[inspectionTypeId] || '';
 }
 
-export function getMaintenanceStatuses(): { value: number, label: string }[] {
-  return Object.keys(MaintenanceStatus)
+export function getInspectionTypes(): { value: number; label: string }[] {
+  return Object.keys(InspectionType)
     .filter(key => isNaN(Number(key)))
     .map(key => ({
-      value: MaintenanceStatus[key as keyof typeof MaintenanceStatus],
-      label: getMaintenanceStatus(MaintenanceStatus[key as keyof typeof MaintenanceStatus])
+      value: InspectionType[key as keyof typeof InspectionType],
+      label: getInspectionType(InspectionType[key as keyof typeof InspectionType])
     }));
 }
+//#endregion

@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,6 +26,7 @@ export class EmailCreateComponent implements OnInit {
   form: FormGroup = this.buildForm();
   isSending = false;
   isMissingDraft = false;
+  trustedHtmlBody: SafeHtml | null = null;
   private initialPlainTextContent = '';
 
   constructor(
@@ -34,7 +36,8 @@ export class EmailCreateComponent implements OnInit {
     private draftService: EmailCreateDraftService,
     private documentService: DocumentService,
     private documentHtmlService: DocumentHtmlService,
-    private emailService: EmailService
+    private emailService: EmailService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -58,6 +61,11 @@ export class EmailCreateComponent implements OnInit {
       bccEmails: (draft.emailConfig.bccEmails || []).join(', '),
       plainTextContent: initialPlainTextContent
     });
+
+    const htmlBody = (draft.emailConfig.htmlContent || '').trim();
+    if (htmlBody) {
+      this.trustedHtmlBody = this.sanitizer.bypassSecurityTrustHtml(htmlBody);
+    }
   }
 
   get attachmentName(): string {

@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { finalize, firstValueFrom, forkJoin, map, of, switchMap, take } from 'rxjs';
+import { Subscription, finalize, firstValueFrom, forkJoin, map, of, switchMap, take } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -19,6 +19,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
+import { getInspectionType, getInspectionTypes, InspectionType } from '../models/maintenance-enums';
 import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { InspectionService } from '../services/inspection.service';
@@ -38,18 +39,30 @@ export type ChecklistType = 'inspection';
 
 @Component({
   standalone: true,
-  selector: 'app-checklist',
+  selector: 'app-inspection',
   imports: [CommonModule, MaterialModule, ReactiveFormsModule],
-  templateUrl: './checklist.component.html',
-  styleUrl: './checklist.component.scss'
+  templateUrl: './inspection.component.html',
+  styleUrl: './inspection.component.scss'
 })
-export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
+export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   @Input() property: PropertyResponse | null = null;
   @Input() templateJson: string | null = null;
   @Input() answersJson: string | null = null;
+  /** When `mode` is readonly (e.g. dialog), optional type from the parent when API context is not loaded. */
+  @Input() readonlyInspectionTypeId: number | null = null;
   @Input() mode: ChecklistMode = 'answer';
   @Input() checklistType: ChecklistType = 'inspection';
+  /** Set by maintenance-shell title bar when embedding; required with Move-In / Move-Out inspection types. */
+  @Input() titleBarReservationId: string | null = null;
+  @Input() titleBarReservationDisplayText: string | null = null;
   @Output() inspectionSubmitted = new EventEmitter<void>();
+  /** Emits persisted `activeInspection.reservationId` after load/save/patch so the maintenance shell title bar stays in sync. */
+  @Output() titleBarReservationSync = new EventEmitter<string | null>();
+
+  readonly inspectionTypeOptions = getInspectionTypes();
+  inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
+  shellReservationFieldTouched = false;
+  private inspectionTypeSubscription?: Subscription;
 
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
   readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
@@ -116,6 +129,21 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     this.syncPropertyDrivenSections();
     this.loadChecklistContext();
     this.hasInitialized = true;
+
+    this.inspectionTypeSubscription = this.inspectionTypeIdControl.valueChanges.subscribe(type => {
+      if (this.isReadonlyMode || this.isTemplateMode) {
+        return;
+      }
+      if (type === InspectionType.MoveIn || type === InspectionType.MoveOut) {
+        if (!this.hasReservationResolved) {
+          this.shellReservationFieldTouched = true;
+        }
+      } else {
+        this.shellReservationFieldTouched = false;
+        this.titleBarReservationSync.emit(null);
+      }
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -142,6 +170,15 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (changes['mode']) {
       this.activeMode = this.mode;
       this.applyModeState();
+    }
+
+    if (this.hasInitialized && changes['readonlyInspectionTypeId'] && this.isReadonlyMode) {
+      this.patchInspectionTypeFromContext();
+    }
+
+    if (this.hasInitialized && changes['titleBarReservationId'] && this.hasReservationResolved) {
+      this.shellReservationFieldTouched = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -402,6 +439,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   ngOnDestroy(): void {
+    this.inspectionTypeSubscription?.unsubscribe();
     this.photoBlobUrlCache.forEach(url => {
       if (url.startsWith('blob:')) {
         URL.revokeObjectURL(url);
@@ -611,14 +649,117 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     return this.isSavingTemplateInternal || this.isSavingAnswersInternal;
   }
 
+  get shellReservationRequired(): boolean {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return false;
+    }
+    const t = this.inspectionTypeIdControl.value;
+    return t === InspectionType.MoveIn || t === InspectionType.MoveOut;
+  }
+
+  get hasShellReservationSelected(): boolean {
+    const id = this.titleBarReservationId;
+    return id != null && String(id).trim().length > 0;
+  }
+
+  get hasReservationResolved(): boolean {
+    if (this.hasShellReservationSelected) {
+      return true;
+    }
+    const sid = this.activeInspection?.reservationId;
+    return sid != null && String(sid).trim().length > 0;
+  }
+
+  get showTitleBarReservationError(): boolean {
+    return this.shellReservationRequired && !this.hasReservationResolved && this.shellReservationFieldTouched;
+  }
+
+  get titleBarReservationRequired(): boolean {
+    return this.shellReservationRequired;
+  }
+
+  private reservationIdForInspectionPayload(serverReservation: string | null | undefined): string | null {
+    if (this.inspectionTypeIdControl.value === InspectionType.Online) {
+      return null;
+    }
+    const shell = this.titleBarReservationId?.trim();
+    if (shell) {
+      return shell;
+    }
+    if (serverReservation != null && String(serverReservation).trim() !== '') {
+      return String(serverReservation).trim();
+    }
+    return null;
+  }
+
+  validateShellReservationForSave(): boolean {
+    if (!this.shellReservationRequired || this.hasReservationResolved) {
+      return true;
+    }
+    this.shellReservationFieldTouched = true;
+    this.cdr.markForCheck();
+    this.toastr.error('Reservation is required for Move-In and Move-Out inspections.', CommonMessage.Error);
+    return false;
+  }
+
+  private syncInspectionTypeIdControlDisabledForSave(): void {
+    if (this.isSavingTemplateInternal || this.isSavingAnswersInternal) {
+      this.inspectionTypeIdControl.disable({ emitEvent: false });
+    } else {
+      this.inspectionTypeIdControl.enable({ emitEvent: false });
+    }
+  }
+
   captureSavedStateSignature(): void {
     this.form?.markAsPristine();
     this.form?.markAsUntouched();
+    this.inspectionTypeIdControl.markAsPristine();
+  }
+
+  patchInspectionTypeFromContext(): void {
+    const id =
+      (this.isReadonlyMode ? this.readonlyInspectionTypeId : null) ??
+      this.activeInspection?.inspectionTypeId ??
+      InspectionType.Online;
+    this.inspectionTypeIdControl.setValue(id, { emitEvent: false });
+    this.inspectionTypeIdControl.markAsPristine();
+    if (this.hasReservationResolved) {
+      this.shellReservationFieldTouched = false;
+    }
+    this.emitTitleBarReservationSync();
+  }
+
+  private emitTitleBarReservationSync(): void {
+    const rid = (this.activeInspection?.reservationId || '').trim();
+    this.titleBarReservationSync.emit(rid.length > 0 ? rid : null);
+  }
+
+  /** Call from maintenance shell when switching back to the Inspection tab so the reservation dropdown matches persisted inspection data. */
+  pushTitleBarReservationToShell(): void {
+    this.emitTitleBarReservationSync();
+  }
+
+  get titleBarReservationDirty(): boolean {
+    if (this.isReadonlyMode || this.isTemplateMode) {
+      return false;
+    }
+    if (this.inspectionTypeIdControl.value === InspectionType.Online) {
+      return false;
+    }
+    const shell = (this.titleBarReservationId || '').trim();
+    const persisted = (this.activeInspection?.reservationId || '').trim();
+    return shell !== persisted;
   }
 
   hasUnsavedChanges(): boolean {
     if (this.isReadonlyMode || this.isSavingInProgress || !this.form) {
       return false;
+    }
+    if (!this.isTemplateMode && this.inspectionTypeIdControl.dirty) {
+      return true;
+    }
+    if (!this.isTemplateMode && this.titleBarReservationDirty) {
+      return true;
     }
     return this.form.dirty;
   }
@@ -662,6 +803,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     } else {
       this.applySavedAnswersJson(this.buildEmptyChecklistAnswersJson());
     }
+    this.patchInspectionTypeFromContext();
     this.captureSavedStateSignature();
   }
 
@@ -800,6 +942,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     const emptyAnswersJson = this.buildEmptyChecklistAnswersJson();
     this.isSavingTemplateInternal = true;
     this.isServiceError = false;
+    this.syncInspectionTypeIdControlDisabledForSave();
 
     this.upsertMaintenanceTemplate(checklistJson).pipe(
       take(1),
@@ -810,20 +953,26 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           officeId: savedMaintenance.officeId || this.property.officeId,
           propertyId: this.property!.propertyId,
           maintenanceId: savedMaintenance.maintenanceId || '',
+          inspectionTypeId: this.inspectionTypeIdControl.value,
           inspectionCheckList: emptyAnswersJson,
           documentPath: null,
-          isActive: true
+          isActive: true,
+          reservationId: this.reservationIdForInspectionPayload(undefined)
         };
         return this.inspectionService.createInspection(createDraftPayload).pipe(
           take(1),
           map((savedInspectionResponse) => ({ savedMaintenance, savedInspectionResponse }))
         );
       }),
-      finalize(() => (this.isSavingTemplateInternal = false))
+      finalize(() => {
+        this.isSavingTemplateInternal = false;
+        this.syncInspectionTypeIdControlDisabledForSave();
+      })
     ).subscribe({
       next: ({ savedMaintenance, savedInspectionResponse }: { savedMaintenance: MaintenanceResponse; savedInspectionResponse: InspectionResponse }) => {
         this.maintenanceRecord = savedMaintenance;
         this.activeInspection = this.mappingService.mapInspection(savedInspectionResponse);
+        this.patchInspectionTypeFromContext();
         this.activeMode = 'answer';
         this.applyModeState();
         this.applySavedAnswersJson(this.activeInspection.inspectionCheckList || emptyAnswersJson);
@@ -929,9 +1078,15 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       return;
     }
 
+    if (!this.validateShellReservationForSave()) {
+      complete(false);
+      return;
+    }
+
     const shouldSubmitInspection = submitRequested && this.isChecklistFullyComplete(inspectionChecklistJson);
     this.isSavingAnswersInternal = true;
     this.isServiceError = false;
+    this.syncInspectionTypeIdControlDisabledForSave();
 
     const persistInspection = (documentPath: string | null): void => {
       if (this.activeInspection) {
@@ -942,16 +1097,22 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               organizationId: latestInspection.organizationId,
               officeId: latestInspection.officeId,
               propertyId: latestInspection.propertyId,
+              reservationId: this.reservationIdForInspectionPayload(latestInspection.reservationId),
               maintenanceId: latestInspection.maintenanceId,
+              inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
               documentPath: documentPath ?? latestInspection.documentPath ?? null,
               isActive: shouldSubmitInspection ? false : latestInspection.isActive
             };
 
-            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
+              this.isSavingAnswersInternal = false;
+              this.syncInspectionTypeIdControlDisabledForSave();
+            })).subscribe({
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
@@ -973,15 +1134,21 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               organizationId: this.activeInspection!.organizationId,
               officeId: this.activeInspection!.officeId,
               propertyId: this.activeInspection!.propertyId,
+              reservationId: this.reservationIdForInspectionPayload(this.activeInspection!.reservationId),
               maintenanceId: this.activeInspection!.maintenanceId,
+              inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
               documentPath: documentPath ?? this.activeInspection!.documentPath ?? null,
               isActive: shouldSubmitInspection ? false : this.activeInspection!.isActive
             };
-            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
+              this.isSavingAnswersInternal = false;
+              this.syncInspectionTypeIdControlDisabledForSave();
+            })).subscribe({
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
@@ -1005,12 +1172,15 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         officeId: this.maintenanceRecord?.officeId || this.property.officeId,
         propertyId: this.property.propertyId,
         maintenanceId: this.maintenanceRecord?.maintenanceId || '',
+        inspectionTypeId: this.inspectionTypeIdControl.value,
         inspectionCheckList: inspectionChecklistJson,
         documentPath,
-        isActive: shouldSubmitInspection ? false : true
+        isActive: shouldSubmitInspection ? false : true,
+        reservationId: this.reservationIdForInspectionPayload(this.activeInspection?.reservationId)
       };
       if (!createPayload.organizationId || !createPayload.officeId || !createPayload.maintenanceId) {
         this.isSavingAnswersInternal = false;
+        this.syncInspectionTypeIdControlDisabledForSave();
         this.isServiceError = true;
         this.toastr.error('Unable to save inspection due to missing context.', CommonMessage.Error);
         complete(false);
@@ -1025,15 +1195,21 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               organizationId: existingActiveInspection.organizationId,
               officeId: existingActiveInspection.officeId,
               propertyId: existingActiveInspection.propertyId,
+              reservationId: this.reservationIdForInspectionPayload(existingActiveInspection.reservationId),
               maintenanceId: existingActiveInspection.maintenanceId,
+              inspectionTypeId: this.inspectionTypeIdControl.value,
               inspectionCheckList: inspectionChecklistJson,
               documentPath: documentPath ?? existingActiveInspection.documentPath ?? null,
               isActive: shouldSubmitInspection ? false : existingActiveInspection.isActive
             };
-            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+            this.inspectionService.updateInspection(updatePayload).pipe(take(1), finalize(() => {
+              this.isSavingAnswersInternal = false;
+              this.syncInspectionTypeIdControlDisabledForSave();
+            })).subscribe({
               next: (savedInspectionResponse: InspectionResponse) => {
                 const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
                 this.activeInspection = savedInspection;
+                this.patchInspectionTypeFromContext();
                 this.captureSavedStateSignature();
                 this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
                 if (shouldSubmitInspection) {
@@ -1050,10 +1226,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
             return;
           }
 
-          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => {
+            this.isSavingAnswersInternal = false;
+            this.syncInspectionTypeIdControlDisabledForSave();
+          })).subscribe({
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
@@ -1069,10 +1249,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           });
         },
         error: () => {
-          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => (this.isSavingAnswersInternal = false))).subscribe({
+          this.inspectionService.createInspection(createPayload).pipe(take(1), finalize(() => {
+            this.isSavingAnswersInternal = false;
+            this.syncInspectionTypeIdControlDisabledForSave();
+          })).subscribe({
             next: (savedInspectionResponse: InspectionResponse) => {
               const savedInspection = this.mappingService.mapInspection(savedInspectionResponse);
               this.activeInspection = savedInspection;
+              this.patchInspectionTypeFromContext();
               this.captureSavedStateSignature();
               this.toastr.success(shouldSubmitInspection ? 'Inspection submitted successfully' : 'Inspection saved successfully', CommonMessage.Success);
               if (shouldSubmitInspection) {
@@ -1100,12 +1284,18 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       this.maintenanceRecord?.organizationId || this.user?.organizationId || this.property.organizationId || '',
       this.maintenanceRecord?.officeId || this.property.officeId,
       this.property.propertyId,
-      this.utilityService.generateDocumentFileName('inspection', this.property.propertyCode, null),
+      this.utilityService.generateDocumentFileName(
+        'inspection',
+        this.property.propertyCode,
+        this.reservationDisplayTextForSubmittedPdf() || undefined,
+        getInspectionType(this.inspectionTypeIdControl.value) || undefined
+      ),
       'Inspection Checklist',
       DocumentType.Inspection
     );
     if (!inspectionDto) {
       this.isSavingAnswersInternal = false;
+      this.syncInspectionTypeIdControlDisabledForSave();
       this.isServiceError = true;
       this.toastr.error('Failed to build inspection document', CommonMessage.Error);
       complete(false);
@@ -1123,6 +1313,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       },
       error: (_err: HttpErrorResponse) => {
         this.isSavingAnswersInternal = false;
+        this.syncInspectionTypeIdControlDisabledForSave();
         this.isServiceError = true;
         this.toastr.error('Failed to generate inspection document', CommonMessage.Error);
         complete(false);
@@ -1219,6 +1410,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     if (answersProvided) {
       const providedAnswersJson = this.answersJson!.trim();
       this.applySavedAnswersJson(providedAnswersJson);
+      this.patchInspectionTypeFromContext();
       this.captureSavedStateSignature();
       return;
     }
@@ -1226,6 +1418,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (result) => {
         this.activeInspection = this.getLatestInspectionRecord(result || []);
+        this.patchInspectionTypeFromContext();
         const answersJson = this.activeInspection?.inspectionCheckList?.trim() ?? '';
         if (answersJson.length > 0) {
           this.applySavedAnswersJson(answersJson);
@@ -1236,6 +1429,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       },
       error: () => {
         this.activeInspection = null;
+        this.patchInspectionTypeFromContext();
         this.captureSavedStateSignature();
       }
     });
@@ -1288,7 +1482,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       officeId,
       officeName: this.property.officeName || this.maintenanceRecord?.officeName || '',
       propertyId,
-      reservationId: null,
+      reservationId: this.reservationIdForInspectionPayload(this.activeInspection?.reservationId),
       documentTypeId: documentType,
       fileName,
       generatePdf: true
@@ -1309,20 +1503,32 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
           const rowHtml = setItems.map(item => {
             const label = this.escapeHtml(item.text || '');
             const isChecked = !!this.form.get(this.itemControlNameById(section.key, setIndex, item.id))?.value;
-            const checked = isChecked ? '☑' : '☐';
+            const hasIssue = item.hasIssue === true;
+            const issueRaw = String(this.form.get(this.issueControlNameById(section.key, setIndex, item.id))?.value ?? '').trim();
+            const checkChar = isChecked ? '☑' : '☐';
+            const checkClass = !isChecked ? 'check-neutral' : hasIssue ? 'check-bad' : 'check-good';
+            const issueBlock =
+              isChecked && hasIssue
+                ? `<div class="issue-desc"><strong>Issue:</strong> ${issueRaw ? this.escapeHtml(issueRaw) : '—'}</div>`
+                : '';
             const imageSrc = this.getItemPhotoSrc(item);
             const imageHtml = imageSrc
               ? `<div class="photo-wrap"><img src="${imageSrc}" alt="Line item photo" /></div>`
               : '';
-            return `<li><span class="check">${checked}</span> <span>${label}</span>${imageHtml}</li>`;
+            return `<li class="pdf-checklist-item"><div class="pdf-item-head"><span class="pdf-check-cell"><span class="check ${checkClass}">${checkChar}</span></span><span class="pdf-label-cell">${label}</span></div>${issueBlock}${imageHtml}</li>`;
           }).join('');
 
-          return `<div class="set-wrap"><h4>Set ${setIndex + 1}</h4><ul>${rowHtml}</ul></div>`;
+          const setLabel =
+            this.getSetCount(section.key) <= 1 ? '' : this.getSetInstruction(section.key, setIndex).trim();
+          const setHeadingHtml = setLabel
+            ? `<h4 class="set-heading">${this.escapeHtml(setLabel)}</h4>`
+            : '';
+          return `<div class="set-wrap">${setHeadingHtml}<ul>${rowHtml}</ul></div>`;
         }).join('');
 
         const notes = this.form.get(this.notesControlName(section.key))?.value || '';
         const notesHtml = notes ? `<p><strong>Comments:</strong> ${this.escapeHtml(notes)}</p>` : '';
-        return `<section><h3>${sectionTitle}</h3>${setHtml}${notesHtml}</section>`;
+        return `<section class="checklist-section"><h3>${sectionTitle}</h3>${setHtml}${notesHtml}</section>`;
       }).join('');
 
       const documentTitle = this.escapeHtml(checklistTitle);
@@ -1330,35 +1536,65 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
       const p = this.property;
       let headerLines = '';
       if (p) {
-        const code = this.escapeHtml(String(p.propertyCode ?? p.propertyId ?? ''));
-        if (code) headerLines += `<p><strong>Property Code:</strong> ${code}</p>`;
+        const officeName = this.escapeHtml(String(p.officeName ?? '').trim());
+        const code = this.escapeHtml(String(p.propertyCode ?? p.propertyId ?? '').trim());
+        const officePropLine: string[] = [];
+        if (officeName) {
+          officePropLine.push(`<strong>Office:</strong> ${officeName}`);
+        }
+        if (code) {
+          officePropLine.push(`<strong>Property Code:</strong> ${code}`);
+        }
+        if (officePropLine.length) {
+          headerLines += `<p class="header-office-property">${officePropLine.join('&nbsp;&nbsp;')}</p>`;
+        }
         const addrParts: string[] = [];
         if (p.address1) addrParts.push(this.escapeHtml(String(p.address1)));
         if (p.address2) addrParts.push(this.escapeHtml(String(p.address2)));
         if (p.suite) addrParts.push(this.escapeHtml(String(p.suite)));
         const csz = [p.city, p.state, p.zip].filter(Boolean).map(v => String(v)).join(', ');
         if (csz) addrParts.push(this.escapeHtml(csz));
-        if (addrParts.length) headerLines += `<p><strong>Address:</strong> ${addrParts.join(', ')}</p>`;
-        if (p.officeName) headerLines += `<p><strong>Office:</strong> ${this.escapeHtml(String(p.officeName))}</p>`;
+        if (addrParts.length) {
+          headerLines += `<p><strong>Address:</strong> ${addrParts.join(', ')}</p>`;
+        }
+        const reservationText = this.reservationDisplayTextForSubmittedPdf();
+        if (reservationText) {
+          headerLines += `<p><strong>Reservation:</strong> ${this.escapeHtml(reservationText)}</p>`;
+        }
+        const inspectorDisplay = (this.inspectorName || '').trim() || 'Unknown User';
+        const dateDisplay = new Date().toLocaleDateString();
+        headerLines += `<p class="header-inspector-date"><strong>Inspector:</strong> ${this.escapeHtml(inspectorDisplay)}&nbsp;&nbsp;<strong>Date:</strong> ${this.escapeHtml(dateDisplay)}</p>`;
       }
       return `
         <html>
           <head>
             <style>
               body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
-              h1 { font-size: 20px; margin-bottom: 8px; }
-              h3 { font-size: 15px; margin: 16px 0 8px 0; }
-              h4 { font-size: 13px; margin: 10px 0 6px 0; }
-              ul { padding-left: 16px; margin: 0; }
-              li { margin-bottom: 8px; }
-              .check { font-weight: 700; margin-right: 6px; }
+              h1.pdf-doc-title { font-size: 20px; text-align: left; margin: 0 0 12px 0; }
+              .checklist-section { margin-top: 2.55em; }
+              .checklist-section:first-of-type { margin-top: 2.35em; }
+              .checklist-section > h3 { font-size: 15px; margin: 0 0 8px 0; text-decoration: underline; }
+              h4.set-heading { font-size: 13px; margin: 10px 0 6px 0; }
+              ul { padding-left: 16px; margin: 0; list-style: none; }
+              .pdf-checklist-item { margin-bottom: 10px; }
+              .pdf-item-head { display: flex; flex-direction: row; align-items: flex-start; gap: 6px; }
+              .pdf-check-cell { flex: 0 0 1.15em; min-width: 1.15em; text-align: left; }
+              .pdf-label-cell { flex: 1; min-width: 0; font-size: inherit; font-family: inherit; font-weight: normal; }
+              .check { font-weight: 700; }
+              .check-good { color: #2e7d32; }
+              .check-bad { color: #c62828; }
+              .check-neutral { color: #555; }
+              .issue-desc { margin: 4px 0 0 0; padding: 0; font-size: inherit; font-family: inherit; font-weight: normal; color: #c62828; line-height: inherit; }
+              .issue-desc strong { font-size: inherit; font-family: inherit; font-weight: normal; color: #c62828; }
+              .header-office-property { margin: 0 0 6px 0; }
+              .header-inspector-date { margin: 6px 0 0 0; }
               .photo-wrap { margin-top: 6px; }
               img { max-width: 320px; max-height: 240px; object-fit: contain; border: 1px solid #ddd; }
               .set-wrap { margin-bottom: 10px; }
             </style>
           </head>
           <body>
-            <h1>${documentTitle} - ${propertyName}</h1>
+            <h1 class="pdf-doc-title">${documentTitle} - ${propertyName}</h1>
             ${headerLines}
             ${sectionHtml}
           </body>
@@ -1367,6 +1603,14 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
     } catch {
       return null;
     }
+  }
+
+  private reservationDisplayTextForSubmittedPdf(): string {
+    const fromTitleBar = (this.titleBarReservationDisplayText || '').trim();
+    if (fromTitleBar.length > 0) {
+      return fromTitleBar;
+    }
+    return (this.activeInspection?.reservationCode || '').trim();
   }
 
   escapeHtml(value: string): string {
@@ -1382,6 +1626,8 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
   //#region Item Controls
   isChecklistFullyComplete(checklistJson: string): boolean {
     try {
+      const issuesBlockSubmit = this.inspectionTypeIdControl.value !== InspectionType.MoveOut;
+
       const root = JSON.parse(checklistJson) as {
         sections?: Array<{
           key?: string;
@@ -1416,7 +1662,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               return true;
             }
 
-            if (selectedItem?.hasIssue === true) {
+            if (issuesBlockSubmit && selectedItem?.hasIssue === true) {
               return false;
             }
             if (selectedItem?.requiresCount === true) {
@@ -1442,7 +1688,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               if (typeof checkedItem === 'boolean') {
                 return true;
               }
-              if (checkedItem?.hasIssue === true) {
+              if (issuesBlockSubmit && checkedItem?.hasIssue === true) {
                 return false;
               }
               if (checkedItem?.requiresCount === true) {
@@ -1464,7 +1710,7 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
               return false;
             }
 
-            if (item?.hasIssue === true) {
+            if (issuesBlockSubmit && item?.hasIssue === true) {
               return false;
             }
             if (item?.requiresCount === true) {
@@ -2364,6 +2610,17 @@ export class ChecklistComponent implements OnChanges, OnDestroy, OnInit {
         });
       });
     }
+  }
+
+  get inspectionTypeReadonlyLabel(): string {
+    if (!this.isReadonlyMode) {
+      return '';
+    }
+    const id = this.readonlyInspectionTypeId ?? this.activeInspection?.inspectionTypeId;
+    if (id === null || id === undefined) {
+      return '';
+    }
+    return getInspectionType(id);
   }
 
   get isTemplateMode(): boolean {

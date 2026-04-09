@@ -18,6 +18,7 @@
               Maintenance
             </span>
           </span>
+
           <div class="header-title form-titlebar-fields-wrap">
             <mat-form-field appearance="outline" class="titlebar-field-office">
               <mat-label>Office</mat-label>
@@ -37,6 +38,25 @@
                 }
               </mat-select>
             </mat-form-field>
+
+            @if (showTitleBarReservationDropdown) {
+              <div class="titlebar-reservation-slot">
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                  [required]="false"
+                  [value]="selectedReservationId ?? null"
+                  [options]="reservationOptions"
+                  [showInstructionOption]="true"
+                  [nullOptionLabel]="titleBarReservationNullLabel"
+                  [noResultsText]="'No reservations match your search'"
+                  [labelRequiredAsterisk]="selectedTabIndex === 0 && (inspectionChecklist?.titleBarReservationRequired ?? false)"
+                  [showError]="selectedTabIndex === 0 && (inspectionChecklist?.showTitleBarReservationError ?? false)"
+                  [errorText]="'Required'"
+                  (valueChange)="onReservationDropdownChange($event)">
+                </app-title-bar-select>
+              </div>
+            }
             @if (selectedTabIndex === documentsTabIndex && maintenanceDocumentList) {
               <mat-form-field appearance="outline" class="titlebar-field-document-type">
                 <mat-label>Document Types</mat-label>
@@ -50,28 +70,31 @@
             }
           </div>
         </div>
-        <div class="form-titlebar-actions-wrap">
-          @if (selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          }
-          @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          }
-          @if (!((selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
-            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-              class="text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          }
+
+        <div class="flex items-center gap-3 ml-[10px]">
+          <div class="uniform-gap form-titlebar-actions-wrap">
+            @if (selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
+            @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
+            @if (!((selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
+          </div>
         </div>
       </div>
 
@@ -79,10 +102,13 @@
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
           <mat-tab label="Inspection">
             @if (property) {
-              <app-checklist
+              <app-inspection
                 #inspectionChecklist
                 [property]="property"
                 [checklistType]="'inspection'"
+                [titleBarReservationId]="titleBarReservationId"
+                [titleBarReservationDisplayText]="titleBarReservationDisplayLabel"
+                (titleBarReservationSync)="onInspectionTitleBarReservationSync($event)"
                 (inspectionSubmitted)="onInspectionSubmitted()" />
             }
           </mat-tab>
@@ -131,6 +157,9 @@
               #maintenanceDocumentList
               [propertyId]="property?.propertyId ?? undefined"
               [propertyCode]="property?.propertyCode ?? null"
+              [officeId]="property?.officeId ?? null"
+              [reservationId]="titleBarReservationId"
+              [reservations]="shellReservations"
               source="maintenance"
               [hideHeader]="true"
               [hideFilters]="true" />

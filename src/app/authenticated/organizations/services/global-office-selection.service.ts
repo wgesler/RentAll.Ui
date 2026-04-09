@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, map, switchMap, take } from 'rxjs';
 import { OfficeResponse } from '../models/office.model';
+import { AccountingOfficeService } from './accounting-office.service';
 import { OfficeService } from './office.service';
 
 export interface OfficeUiStateOptions {
@@ -25,7 +26,10 @@ export class GlobalOfficeSelectionService {
   private readonly storageKey = 'rentall.globalOfficeId';
   private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readFromStorage());
 
-  constructor(private officeService: OfficeService) {}
+  constructor(
+    private officeService: OfficeService,
+    private accountingOfficeService: AccountingOfficeService
+  ) {}
 
   getSelectedOfficeId$(): Observable<number | null> {
     return this.selectedOfficeId$.asObservable();
@@ -69,11 +73,11 @@ export class GlobalOfficeSelectionService {
   }
 
   ensureOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
-    return this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), map(offices => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)));
+    return this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), switchMap(offices => this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)))));
   }
 
   refreshOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
-    return this.officeService.refreshOffices(organizationId).pipe(take(1), map(offices => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)));
+    return this.officeService.refreshOffices(organizationId).pipe(take(1), switchMap(offices => this.accountingOfficeService.refreshAccountingOffices(organizationId).pipe(take(1), map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)))));
   }
 
   getOfficeUiState$(offices: OfficeResponse[], options: OfficeUiStateOptions = {}): Observable<OfficeUiState> {

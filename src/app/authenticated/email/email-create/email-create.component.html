@@ -80,10 +80,21 @@
             <input matInput type="text" formControlName="subject" />
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="email-body-field">
-            <mat-label>Email Body</mat-label>
-            <textarea matInput rows="14" formControlName="plainTextContent"></textarea>
-          </mat-form-field>
+          @if (trustedHtmlBody) {
+            <div class="email-rich-body-block">
+              <div class="email-rich-body-label">Message</div>
+              <div class="email-html-preview-frame email-html-preview-frame--rich" [innerHTML]="trustedHtmlBody"></div>
+            </div>
+            <mat-form-field appearance="outline" class="email-body-field">
+              <mat-label>Plain text version</mat-label>
+              <textarea matInput rows="8" formControlName="plainTextContent"></textarea>
+            </mat-form-field>
+          } @else {
+            <mat-form-field appearance="outline" class="email-body-field">
+              <mat-label>Email Body</mat-label>
+              <textarea matInput rows="14" formControlName="plainTextContent"></textarea>
+            </mat-form-field>
+          }
         </form>
       </mat-card>
     </section>

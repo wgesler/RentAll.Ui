@@ -13,7 +13,6 @@ import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { MaintenanceStatus } from '../../maintenance/models/maintenance-enums';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -363,11 +362,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
-    propertyRequest.maintenanceStatusId =
-      !this.isAddMode && this.property?.maintenanceStatusId != null
-        ? Number(this.property.maintenanceStatusId)
-        : MaintenanceStatus.UnProcessed;
-    
+
     // Handle owner2Id - set to undefined if empty string or null
     if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
       propertyRequest.owner2Id = undefined;

@@ -11,7 +11,7 @@ import { EmailHtmlResponse } from '../authenticated/email/models/email-html.mode
 import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListPropertyRow, MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
-import { getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
+import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -349,7 +349,11 @@ export class MappingService {
         officeName: inspection.officeName,
         propertyId: inspection.propertyId,
         propertyCode: inspection.propertyCode,
+        reservationId: inspection.reservationId ?? '',
+        reservationCode: inspection.reservationCode ?? '',
         maintenanceId: inspection.maintenanceId,
+        inspectionTypeId: inspection.inspectionTypeId,
+        inspectionType: getInspectionType(inspection.inspectionTypeId),
         documentPath: inspection.documentPath,
         isActive: inspection.isActive,
         modifiedOn: this.formatter.formatDateTimeString(inspection.modifiedOn),

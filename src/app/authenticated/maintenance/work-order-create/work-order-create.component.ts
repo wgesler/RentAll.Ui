@@ -156,11 +156,23 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   loadAccountingOffice(): void {
-    this.accountingOfficeService.getAccountingOffices().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'); })).subscribe({
+    const organizationId =
+      this.workOrder?.organizationId?.trim()
+      ?? this.property?.organizationId?.trim()
+      ?? this.authService.getUser()?.organizationId?.trim()
+      ?? '';
+    if (!organizationId) {
+      this.selectedAccountingOffice = null;
+      this.accountingOfficeLogo = '';
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+      this.tryGeneratePreview();
+      return;
+    }
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'); })).subscribe({
       next: offices => {
         const activeOffices = (offices || []).filter(o => o.isActive !== false);
         const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? 1;
-        this.selectedAccountingOffice = activeOffices.find(o => o.officeId === officeId);
+        this.selectedAccountingOffice = activeOffices.find(o => o.officeId === officeId) ?? null;
         this.updateAccountingOfficeLogo();
         this.tryGeneratePreview();
       },

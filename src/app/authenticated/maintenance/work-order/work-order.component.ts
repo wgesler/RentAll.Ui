@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, forkJoin, finalize, map, of, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, forkJoin, finalize, filter, map, of, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -38,7 +38,7 @@ export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrd
   templateUrl: './work-order.component.html',
   styleUrl: './work-order.component.scss'
 })
-export class WorkOrderComponent implements OnInit, OnDestroy {
+export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly parseInt = parseInt;
   readonly costCode = '4100';
@@ -102,6 +102,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
     this.organizationId = this.property?.organizationId ?? this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
     this.loadCostCode();
+
     this.form.get('workOrderTypeId')?.valueChanges.subscribe(typeId => {
       if (Number(typeId) !== 0) {
         this.form.patchValue({ reservationId: null }, { emitEvent: false });
@@ -112,6 +113,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       }
       this.loadOwnerContactForMarkup();
     });
+
     if (this.embeddedInMaintenance) {
       this.isAddMode = this.workOrderId == null;
       this.selectedPropertyId = this.property?.propertyId ?? null;
@@ -122,6 +124,7 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       this.loadWorkOrder();
       return;
     }
+    
     this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
       const workOrderIdParam = paramMap.get('id');
       if (workOrderIdParam !== null)
@@ -136,6 +139,37 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       this.loadProperty();
       this.loadWorkOrder();
     });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['property'] && !changes['property'].firstChange) {
+      const curr = this.property;
+      if (curr?.propertyId) {
+        this.selectedPropertyId = curr.propertyId;
+      }
+      if (curr?.organizationId) {
+        this.organizationId = curr.organizationId;
+      }
+      if (curr && this.embeddedInMaintenance) {
+        this.form.patchValue({
+          workOrderCode: this.generatedWorkOrderCode ?? '',
+          officeName: curr.officeName || '',
+          propertyCode: curr.propertyCode || ''
+        }, { emitEvent: false });
+        this.loadAccountingOfficeForWorkOrderCode();
+        this.loadPropertyReservations();
+        this.loadPropertyReceipts();
+        this.loadOwnerContactForMarkup();
+        this.loadCostCode();
+      }
+    }
+    if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
+      this.isAddMode = this.workOrderId == null;
+      this.loadWorkOrder();
+      if (this.isAddMode && this.property?.officeId) {
+        this.loadAccountingOfficeForWorkOrderCode();
+      }
+    }
   }
 
   saveWorkOrder(): void {
@@ -660,6 +694,8 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+
     this.workOrderService.getWorkOrder(this.organizationId, this.workOrderId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
         this.workOrder = workOrder;
@@ -741,24 +777,45 @@ export class WorkOrderComponent implements OnInit, OnDestroy {
 
   loadAccountingOfficeForWorkOrderCode(): void {
     if (!this.isAddMode || !this.property?.officeId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
-    this.accountingOfficeService.getAccountingOfficeById(this.property.officeId).pipe(take(1)).subscribe({
-      next: office => {
-        this.accountingOffice = office;
-        const currentNo = Number(office.workOrderNo) || 0;
-        this.nextWorkOrderNo = currentNo + 1;
-        const paddedCode = String(this.nextWorkOrderNo).padStart(5, '0');
-        this.generatedWorkOrderCode = `WO-${paddedCode}`;
-        this.form.patchValue({ workOrderCode: this.generatedWorkOrderCode }, { emitEvent: false });
-      },
-      error: () => {
-        this.accountingOffice = null;
-        this.nextWorkOrderNo = null;
-        this.generatedWorkOrderCode = null;
-        this.form.patchValue({ workOrderCode: '' }, { emitEvent: false });
-      }
+    const officeId = Number(this.property.officeId);
+    if (Number.isNaN(officeId)) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+      this.applyAccountingOfficeSequenceFromOffice(null);
+      return;
+    }
+
+    const organizationId = this.property.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+      this.applyAccountingOfficeSequenceFromOffice(null);
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrderNumber');
+
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
+      const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
+      this.applyAccountingOfficeSequenceFromOffice(office);
     });
+  }
+
+  applyAccountingOfficeSequenceFromOffice(office: AccountingOfficeResponse | null): void {
+    if (!office) {
+      this.accountingOffice = null;
+      this.nextWorkOrderNo = null;
+      this.generatedWorkOrderCode = null;
+      this.form.patchValue({ workOrderCode: '' }, { emitEvent: false });
+      return;
+    }
+    this.accountingOffice = office;
+    const currentNo = Number(office.workOrderNo) || 0;
+    this.nextWorkOrderNo = currentNo + 1;
+    const paddedCode = String(this.nextWorkOrderNo).padStart(5, '0');
+    this.generatedWorkOrderCode = `WO-${paddedCode}`;
+    this.form.patchValue({ workOrderCode: this.generatedWorkOrderCode }, { emitEvent: false });
   }
   //#endregion
 
