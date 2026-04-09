@@ -328,9 +328,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const url = RouterUrl.replaceTokens(targetUrl, ['new']);
     const params: string[] = [];
     
-    // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
-    const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
-    const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
+    // Reservation is source of truth for Add Invoice prefill.
+    const reservationToUse = this.selectedReservation
+      ?? (this.reservationId ? this.reservations.find(r => r.reservationId === this.reservationId) || null : null);
+    const reservationIdToUse = reservationToUse?.reservationId ?? this.reservationId ?? null;
+    const officeIdToUse = reservationToUse?.officeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
     const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
     
     if (officeIdToUse !== null) {

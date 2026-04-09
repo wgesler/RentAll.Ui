@@ -149,26 +149,27 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const officeIdParam = queryParams['officeId'];
     const reservationIdParam = queryParams['reservationId'];
     const companyIdParam = queryParams['companyId'];
+    const reservationFromParam = reservationIdParam
+      ? this.reservations.find(r => r.reservationId === reservationIdParam) || null
+      : null;
+    const parsedOfficeId = officeIdParam ? parseInt(officeIdParam, 10) : null;
+    const officeIdToApply = reservationFromParam?.officeId
+      ?? (parsedOfficeId && !Number.isNaN(parsedOfficeId) ? parsedOfficeId : null);
     
     if (companyIdParam) {
       this.companyId = companyIdParam;
     }
     
-    if (officeIdParam && this.offices.length > 0 && this.reservations.length > 0) {
-      const parsedOfficeId = parseInt(officeIdParam, 10);
-      if (parsedOfficeId) {
-        this.resolveOfficeScope(parsedOfficeId);
-        if (this.selectedOffice && this.form) {
-          this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
-          this.updateAvailableReservations();
-          this.filterCostCodes();
-          if (reservationIdParam && this.availableReservations.find(r => r.value === reservationIdParam)) {
-            this.form.get('reservationId')?.setValue(reservationIdParam, { emitEvent: false });
-            this.selectedReservation = this.reservations.find(r => r.reservationId === reservationIdParam) || null;
-            if (this.selectedReservation) {
-              this.setInvoiceCode(this.selectedReservation);
-            }
-          }
+    if (officeIdToApply && this.offices.length > 0 && this.reservations.length > 0) {
+      this.resolveOfficeScope(officeIdToApply);
+      if (this.selectedOffice && this.form) {
+        this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
+        this.updateAvailableReservations();
+        this.filterCostCodes();
+        if (reservationFromParam && this.availableReservations.find(r => r.value === reservationFromParam.reservationId)) {
+          this.form.get('reservationId')?.setValue(reservationFromParam.reservationId, { emitEvent: false });
+          this.selectedReservation = reservationFromParam;
+          this.setInvoiceCode(this.selectedReservation);
         }
       }
     } else if (this.isAddMode && this.offices.length > 0 && this.form) {
@@ -951,6 +952,10 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
       this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
       if (this.selectedReservation) {
+        const selectedOfficeId = this.form.get('officeId')?.value;
+        if (selectedOfficeId !== this.selectedReservation.officeId) {
+          this.form.get('officeId')?.setValue(this.selectedReservation.officeId);
+        }
         this.setInvoiceCode(this.selectedReservation);
       } else {
         this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
