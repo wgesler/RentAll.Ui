@@ -21,8 +21,7 @@
         margin: 0;
         padding: 0;
         -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;Edward Jones Client Survey: Get Rewarded for Your Time
-        Edward Jones Client Survey<research@survey.cmbclient.net>
+        print-color-adjust: exact;
         color-adjust: exact;
       }
 
@@ -218,6 +217,42 @@
       font-weight: bold;
     }
 
+    .charges-table .subtotal-row td {
+      border: none;
+      border-top: 1px solid #999;
+      font-weight: 600;
+    }
+
+    /* Same width + right-align so colons line up across Total Charges / Total Payments / Balance Due */
+    .invoice-summary-label {
+      display: inline-block;
+      box-sizing: border-box;
+      width: 12rem;
+      max-width: 100%;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .invoice-payments-section {
+      padding-top: 1em;
+    }
+
+    .invoice-balance-due-bottom {
+      margin-top: 28px;
+      margin-right: 5px;
+      margin-left: 5px;
+    }
+
+    .invoice-balance-due-bottom table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+
+    .invoice-balance-due-bottom .charges-table td {
+      padding: 8px;
+    }
+
     .totals {
       margin-top: 24px;
       margin-left: auto;
@@ -380,14 +415,46 @@
                 </tr>
               </thead>
               <tbody>
-                <!-- Ledger lines will be inserted here -->
-                {{ledgerLinesRows}}
-                <tr class="total-row">
-                  <td colspan="2" class="text-right"><span class="label">Balance Due:</span></td>
-                  <td class="text-right">{{totalDue}}</td>
+                {{chargeLedgerLineRows}}
+                <tr class="subtotal-row" style="{{totalChargesRowStyle}}">
+                  <td colspan="2" class="text-right"><span class="label invoice-summary-label">Total Charges:</span></td>
+                  <td class="text-right">{{totalCharges}}</td>
+                </tr>
+                <tr class="subtotal-row" style="{{balanceDueAfterChargesRowStyle}}">
+                  <td colspan="2" class="text-right"><span class="label invoice-summary-label">Balance Due:</span></td>
+                  <td class="text-right">{{invoiceLedgerBalanceDue}}</td>
                 </tr>
               </tbody>
             </table>
+            <div class="invoice-payments-section" style="{{paymentsSectionStyle}}">
+              <h3 style="margin-top: 0; margin-bottom: 8px;">Payments</h3>
+              <table class="charges-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{paymentLedgerLineRows}}
+                  <tr class="subtotal-row" style="{{paymentsTotalRowStyle}}">
+                    <td colspan="2" class="text-right"><span class="label invoice-summary-label">Total Payments:</span></td>
+                    <td class="text-right">{{totalPayments}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="invoice-balance-due-bottom" style="{{balanceDueBottomSectionStyle}}">
+              <table class="charges-table">
+                <tbody>
+                  <tr class="subtotal-row">
+                    <td colspan="2" class="text-right"><span class="label invoice-summary-label">Balance Due:</span></td>
+                    <td class="text-right">{{invoiceLedgerBalanceDue}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </td>
       </tr>

@@ -149,15 +149,6 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
             </app-title-bar-select>
-            <app-title-bar-select
-              [label]="'Document Types'"
-              [formFieldClass]="'titlebar-field-document-type'"
-              [value]="accountingDocumentList.selectedDocumentTypeId"
-              [options]="getDocumentTypeOptions(accountingDocumentList.documentTypes)"
-              [nullOptionLabel]="'All Document Types'"
-              [noResultsText]="'No document types match your search'"
-              (valueChange)="onAccountingDocumentTypeDropdownChange($event)">
-            </app-title-bar-select>
           </div>
         }
       </div>

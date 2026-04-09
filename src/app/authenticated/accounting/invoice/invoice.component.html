@@ -111,33 +111,42 @@
               <!-- Line Items Section -->
               <div class="col-span-4 form-standard-section-gap">
                 <!-- Title Bar with Generate and Add Buttons -->
-                <div class="flex justify-between items-center form-standard-section-heading-gap">
-                  <span class="text-lg font-medium">Ledger Items</span>
-                  <div class="uniform-gap form-titlebar-actions-wrap">
-                    @if (!isAddMode) {
-                      <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0 inline-flex items-center">
-                        IsActive
-                      </mat-checkbox>
-                    }
-                    @if (isAddMode) {
-                      <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
-                        class="text-nowrap flex-shrink-0"
-                        [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">
-                        Get Charges
+                <div class="flex items-center gap-3 form-standard-section-heading-gap min-w-0">
+                  <span class="text-lg font-medium flex-shrink-0">Ledger Items</span>
+                  <div class="flex flex-1 items-center justify-end min-w-0">
+                    <div class="uniform-gap form-titlebar-actions-wrap flex flex-wrap items-center justify-end">
+                      @if (!isAddMode) {
+                        <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0 inline-flex items-center">
+                          IsActive
+                        </mat-checkbox>
+                      }
+                      @if (isAddMode) {
+                        <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
+                          class="text-nowrap flex-shrink-0"
+                          [disabled]="!form.get('startDate')?.value || !form.get('endDate')?.value">
+                          Get Charges
+                        </button>
+                      }
+                      <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
+                        class="text-nowrap flex-shrink-0">
+                        {{ isAddMode ? 'Add Charge' : 'Add Line' }}
                       </button>
-                    }
-                    <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
-                      class="text-nowrap flex-shrink-0">
-                      {{ isAddMode ? 'Add Charge' : 'Add Line' }}
-                    </button>
-                    @if (!isPaymentMode && (isAddMode || hasChanges())) {
-                      <button mat-raised-button type="button" color="primary" (click)="saveInvoice()"
-                        class="text-nowrap flex-shrink-0"
-                        [disabled]="isSaveDisabled">
-                        <mat-icon>save</mat-icon>
-                        Save
-                      </button>
-                    }
+                      @if (!isAddMode && !isPaymentMode && invoice?.invoiceId) {
+                        <button mat-raised-button type="button" color="primary" (click)="toInvoiceCreate(invoice, form.getRawValue())"
+                          class="text-nowrap flex-shrink-0">
+                          <mat-icon>visibility</mat-icon>
+                          View
+                        </button>
+                      }
+                      @if (!isPaymentMode && (isAddMode || hasChanges())) {
+                        <button mat-raised-button type="button" color="primary" (click)="saveInvoice()"
+                          class="text-nowrap flex-shrink-0"
+                          [disabled]="isSaveDisabled">
+                          <mat-icon>save</mat-icon>
+                          Save
+                        </button>
+                      }
+                    </div>
                   </div>
                 </div>
                 

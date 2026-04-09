@@ -43,7 +43,7 @@ import { ReservationListResponse, ReservationResponse } from '../../reservations
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { InvoiceResponse } from '../models/invoice.model';
+import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 
 @Component({
@@ -1016,9 +1016,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatterService.phoneNumber(this.selectedAccountingOffice.bankPhone) || '');
     }
 
-    // Replace ledger lines placeholder
-    const ledgerLinesRows = this.generateLedgerLinesRows();
-    result = result.replace(/\{\{ledgerLinesRows\}\}/g, ledgerLinesRows);
+    result = this.applyInvoiceLedgerSectionPlaceholders(result);
 
     // Replace any remaining placeholders with empty string
     result = result.replace(/\{\{[^}]+\}\}/g, '');
@@ -1026,24 +1024,75 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return result;
   }
 
-  generateLedgerLinesRows(): string {
-    if (!this.selectedInvoice?.ledgerLines || this.selectedInvoice.ledgerLines.length === 0) {
-      return '';
+  private applyInvoiceLedgerSectionPlaceholders(html: string): string {
+    let result = html;
+    const invoice = this.selectedInvoice;
+    const emptyRows = '';
+    const zeroMoney = this.formatterService.currency(0);
+
+    if (!invoice?.ledgerLines?.length) {
+      result = result.replace(/\{\{chargeLedgerLineRows\}\}/g, emptyRows);
+      result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, emptyRows);
+      result = result.replace(/\{\{totalCharges\}\}/g, zeroMoney);
+      result = result.replace(/\{\{totalPayments\}\}/g, zeroMoney);
+      const apiBalanceDue = invoice
+        ? (invoice.totalAmount || 0) - (invoice.paidAmount || 0)
+        : 0;
+      result = result.replace(/\{\{invoiceLedgerBalanceDue\}\}/g, this.formatterService.currency(apiBalanceDue));
+      result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
+      result = result.replace(/\{\{paymentsSectionStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{paymentsTotalRowStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{balanceDueBottomSectionStyle\}\}/g, 'display: none;');
+      return result;
     }
 
-    const rows = this.selectedInvoice.ledgerLines.map((line, index) => {
-      const date = this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '';
-      const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const amount = this.formatterService.currency(line.amount || 0);
-      
-      return `              <tr class="ledger-line-row">
+    const paymentLines = invoice.ledgerLines.filter(l => (l.amount ?? 0) < 0);
+    const chargeLines = invoice.ledgerLines.filter(l => (l.amount ?? 0) >= 0);
+    const hasPayments = paymentLines.length > 0;
+
+    const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l, false)).join('\n');
+    const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l, true)).join('\n');
+
+    const totalChargesAmount = chargeLines.reduce((sum, l) => sum + (l.amount || 0), 0);
+    const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + (l.amount || 0), 0);
+    const totalPaymentsDisplay = Math.abs(totalPaymentsAmount);
+    const balanceDueFromLedger = totalChargesAmount + totalPaymentsAmount;
+
+    result = result.replace(/\{\{chargeLedgerLineRows\}\}/g, chargeRows);
+    result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, paymentRows);
+    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currency(totalChargesAmount));
+    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currency(totalPaymentsDisplay));
+    result = result.replace(/\{\{invoiceLedgerBalanceDue\}\}/g, this.formatterService.currency(balanceDueFromLedger));
+
+    if (hasPayments) {
+      result = result.replace(/\{\{totalChargesRowStyle\}\}/g, '');
+      result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{paymentsSectionStyle\}\}/g, '');
+      result = result.replace(/\{\{paymentsTotalRowStyle\}\}/g, '');
+      result = result.replace(/\{\{balanceDueBottomSectionStyle\}\}/g, '');
+    } else {
+      result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
+      result = result.replace(/\{\{paymentsSectionStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{paymentsTotalRowStyle\}\}/g, 'display: none;');
+      result = result.replace(/\{\{balanceDueBottomSectionStyle\}\}/g, 'display: none;');
+    }
+
+    return result;
+  }
+
+  private formatInvoiceLedgerRowHtml(line: LedgerLineResponse, usePositiveAmount: boolean): string {
+    const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
+    const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const raw = line.amount || 0;
+    const displayNumeric = usePositiveAmount ? Math.abs(raw) : raw;
+    const amount = this.formatterService.currency(displayNumeric);
+    return `              <tr class="ledger-line-row">
                 <td>${date}</td>
                 <td>${description}</td>
                 <td class="text-right">${amount}</td>
               </tr>`;
-      }).join('\n');
-
-    return rows;
   }
 
   getResponsibleParty(): string {
@@ -1362,47 +1411,78 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   goBack(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
-    
-    // Build query parameters from selected values or input values
+
+    const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
+    const reservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
+    const invoiceId = this.selectedInvoice?.invoiceId ?? this.invoiceId ?? null;
+
+    if (returnTo === 'invoice-edit' && invoiceId) {
+      const originReturnTo = queryParams['originReturnTo'] || 'accounting';
+      const editParams: string[] = [`returnTo=${encodeURIComponent(originReturnTo)}`];
+      if (officeId !== null && officeId !== undefined) {
+        editParams.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        editParams.push(`reservationId=${reservationId}`);
+      }
+      if (this.companyId) {
+        editParams.push(`companyId=${this.companyId}`);
+      }
+      const organizationIdParam = queryParams['organizationId'];
+      if (organizationIdParam) {
+        editParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+      }
+      const editUrl = `${RouterUrl.replaceTokens(RouterUrl.Accounting, [invoiceId])}?${editParams.join('&')}`;
+      this.router.navigateByUrl(editUrl);
+      return;
+    }
+
     const params: string[] = [];
-    
-    // Use selectedOffice/selectedReservation/selectedInvoice if available, otherwise fall back to input values
-    const officeId = this.selectedOffice?.officeId || this.officeId;
-    const reservationId = this.selectedReservation?.reservationId || this.reservationId;
-    const invoiceId = this.selectedInvoice?.invoiceId || this.invoiceId;
-    
     if (officeId !== null && officeId !== undefined) {
       params.push(`officeId=${officeId}`);
     }
     if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '') {
       params.push(`invoiceId=${invoiceId}`);
     }
-    
-    // Navigate back based on where we came from
+
     if (returnTo === 'reservation' && reservationId) {
-      if (reservationId !== null && reservationId !== undefined && reservationId !== '') 
+      if (reservationId !== null && reservationId !== undefined && reservationId !== '') {
         params.push(`reservationId=${reservationId}`);
-     params.push(`tab=invoices`);
-      const reservationUrl = params.length > 0 
+      }
+      params.push(`tab=invoices`);
+      const reservationUrl = params.length > 0
         ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
         : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
       this.router.navigateByUrl(reservationUrl);
     } else if (returnTo === 'accounting' || !returnTo) {
-      if (this.companyId) {
-        params.push(`companyId=${this.companyId}`);
+      const accountingParams: string[] = [];
+      if (officeId !== null && officeId !== undefined) {
+        accountingParams.push(`officeId=${officeId}`);
       }
-      const accountingUrl = params.length > 0 
-        ? `${RouterUrl.AccountingList}?${params.join('&')}`
-        : RouterUrl.AccountingList;
+      accountingParams.push('tab=0');
+      if (this.companyId) {
+        accountingParams.push(`companyId=${this.companyId}`);
+      }
+      const organizationIdParam = queryParams['organizationId'];
+      if (organizationIdParam) {
+        accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+      }
+      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
       this.router.navigateByUrl(accountingUrl);
     } else {
-      // Fallback to accounting list with all parameters
-      if (this.companyId) {
-        params.push(`companyId=${this.companyId}`);
+      const accountingParams: string[] = [];
+      if (officeId !== null && officeId !== undefined) {
+        accountingParams.push(`officeId=${officeId}`);
       }
-      const accountingUrl = params.length > 0 
-        ? `${RouterUrl.AccountingList}?${params.join('&')}`
-        : RouterUrl.AccountingList;
+      accountingParams.push('tab=0');
+      if (this.companyId) {
+        accountingParams.push(`companyId=${this.companyId}`);
+      }
+      const organizationIdParam = queryParams['organizationId'];
+      if (organizationIdParam) {
+        accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+      }
+      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
       this.router.navigateByUrl(accountingUrl);
     }
   }

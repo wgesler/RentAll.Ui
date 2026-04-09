@@ -569,16 +569,26 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     if (line.isNew !== true) {
       return this.officeAvailableCostCodes;
     }
-    
+
+    if (!this.isAddMode && !this.isPaymentMode) {
+      const chargeAndPayment = this.officeCostCodes.filter(
+        c => c.isActive && (c.transactionTypeId === TransactionType.Charge || c.transactionTypeId === TransactionType.Payment)
+      );
+      return chargeAndPayment.map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+    }
+
     const transactionTypeId = (line as any).transactionTypeId;
-    
+
     if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
       return this.creditCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
     }
-    
+
     return this.debitCostCodes.filter(c => c.isActive).map(c => ({
       value: c.costCodeId,
       label: `${c.costCode}: ${c.description}`
@@ -1512,8 +1522,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
 
     const queryParams = this.route.snapshot.queryParams;
-    const returnTo = queryParams['returnTo'] || 'accounting';
-    const params: string[] = [`returnTo=${returnTo}`];
+    const originReturnTo = queryParams['returnTo'] || 'accounting';
+    const params: string[] = [
+      'returnTo=invoice-edit',
+      `originReturnTo=${encodeURIComponent(originReturnTo)}`
+    ];
 
     const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
     const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
@@ -1529,6 +1542,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     if (this.companyId) {
       params.push(`companyId=${this.companyId}`);
+    }
+
+    const organizationIdParam = queryParams['organizationId'];
+    if (organizationIdParam) {
+      params.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
     }
 
     const invoiceCreateUrl = `${RouterUrl.InvoiceCreate}?${params.join('&')}`;

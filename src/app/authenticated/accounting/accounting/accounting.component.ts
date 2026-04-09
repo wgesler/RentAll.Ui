@@ -271,10 +271,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return (reservations || []).map(reservation => ({ value: reservation.value.reservationId, label: reservation.label }));
   }
 
-  getDocumentTypeOptions(documentTypes: { value: number, label: string }[] | null | undefined): { value: number, label: string }[] {
-    return documentTypes || [];
-  }
-
   get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
@@ -410,14 +406,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     this.accountingDocumentList.selectedReservationId = value == null || value === '' ? null : String(value);
     this.accountingDocumentList.onReservationChange();
-  }
-
-  onAccountingDocumentTypeDropdownChange(value: string | number | null): void {
-    if (!this.accountingDocumentList) {
-      return;
-    }
-    this.accountingDocumentList.selectedDocumentTypeId = value == null || value === '' ? null : Number(value);
-    this.accountingDocumentList.onDocumentTypeChange();
   }
 
   applyQueryParamState(params: Record<string, string>): void {
