@@ -669,7 +669,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const removalLocation = this.property.trashRemoval || 'N/A';
     
     if (trashPickupDay && removalLocation !== 'N/A') {
-      return `Trash is picked up on ${trashPickupDay}. The Location is: ${removalLocation}.`;
+      return `Trash is picked up on ${trashPickupDay}. ${removalLocation}`;
     } else if (trashPickupDay) {
       return `Trash is picked up on ${trashPickupDay}.`;
     } else if (removalLocation !== 'N/A') {
