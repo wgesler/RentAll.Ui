@@ -63,14 +63,15 @@ export class MaintenanceItemListComponent implements OnChanges {
 
   onSaveChanges(): void {
     const payload = this.buildSavePayload();
-    if (!payload.hasChanges) {
+    if (!payload.hasChanges || payload.hasInvalidRows) {
       return;
     }
     this.saveChanges.emit({ upserts: payload.upserts, deleteIds: payload.deleteIds });
   }
 
   get canSave(): boolean {
-    return this.buildSavePayload().hasChanges;
+    const payload = this.buildSavePayload();
+    return payload.hasChanges && !payload.hasInvalidRows;
   }
 
   trackByRowId(_index: number, row: MaintenanceItemEditRow): number {
@@ -103,6 +104,49 @@ export class MaintenanceItemListComponent implements OnChanges {
 
   normalizeText(value: string | null | undefined): string {
     return (value ?? '').trim();
+  }
+
+  hasRequiredFields(row: MaintenanceItemEditRow): boolean {
+    const hasName = this.normalizeText(row.name) !== '';
+    const hasMonths = row.monthsBetweenService != null && Number.isFinite(Number(row.monthsBetweenService));
+    const hasLastServicedOn = this.toDateInputValue(row.lastServicedOn) !== null;
+    return hasName && hasMonths && hasLastServicedOn;
+  }
+
+  isRowInvalid(row: MaintenanceItemEditRow): boolean {
+    const isNew = !row.maintenanceItemId;
+    const isChanged = this.isExistingRowChanged(row);
+    if (!isNew && !isChanged) {
+      return false;
+    }
+    return !this.hasRequiredFields(row);
+  }
+
+  isNameMissing(row: MaintenanceItemEditRow): boolean {
+    const isNew = !row.maintenanceItemId;
+    const isChanged = this.isExistingRowChanged(row);
+    if (!isNew && !isChanged) {
+      return false;
+    }
+    return this.normalizeText(row.name) === '';
+  }
+
+  isLastServicedOnMissing(row: MaintenanceItemEditRow): boolean {
+    const isNew = !row.maintenanceItemId;
+    const isChanged = this.isExistingRowChanged(row);
+    if (!isNew && !isChanged) {
+      return false;
+    }
+    return this.toDateInputValue(row.lastServicedOn) === null;
+  }
+
+  isMonthsMissing(row: MaintenanceItemEditRow): boolean {
+    const isNew = !row.maintenanceItemId;
+    const isChanged = this.isExistingRowChanged(row);
+    if (!isNew && !isChanged) {
+      return false;
+    }
+    return row.monthsBetweenService == null || !Number.isFinite(Number(row.monthsBetweenService));
   }
 
   normalizeMonths(value: number | null | undefined): number {
@@ -151,9 +195,15 @@ export class MaintenanceItemListComponent implements OnChanges {
     }
 
     const name = this.normalizeText(row.name);
+    if (name === '' || row.monthsBetweenService == null || !Number.isFinite(Number(row.monthsBetweenService))) {
+      return null;
+    }
     const notes = this.normalizeText(row.notes);
     const monthsBetweenService = this.normalizeMonths(row.monthsBetweenService);
     const lastServicedOn = this.toDateInputValue(row.lastServicedOn);
+    if (!lastServicedOn) {
+      return null;
+    }
 
     return {
       maintenanceItemId: row.maintenanceItemId,
@@ -165,12 +215,17 @@ export class MaintenanceItemListComponent implements OnChanges {
     };
   }
 
-  buildSavePayload(): { upserts: MaintenanceItemRequest[]; deleteIds: number[]; hasChanges: boolean } {
+  buildSavePayload(): { upserts: MaintenanceItemRequest[]; deleteIds: number[]; hasChanges: boolean; hasInvalidRows: boolean } {
     const upserts: MaintenanceItemRequest[] = [];
+    let hasInvalidRows = false;
     for (const row of this.rows) {
       const isNew = !row.maintenanceItemId;
       const isChanged = this.isExistingRowChanged(row);
       if (!isNew && !isChanged) {
+        continue;
+      }
+      if (!this.hasRequiredFields(row)) {
+        hasInvalidRows = true;
         continue;
       }
       const request = this.toRequest(row);
@@ -180,8 +235,8 @@ export class MaintenanceItemListComponent implements OnChanges {
     }
 
     const deleteIds: number[] = [];
-    const hasChanges = upserts.length > 0;
-    return { upserts, deleteIds, hasChanges };
+    const hasChanges = upserts.length > 0 || hasInvalidRows;
+    return { upserts, deleteIds, hasChanges, hasInvalidRows };
   }
   //#endregion
 }

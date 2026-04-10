@@ -40,6 +40,7 @@
                 <input
                   type="text"
                   class="editable-input name-input"
+                  [class.input-invalid]="!row.name?.trim()"
                   [(ngModel)]="row.name"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'maintenance-item-name-' + row.rowId" />
@@ -48,6 +49,8 @@
                 <input
                   type="date"
                   class="editable-input date-input"
+                  [class.has-date]="!!row.lastServicedOn"
+                  [class.input-invalid]="!row.lastServicedOn"
                   [(ngModel)]="row.lastServicedOn"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'maintenance-item-last-serviced-' + row.rowId" />
@@ -58,6 +61,7 @@
                   inputmode="numeric"
                   pattern="[0-9]*"
                   class="editable-input months-input"
+                  [class.input-invalid]="row.monthsBetweenService === null || row.monthsBetweenService === undefined"
                   [ngModel]="row.monthsBetweenService ?? ''"
                   (ngModelChange)="onMonthsBetweenServiceInput(row, $event)"
                   [ngModelOptions]="{ standalone: true }"

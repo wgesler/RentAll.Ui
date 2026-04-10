@@ -100,6 +100,15 @@
     outline: none;
     border-color: var(--mat-sys-primary, #1976d2) !important;
   }
+
+}
+
+.editable-input.input-invalid {
+  border-color: #d32f2f !important;
+}
+
+.editable-input.input-invalid:focus {
+  border-color: #d32f2f !important;
 }
 
 .name-input {
@@ -117,6 +126,10 @@
 
 .date-input {
   max-width: 140px;
+}
+
+.date-input:not(.has-date)::-webkit-datetime-edit {
+  color: transparent;
 }
 
 .months-input {

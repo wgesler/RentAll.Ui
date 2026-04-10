@@ -2,16 +2,16 @@ export interface MaintenanceItemRequest {
   maintenanceItemId?: number
   propertyId: string;
   name: string;
-  notes?: string | null;
+  lastServicedOn: string;
   monthsBetweenService: number;
-  lastServicedOn?: string | null;
+  notes?: string | null;
 }
 
 export interface MaintenanceItemResponse {
   maintenanceItemId: number
   propertyId: string;
   name: string;
-  notes?: string | null;
+  lastServicedOn: string;
   monthsBetweenService: number;
-  lastServicedOn?: string | null;
+  notes?: string | null;
 }
