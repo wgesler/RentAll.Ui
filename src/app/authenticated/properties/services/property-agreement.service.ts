@@ -15,8 +15,8 @@ export class PropertyAgreementService {
     private configService: ConfigService) {
   }
 
-  getPropertyAgreement(propertyId: string): Observable<PropertyAgreementResponse> {
-    return this.http.get<PropertyAgreementResponse>(`${this.agreementUrl}/${propertyId}`);
+  getPropertyAgreement(propertyId: string): Observable<PropertyAgreementResponse | null> {
+    return this.http.get<PropertyAgreementResponse | null>(`${this.agreementUrl}/${propertyId}`);
   }
 
   createPropertyAgreement(agreement: PropertyAgreementRequest): Observable<PropertyAgreementResponse> {

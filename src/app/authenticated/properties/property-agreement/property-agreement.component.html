@@ -49,6 +49,26 @@
         <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
       </mat-form-field>
     </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-2 mb-4">
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Rental Income Cost Code</mat-label>
+        <mat-select formControlName="rentalIncomeCcId">
+          <mat-option [value]="null">None</mat-option>
+          @for (costCode of availableCostCodes; track costCode.value) {
+            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0">
+        <mat-label>Rental Expense Cost Code</mat-label>
+        <mat-select formControlName="rentalExpenseCcId">
+          <mat-option [value]="null">None</mat-option>
+          @for (costCode of availableCostCodes; track costCode.value) {
+            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
       <mat-form-field appearance="outline" class="min-w-0">
         <mat-label>Bank Name</mat-label>
@@ -72,38 +92,42 @@
           <div class="property-agreement-col-body">
             <div class="property-agreement-upload-row">
               <div class="property-agreement-col-actions">
-                @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                } @else if (agreementW9FileName && agreementW9FileDataUrl) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                } @else if (agreementW9FileName) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                } @else {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                }
+                <div class="property-agreement-actions-box">
+                  @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                  } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                  } @else if (agreementW9FileName) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                  } @else {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                  }
+                </div>
                 <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
               </div>
               <div class="property-agreement-col-preview">
-                @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
-                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="W9" [src]="agreementW9FileDataUrl" />
-                } @else if (agreementW9FileName && agreementW9FileDataUrl) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    @if (agreementW9PdfThumbnailUrl) {
-                      <img class="object-contain max-h-28 w-full" [src]="agreementW9PdfThumbnailUrl" alt="W9 PDF" />
-                    } @else {
-                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                    }
-                  </div>
-                } @else if (agreementW9FileName) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                  </div>
-                } @else {
-                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                }
+                <div class="property-agreement-preview-box">
+                  @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
+                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="W9" [src]="agreementW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
+                  } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementW9Preview($event)">
+                      @if (agreementW9PdfThumbnailUrl) {
+                        <img class="object-contain max-h-28 w-full" [src]="agreementW9PdfThumbnailUrl" alt="W9 PDF" />
+                      } @else {
+                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                      }
+                    </div>
+                  } @else if (agreementW9FileName) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
+                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                    </div>
+                  } @else {
+                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -123,38 +147,42 @@
           <div class="property-agreement-col-body">
             <div class="property-agreement-upload-row">
               <div class="property-agreement-col-actions">
-                @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                } @else if (agreementInsuranceFileName) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                } @else {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                }
+                <div class="property-agreement-actions-box">
+                  @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                  } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                  } @else if (agreementInsuranceFileName) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                  } @else {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                  }
+                </div>
                 <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
               </div>
               <div class="property-agreement-col-preview">
-                @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
-                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="Insurance" [src]="agreementInsuranceFileDataUrl" />
-                } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    @if (agreementInsurancePdfThumbnailUrl) {
-                      <img class="object-contain max-h-28 w-full" [src]="agreementInsurancePdfThumbnailUrl" alt="Insurance PDF" />
-                    } @else {
-                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                    }
-                  </div>
-                } @else if (agreementInsuranceFileName) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                  </div>
-                } @else {
-                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                }
+                <div class="property-agreement-preview-box">
+                  @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
+                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Insurance" [src]="agreementInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
+                  } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementInsurancePreview($event)">
+                      @if (agreementInsurancePdfThumbnailUrl) {
+                        <img class="object-contain max-h-28 w-full" [src]="agreementInsurancePdfThumbnailUrl" alt="Insurance PDF" />
+                      } @else {
+                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                      }
+                    </div>
+                  } @else if (agreementInsuranceFileName) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
+                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                    </div>
+                  } @else {
+                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -168,38 +196,42 @@
           <div class="property-agreement-col-body">
             <div class="property-agreement-upload-row">
               <div class="property-agreement-col-actions">
-                @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                } @else if (agreementDocFileName && agreementDocFileDataUrl) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                } @else if (agreementDocFileName) {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                  <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
-                } @else {
-                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
-                }
+                <div class="property-agreement-actions-box">
+                  @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                  } @else if (agreementDocFileName && agreementDocFileDataUrl) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                  } @else if (agreementDocFileName) {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementDoc()">Delete</button>
+                  } @else {
+                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementDocFileInput.click()">Upload</button>
+                  }
+                </div>
                 <input #agreementDocFileInput type="file" (change)="onAgreementDocFileSelected($event)" class="file-input-hidden" />
               </div>
               <div class="property-agreement-col-preview">
-                @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
-                  <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded" alt="Agreement" [src]="agreementDocFileDataUrl" />
-                } @else if (agreementDocFileName && agreementDocFileDataUrl) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    @if (agreementDocPdfThumbnailUrl) {
-                      <img class="object-contain max-h-28 w-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
-                    } @else {
-                      <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
-                    }
-                  </div>
-                } @else if (agreementDocFileName) {
-                  <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5">
-                    <mat-icon class="text-4xl text-slate-400">description</mat-icon>
-                  </div>
-                } @else {
-                  <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
-                }
+                <div class="property-agreement-preview-box">
+                  @if (agreementDocFileDataUrl && agreementDocFileContentType?.startsWith('image/')) {
+                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Agreement" [src]="agreementDocFileDataUrl" (click)="openAgreementDocPreview($event)" />
+                  } @else if (agreementDocFileName && agreementDocFileDataUrl) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementDocPreview($event)">
+                      @if (agreementDocPdfThumbnailUrl) {
+                        <img class="object-contain max-h-28 w-full" [src]="agreementDocPdfThumbnailUrl" alt="Agreement PDF" />
+                      } @else {
+                        <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
+                      }
+                    </div>
+                  } @else if (agreementDocFileName) {
+                    <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
+                      <mat-icon class="text-4xl text-slate-400">description</mat-icon>
+                    </div>
+                  } @else {
+                    <div class="property-agreement-col-preview-placeholder" aria-hidden="true"></div>
+                  }
+                </div>
               </div>
             </div>
           </div>

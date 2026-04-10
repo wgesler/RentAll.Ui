@@ -19,8 +19,9 @@ export interface PropertyAgreementRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  rentalIncomeCcId?: number | null;
+  rentalExpenseCcId?: number | null;
   notes?: string | null;
-  managementFlatRateAmount?: number | null;
 }
 
 export interface PropertyAgreementResponse {
@@ -43,6 +44,7 @@ export interface PropertyAgreementResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  rentalIncomeCcId?: number | null;
+  rentalExpenseCcId?: number | null;
   notes?: string | null;
-  managementFlatRateAmount?: number | null;
 }

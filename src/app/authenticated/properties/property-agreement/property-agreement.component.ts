@@ -2,8 +2,9 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { Observable, Subject, catchError, finalize, map, of, take, takeUntil } from 'rxjs';
+import { Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -11,9 +12,13 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
+import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ManagementFeeType, normalizeManagementFeeTypeId } from '../models/property-enums';
 import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
+import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 
 @Component({
   selector: 'app-property-agreement',
@@ -26,12 +31,15 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) isAdmin!: boolean;
+  @Input() officeId: number | null = null;
 
   readonly ManagementFeeType = ManagementFeeType;
   agreementForm: FormGroup | null = null;
   agreementExists = false;
   isAgreementLoading = false;
   isAgreementSaving = false;
+  availableCostCodes: { value: number, label: string }[] = [];
+  agreementOfficeId: number | null = null;
 
   agreementW9FileName: string | null = null;
   agreementW9FileDataUrl: string | null = null;
@@ -79,12 +87,15 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private propertyAgreementService: PropertyAgreementService,
-    private pdfThumbnailService: PdfThumbnailService
+    private costCodesService: CostCodesService,
+    private pdfThumbnailService: PdfThumbnailService,
+    private dialog: MatDialog
   ) {}
 
   //#region Property Agreement
   ngOnInit(): void {
     this.buildAgreementForm();
+    this.loadCostCodes();
     this.loadPropertyAgreement();
   }
 
@@ -99,6 +110,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       (id && !id.firstChange) ||
       (add && !add.firstChange) ||
       (adm && !adm.firstChange);
+    const office = changes['officeId'];
+    if (office && !office.firstChange) {
+      this.filterCostCodesByOffice();
+    }
     if (shouldReload) {
       this.loadPropertyAgreement();
     }
@@ -185,7 +200,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       notes: new FormControl(d.notes),
       insuranceExpiration: new FormControl<Date | null>(d.insuranceExpiration),
       managementFeeMode: new FormControl<ManagementFeeType>(d.managementFeeMode),
-      managementFlatRateAmount: new FormControl<string>(d.managementFlatRateAmount)
+      managementFlatRateAmount: new FormControl<string>(d.managementFlatRateAmount),
+      rentalIncomeCcId: new FormControl<number | null>(d.rentalIncomeCcId),
+      rentalExpenseCcId: new FormControl<number | null>(d.rentalExpenseCcId)
     });
     this.agreementForm.get('managementFeeMode')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncManagementAgreementFieldState();
@@ -207,13 +224,15 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: data.bankName ?? '',
       routingNumber: data.routingNumber ?? '',
       accountNumber: data.accountNumber ?? '',
+      rentalIncomeCcId: data.rentalIncomeCcId ?? null,
+      rentalExpenseCcId: data.rentalExpenseCcId ?? null,
       notes: data.notes ?? '',
       insuranceExpiration: insuranceExpirationDate,
       managementFeeMode: this.mappingService.mapManagementFeeTypeIdFromApi(data.managementFeeTypeId),
-      managementFlatRateAmount: this.formatAgreementDecimalForDisplay(
-        data.flatRateAmount ?? data.managementFlatRateAmount ?? null
-      )
+      managementFlatRateAmount: this.formatAgreementDecimalForDisplay(data.flatRateAmount ?? null)
     }, { emitEvent: false });
+    this.agreementOfficeId = data.officeId ?? this.officeId ?? null;
+    this.filterCostCodesByOffice();
     this.syncManagementAgreementFieldState();
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
@@ -234,7 +253,14 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     this.isAgreementLoading = true;
     this.propertyAgreementService.getPropertyAgreement(this.propertyId).pipe(take(1), finalize(() => { this.isAgreementLoading = false; })).subscribe({
-      next: (data: PropertyAgreementResponse) => {
+      next: (data: PropertyAgreementResponse | null) => {
+        if (!this.hasPersistedAgreement(data)) {
+          this.agreementExists = false;
+          this.resetAgreementToDefaults();
+          this.agreementForm?.markAsPristine();
+          this.agreementForm?.markAsUntouched();
+          return;
+        }
         this.agreementExists = true;
         this.populatePropertyAgreement(data);
         this.agreementForm?.markAsPristine();
@@ -242,7 +268,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       },
       error: (err: HttpErrorResponse) => {
         this.agreementExists = false;
-        if (err.status !== 404) {
+        if (err.status !== 404 && err.status !== 200 && err.status !== 204) {
           this.toastr.error('Failed to load property agreement', CommonMessage.Error);
         }
         this.resetAgreementToDefaults();
@@ -257,7 +283,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
     this.agreementExists = false;
+    this.agreementOfficeId = this.officeId ?? null;
     this.agreementForm.reset(this.getAgreementFormDefaultValues(), { emitEvent: false });
+    this.filterCostCodesByOffice();
     this.syncManagementAgreementFieldState();
     this.clearAgreementW9Ui();
     this.clearAgreementInsuranceUi();
@@ -283,6 +311,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     insuranceExpiration: null;
     managementFeeMode: ManagementFeeType;
     managementFlatRateAmount: string;
+    rentalIncomeCcId: null;
+    rentalExpenseCcId: null;
   } {
     return {
       markup: '0%',
@@ -296,7 +326,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       notes: '',
       insuranceExpiration: null,
       managementFeeMode: ManagementFeeType.FlatRate,
-      managementFlatRateAmount: '$0.00'
+      managementFlatRateAmount: '$0.00',
+      rentalIncomeCcId: null,
+      rentalExpenseCcId: null
     };
   }
 
@@ -326,6 +358,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,
       accountNumber: (v?.accountNumber || '').trim() || null,
+      rentalIncomeCcId: v?.rentalIncomeCcId == null ? null : Number(v.rentalIncomeCcId),
+      rentalExpenseCcId: v?.rentalExpenseCcId == null ? null : Number(v.rentalExpenseCcId),
       notes: (v?.notes || '').trim() || null,
       managementFeeTypeId: normalizeManagementFeeTypeId(v?.managementFeeMode),
       flatRateAmount:
@@ -333,6 +367,49 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
           ? null
           : this.parseAgreementDecimalFromForm(v?.managementFlatRateAmount)
     };
+  }
+  //#endregion
+
+  //#region Data Loading Methods
+  loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe({
+        next: (costCodes: CostCodesResponse[]) => {
+          this.availableCostCodes = this.mapCostCodeOptions(costCodes || []);
+          this.filterCostCodesByOffice();
+        },
+        error: () => {
+          this.availableCostCodes = [];
+        }
+      });
+    });
+  }
+
+  filterCostCodesByOffice(): void {
+    const resolvedOfficeId = this.officeId ?? this.agreementOfficeId;
+    if (!resolvedOfficeId) {
+      this.availableCostCodes = [];
+      return;
+    }
+    const officeCostCodes = this.costCodesService.getCostCodesForOffice(resolvedOfficeId)
+      .filter(c => c.isActive);
+    this.availableCostCodes = this.mapCostCodeOptions(officeCostCodes);
+  }
+
+  mapCostCodeOptions(costCodes: CostCodesResponse[]): { value: number, label: string }[] {
+    return (costCodes || [])
+      .map(c => {
+        const parsedId = Number(c.costCodeId);
+        if (isNaN(parsedId)) {
+          return null;
+        }
+        return {
+          value: parsedId,
+          label: `${c.costCode} - ${c.description}`
+        };
+      })
+      .filter((option): option is { value: number, label: string } => option !== null);
   }
   //#endregion
 
@@ -408,6 +485,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.clearAgreementW9Ui();
     this.agreementForm?.markAsDirty();
   }
+
+  openAgreementW9Preview(event?: Event): void {
+    const imageSrc = this.agreementW9FileContentType?.startsWith('image/')
+      ? this.agreementW9FileDataUrl
+      : this.agreementW9PdfThumbnailUrl;
+    this.openAgreementPreview(imageSrc, 'W9', event);
+  }
   //#endregion
 
   //#region Agreement Insurance Methods
@@ -482,6 +566,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.clearAgreementInsuranceUi();
     this.agreementForm?.markAsDirty();
   }
+
+  openAgreementInsurancePreview(event?: Event): void {
+    const imageSrc = this.agreementInsuranceFileContentType?.startsWith('image/')
+      ? this.agreementInsuranceFileDataUrl
+      : this.agreementInsurancePdfThumbnailUrl;
+    this.openAgreementPreview(imageSrc, 'Insurance', event);
+  }
   //#endregion
 
   //#region Agreement Doc Methods
@@ -555,6 +646,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   removeAgreementDoc(): void {
     this.clearAgreementDocUi();
     this.agreementForm?.markAsDirty();
+  }
+
+  openAgreementDocPreview(event?: Event): void {
+    const imageSrc = this.agreementDocFileContentType?.startsWith('image/')
+      ? this.agreementDocFileDataUrl
+      : this.agreementDocPdfThumbnailUrl;
+    this.openAgreementPreview(imageSrc, 'Agreement', event);
   }
   //#endregion
 
@@ -692,6 +790,19 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     setter(null);
     this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => setter(url));
+  }
+
+  openAgreementPreview(imageSrc: string | null, title: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!imageSrc) {
+      return;
+    }
+    const data: ImageViewDialogData = { imageSrc, title };
+    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+  }
+
+  hasPersistedAgreement(data: PropertyAgreementResponse | null | undefined): data is PropertyAgreementResponse {
+    return !!data && typeof data.propertyId === 'string' && data.propertyId.trim().length > 0;
   }
 
   ngOnDestroy(): void {
