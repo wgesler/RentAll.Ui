@@ -24,6 +24,9 @@ import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
+import { UserService } from '../../users/services/user.service';
+import { UserRequest } from '../../users/models/user.model';
+import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
     standalone: true,
@@ -112,6 +115,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
+    private userService: UserService,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
       preloadedContact?: ContactResponse;
       entityTypeId?: number;
@@ -132,7 +136,11 @@ export class ContactComponent implements OnInit, OnDestroy {
 
     this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.isAddMode && this.form && this.offices.length > 0) {
-        this.form.patchValue({ officeId: officeId ?? null });
+        const currentOfficeId = this.form.get('officeId')?.value ?? null;
+        const nextOfficeId = officeId ?? null;
+        if (currentOfficeId !== nextOfficeId) {
+          this.form.patchValue({ officeId: nextOfficeId }, { emitEvent: false });
+        }
       }
       this.filterPropertiesByGlobalOffice();
     });
@@ -329,7 +337,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       linenAndTowelFee: this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
       bankName: (formValue.bankName || '').trim() || null,
       routingNumber: (formValue.routingNumber || '').trim() || null,
-      accountNumber: (formValue.accountNumber || '').trim() || null
+      accountNumber: (formValue.accountNumber || '').trim() || null,
+      addAsUser: entityTypeId === EntityType.Vendor && formValue.addAsUser ? 1 : 0
     };
     delete (contactRequest as any).contactTypeId;
     delete (contactRequest as any).vendorId;
@@ -356,18 +365,46 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         const savedContactId = savedContact?.contactId || contactRequest.contactId;
         const savedEntityTypeId = savedContact?.entityTypeId ?? contactRequest.entityTypeId;
-
-        this.contactService.refreshContacts().pipe(take(1)).subscribe({
-          next: () => {
-            if (this.isEmbedded) {
-              this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
-            } else {
-              this.navigateBackToOrigin();
+        const finalizeContactSave = (): void => {
+          this.contactService.refreshContacts().pipe(take(1)).subscribe({
+            next: () => {
+              if (this.isEmbedded) {
+                this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
+              } else {
+                this.navigateBackToOrigin();
+              }
+            },
+            error: () => {
+              if (this.isEmbedded) this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
+              else this.navigateBackToOrigin();
             }
+          });
+        };
+
+        if (!this.shouldCreateVendorUser(entityTypeId, formValue, savedContact)) {
+          finalizeContactSave();
+          return;
+        }
+
+        const vendorUserRequest = this.buildVendorUserRequest(savedContact, contactRequest);
+        if (!vendorUserRequest) {
+          this.toastr.warning('Vendor saved, but user account could not be created (missing vendor code or email).', CommonMessage.Error);
+          finalizeContactSave();
+          return;
+        }
+
+        this.userService.createUser(vendorUserRequest).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('Vendor user account created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            finalizeContactSave();
           },
-          error: () => {
-            if (this.isEmbedded) this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
-            else this.navigateBackToOrigin();
+          error: (err: any) => {
+            const apiMessage = String(err?.error?.message || err?.error?.title || err?.message || '').trim();
+            const message = apiMessage
+              ? `Vendor saved, but user account could not be created: ${apiMessage}`
+              : 'Vendor saved, but user account could not be created.';
+            this.toastr.warning(message, CommonMessage.Error);
+            finalizeContactSave();
           }
         });
       },
@@ -409,7 +446,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
       isActive: new FormControl(true),
-      insuranceExpiration: new FormControl<Date | null>(null)
+      insuranceExpiration: new FormControl<Date | null>(null),
+      addAsUser: new FormControl(false)
     });
 
     this.setupConditionalFields();
@@ -417,6 +455,9 @@ export class ContactComponent implements OnInit, OnDestroy {
 
     this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
       const isCompany = contactTypeId === EntityType.Company;
+      const isOwner = contactTypeId === EntityType.Owner;
+      const isVendor = contactTypeId === EntityType.Vendor;
+      const addAsUser = !!this.form.get('addAsUser')?.value;
       const companyNameControl = this.form.get('companyName');
       const companyEmailControl = this.form.get('companyEmail');
       const displayNameControl = this.form.get('displayName');
@@ -455,6 +496,10 @@ export class ContactComponent implements OnInit, OnDestroy {
         zipControl?.clearValidators();
       }
 
+      if (isOwner || (isVendor && addAsUser)) {
+        phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      }
+
       if (!isCompany && displayNameControl) {
         displayNameControl.setValue('');
       }
@@ -470,6 +515,23 @@ export class ContactComponent implements OnInit, OnDestroy {
       cityControl?.updateValueAndValidity({ emitEvent: false });
       stateControl?.updateValueAndValidity({ emitEvent: false });
       zipControl?.updateValueAndValidity({ emitEvent: false });
+      if (!isVendor) {
+        this.form.get('addAsUser')?.setValue(false, { emitEvent: false });
+      }
+    });
+
+    this.form.get('addAsUser')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((addAsUser: boolean) => {
+      const contactTypeId = this.form.get('contactTypeId')?.value;
+      const phoneControl = this.form.get('phone');
+      const isCompany = contactTypeId === EntityType.Company;
+      const isOwner = contactTypeId === EntityType.Owner;
+      const isVendorWithUser = contactTypeId === EntityType.Vendor && !!addAsUser;
+      if (isCompany || isOwner || isVendorWithUser) {
+        phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      } else {
+        phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      }
+      phoneControl?.updateValueAndValidity({ emitEvent: false });
     });
 
     this.form.get('contactTypeId')?.updateValueAndValidity({ emitEvent: true });
@@ -522,7 +584,8 @@ export class ContactComponent implements OnInit, OnDestroy {
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
         isActive: isActiveValue,
-        insuranceExpiration: insuranceExpirationDate
+        insuranceExpiration: insuranceExpirationDate,
+        addAsUser: (this.contact.addAsUser ?? 0) === 1
       }, { emitEvent: false });
 
       if (!this.isAddMode) {
@@ -1087,6 +1150,42 @@ export class ContactComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  shouldCreateVendorUser(entityTypeId: number, formValue: any, savedContact: ContactResponse): boolean {
+    if (!this.isAddMode || entityTypeId !== EntityType.Vendor || !formValue?.addAsUser) {
+      return false;
+    }
+    const vendorEmail = (savedContact?.email || formValue?.email || '').trim();
+    return vendorEmail.length > 0;
+  }
+
+  buildVendorUserRequest(savedContact: ContactResponse, contactRequest: ContactRequest): UserRequest | null {
+    const vendorCode = (savedContact?.contactCode || contactRequest.contactCode || '').trim();
+    const vendorEmail = (savedContact?.email || contactRequest.email || '').trim();
+    if (!vendorCode || !vendorEmail) {
+      return null;
+    }
+
+    const officeId = Number(savedContact?.officeId ?? contactRequest.officeId ?? 0);
+    const firstName = (savedContact?.firstName || contactRequest.firstName || '').trim() || (savedContact?.companyName || contactRequest.companyName || 'Vendor').trim();
+    const lastName = (savedContact?.lastName || contactRequest.lastName || '').trim() || 'Vendor';
+    const phone = this.formatterService.stripPhoneFormatting(savedContact?.phone || contactRequest.phone || '');
+
+    return {
+      organizationId: savedContact?.organizationId || contactRequest.organizationId,
+      firstName,
+      lastName,
+      email: vendorEmail,
+      phone: phone || '',
+      password: vendorCode,
+      userGroups: [UserGroups[UserGroups.Vendor]],
+      officeAccess: officeId > 0 ? [officeId] : [],
+      properties: [],
+      startupPageId: 0,
+      defaultOfficeId: officeId > 0 ? officeId : null,
+      isActive: !!savedContact?.isActive
+    };
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

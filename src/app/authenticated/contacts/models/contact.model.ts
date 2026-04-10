@@ -38,6 +38,7 @@ export interface ContactRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  addAsUser?: number | null;
   isActive: boolean;
  }
 
@@ -81,6 +82,7 @@ export interface ContactResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  addAsUser?: number | null;
   isActive: boolean;
 }
 

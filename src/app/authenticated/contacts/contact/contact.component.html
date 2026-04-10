@@ -51,6 +51,11 @@
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive
               </mat-checkbox>
+              @if (form.get('contactTypeId')?.value === EntityType.Vendor) {
+                <mat-checkbox formControlName="addAsUser" color="primary">
+                  AddAsUser
+                </mat-checkbox>
+              }
             </div>
 
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
@@ -79,9 +84,6 @@
                       <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
                     }
                   </mat-select>
-                  @if (form.get('contactTypeId')?.hasError('required') && form.get('contactTypeId')?.touched) {
-                    <mat-error>Contact Type is required</mat-error>
-                  }
                 </mat-form-field>
 
                 @if (form.get('contactTypeId')?.value === EntityType.Owner) {
@@ -169,7 +171,13 @@
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
+                <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
+                  [required]="
+                    form.get('contactTypeId')?.value === EntityType.Company ||
+                    form.get('contactTypeId')?.value === EntityType.Owner ||
+                    (form.get('contactTypeId')?.value === EntityType.Vendor && form.get('addAsUser')?.value)
+                  "
+                  placeholder="(555) 555-5555 or +1 234 567 8900">
                 @if (form.get('phone')?.hasError('pattern') && form.get('phone')?.touched) {
                   <mat-error>Invalid phone format</mat-error>
                 }
@@ -178,9 +186,6 @@
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Email</mat-label>
                 <input matInput type="email" formControlName="email" required>
-                @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
-                  <mat-error>Email is required</mat-error>
-                }
                 @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
                   <mat-error>Invalid email format</mat-error>
                 }
