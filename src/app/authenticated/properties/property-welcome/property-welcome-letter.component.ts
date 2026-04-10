@@ -673,7 +673,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     } else if (trashPickupDay) {
       return `Trash is picked up on ${trashPickupDay}.`;
     } else if (removalLocation !== 'N/A') {
-      return `The Removal location is: ${removalLocation}.`;
+      return `${removalLocation}`;
     }
     
     return 'N/A';
