@@ -305,14 +305,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     this.isSavingMaintenanceItems = true;
-    this.maintenanceItemsService.deleteMaintenanceItem({
-      maintenanceItemId,
-      propertyId: this.property.propertyId,
-      name: '',
-      notes: null,
-      monthsBetweenService: 0,
-      lastServicedOn: null
-    }).pipe(take(1), finalize(() => {
+    this.maintenanceItemsService.deleteMaintenanceItem(maintenanceItemId).pipe(take(1), finalize(() => {
       this.isSavingMaintenanceItems = false;
     })).subscribe({
       next: () => {

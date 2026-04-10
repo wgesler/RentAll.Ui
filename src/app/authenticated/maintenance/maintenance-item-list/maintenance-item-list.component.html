@@ -47,11 +47,12 @@
               </td>
               <td>
                 <input
-                  type="date"
+                  type="text"
                   class="editable-input date-input"
-                  [class.has-date]="!!row.lastServicedOn"
                   [class.input-invalid]="!row.lastServicedOn"
+                  placeholder="MM/DD/YYYY"
                   [(ngModel)]="row.lastServicedOn"
+                  (blur)="onLastServicedOnBlur(row)"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'maintenance-item-last-serviced-' + row.rowId" />
               </td>

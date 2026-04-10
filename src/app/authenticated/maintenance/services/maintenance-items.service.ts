@@ -34,7 +34,7 @@ export class MaintenanceItemsService {
     return this.http.put<MaintenanceItemResponse>(this.controller, request);
   }
 
-  deleteMaintenanceItem(request: MaintenanceItemRequest): Observable<void> {
-    return this.http.delete<void>(this.controller, { body: request });
+  deleteMaintenanceItem(maintenanceItemId: number): Observable<void> {
+    return this.http.delete<void>(this.controller + maintenanceItemId);
   }
 }

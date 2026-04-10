@@ -82,6 +82,10 @@ export class MaintenanceItemListComponent implements OnChanges {
     const digitsOnly = (value || '').replace(/[^0-9]/g, '');
     row.monthsBetweenService = digitsOnly === '' ? null : Number(digitsOnly);
   }
+
+  onLastServicedOnBlur(row: MaintenanceItemEditRow): void {
+    row.lastServicedOn = this.toDateDisplayValue(row.lastServicedOn);
+  }
   //#endregion
 
   //#region Utility Methods
@@ -95,7 +99,7 @@ export class MaintenanceItemListComponent implements OnChanges {
         name: item.name ?? '',
         notes: item.notes ?? '',
         monthsBetweenService: item.monthsBetweenService ?? 0,
-        lastServicedOn: this.toDateInputValue(item.lastServicedOn)
+        lastServicedOn: this.toDateDisplayValue(item.lastServicedOn)
       };
       this.originalRowsById.set(item.maintenanceItemId, this.normalizeComparable(row));
       return row;
@@ -109,7 +113,7 @@ export class MaintenanceItemListComponent implements OnChanges {
   hasRequiredFields(row: MaintenanceItemEditRow): boolean {
     const hasName = this.normalizeText(row.name) !== '';
     const hasMonths = row.monthsBetweenService != null && Number.isFinite(Number(row.monthsBetweenService));
-    const hasLastServicedOn = this.toDateInputValue(row.lastServicedOn) !== null;
+    const hasLastServicedOn = this.toDateRequestValue(row.lastServicedOn) !== null;
     return hasName && hasMonths && hasLastServicedOn;
   }
 
@@ -137,7 +141,7 @@ export class MaintenanceItemListComponent implements OnChanges {
     if (!isNew && !isChanged) {
       return false;
     }
-    return this.toDateInputValue(row.lastServicedOn) === null;
+    return this.toDateRequestValue(row.lastServicedOn) === null;
   }
 
   isMonthsMissing(row: MaintenanceItemEditRow): boolean {
@@ -153,12 +157,47 @@ export class MaintenanceItemListComponent implements OnChanges {
     return value == null || Number.isNaN(Number(value)) ? 0 : Math.max(0, Number(value));
   }
 
-  toDateInputValue(value: string | null | undefined): string | null {
+  parseDateValue(value: string | null | undefined): Date | null {
     if (!value) {
       return null;
     }
-    const parsed = new Date(value);
+    const trimmed = value.trim();
+    const mmddyyyy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const match = trimmed.match(mmddyyyy);
+    if (match) {
+      const month = Number(match[1]);
+      const day = Number(match[2]);
+      const year = Number(match[3]);
+      const parsedFromPattern = new Date(year, month - 1, day);
+      if (!Number.isNaN(parsedFromPattern.getTime())
+        && parsedFromPattern.getMonth() === month - 1
+        && parsedFromPattern.getDate() === day
+        && parsedFromPattern.getFullYear() === year) {
+        return parsedFromPattern;
+      }
+      return null;
+    }
+    const parsed = new Date(trimmed);
     if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return parsed;
+  }
+
+  toDateDisplayValue(value: string | null | undefined): string | null {
+    const parsed = this.parseDateValue(value);
+    if (!parsed) {
+      return null;
+    }
+    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+    const day = `${parsed.getDate()}`.padStart(2, '0');
+    const year = `${parsed.getFullYear()}`;
+    return `${month}/${day}/${year}`;
+  }
+
+  toDateRequestValue(value: string | null | undefined): string | null {
+    const parsed = this.parseDateValue(value);
+    if (!parsed) {
       return null;
     }
     return parsed.toISOString().slice(0, 10);
@@ -169,7 +208,7 @@ export class MaintenanceItemListComponent implements OnChanges {
       name: this.normalizeText(row.name),
       notes: this.normalizeText(row.notes),
       monthsBetweenService: this.normalizeMonths(row.monthsBetweenService),
-      lastServicedOn: this.toDateInputValue(row.lastServicedOn)
+      lastServicedOn: this.toDateRequestValue(row.lastServicedOn)
     };
   }
 
@@ -200,7 +239,7 @@ export class MaintenanceItemListComponent implements OnChanges {
     }
     const notes = this.normalizeText(row.notes);
     const monthsBetweenService = this.normalizeMonths(row.monthsBetweenService);
-    const lastServicedOn = this.toDateInputValue(row.lastServicedOn);
+    const lastServicedOn = this.toDateRequestValue(row.lastServicedOn);
     if (!lastServicedOn) {
       return null;
     }
