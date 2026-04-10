@@ -1,8 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
+import { FileDetails } from '../../../shared/models/fileDetails';
 import { PropertyResponse } from '../../properties/models/property.model';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
+import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
 
 interface ApplianceEditRow {
@@ -12,6 +16,10 @@ interface ApplianceEditRow {
   manufacturer: string;
   modelNo: string;
   serialNo: string;
+  decalPath: string | null;
+  decalPreviewDataUrl: string | null;
+  fileDetails?: FileDetails | null;
+  hasNewFileUpload: boolean;
 }
 
 @Component({
@@ -30,8 +38,12 @@ export class MaintenanceApplianceListComponent implements OnChanges {
   @Output() deleteExisting = new EventEmitter<number>();
 
   rows: ApplianceEditRow[] = [];
-  originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string }>();
+  originalRowsById = new Map<number, { applianceName: string; manufacturer: string; modelNo: string; serialNo: string; decalPath: string | null }>();
   rowCounter = 0;
+
+  constructor(
+    private dialog: MatDialog
+  ) {}
 
   //#region Maintenance Appliance List
   ngOnChanges(changes: SimpleChanges): void {
@@ -48,7 +60,11 @@ export class MaintenanceApplianceListComponent implements OnChanges {
         applianceName: '',
         manufacturer: '',
         modelNo: '',
-        serialNo: ''
+        serialNo: '',
+        decalPath: null,
+        decalPreviewDataUrl: null,
+        fileDetails: null,
+        hasNewFileUpload: false
       }
     ];
   }
@@ -63,14 +79,15 @@ export class MaintenanceApplianceListComponent implements OnChanges {
 
   onSaveChanges(): void {
     const payload = this.buildSavePayload();
-    if (!payload.hasChanges) {
+    if (!payload.hasChanges || payload.hasInvalidRows) {
       return;
     }
     this.saveChanges.emit({ upserts: payload.upserts, deleteIds: payload.deleteIds });
   }
 
   get canSave(): boolean {
-    return this.buildSavePayload().hasChanges;
+    const payload = this.buildSavePayload();
+    return payload.hasChanges && !payload.hasInvalidRows;
   }
 
   trackByRowId(_index: number, row: ApplianceEditRow): number {
@@ -89,11 +106,71 @@ export class MaintenanceApplianceListComponent implements OnChanges {
         applianceName: appliance.applianceName ?? '',
         manufacturer: appliance.manufacturer ?? '',
         modelNo: appliance.modelNo ?? '',
-        serialNo: appliance.serialNo ?? ''
+        serialNo: appliance.serialNo ?? '',
+        decalPath: appliance.decalPath ?? null,
+        decalPreviewDataUrl: this.resolveFileDetailsDataUrl(appliance.decalFileDetails),
+        fileDetails: appliance.decalFileDetails ?? null,
+        hasNewFileUpload: false
       };
-      this.originalRowsById.set(appliance.applianceId, this.normalizeComparable(row));
+      if (appliance.applianceId != null) {
+        this.originalRowsById.set(appliance.applianceId, this.normalizeComparable(row));
+      }
       return row;
     });
+  }
+
+  async onDecalSelected(row: ApplianceEditRow, event: Event): Promise<void> {
+    const target = event.target as HTMLInputElement;
+    const file = target.files && target.files.length > 0 ? target.files[0] : null;
+    if (!file) {
+      return;
+    }
+    row.fileDetails = {
+      fileName: file.name,
+      contentType: file.type || 'image/jpeg',
+      file: '',
+      dataUrl: ''
+    };
+    row.hasNewFileUpload = true;
+    row.decalPath = null;
+    const dataUrl = await this.readFileAsDataUrl(file);
+    const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    if (row.fileDetails) {
+      row.fileDetails.dataUrl = dataUrl;
+      row.fileDetails.file = base64;
+    }
+    row.decalPreviewDataUrl = dataUrl;
+    target.value = '';
+  }
+
+  removeDecal(row: ApplianceEditRow): void {
+    row.fileDetails = null;
+    row.hasNewFileUpload = false;
+    row.decalPath = null;
+    row.decalPreviewDataUrl = null;
+  }
+
+  openDecalUpload(row: ApplianceEditRow): void {
+    const element = document.getElementById(this.decalInputId(row.rowId)) as HTMLInputElement | null;
+    element?.click();
+  }
+
+  openDecalPreview(row: ApplianceEditRow, event?: Event): void {
+    event?.stopPropagation();
+    const imageSrc = this.getDecalPreview(row);
+    if (!imageSrc) {
+      return;
+    }
+    const data: ImageViewDialogData = { imageSrc, title: 'Appliance Decal' };
+    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+  }
+
+  decalInputId(rowId: number): string {
+    return `appliance-decal-input-${rowId}`;
+  }
+
+  getDecalPreview(row: ApplianceEditRow): string | null {
+    return row.decalPreviewDataUrl;
   }
 
   normalizeText(value: string | null | undefined): string {
@@ -105,12 +182,26 @@ export class MaintenanceApplianceListComponent implements OnChanges {
     return trimmed === '' ? null : trimmed;
   }
 
-  normalizeComparable(row: ApplianceEditRow): { applianceName: string; manufacturer: string; modelNo: string; serialNo: string } {
+  hasRequiredFields(row: ApplianceEditRow): boolean {
+    return this.normalizeText(row.applianceName) !== '' && this.normalizeText(row.manufacturer) !== '';
+  }
+
+  isRowInvalid(row: ApplianceEditRow): boolean {
+    const isNew = !row.applianceId;
+    const isChanged = this.isExistingRowChanged(row);
+    if (!isNew && !isChanged) {
+      return false;
+    }
+    return !this.hasRequiredFields(row);
+  }
+
+  normalizeComparable(row: ApplianceEditRow): { applianceName: string; manufacturer: string; modelNo: string; serialNo: string; decalPath: string | null } {
     return {
       applianceName: this.normalizeText(row.applianceName),
       manufacturer: this.normalizeText(row.manufacturer),
       modelNo: this.normalizeText(row.modelNo),
-      serialNo: this.normalizeText(row.serialNo)
+      serialNo: this.normalizeText(row.serialNo),
+      decalPath: row.decalPath ?? null
     };
   }
 
@@ -126,7 +217,9 @@ export class MaintenanceApplianceListComponent implements OnChanges {
     return original.applianceName !== current.applianceName
       || original.manufacturer !== current.manufacturer
       || original.modelNo !== current.modelNo
-      || original.serialNo !== current.serialNo;
+      || original.serialNo !== current.serialNo
+      || original.decalPath !== current.decalPath
+      || row.hasNewFileUpload;
   }
 
   toRequest(row: ApplianceEditRow): ApplianceRequest | null {
@@ -135,10 +228,14 @@ export class MaintenanceApplianceListComponent implements OnChanges {
       return null;
     }
 
-    const applianceName = this.nullIfBlank(row.applianceName);
-    const manufacturer = this.nullIfBlank(row.manufacturer);
+    const applianceName = this.normalizeText(row.applianceName);
+    const manufacturer = this.normalizeText(row.manufacturer);
+    if (applianceName === '' || manufacturer === '') {
+      return null;
+    }
     const modelNo = this.nullIfBlank(row.modelNo);
     const serialNo = this.nullIfBlank(row.serialNo);
+    const shouldSendFileDetails = row.hasNewFileUpload || !!row.fileDetails?.file;
 
     return {
       applianceId: row.applianceId,
@@ -146,16 +243,23 @@ export class MaintenanceApplianceListComponent implements OnChanges {
       applianceName,
       manufacturer,
       modelNo,
-      serialNo
+      serialNo,
+      decalPath: shouldSendFileDetails ? undefined : row.decalPath,
+      decalFileDetails: shouldSendFileDetails ? row.fileDetails ?? undefined : undefined
     };
   }
 
-  buildSavePayload(): { upserts: ApplianceRequest[]; deleteIds: number[]; hasChanges: boolean } {
+  buildSavePayload(): { upserts: ApplianceRequest[]; deleteIds: number[]; hasChanges: boolean; hasInvalidRows: boolean } {
     const upserts: ApplianceRequest[] = [];
+    let hasInvalidRows = false;
     for (const row of this.rows) {
       const isNew = !row.applianceId;
       const isChanged = this.isExistingRowChanged(row);
       if (!isNew && !isChanged) {
+        continue;
+      }
+      if (!this.hasRequiredFields(row)) {
+        hasInvalidRows = true;
         continue;
       }
       const request = this.toRequest(row);
@@ -165,8 +269,32 @@ export class MaintenanceApplianceListComponent implements OnChanges {
     }
 
     const deleteIds: number[] = [];
-    const hasChanges = upserts.length > 0;
-    return { upserts, deleteIds, hasChanges };
+    const hasChanges = upserts.length > 0 || hasInvalidRows;
+    return { upserts, deleteIds, hasChanges, hasInvalidRows };
+  }
+
+  readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string) || '');
+      reader.onerror = () => reject(new Error('Unable to read selected image.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  resolveFileDetailsDataUrl(fileDetails?: FileDetails): string | null {
+    if (!fileDetails) {
+      return null;
+    }
+    if (fileDetails.dataUrl && fileDetails.dataUrl.trim() !== '') {
+      return fileDetails.dataUrl;
+    }
+    if (fileDetails.file && fileDetails.contentType) {
+      return fileDetails.file.startsWith('data:')
+        ? fileDetails.file
+        : `data:${fileDetails.contentType};base64,${fileDetails.file}`;
+    }
+    return null;
   }
   //#endregion
 }

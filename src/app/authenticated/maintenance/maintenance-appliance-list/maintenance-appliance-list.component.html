@@ -25,13 +25,14 @@
           <th>Manufacturer</th>
           <th>Model No.</th>
           <th>Serial No.</th>
+          <th>Decal</th>
           <th class="actions-column"></th>
         </tr>
       </thead>
       <tbody>
         @if (!rows || rows.length === 0) {
           <tr>
-            <td class="maintenance-appliance-empty" colspan="5">No appliances found for this property.</td>
+            <td class="maintenance-appliance-empty" colspan="6">No appliances found for this property.</td>
           </tr>
         } @else {
           @for (row of rows; track trackByRowId($index, row)) {
@@ -40,6 +41,7 @@
                 <input
                   type="text"
                   class="editable-input"
+                  [class.input-invalid]="isRowInvalid(row) && !row.applianceName?.trim()"
                   [(ngModel)]="row.applianceName"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'appliance-name-' + row.rowId" />
@@ -48,6 +50,7 @@
                 <input
                   type="text"
                   class="editable-input"
+                  [class.input-invalid]="isRowInvalid(row) && !row.manufacturer?.trim()"
                   [(ngModel)]="row.manufacturer"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'appliance-make-' + row.rowId" />
@@ -67,6 +70,38 @@
                   [(ngModel)]="row.serialNo"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'appliance-serial-' + row.rowId" />
+              </td>
+              <td>
+                <div class="decal-upload-wrap">
+                  @if (!getDecalPreview(row)) {
+                    <button mat-icon-button type="button" class="decal-camera-btn" (click)="openDecalUpload(row)" [disabled]="isSaving">
+                      <mat-icon>photo_camera</mat-icon>
+                    </button>
+                  } @else {
+                    <div class="decal-preview-wrap">
+                      <img
+                        [src]="getDecalPreview(row)"
+                        alt="Appliance decal"
+                        class="decal-thumb"
+                        (click)="openDecalPreview(row, $event)" />
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="decal-remove-btn"
+                        (click)="removeDecal(row)"
+                        [disabled]="isSaving"
+                        aria-label="Remove decal image">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                  }
+                  <input
+                    [id]="decalInputId(row.rowId)"
+                    class="hidden"
+                    type="file"
+                    accept="image/*"
+                    (change)="onDecalSelected(row, $event)" />
+                </div>
               </td>
               <td class="actions-column">
                 <button mat-icon-button type="button" class="delete-row-btn" (click)="removeRow(row)" [disabled]="isSaving">

@@ -1,0 +1,92 @@
+@if (isLoading) {
+  <div class="maintenance-utility-loading">
+    <mat-spinner [diameter]="28"></mat-spinner>
+    <span>Loading utilities...</span>
+  </div>
+} @else {
+  <div class="maintenance-utility-actions">
+    <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="addRow()">
+      <mat-icon>add</mat-icon>
+      Add
+    </button>
+    @if (canSave) {
+      <button mat-raised-button color="primary" type="button" (click)="onSaveChanges()" [disabled]="isSaving">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    }
+  </div>
+
+  <div class="maintenance-utility-lines-wrap overflow-x-auto">
+    <table class="line-items-table maintenance-utility-lines-table">
+      <thead>
+        <tr>
+          <th>Utility Name</th>
+          <th>Phone</th>
+          <th>Account Name</th>
+          <th>Account Number</th>
+          <th>Notes</th>
+          <th class="actions-column"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!rows || rows.length === 0) {
+          <tr>
+            <td class="maintenance-utility-empty" colspan="6">No utilities found for this property.</td>
+          </tr>
+        } @else {
+          @for (row of rows; track trackByRowId($index, row)) {
+            <tr>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [class.input-invalid]="isRowInvalid(row) && !row.utilityName?.trim()"
+                  [(ngModel)]="row.utilityName"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'utility-name-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.phone"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'utility-phone-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.accountName"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'utility-account-name-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.accountNumber"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'utility-account-number-' + row.rowId" />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="editable-input"
+                  [(ngModel)]="row.notes"
+                  [ngModelOptions]="{ standalone: true }"
+                  [name]="'utility-notes-' + row.rowId" />
+              </td>
+              <td class="actions-column">
+                <button mat-icon-button type="button" class="delete-row-btn" (click)="removeRow(row)" [disabled]="isSaving">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+}

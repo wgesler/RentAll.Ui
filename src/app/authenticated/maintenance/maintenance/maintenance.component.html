@@ -98,6 +98,19 @@
         (deleteExisting)="onApplianceDelete($event)"
         (saveChanges)="onApplianceSaveChanges($event)" />
     </mat-expansion-panel>
+
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Utilities</mat-panel-title>
+      </mat-expansion-panel-header>
+      <app-maintenance-utility-list
+        [utilities]="utilities"
+        [isLoading]="isLoadingUtilities"
+        [isSaving]="isSavingUtilities"
+        [property]="property"
+        (deleteExisting)="onUtilityDelete($event)"
+        (saveChanges)="onUtilitySaveChanges($event)" />
+    </mat-expansion-panel>
   </mat-accordion>
   </div>
 </section>

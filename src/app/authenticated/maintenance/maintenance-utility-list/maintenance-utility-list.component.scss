@@ -1,11 +1,11 @@
-.maintenance-appliance-loading {
+.maintenance-utility-loading {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0;
 }
 
-.maintenance-appliance-actions {
+.maintenance-utility-actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -13,19 +13,19 @@
   margin-bottom: 0.5rem;
 }
 
-.maintenance-appliance-empty {
+.maintenance-utility-empty {
   color: rgba(0, 0, 0, 0.7);
   font-style: italic;
 }
 
-.maintenance-appliance-lines-wrap {
+.maintenance-utility-lines-wrap {
   width: 100%;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.line-items-table.maintenance-appliance-lines-table {
+.line-items-table.maintenance-utility-lines-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
@@ -52,17 +52,9 @@
     text-align: right;
   }
 
-  th:nth-child(5),
-  td:nth-child(5) {
-    width: 72px;
-    min-width: 72px;
-    max-width: 72px;
-    text-align: center;
-  }
-
   th:not(.actions-column),
   td:not(.actions-column) {
-    width: auto;
+    width: 20%;
   }
 
   tbody tr:hover {
@@ -99,64 +91,4 @@
   width: 28px;
   height: 28px;
   padding: 2px;
-}
-
-.decal-upload-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 28px;
-}
-
-.decal-camera-btn {
-  width: 24px;
-  height: 24px;
-  color: #1d4ed8 !important;
-  margin: 0 auto;
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 0 !important;
-}
-
-.decal-camera-btn .mat-icon {
-  margin: 0;
-  line-height: 24px;
-  width: 24px;
-  height: 24px;
-  font-size: 24px;
-}
-
-.decal-thumb {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  object-fit: cover;
-  cursor: pointer;
-}
-
-.decal-preview-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.decal-remove-btn {
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
-  padding: 0;
-  line-height: 16px;
-}
-
-.decal-remove-btn .mat-icon {
-  width: 12px;
-  height: 12px;
-  font-size: 12px;
-  line-height: 12px;
-}
-
-.hidden {
-  display: none;
 }
