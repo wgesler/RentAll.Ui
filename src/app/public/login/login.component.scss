@@ -72,6 +72,8 @@
     ::ng-deep mat-form-field.admin-login-field {
         .mat-mdc-text-field-wrapper {
             min-height: 42px !important;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
         }
 
         .mat-mdc-form-field-flex {
@@ -99,6 +101,18 @@
             display: flex !important;
             align-items: center !important;
             transform: translateY(10px);
+        }
+
+        .mat-mdc-form-field-icon-prefix {
+            padding-right: 2px !important;
+        }
+
+        .mat-mdc-form-field-icon-suffix {
+            padding-left: 2px !important;
+        }
+
+        .login-prefix-icon {
+            margin-right: 0 !important;
         }
     }
 

@@ -13,7 +13,7 @@
           <mat-form-field class="admin-login-field">
             <mat-label>Email</mat-label>
             <input matInput type="text" name="username" formControlName="username" id="username" (focus)="onCredentialFieldFocus($event)">
-            <mat-icon matPrefix class="relative top-0.5 mr-2">person_outline</mat-icon>
+            <mat-icon matPrefix class="login-prefix-icon">person_outline</mat-icon>
             @if (!form.get('username')?.valid) {
               <mat-error>Email is required</mat-error>
             }
@@ -22,7 +22,7 @@
           <mat-form-field class="admin-login-field">
             <mat-label>Password</mat-label>
             <input [type]="hide ? 'password' : 'text'" matInput formControlName="password" id="password" (focus)="onCredentialFieldFocus($event)">
-            <mat-icon matPrefix class="relative top-0.5 mr-2">lock_outline</mat-icon>
+            <mat-icon matPrefix class="login-prefix-icon">lock_outline</mat-icon>
             <button type="button" mat-icon-button matSuffix (click)="hide = !hide" id="hide-button"
               [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
               <mat-icon>{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
