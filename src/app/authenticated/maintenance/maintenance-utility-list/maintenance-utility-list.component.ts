@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
+import { FormatterService } from '../../../services/formatter-service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { UtilityRequest, UtilityResponse } from '../models/utility.model';
 
@@ -33,6 +34,10 @@ export class MaintenanceUtilityListComponent implements OnChanges {
   rows: UtilityEditRow[] = [];
   originalRowsById = new Map<number, { utilityName: string; phone: string; accountName: string; accountNumber: string; notes: string }>();
   rowCounter = 0;
+
+  constructor(
+    private formatterService: FormatterService
+  ) {}
 
   //#region Maintenance Utility List
   ngOnChanges(changes: SimpleChanges): void {
@@ -79,6 +84,15 @@ export class MaintenanceUtilityListComponent implements OnChanges {
   trackByRowId(_index: number, row: UtilityEditRow): number {
     return row.rowId;
   }
+
+  onPhoneInput(row: UtilityEditRow, event: Event): void {
+    this.formatterService.formatPhoneInput(event, null);
+    row.phone = (event.target as HTMLInputElement).value;
+  }
+
+  formatPhone(row: UtilityEditRow): void {
+    row.phone = this.formatterService.phoneNumber(row.phone || '') || '';
+  }
   //#endregion
 
   //#region Utility Methods
@@ -90,7 +104,7 @@ export class MaintenanceUtilityListComponent implements OnChanges {
         rowId: ++this.rowCounter,
         utilityId: utility.utilityId,
         utilityName: utility.utilityName ?? '',
-        phone: utility.phone ?? '',
+        phone: this.formatterService.phoneNumber(utility.phone ?? ''),
         accountName: utility.accountName ?? '',
         accountNumber: utility.accountNumber ?? '',
         notes: utility.notes ?? ''
@@ -165,7 +179,7 @@ export class MaintenanceUtilityListComponent implements OnChanges {
       utilityId: row.utilityId,
       propertyId: property.propertyId,
       utilityName,
-      phone: this.nullIfBlank(row.phone),
+      phone: this.nullIfBlank(this.formatterService.stripPhoneFormatting(row.phone)),
       accountName: this.nullIfBlank(row.accountName),
       accountNumber: this.nullIfBlank(row.accountNumber),
       notes: this.nullIfBlank(row.notes)

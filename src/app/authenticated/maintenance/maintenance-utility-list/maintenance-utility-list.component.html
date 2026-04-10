@@ -51,6 +51,8 @@
                   type="text"
                   class="editable-input"
                   [(ngModel)]="row.phone"
+                  (input)="onPhoneInput(row, $event)"
+                  (blur)="formatPhone(row)"
                   [ngModelOptions]="{ standalone: true }"
                   [name]="'utility-phone-' + row.rowId" />
               </td>
