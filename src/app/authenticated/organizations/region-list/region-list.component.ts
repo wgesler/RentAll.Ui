@@ -76,27 +76,6 @@ export class RegionListComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.selectedOffice = uiState.selectedOffice;
-            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId);
-          }
-        });
-      });
-    });
-  }
-
-  onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    this.applyFilters();
-  }
-
   addRegion(): void {
     if (this.embeddedInSettings) {
       this.regionSelected.emit('new');
@@ -134,14 +113,23 @@ export class RegionListComponent implements OnInit, OnDestroy {
       }
     });
   }
+  //#endregion
 
-  goToRegion(event: RegionListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.regionSelected.emit(event.regionId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Region, [event.regionId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+  //#region Data Load Methods
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.selectedOffice = uiState.selectedOffice;
+            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          }
+        });
+      });
+    });
   }
   //#endregion
 
@@ -166,14 +154,30 @@ export class RegionListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
+  goToRegion(event: RegionListDisplay): void {
+    if (this.embeddedInSettings) {
+      this.regionSelected.emit(event.regionId);
+    } else {
+      const url = RouterUrl.replaceTokens(RouterUrl.Region, [event.regionId.toString()]);
+      this.router.navigateByUrl(url);
+    }
+  }
+  
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.applyFilters();
+  }
+  
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.applyFilters();
   }
+  //#endregion
 
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();

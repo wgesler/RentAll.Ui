@@ -178,7 +178,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
@@ -213,7 +212,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('regionCode'));
   }
@@ -231,18 +230,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
-  }
-
+  
   onEnterKey(event: Event): void {
     const target = (event as KeyboardEvent).target as HTMLElement;
     if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
@@ -252,6 +240,19 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveRegion();
     }
+  }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.officesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+
+  back(): void {
+    this.backEvent.emit();
   }
   //#endregion
 }

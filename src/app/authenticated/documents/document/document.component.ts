@@ -10,6 +10,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -58,7 +59,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -88,7 +90,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   loadDocument(): void {
-    this.documentService.getDocumentByGuid(this.documentId).pipe(take(1), finalize(() => { this.removeLoadItem('document'); })).subscribe({
+    this.documentService.getDocumentByGuid(this.documentId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'document'); })).subscribe({
       next: (document) => {
         this.document = document;
         this.buildForm();
@@ -210,7 +212,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion
@@ -316,15 +318,6 @@ export class DocumentComponent implements OnInit, OnDestroy {
   getDocumentTypeName(documentType: DocumentType): string {
     const docType = this.documentTypes.find(dt => dt.value === documentType);
     return docType ? docType.label : getDocumentType(documentType) || 'Other';
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
   }
 
   ngOnDestroy(): void {
