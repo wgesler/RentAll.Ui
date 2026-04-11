@@ -59,6 +59,7 @@ export class JwtContainer {
             user.Email || user.email || '',
             user.Phone || user.phone || '',
             userGroups,
+            officeAccess,
             startupPage,
             defaultOfficeId,
             agentId,
@@ -76,6 +77,7 @@ export class JwtUser {
     email: string;
     phone: string;
     userGroups: string[];
+    officeAccess: number[];
     startupPage: number;
     startupPageId: number;
     defaultOfficeId: number | null;
@@ -92,6 +94,7 @@ export class JwtUser {
         email: string,
         phone: string,
         userGroups: string[],
+        officeAccess: number[],
         startupPage: number,
         defaultOfficeId: number | null = null,
         agentId: string | null = null,
@@ -106,6 +109,7 @@ export class JwtUser {
         this.email = email;
         this.phone = phone;
         this.userGroups = userGroups;
+        this.officeAccess = officeAccess;
         this.startupPage = startupPage;
         // Keep startupPageId for backward compatibility in existing UI code paths.
         this.startupPageId = startupPage;

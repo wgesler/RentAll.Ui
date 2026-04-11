@@ -4,7 +4,7 @@ import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnIni
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -13,6 +13,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
+import { UserRequest, UserResponse } from '../../users/models/user.model';
+import { UserService } from '../../users/services/user.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
 
@@ -59,7 +61,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private formatterService: FormatterService,
     private navigationContext: NavigationContextService,
-    private commonService: CommonService
+    private commonService: CommonService,
+    private userService: UserService
   ) {
   }
 
@@ -221,10 +224,24 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.isAddMode) {
       this.officeService.createOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (_response: OfficeResponse) => {
-          this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (orgId) this.officeService.loadAllOffices(orgId);
-          this.backEvent.emit();
+        next: (response: OfficeResponse) => {
+          const createdOfficeId = Number(response?.officeId ?? 0);
+          this.syncCurrentUserOfficeAccess(createdOfficeId, true).pipe(take(1)).subscribe({
+            next: (isUpdated: boolean) => {
+              this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+              if (!isUpdated) {
+                this.toastr.warning('Office created, but failed to update your office access.', 'Partial Update');
+              }
+              if (orgId) this.officeService.loadAllOffices(orgId);
+              this.backEvent.emit();
+            },
+            error: () => {
+              this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+              this.toastr.warning('Office created, but failed to update your office access.', 'Partial Update');
+              if (orgId) this.officeService.loadAllOffices(orgId);
+              this.backEvent.emit();
+            }
+          });
         },
         error: (_err: HttpErrorResponse) => {}
       });
@@ -238,8 +255,31 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
       officeRequest.officeId = officeIdNum;
       officeRequest.organizationId = orgId;
+      const transitionedToInactive = !!this.office?.isActive && !officeRequest.isActive;
+      const transitionedToActive = !this.office?.isActive && !!officeRequest.isActive;
       this.officeService.updateOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (_response: OfficeResponse) => {
+          if (transitionedToInactive || transitionedToActive) {
+            const addAccess = transitionedToActive;
+            this.syncCurrentUserOfficeAccess(officeIdNum, addAccess).pipe(take(1)).subscribe({
+              next: (allUpdated: boolean) => {
+                this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+                if (!allUpdated) {
+                  this.toastr.warning('Office updated, but failed to update your office access.', 'Partial Update');
+                }
+                if (orgId) this.officeService.loadAllOffices(orgId);
+                this.backEvent.emit();
+              },
+              error: () => {
+                this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+                this.toastr.warning('Office updated, but failed to update your office access.', 'Partial Update');
+                if (orgId) this.officeService.loadAllOffices(orgId);
+                this.backEvent.emit();
+              }
+            });
+            return;
+          }
+
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           if (orgId) this.officeService.loadAllOffices(orgId);
           this.backEvent.emit();
@@ -541,6 +581,68 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       newSet.delete(key);
       this.itemsToLoad$.next(newSet);
     }
+  }
+
+  syncCurrentUserOfficeAccess(officeId: number, addAccess: boolean): Observable<boolean> {
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      return of(false);
+    }
+
+    const currentUser = this.authService.getUser();
+    const currentUserId = (currentUser?.userId || currentUser?.userGuid || '').trim();
+    if (!currentUserId) {
+      return of(false);
+    }
+
+    return this.userService.getUserByGuid(currentUserId).pipe(
+      take(1),
+      switchMap((userResponse: UserResponse) => {
+        const normalizedOfficeAccess = (userResponse.officeAccess || [])
+          .map(id => Number(id))
+          .filter(id => Number.isFinite(id) && id > 0);
+
+        const updatedOfficeAccess = addAccess
+          ? Array.from(new Set([...normalizedOfficeAccess, Number(officeId)]))
+          : normalizedOfficeAccess.filter(id => id !== Number(officeId));
+
+        const noAccessChange = updatedOfficeAccess.length === normalizedOfficeAccess.length
+          && updatedOfficeAccess.every((id, index) => id === normalizedOfficeAccess[index]);
+        if (noAccessChange) {
+          return of(true);
+        }
+
+        const nextDefaultOfficeId = addAccess
+          ? (userResponse.defaultOfficeId ?? null)
+          : (userResponse.defaultOfficeId === Number(officeId) ? null : (userResponse.defaultOfficeId ?? null));
+
+        const hasProfileFile = !!userResponse.fileDetails?.file;
+        const userRequest: UserRequest = {
+          userId: userResponse.userId,
+          organizationId: userResponse.organizationId,
+          firstName: userResponse.firstName,
+          lastName: userResponse.lastName,
+          email: userResponse.email,
+          phone: userResponse.phone || '',
+          password: null,
+          userGroups: userResponse.userGroups || [],
+          officeAccess: updatedOfficeAccess,
+          properties: userResponse.properties || [],
+          startupPageId: userResponse.startupPageId ?? 0,
+          defaultOfficeId: nextDefaultOfficeId,
+          agentId: userResponse.agentId ?? null,
+          commissionRate: userResponse.commissionRate ?? null,
+          isActive: userResponse.isActive,
+          fileDetails: hasProfileFile ? userResponse.fileDetails : undefined,
+          profilePath: userResponse.profilePath ?? undefined
+        };
+
+        return this.userService.updateUser(userRequest).pipe(
+          take(1),
+          map(() => true)
+        );
+      }),
+      catchError(() => of(false))
+    );
   }
 
   ngOnDestroy(): void {

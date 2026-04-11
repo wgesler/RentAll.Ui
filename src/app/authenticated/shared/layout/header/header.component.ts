@@ -172,7 +172,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
           this.selectedGlobalOfficeId = null;
           return;
         }
-        this.offices = (allOffices || []).filter(office => office.isActive);
+        const activeOffices = (allOffices || []).filter(office => office.isActive);
+        this.offices = this.globalOfficeSelectionService.filterOfficeListForUser(activeOffices);
         const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
         this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, preferredId);
       });

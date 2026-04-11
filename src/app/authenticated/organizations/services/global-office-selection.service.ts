@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable, map, switchMap, take } from 'rxjs';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from './accounting-office.service';
 import { OfficeService } from './office.service';
+import { AuthService } from '../../../services/auth.service';
 
 export interface OfficeUiStateOptions {
   explicitOfficeId?: number | null;
@@ -28,7 +29,8 @@ export class GlobalOfficeSelectionService {
 
   constructor(
     private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService
+    private accountingOfficeService: AccountingOfficeService,
+    private authService: AuthService
   ) {}
 
   getSelectedOfficeId$(): Observable<number | null> {
@@ -45,25 +47,26 @@ export class GlobalOfficeSelectionService {
   }
 
   syncWithAvailableOffices(offices: OfficeResponse[], preferredOfficeId: number | null = null): number | null {
-    if (!offices?.length) {
+    const accessibleOffices = this.filterOfficeListForUser(offices || []);
+    if (!accessibleOffices.length) {
       this.setSelectedOfficeId(null);
       return null;
     }
 
     // When user has a default office (e.g. from JWT or profile), use it to initialize the dropdown
-    if (preferredOfficeId !== null && offices.some(office => office.officeId === preferredOfficeId)) {
+    if (preferredOfficeId !== null && accessibleOffices.some(office => office.officeId === preferredOfficeId)) {
       this.setSelectedOfficeId(preferredOfficeId);
       return preferredOfficeId;
     }
 
     const currentSelection = this.getSelectedOfficeIdValue();
-    if (currentSelection !== null && offices.some(office => office.officeId === currentSelection)) {
+    if (currentSelection !== null && accessibleOffices.some(office => office.officeId === currentSelection)) {
       return currentSelection;
     }
 
     // Keep the previous UX for single-office users.
-    if (offices.length === 1) {
-      const singleOfficeId = offices[0].officeId;
+    if (accessibleOffices.length === 1) {
+      const singleOfficeId = accessibleOffices[0].officeId;
       this.setSelectedOfficeId(singleOfficeId);
       return singleOfficeId;
     }
@@ -84,29 +87,46 @@ export class GlobalOfficeSelectionService {
     return this.getSelectedOfficeId$().pipe(
       take(1),
       map(globalOfficeId => {
+        const accessibleOffices = this.filterOfficeListForUser(offices || []);
         const explicitOfficeId = options.explicitOfficeId ?? null;
         const useGlobalSelection = options.useGlobalSelection ?? true;
         const fallbackGlobalOfficeId = useGlobalSelection ? globalOfficeId : null;
         const resolvedSelectionId = explicitOfficeId ?? fallbackGlobalOfficeId;
-        const selectedOffice = offices.find(office => office.officeId === resolvedSelectionId) || null;
-        const singleOfficeRuleApplies = !(options.disableSingleOfficeRule ?? false) && offices.length === 1;
+        const selectedOffice = accessibleOffices.find(office => office.officeId === resolvedSelectionId) || null;
+        const singleOfficeRuleApplies = !(options.disableSingleOfficeRule ?? false) && accessibleOffices.length === 1;
         const explicitOfficeUnset = explicitOfficeId === null;
         const requireExplicitOfficeUnset = options.requireExplicitOfficeUnset ?? false;
         const requireResolvedSelectionEmpty = options.requireResolvedSelectionEmpty ?? false;
         const autoSelectSingleOffice = singleOfficeRuleApplies
           && (!requireExplicitOfficeUnset || explicitOfficeUnset)
           && (!requireResolvedSelectionEmpty || selectedOffice === null);
-        const autoSelectedOfficeId = autoSelectSingleOffice ? offices[0].officeId : null;
+        const autoSelectedOfficeId = autoSelectSingleOffice ? accessibleOffices[0].officeId : null;
         const selectedOfficeId = selectedOffice?.officeId ?? autoSelectedOfficeId;
 
         return {
           selectedOfficeId,
-          selectedOffice: offices.find(office => office.officeId === selectedOfficeId) || null,
+          selectedOffice: accessibleOffices.find(office => office.officeId === selectedOfficeId) || null,
           showOfficeDropdown: !autoSelectSingleOffice,
           autoSelectedOfficeId
         };
       })
     );
+  }
+
+  filterOfficeListForUser(offices: OfficeResponse[]): OfficeResponse[] {
+    const source = offices || [];
+    const officeAccessArray = this.authService.getUser()?.officeAccess || [];
+    const officeAccessSet = new Set(
+      officeAccessArray
+        .map((id: unknown) => Number(id))
+        .filter(id => Number.isFinite(id) && id > 0)
+    );
+
+    if (officeAccessSet.size === 0) {
+      return source;
+    }
+
+    return source.filter(office => officeAccessSet.has(Number(office.officeId)));
   }
 
   readFromStorage(): number | null {

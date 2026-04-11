@@ -11,14 +11,14 @@
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
           [hasActionsCopy]="true"
-          [hasActionsDelete]="true"
+          [hasActionsDelete]="false"
           [deleteConfirmTitle]="'Delete Office'"
           [deleteConfirmMessage]="'Are you sure you want to delete this office?'"
           [itemsPerPage]="100"
           (editEvent)="goToOffice($event)"
           (rowClickEvent)="goToOffice($event)"
           (copyEvent)="copyOffice($event)"
-          (deleteEvent)="deleteOffice($event)">
+          >
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
               <mat-slide-toggle id="toggle-offices-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">InActive</mat-slide-toggle>
@@ -56,7 +56,7 @@
                 [hasActionsRowClick]="true"
                 [hasActionsEdit]="true"
                 [hasActionsCopy]="true"
-                [hasActionsDelete]="true"
+                [hasActionsDelete]="false"
                 [deleteConfirmTitle]="'Delete Office'"
                 [deleteConfirmMessage]="'Are you sure you want to delete this office?'"
                 [itemsPerPage]="100"
@@ -64,8 +64,7 @@
                 (topToggleButtonEvent)="toggleInactive()"
                 (editEvent)="goToOffice($event)"
                 (rowClickEvent)="goToOffice($event)"
-                (copyEvent)="copyOffice($event)"
-                (deleteEvent)="deleteOffice($event)"/>
+                (copyEvent)="copyOffice($event)"/>
             </div>
           </div>
         </mat-card>
