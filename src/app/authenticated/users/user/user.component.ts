@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit, Optional } from '@angular/core';
+import { Component, EventEmitter, Inject, Input, OnDestroy, OnInit, Optional, Output } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -41,6 +41,9 @@ export interface UserDialogData {
 })
 
 export class UserComponent implements OnInit, OnDestroy {
+  @Input() id: string = 'new';
+  @Output() closed = new EventEmitter<{ saved?: boolean; userId?: string }>();
+
   isServiceError: boolean = false;
   userId: string;
   user: UserResponse;
@@ -48,6 +51,7 @@ export class UserComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isDialog: boolean = false;
+  isEmbedded: boolean = true;
   selfEdit: boolean = false;
   hideCurrentPassword: boolean = true;
   hidePassword: boolean = true;
@@ -123,23 +127,24 @@ export class UserComponent implements OnInit, OnDestroy {
       this.setupPasswordValidation();
       this.getUser();
     } else {
-      // Otherwise, use route params (existing behavior)
-      this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
-        if (paramMap.has('id')) {
-          this.userId = paramMap.get('id');
-          this.isAddMode = this.userId === 'new';
-          if (this.isAddMode) {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user');
-            this.buildForm();
-            this.setupPasswordValidation();
-          } else {
-            this.getUser();
-          }
-        }
-      });
-      if (!this.isAddMode) {
+      const routeId = this.route.snapshot.paramMap.get('id');
+      if (routeId !== null) {
+        this.isEmbedded = false;
+        this.userId = routeId;
+      } else {
+        this.isEmbedded = true;
+        this.userId = this.id ?? 'new';
+      }
+
+      this.isAddMode = this.userId === 'new';
+      if (this.isAddMode) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'user');
         this.buildForm();
         this.setupPasswordValidation();
+      } else {
+        this.buildForm();
+        this.setupPasswordValidation();
+        this.getUser();
       }
     }
   }
@@ -300,11 +305,7 @@ export class UserComponent implements OnInit, OnDestroy {
       this.userService.createUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: UserResponse) => {
           this.toastr.success('User created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (this.isDialog && this.dialogRef) {
-            this.dialogRef.close(true);
-          } else {
-            this.router.navigateByUrl(RouterUrl.UserList);
-          }
+          this.handleCloseAfterSave(response.userId);
         },
         error: () => {}
       });
@@ -360,11 +361,7 @@ export class UserComponent implements OnInit, OnDestroy {
             if (changePassword === true && passwordChangeRequest) messages.push('Password updated');
             if (hasUserUpdates || shouldForceUserUpdate) messages.push('User updated');
             this.toastr.success((messages.length > 0 ? messages.join(' and ') + ' successfully' : 'User updated successfully'), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-            if (this.isDialog && this.dialogRef) {
-              this.dialogRef.close(true);
-            } else {
-              this.router.navigateByUrl(RouterUrl.UserList);
-            }
+            this.handleCloseAfterSave(this.userId);
           },
           error: () => {}
         });
@@ -374,11 +371,7 @@ export class UserComponent implements OnInit, OnDestroy {
         this.userService.updateUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: (response: UserResponse) => {
             this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-            if (this.isDialog && this.dialogRef) {
-              this.dialogRef.close(true);
-            } else {
-              this.router.navigateByUrl(RouterUrl.UserList);
-            }
+            this.handleCloseAfterSave(response.userId || this.userId);
           },
           error: () => {}
         });
@@ -1157,9 +1150,33 @@ export class UserComponent implements OnInit, OnDestroy {
   back(): void {
     if (this.isDialog && this.dialogRef) {
       this.dialogRef.close();
+    } else if (this.isEmbedded) {
+      this.closed.emit({});
     } else {
-      this.router.navigateByUrl(RouterUrl.UserList);
+      const tab = this.route.snapshot.queryParamMap.get('tab');
+      if (tab) {
+        this.router.navigate([RouterUrl.UserList], { queryParams: { tab } });
+      } else {
+        this.router.navigateByUrl(RouterUrl.UserList);
+      }
     }
+  }
+
+  handleCloseAfterSave(userId?: string): void {
+    if (this.isDialog && this.dialogRef) {
+      this.dialogRef.close(true);
+      return;
+    }
+    if (this.isEmbedded) {
+      this.closed.emit({ saved: true, userId: userId || this.userId });
+      return;
+    }
+    const tab = this.route.snapshot.queryParamMap.get('tab');
+    if (tab) {
+      this.router.navigate([RouterUrl.UserList], { queryParams: { tab } });
+      return;
+    }
+    this.router.navigateByUrl(RouterUrl.UserList);
   }
   //#endregion
 }

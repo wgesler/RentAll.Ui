@@ -1,10 +1,8 @@
 import { CommonModule } from "@angular/common";
-import { Component, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -33,6 +31,7 @@ import { UserService } from '../services/user.service';
 
 export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() tabIndex?: number;
+  @Output() openUser = new EventEmitter<{ userId: string; tabIndex?: number }>();
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -74,8 +73,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     private globalOfficeSelectionService: GlobalOfficeSelectionService,
     private authService: AuthService,
     public toastr: ToastrService,
-    public router: Router,
-    private ngZone: NgZone,
     private formatterService: FormatterService,
     public mappingService: MappingService,
     private utilityService: UtilityService) {
@@ -112,7 +109,10 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addUser(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, ['new']));
+    this.openUser.emit({
+      userId: 'new',
+      tabIndex: this.selectedTabIndex
+    });
   }
 
   deleteUser(user: UserListDisplay): void {
@@ -127,8 +127,9 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   goToUser(event: UserListDisplay): void {
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.User, [event.userId]));
+    this.openUser.emit({
+      userId: event.userId,
+      tabIndex: this.selectedTabIndex
     });
   }
 
