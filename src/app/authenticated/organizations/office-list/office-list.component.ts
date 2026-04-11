@@ -10,6 +10,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -58,7 +59,8 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private authService: AuthService
+    private authService: AuthService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -86,17 +88,17 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     const orgId = (this.organizationId ?? this.authService.getUser()?.organizationId ?? '').trim();
     if (!orgId) {
       this.isServiceError = true;
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.removeLoadItem('offices'); })).subscribe({
+    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       }
     });
   }
@@ -153,15 +155,6 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

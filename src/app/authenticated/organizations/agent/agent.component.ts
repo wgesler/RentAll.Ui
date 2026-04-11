@@ -189,7 +189,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
+  //#region Utility Methods
   focusFirstField(): void {
     const el = this.firstInputRef?.nativeElement;
     if (el?.focus) {
@@ -203,23 +205,10 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }
-  //#endregion
 
-  //#region Utility Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('agentCode'));
   } 
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
-  }
 
   onEnterKey(event: Event): void {
     const target = (event as KeyboardEvent).target as HTMLElement;
@@ -230,6 +219,17 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveAgent();
     }
+  }
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.officesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+
+  back(): void {
+    this.backEvent.emit();
   }
   //#endregion
 }

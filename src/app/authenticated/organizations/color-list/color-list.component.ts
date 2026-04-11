@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ColorListDisplay, ColorResponse } from '../models/color.model';
@@ -42,7 +43,8 @@ export class ColorListComponent implements OnInit, OnDestroy {
     public colorService: ColorService,
     public toastr: ToastrService,
     public router: Router,
-    public mappingService: MappingService) {
+    public mappingService: MappingService,
+    private utilityService: UtilityService) {
   }
 
   //#region Color-List
@@ -60,20 +62,16 @@ export class ColorListComponent implements OnInit, OnDestroy {
   }
 
   getColors(): void {
-    this.colorService.getColors().pipe(take(1), finalize(() => { this.removeLoadItem('colors'); })).subscribe({
+    this.colorService.getColors().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors'); })).subscribe({
       next: (response: ColorResponse[]) => {
         this.allColors = this.mappingService.mapColors(response);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('colors');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors');
       }
     });
-  }
-
-  applyFilters(): void {
-    this.colorsDisplay = this.allColors;
   }
 
   goToColor(event: ColorListDisplay): void {
@@ -88,15 +86,10 @@ export class ColorListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
+  applyFilters(): void {
+    this.colorsDisplay = this.allColors;
   }
-
+  
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

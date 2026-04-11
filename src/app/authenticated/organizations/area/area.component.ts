@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { AreaRequest, AreaResponse } from '../models/area.model';
 import { OfficeResponse } from '../models/office.model';
 import { AreaService } from '../services/area.service';
@@ -54,7 +55,8 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -70,7 +72,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('area');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'area');
         this.buildForm();
         this.scheduleFocusFirstField();
       } else {
@@ -87,7 +89,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
         this.getArea(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('area');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'area');
         this.buildForm();
         this.scheduleFocusFirstField();
       }
@@ -105,7 +107,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.toastr.error('Invalid area ID', CommonMessage.Error);
       return;
     }
-    this.areaService.getAreaById(areaIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('area'); })).subscribe({
+    this.areaService.getAreaById(areaIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'area'); })).subscribe({
       next: (response: AreaResponse) => {
         this.area = response;
         this.buildForm();
@@ -113,7 +115,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('area');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'area');
       }
     });
   }
@@ -172,7 +174,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion
@@ -219,13 +221,15 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
+  
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveArea();
     }
   }
 
@@ -238,17 +242,6 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
 
   back(): void {
     this.backEvent.emit();
-  }
-
-  onEnterKey(event: Event): void {
-    const target = (event as KeyboardEvent).target as HTMLElement;
-    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
-      return;
-    }
-    (event as KeyboardEvent).preventDefault();
-    if (this.form?.valid && !this.isSubmitting) {
-      this.saveArea();
-    }
   }
   //#endregion
 }

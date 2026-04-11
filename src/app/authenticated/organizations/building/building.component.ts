@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { TrashDays } from '../../properties/models/property-enums';
 import { BuildingRequest, BuildingResponse } from '../models/building.model';
 import { OfficeResponse } from '../models/office.model';
@@ -56,7 +57,8 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -73,7 +75,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('building');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building');
         this.buildForm();
         this.scheduleFocusFirstField();
       } else {
@@ -90,7 +92,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
         this.getBuilding(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('building');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building');
         this.buildForm();
         this.scheduleFocusFirstField();
       }
@@ -108,7 +110,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       this.toastr.error('Invalid building ID', CommonMessage.Error);
       return;
     }
-    this.buildingService.getBuildingById(buildingIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('building'); })).subscribe({
+    this.buildingService.getBuildingById(buildingIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building'); })).subscribe({
       next: (response: BuildingResponse) => {
         this.building = response;
         this.buildForm();
@@ -116,7 +118,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('building');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building');
       }
     });
   }
@@ -199,7 +201,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion
@@ -279,7 +281,9 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
+  //#endregion
 
+  //#region Form Response Methods
   initializeTrashDays(): void {
     this.trashDays = (Object.keys(TrashDays) as (keyof typeof TrashDays)[])
       .filter(key => typeof TrashDays[key] === 'number')
@@ -293,19 +297,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     const n = Number(value);
     return Number.isNaN(n) ? TrashDays.None : n;
   }
-  //#endregion
 
-  //#region Phone formatting methods
-  formatHoaPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('hoaPhone'));
-  }
-
-  onHoaPhoneInput(event: Event): void {
-    this.formatterService.formatPhoneInput(event, this.form.get('hoaPhone'));
-  }
-  //#endregion
-
-  //#region Utility Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('buildingCode'));
   }
@@ -324,26 +316,6 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
-  }
-
   onEnterKey(event: Event): void {
     const target = (event as KeyboardEvent).target as HTMLElement;
     if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
@@ -353,6 +325,29 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveBuilding();
     }
+  }
+  //#endregion
+
+  //#region Phone formatting methods
+  formatHoaPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('hoaPhone'));
+  }
+
+  onHoaPhoneInput(event: Event): void {
+    this.formatterService.formatPhoneInput(event, this.form.get('hoaPhone'));
+  }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.officesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+
+  back(): void {
+    this.backEvent.emit();
   }
   //#endregion
 }

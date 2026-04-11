@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../models/office.model';
 import { RegionRequest, RegionResponse } from '../models/region.model';
 import { OfficeService } from '../services/office.service';
@@ -54,7 +55,8 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -70,7 +72,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('region');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'region');
         this.buildForm();
         this.scheduleFocusFirstField();
       } else {
@@ -87,7 +89,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
         this.getRegion(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('region');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'region');
         this.buildForm();
         this.scheduleFocusFirstField();
       }
@@ -105,7 +107,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.toastr.error('Invalid region ID', CommonMessage.Error);
       return;
     }
-    this.regionService.getRegionById(regionIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('region'); })).subscribe({
+    this.regionService.getRegionById(regionIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'region'); })).subscribe({
       next: (response: RegionResponse) => {
         this.region = response;
         this.buildForm();
@@ -182,7 +184,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.removeLoadItem('offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion
@@ -228,15 +230,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
       setTimeout(() => this.focusFirstField(), 100);
     });
-  }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
   }
 
   ngOnDestroy(): void {

@@ -76,27 +76,6 @@ export class AreaListComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
-        this.offices = allOffices || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.selectedOffice = uiState.selectedOffice;
-            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId);
-          }
-        });
-      });
-    });
-  }
-
-  onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    this.applyFilters();
-  }
-
   addArea(): void {
     if (this.embeddedInSettings) {
       this.areaSelected.emit('new');
@@ -107,14 +86,14 @@ export class AreaListComponent implements OnInit, OnDestroy {
   }
 
   getAreas(): void {
-    this.areaService.getAreas().pipe(take(1), finalize(() => { this.removeLoadItem('areas'); })).subscribe({
+    this.areaService.getAreas().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas'); })).subscribe({
       next: (response: AreaResponse[]) => {
         this.allAreas = this.mappingService.mapAreas(response);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('areas');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas');
       }
     });
   }
@@ -136,6 +115,38 @@ export class AreaListComponent implements OnInit, OnDestroy {
       const url = RouterUrl.replaceTokens(RouterUrl.Area, [event.areaId.toString()]);
       this.router.navigateByUrl(url);
     }
+  }
+  //#endregion
+
+  //#region Data Load Methods
+  loadOffices(): void {
+    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+        this.offices = allOffices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
+          next: uiState => {
+            this.selectedOffice = uiState.selectedOffice;
+            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          }
+        });
+      });
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  onOfficeChange(): void {
+    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.applyFilters();
+  }
+    
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
   }
   //#endregion
 
@@ -161,22 +172,6 @@ export class AreaListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    this.applyFilters();
-  }
-
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();

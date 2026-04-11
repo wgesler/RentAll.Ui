@@ -10,6 +10,7 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { getReservationStatuses } from '../../reservations/models/reservation-enum';
 import { ColorRequest, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
@@ -47,7 +48,8 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService
+    private navigationContext: NavigationContextService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -62,7 +64,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     if (this.id) {
       this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('color');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color');
         this.buildForm();
         this.scheduleFocusFirstField();
       } else {
@@ -86,7 +88,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
         this.getColor(newId);
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('color');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color');
         if (!this.form) {
           this.buildForm();
         }
@@ -106,7 +108,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.toastr.error('Invalid color ID', CommonMessage.Error);
       return;
     }
-    this.colorService.getColorById(colorIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('color'); })).subscribe({
+    this.colorService.getColorById(colorIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color'); })).subscribe({
       next: (response: ColorResponse) => {
         this.color = response;
         this.buildForm();
@@ -114,7 +116,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('color');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color');
       }
     });
   }
@@ -161,12 +163,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
   }
-
-  onColorChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const colorValue = input.value;
-    this.form.patchValue({ color: colorValue }, { emitEvent: true });
-  }
   //#endregion
 
   //#region Form methods
@@ -187,6 +183,13 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  //#region Form Response Methods
+  onColorChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const colorValue = input.value;
+    this.form.patchValue({ color: colorValue }, { emitEvent: true });
+  }
+
   focusFirstField(): void {
     this.firstInputRef?.focus();
   }
@@ -198,26 +201,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
-  }
-
   onEnterKey(event: Event): void {
     const target = (event as KeyboardEvent).target as HTMLElement;
     if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
@@ -227,6 +210,18 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     if (this.form?.valid && !this.isSubmitting) {
       this.saveColor();
     }
+  }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
+
+  back(): void {
+    this.backEvent.emit();
   }
   //#endregion
 }

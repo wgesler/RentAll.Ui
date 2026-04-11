@@ -107,7 +107,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
   }
 
   getRegions(): void {
-    this.regionService.getRegions().pipe(take(1), finalize(() => { this.removeLoadItem('regions'); })).subscribe({
+    this.regionService.getRegions().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'regions'); })).subscribe({
       next: (response: RegionResponse[]) => {
         this.allRegions = this.mappingService.mapRegions(response);
         this.applyFilters();
@@ -167,15 +167,6 @@ export class RegionListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;

@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OrganizationListDisplay } from '../models/organization.model';
@@ -47,7 +48,8 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     public organizationService: OrganizationService,
     public toastr: ToastrService,
     public router: Router,
-    private mappingService: MappingService) {
+    private mappingService: MappingService,
+    private utilityService: UtilityService) {
   }
 
   //#region Organization-List
@@ -56,7 +58,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   }
 
   getOrganizations(): void {
-    this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.removeLoadItem('organizations'); })).subscribe({
+    this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
       next: (organizations) => {
         this.allOrganizations = this.mappingService.mapOrganizations(organizations);
         this.applyFilters();
@@ -107,15 +109,6 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

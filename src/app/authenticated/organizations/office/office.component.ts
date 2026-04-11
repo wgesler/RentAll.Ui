@@ -11,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
@@ -62,7 +63,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private formatterService: FormatterService,
     private navigationContext: NavigationContextService,
     private commonService: CommonService,
-    private userService: UserService
+    private userService: UserService,
+    private utilityService: UtilityService
   ) {
   }
 
@@ -84,7 +86,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
-        this.removeLoadItem('office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
         this.buildForm();
         this.scheduleFocusFirstField();
         if (this.copyFrom) {
@@ -107,7 +109,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.getOffice(newId.toString());
       } else if (newId === 'new') {
         this.isAddMode = true;
-        this.removeLoadItem('office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
         this.buildForm();
         this.scheduleFocusFirstField();
         if (this.copyFrom) {
@@ -130,7 +132,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.removeLoadItem('office'); })).subscribe({
+    this.officeService.getOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
       next: (response: OfficeResponse) => {
         this.office = response;
         // Load logo from fileDetails if present (contains base64 image data)
@@ -160,7 +162,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       }
     });
   }
@@ -353,28 +355,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.setupConditionalFields();
   }
 
-  setupConditionalFields(): void {
-    this.form.get('isInternational')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isInternational => {
-      const cityControl = this.form.get('city');
-      const stateControl = this.form.get('state');
-      const zipControl = this.form.get('zip');
-
-      if (isInternational) {
-        cityControl?.clearValidators();
-        stateControl?.clearValidators();
-        zipControl?.clearValidators();
-      } else {
-        cityControl?.setValidators([Validators.required]);
-        stateControl?.setValidators([Validators.required]);
-        zipControl?.setValidators([Validators.required]);
-      }
-
-      cityControl?.updateValueAndValidity({ emitEvent: false });
-      stateControl?.updateValueAndValidity({ emitEvent: false });
-      zipControl?.updateValueAndValidity({ emitEvent: false });
-    });
-  }
-
   populateForm(): void {
     if (this.office && this.form) {
       // Use setTimeout to defer form population to avoid ExpressionChangedAfterItHasBeenCheckedError
@@ -461,6 +441,28 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       parkingLowEnd: o.parkingLowEnd != null ? o.parkingLowEnd.toFixed(2) : '0.00',
       parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00'
     }, { emitEvent: false });
+  }
+
+  setupConditionalFields(): void {
+    this.form.get('isInternational')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(isInternational => {
+      const cityControl = this.form.get('city');
+      const stateControl = this.form.get('state');
+      const zipControl = this.form.get('zip');
+
+      if (isInternational) {
+        cityControl?.clearValidators();
+        stateControl?.clearValidators();
+        zipControl?.clearValidators();
+      } else {
+        cityControl?.setValidators([Validators.required]);
+        stateControl?.setValidators([Validators.required]);
+        zipControl?.setValidators([Validators.required]);
+      }
+
+      cityControl?.updateValueAndValidity({ emitEvent: false });
+      stateControl?.updateValueAndValidity({ emitEvent: false });
+      zipControl?.updateValueAndValidity({ emitEvent: false });
+    });
   }
   //#endregion
 
@@ -555,7 +557,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('officeCode'));
   }
@@ -573,16 +575,20 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }
-
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
+ 
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
+      return;
+    }
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.status === 'VALID' && !this.isSubmitting) {
+      this.saveOffice();
     }
   }
+ //#endregion
 
+  //#region User Access To Office
   syncCurrentUserOfficeAccess(officeId: number, addAccess: boolean): Observable<boolean> {
     if (!Number.isFinite(officeId) || officeId <= 0) {
       return of(false);
@@ -594,8 +600,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       return of(false);
     }
 
-    return this.userService.getUserByGuid(currentUserId).pipe(
-      take(1),
+    return this.userService.getUserByGuid(currentUserId).pipe(take(1),
       switchMap((userResponse: UserResponse) => {
         const normalizedOfficeAccess = (userResponse.officeAccess || [])
           .map(id => Number(id))
@@ -644,7 +649,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       catchError(() => of(false))
     );
   }
+  //#endregion
 
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -654,18 +661,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   back(): void {
     this.backEvent.emit();
   }
-
-  onEnterKey(event: Event): void {
-    const target = (event as KeyboardEvent).target as HTMLElement;
-    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
-      return;
-    }
-    (event as KeyboardEvent).preventDefault();
-    if (this.form?.status === 'VALID' && !this.isSubmitting) {
-      this.saveOffice();
-    }
-  }
-
 //#endregion
 }
 

@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -48,7 +49,8 @@ export class AgentListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService) {
+    private officeService: OfficeService,
+    private utilityService: UtilityService) {
   }
 
   //#region Agent-List
@@ -66,14 +68,14 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
 
   getAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => { this.removeLoadItem('agents'); })).subscribe({
+    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
       next: (response: AgentResponse[]) => {
         this.allAgents = this.mappingService.mapAgents(response);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
-        this.removeLoadItem('agents');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents');
       }
     });
   }
@@ -99,7 +101,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Filtering Methods
-  /** Agents are never filtered by office (including when embeddedInSettings). Only isActive is applied. */
   applyFilters(): void {
     this.agentsDisplay = this.showInactive
       ? this.allAgents
@@ -113,15 +114,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  removeLoadItem(key: string): void {
-    const currentSet = this.itemsToLoad$.value;
-    if (currentSet.has(key)) {
-      const newSet = new Set(currentSet);
-      newSet.delete(key);
-      this.itemsToLoad$.next(newSet);
-    }
-  }
-
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }
