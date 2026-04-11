@@ -194,6 +194,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: new FormControl<string>(d.revenueSplitOffice),
       workingCapitalBalance: new FormControl<string>(d.workingCapitalBalance),
       linenAndTowelFee: new FormControl<string>(d.linenAndTowelFee),
+      hourlyLaborCost: new FormControl<string>(d.hourlyLaborCost),
       bankName: new FormControl(d.bankName),
       routingNumber: new FormControl(d.routingNumber),
       accountNumber: new FormControl(d.accountNumber),
@@ -221,6 +222,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: this.formatAgreementPercentForDisplay(data.revenueSplitOffice),
       workingCapitalBalance: this.formatAgreementDecimalForDisplay(data.workingCapitalBalance),
       linenAndTowelFee: this.formatAgreementDecimalForDisplay(data.linenAndTowelFee),
+      hourlyLaborCost: this.formatAgreementDecimalForDisplay(data.hourlyLaborCost),
       bankName: data.bankName ?? '',
       routingNumber: data.routingNumber ?? '',
       accountNumber: data.accountNumber ?? '',
@@ -304,6 +306,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     revenueSplitOffice: string;
     workingCapitalBalance: string;
     linenAndTowelFee: string;
+    hourlyLaborCost: string;
     bankName: string;
     routingNumber: string;
     accountNumber: string;
@@ -320,6 +323,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: '0%',
       workingCapitalBalance: '$0.00',
       linenAndTowelFee: '$0.00',
+      hourlyLaborCost: '$0.00',
       bankName: '',
       routingNumber: '',
       accountNumber: '',
@@ -355,6 +359,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
           : null,
       workingCapitalBalance: this.parseAgreementDecimalFromForm(v?.workingCapitalBalance),
       linenAndTowelFee: this.parseAgreementDecimalFromForm(v?.linenAndTowelFee),
+      hourlyLaborCost: this.parseAgreementDecimalFromForm(v?.hourlyLaborCost),
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,
       accountNumber: (v?.accountNumber || '').trim() || null,
@@ -748,7 +753,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementForm?.markAsDirty();
   }
 
-  formatAgreementDecimalBlur(controlName: 'workingCapitalBalance' | 'linenAndTowelFee' | 'managementFlatRateAmount'): void {
+  formatAgreementDecimalBlur(controlName: 'workingCapitalBalance' | 'linenAndTowelFee' | 'managementFlatRateAmount' | 'hourlyLaborCost'): void {
     const c = this.agreementForm?.get(controlName);
     const v = c?.value;
     if (v == null || v === '') {

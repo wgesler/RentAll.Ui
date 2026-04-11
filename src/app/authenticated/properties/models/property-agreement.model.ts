@@ -16,6 +16,7 @@ export interface PropertyAgreementRequest {
   revenueSplitOffice?: number | null;
   workingCapitalBalance?: number | null;
   linenAndTowelFee?: number | null;
+  hourlyLaborCost?: number | null;
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
@@ -41,6 +42,7 @@ export interface PropertyAgreementResponse {
   revenueSplitOffice: number;
   workingCapitalBalance: number;
   linenAndTowelFee: number;
+  hourlyLaborCost?: number | null;
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;

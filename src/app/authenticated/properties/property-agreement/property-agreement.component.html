@@ -29,13 +29,13 @@
             </mat-form-field>
           </div>
         </div>
-        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving || !agreementForm.valid">
+        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving">
           <mat-icon>save</mat-icon>
           Save
         </button>
       </div>
     </div>
-    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">
       <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
         <mat-label>Markup</mat-label>
         <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
@@ -47,6 +47,10 @@
       <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
         <mat-label>Linen and Towel Fee</mat-label>
         <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+        <mat-label>Hourly Labor Cost</mat-label>
+        <input matInput type="text" formControlName="hourlyLaborCost" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('hourlyLaborCost')" />
       </mat-form-field>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-2 mb-4">

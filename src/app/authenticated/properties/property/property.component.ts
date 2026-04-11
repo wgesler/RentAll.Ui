@@ -501,7 +501,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       zip: new FormControl('', [Validators.required]),
       neighborhood: new FormControl(''),
       crossStreet: new FormControl(''),
-      bedrooms: new FormControl(0, [Validators.required, Validators.min(1)]),
+      bedrooms: new FormControl(0, [Validators.required, Validators.min(0)]),
       bathrooms: new FormControl(0, [Validators.required, Validators.min(1)]),
       squareFeet: new FormControl(0, [Validators.required, Validators.min(1)]),
       bedroomId1: new FormControl(0),
