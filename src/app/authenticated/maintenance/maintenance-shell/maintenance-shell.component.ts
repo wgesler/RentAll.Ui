@@ -11,7 +11,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -99,7 +99,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {}
 
@@ -166,10 +166,10 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       return;
     }
 
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.selectedOfficeId = uiState.selectedOfficeId;
@@ -267,7 +267,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   //#region Top Bar Event Methods
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.updateAvailableProperties();
     if (this.property && this.selectedOfficeId !== this.property.officeId) {
       this.selectedPropertyId = null;

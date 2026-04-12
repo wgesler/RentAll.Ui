@@ -24,7 +24,6 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
     return true;
   }
   if (
-    s.unfurnished ||
     s.cable ||
     s.streaming ||
     s.pool ||

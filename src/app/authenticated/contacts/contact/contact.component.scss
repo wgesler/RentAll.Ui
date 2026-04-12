@@ -80,6 +80,40 @@
   min-width: 0;
 }
 
+.form-grid-three-equal {
+  grid-template-columns: repeat(3, 1fr);
+  min-width: 0;
+}
+
+.form-grid-two-equal {
+  grid-template-columns: repeat(2, 1fr);
+  min-width: 0;
+}
+
+/** Vendor add row: Contact Type (1) + Vendor Type (1) + Office Access (2) + Default Office (1). */
+.form-grid-fifths {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+}
+
+/** Six columns: e.g. Vendor edit Code+Type+VendorType+OfficeAccess+Default (1+1+1+2+1); Code+Type+First+Last (1+1+2+2); Vendor row 2 Company+First+Last (2+2+2). */
+.form-grid-sixths {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-width: 0;
+}
+
+/** Owner add / Tenant: Contact Type (1) + First (3) + Last (3). Company row 2: Office Access (2) + Default Office (1) + First (2) + Last (2). Vendor row 1: Type (1) + Vendor Type (1) + Company (2) + Office Access (2) + Default Office (1). */
+.form-grid-sevenths {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 0;
+}
+
+/** US address row: Address1 (2) + Address2 (2) + City (2) + State (1) + Zip (1). */
+.form-grid-eighths {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  min-width: 0;
+}
+
 .field-min-0 {
   min-width: 0;
 }

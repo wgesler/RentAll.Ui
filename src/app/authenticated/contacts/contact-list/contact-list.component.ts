@@ -11,7 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -94,7 +94,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private route: ActivatedRoute) {
   }
 
@@ -108,7 +108,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadContacts();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -226,7 +226,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (this.selectedOffice) {
-      filtered = filtered.filter(contact => contact.officeId === this.selectedOffice.officeId);
+      filtered = filtered.filter(contact => {
+        const officeAccess = (contact.officeAccess || []).map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0);
+        if (officeAccess.length > 0) {
+          return officeAccess.includes(this.selectedOffice!.officeId);
+        }
+        return Number(contact.officeId) === this.selectedOffice!.officeId;
+      });
     }
 
     this.contactsDisplay = filtered;
@@ -260,7 +266,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
  
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
@@ -305,11 +311,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId);
@@ -344,6 +350,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
     return {
       ...requestBase,
+      officeAccess: this.mappingService.normalizeOfficeAccessNumbers(contact.officeAccess),
       isActive
     };
   }

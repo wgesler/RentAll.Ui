@@ -25,6 +25,7 @@ export class ContactService {
   loadAllContacts(): Observable<ContactResponse[]> {
     const url = this.controller;
     return this.http.get<ContactResponse[]>(url).pipe(
+      map(contacts =>(contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))),
       tap(contacts => {
         this.allContacts$.next(contacts || []);
         this.contactsLoaded$.next(true);
@@ -82,11 +83,19 @@ export class ContactService {
   }
 
   getContacts(): Observable<ContactResponse[]> {
-    return this.http.get<ContactResponse[]>(this.controller);
+    return this.http.get<ContactResponse[]>(this.controller).pipe(
+      map(contacts =>
+        (contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))
+      )
+    );
   }
 
   getContactsByType(contactTypeId: number): Observable<ContactResponse[]> {
-    return this.http.get<ContactResponse[]>(this.controller + 'type/' + contactTypeId);
+    return this.http.get<ContactResponse[]>(this.controller + 'type/' + contactTypeId).pipe(
+      map(contacts =>
+        (contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))
+      )
+    );
   }
 
   getContactByGuid(contactId: string): Observable<ContactResponse> {
@@ -96,11 +105,15 @@ export class ContactService {
   }
 
   createContact(contact: ContactRequest): Observable<ContactResponse> {
-    return this.http.post<ContactResponse>(this.controller, contact);
+    return this.http.post<ContactResponse>(this.controller, contact).pipe(
+      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   updateContact(contact: ContactRequest): Observable<ContactResponse> {
-    return this.http.put<ContactResponse>(this.controller, contact);
+    return this.http.put<ContactResponse>(this.controller, contact).pipe(
+      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   deleteContact(contactId: string): Observable<void> {

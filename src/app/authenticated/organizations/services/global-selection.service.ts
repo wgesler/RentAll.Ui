@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, map, switchMap, take } from 'rxjs';
+import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from './accounting-office.service';
 import { OfficeService } from './office.service';
-import { AuthService } from '../../../services/auth.service';
 
 export interface OfficeUiStateOptions {
   explicitOfficeId?: number | null;
@@ -23,9 +23,12 @@ export interface OfficeUiState {
 @Injectable({
   providedIn: 'root'
 })
-export class GlobalOfficeSelectionService {
-  private readonly storageKey = 'rentall.globalOfficeId';
-  private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readFromStorage());
+export class GlobalSelectionService {
+  private readonly officeStorageKey = 'rentall.globalOfficeId';
+  private readonly furnishedPropertyStorageKey = 'rentall.furnishedPropertySelection';
+  private selectedOfficeId$ = new BehaviorSubject<number | null>(this.readOfficeIdFromStorage());
+  /** false = furnished-only (non-unfurnished); true = unfurnished-only. Reset on login / clear session. */
+  private furnishedPropertySelection$ = new BehaviorSubject<boolean>(this.readFurnishedPropertySelectionFromStorage());
 
   constructor(
     private officeService: OfficeService,
@@ -43,7 +46,26 @@ export class GlobalOfficeSelectionService {
 
   setSelectedOfficeId(officeId: number | null): void {
     this.selectedOfficeId$.next(officeId);
-    this.writeToStorage(officeId);
+    this.writeOfficeIdToStorage(officeId);
+  }
+
+  getFurnishedPropertySelection(): boolean {
+    return this.furnishedPropertySelection$.value;
+  }
+
+  getFurnishedPropertySelection$(): Observable<boolean> {
+    return this.furnishedPropertySelection$.asObservable();
+  }
+
+  setFurnishedPropertySelection(value: boolean): void {
+    const v = value === true;
+    this.furnishedPropertySelection$.next(v);
+    this.writeFurnishedPropertySelectionToStorage(v);
+  }
+
+  resetFurnishedPropertySelection(): void {
+    this.furnishedPropertySelection$.next(false);
+    localStorage.removeItem(this.furnishedPropertyStorageKey);
   }
 
   syncWithAvailableOffices(offices: OfficeResponse[], preferredOfficeId: number | null = null): number | null {
@@ -53,7 +75,6 @@ export class GlobalOfficeSelectionService {
       return null;
     }
 
-    // When user has a default office (e.g. from JWT or profile), use it to initialize the dropdown
     if (preferredOfficeId !== null && accessibleOffices.some(office => office.officeId === preferredOfficeId)) {
       this.setSelectedOfficeId(preferredOfficeId);
       return preferredOfficeId;
@@ -64,7 +85,6 @@ export class GlobalOfficeSelectionService {
       return currentSelection;
     }
 
-    // Keep the previous UX for single-office users.
     if (accessibleOffices.length === 1) {
       const singleOfficeId = accessibleOffices[0].officeId;
       this.setSelectedOfficeId(singleOfficeId);
@@ -129,8 +149,8 @@ export class GlobalOfficeSelectionService {
     return source.filter(office => officeAccessSet.has(Number(office.officeId)));
   }
 
-  readFromStorage(): number | null {
-    const rawValue = localStorage.getItem(this.storageKey);
+  private readOfficeIdFromStorage(): number | null {
+    const rawValue = localStorage.getItem(this.officeStorageKey);
     if (!rawValue) {
       return null;
     }
@@ -139,12 +159,32 @@ export class GlobalOfficeSelectionService {
     return Number.isFinite(parsedValue) ? parsedValue : null;
   }
 
-  writeToStorage(officeId: number | null): void {
+  private writeOfficeIdToStorage(officeId: number | null): void {
     if (officeId === null) {
-      localStorage.removeItem(this.storageKey);
+      localStorage.removeItem(this.officeStorageKey);
       return;
     }
 
-    localStorage.setItem(this.storageKey, officeId.toString());
+    localStorage.setItem(this.officeStorageKey, officeId.toString());
+  }
+
+  private readFurnishedPropertySelectionFromStorage(): boolean {
+    const rawValue = localStorage.getItem(this.furnishedPropertyStorageKey);
+    if (rawValue == null || rawValue === '') {
+      return false;
+    }
+    const normalized = rawValue.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y') {
+      return true;
+    }
+    return false;
+  }
+
+  private writeFurnishedPropertySelectionToStorage(value: boolean): void {
+    if (!value) {
+      localStorage.removeItem(this.furnishedPropertyStorageKey);
+    } else {
+      localStorage.setItem(this.furnishedPropertyStorageKey, 'true');
+    }
   }
 }

@@ -276,6 +276,10 @@ export class UserComponent implements OnInit, OnDestroy {
       isActive: formValue.isActive
     };
 
+    if (!this.isAddMode && this.user != null && this.user.contactId !== undefined) {
+      userRequest.contactId = this.user.contactId;
+    }
+
     // Non-admin editors should not modify privileged fields in edit mode.
     if (!this.isPrivilegedOfficeEditor && !this.isAddMode && this.user) {
       userRequest.organizationId = this.user.organizationId;

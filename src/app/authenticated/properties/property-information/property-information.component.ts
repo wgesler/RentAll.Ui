@@ -12,7 +12,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
 import { PropertyResponse } from '../models/property.model';
 import { PropertyLetterService } from '../services/property-letter.service';
@@ -56,7 +56,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     private formatterService: FormatterService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private utilityService: UtilityService
   ) {
     this.form = this.buildForm();
@@ -214,7 +214,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
           next: uiState => {
             this.selectedOffice = uiState.selectedOffice;
             this.showOfficeDropdown = uiState.showOfficeDropdown;

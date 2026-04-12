@@ -29,7 +29,7 @@ import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getCheckInTime, getCheckOutTime } from '../../properties/models/property-enums';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -117,7 +117,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private sanitizer: DomSanitizer,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private http: HttpClient,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
@@ -492,7 +492,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

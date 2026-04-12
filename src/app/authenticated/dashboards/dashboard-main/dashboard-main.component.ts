@@ -21,7 +21,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { FormsModule } from '@angular/forms';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -172,7 +172,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     private agentService: AgentService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private toastr: ToastrService
   ) { }
 
@@ -205,7 +205,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       this.loadAgents();
     }
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -215,10 +215,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId);
@@ -227,7 +227,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.offices = [];
-        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
       }
     });
   }
@@ -314,7 +314,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
   //#region Setting and Filtering
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.recomputeDashboardData();
   }
 

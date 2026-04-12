@@ -31,7 +31,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { PropertyStatus } from '../models/property-enums';
@@ -83,7 +83,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     private regionService: RegionService,
     private areaService: AreaService,
     private buildingService: BuildingService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private propertySelectionFilterService: PropertySelectionFilterService
   ) {
   }
@@ -96,7 +96,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.loadStates();
     this.loadDropDownLookups();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().subscribe(() => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().subscribe(() => {
       this.applyOfficeFilterToLookups();
     });
 
@@ -251,7 +251,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFilterToLookups(): void {
-    const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+    const officeId = this.globalSelectionService.getSelectedOfficeIdValue();
     if (officeId == null) {
       this.regions = [...this.allRegionsByOrg];
       this.areas = [...this.allAreasByOrg];
@@ -291,7 +291,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       city: new FormControl<string>(''),
       state: new FormControl<string>(''),
       maxRent: new FormControl<number | null>(null),
-      unfurnished: new FormControl<boolean>(false),
       cable: new FormControl<boolean>(false),
       streaming: new FormControl<boolean>(false),
       pool: new FormControl<boolean>(false),
@@ -326,7 +325,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       city: response?.city ?? '',
       state: response?.state ?? '',
 
-      unfurnished: response?.unfurnished ?? false,
       cable: response?.cable ?? false,
       streaming: response?.streaming ?? false,
       pool: response?.pool ?? false,
@@ -368,7 +366,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
         propertyCode: null,
         city: null,
         state: null,
-        unfurnished: false,
         cable: false,
         streaming: false,
         pool: false,
@@ -403,7 +400,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       city: '',
       state: '',
       maxRent: null,
-      unfurnished: false,
       cable: false,
       streaming: false,
       pool: false,
@@ -459,7 +455,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       propertyCode: this.toStringOrNull(v.propertyCode),
       city: this.toStringOrNull(v.city),
       state: this.toStringOrNull(v.state),
-      unfurnished: !!v.unfurnished,
       cable: !!v.cable,
       streaming: !!v.streaming,
       pool: !!v.pool,

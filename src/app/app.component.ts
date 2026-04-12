@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
-import { GlobalOfficeSelectionService } from './authenticated/organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from './authenticated/organizations/services/global-selection.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
@@ -39,7 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private organizationListService: OrganizationListService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
     private utilityService: UtilityService,
@@ -108,12 +108,12 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.organizationId) {
       this.officeService.clearOffices();
       this.accountingOfficeService.clearAccountingOffices();
-      this.globalOfficeSelectionService.setSelectedOfficeId(null);
+      this.globalSelectionService.setSelectedOfficeId(null);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
     })).subscribe({

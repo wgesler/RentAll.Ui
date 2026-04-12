@@ -7,7 +7,7 @@ import { take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
+import { GlobalSelectionService } from '../services/global-selection.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
 import { UserGroups } from '../../users/models/user-enums';
@@ -105,7 +105,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     private organizationService: OrganizationService,
     private officeService: OfficeService,
     private authService: AuthService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalSelectionService: GlobalSelectionService
   ) {
   }
 
@@ -114,7 +114,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
     // Cost Codes in Settings: default to working office so list is filtered by office
-    this.selectedCostCodesOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+    this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     // Check if user is SuperAdmin
     const user = this.authService.getUser();
     this.currentUserOrganizationId = user?.organizationId || null;
@@ -208,13 +208,13 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onSettingsOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     this.selectedCostCodesOfficeId = Number.isFinite(officeId as number) ? officeId : null;
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
   }
 
   onCostCodesOfficeChangeFromList(officeId: number | null): void {
     // Handle office change from cost-codes-list component
     this.selectedCostCodesOfficeId = officeId;
-    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+    this.globalSelectionService.setSelectedOfficeId(officeId);
   }
 
   onOfficeSelected(officeId: string | number | null): void {
@@ -344,12 +344,12 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.globalOfficeSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
       next: (selectedOfficeId) => {
         this.offices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
         if (this.offices.length === 1) {
           this.selectedCostCodesOfficeId = this.offices[0].officeId;
-          this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+          this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
           return;
         }
 

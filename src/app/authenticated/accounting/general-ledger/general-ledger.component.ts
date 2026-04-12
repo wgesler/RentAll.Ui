@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, filter, skip, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -110,7 +110,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     private utilityService: UtilityService,
     private formatter: FormatterService,
     private authService: AuthService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalSelectionService: GlobalSelectionService
   ) {}
 
   //#region General-Ledger
@@ -123,7 +123,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.loadCostCodes();
     this.loadInvoices();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -177,7 +177,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
    
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanyContacts();
     this.filterReservations();
@@ -202,12 +202,12 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.showOfficeDropdown = true;
-        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
       },
       error: () => {
         this.offices = [];

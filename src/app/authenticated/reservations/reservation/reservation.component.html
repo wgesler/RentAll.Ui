@@ -718,30 +718,42 @@
                           <td style="min-width: 100px;">
                             <input type="text" class="w-full editable-input" 
                               #extraFeeDescriptionInput
+                              [attr.data-field]="'description'"
+                              [attr.data-index]="i"
                               [value]="line.feeDescription || ''"
                               (input)="updateExtraFeeLineField(i, 'feeDescription', $any($event.target).value || '')"
                               placeholder="Enter fee description">
                           </td>
                           <td style="width: 350px;">
-                            <mat-select [value]="line.costCodeId || null" 
-                              (selectionChange)="updateExtraFeeLineField(i, 'costCodeId', $event.value)"
-                              class="w-full"
-                              [disabled]="!selectedOffice">
-                              <mat-option [value]="null">Select Cost Code</mat-option>
-                              @for (costCode of availableChargeCostCodes; track costCode.value) {
-                                <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
-                              }
-                            </mat-select>
+                            <app-searchable-select
+                              [renderInFormField]="false"
+                              [value]="line.costCodeId || null"
+                              [options]="availableChargeCostCodes"
+                              [disabled]="!selectedOffice"
+                              [openOnFocus]="true"
+                              [showSearchInput]="true"
+                              [hideSearchHint]="true"
+                              [hideSearchText]="true"
+                              [nullOptionLabel]="'Select Cost Code'"
+                              [noResultsText]="'No cost codes match your search'"
+                              [selectClass]="'w-full'"
+                              (valueChange)="updateExtraFeeLineField(i, 'costCodeId', $event)">
+                            </app-searchable-select>
                           </td>
                           <td style="width: 250px;">
-                            <mat-select [value]="getExtraFeeFrequencyValue(line.feeFrequencyId)" 
-                              (selectionChange)="updateExtraFeeLineField(i, 'feeFrequencyId', $event.value)"
-                              class="w-full">
-                              <mat-option [value]="null">Select Frequency</mat-option>
-                              @for (frequency of availableFrequencies; track frequency.value) {
-                                <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
-                              }
-                            </mat-select>
+                            <app-searchable-select
+                              [renderInFormField]="false"
+                              [value]="getExtraFeeFrequencyValue(line.feeFrequencyId)"
+                              [options]="availableFrequencies"
+                              [openOnFocus]="true"
+                              [showSearchInput]="true"
+                              [hideSearchHint]="true"
+                              [hideSearchText]="true"
+                              [nullOptionLabel]="'Select Frequency'"
+                              [noResultsText]="'No frequencies match your search'"
+                              [selectClass]="'w-full'"
+                              (valueChange)="updateExtraFeeLineField(i, 'feeFrequencyId', $event)">
+                            </app-searchable-select>
                           </td>
                           <td style="width: 120px;">
                             <input type="text" class="w-full editable-input" 
@@ -758,6 +770,7 @@
                             <button mat-icon-button type="button" (click)="removeExtraFeeLine(i)" 
                               class="delete-ledger-line-btn" 
                               style="color: #ae1f66;"
+                              tabindex="-1"
                               matTooltip="Remove this extra fee line">
                               <mat-icon style="color: #ae1f66;">close</mat-icon>
                             </button>

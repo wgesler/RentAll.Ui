@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormControl, FormGroupDirective, FormsModule, NgForm } from '@angular/forms';
 import { ErrorStateMatcher } from '@angular/material/core';
+import { MatSelect } from '@angular/material/select';
 import { MaterialModule } from '../../../material.module';
 
 export interface SearchableSelectOption<TValue = string | number | null> {
@@ -35,6 +36,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           </mat-label>
         }
         <mat-select
+          #searchableSelectRef
           [value]="normalizedValue"
           [required]="required"
           [canSelectNullableOptions]="true"
@@ -44,6 +46,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           [disabled]="disabled"
           class="searchable-select-control"
           [ngClass]="selectClass"
+          (focusin)="onFocusIn(searchableSelectRef)"
           (selectionChange)="valueChange.emit($event.value)"
           (keydown)="onSelectKeydown($event)"
           (openedChange)="onOpenedChange($event)">
@@ -86,6 +89,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
       </mat-form-field>
     } @else {
       <mat-select
+        #searchableSelectRef
         [value]="normalizedValue"
         [required]="required"
         [canSelectNullableOptions]="true"
@@ -95,6 +99,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         [disabled]="disabled"
         class="searchable-select-control"
         [ngClass]="selectClass"
+        (focusin)="onFocusIn(searchableSelectRef)"
         (selectionChange)="valueChange.emit($event.value)"
         (keydown)="onSelectKeydown($event)"
         (openedChange)="onOpenedChange($event)">
@@ -158,6 +163,7 @@ export class SearchableSelectComponent {
   @Input() errorText = 'Required';
   @Input() labelRequiredAsterisk = false;
   @Input() triggerValueClickable = false;
+  @Input() openOnFocus = false;
   @Output() valueChange = new EventEmitter<string | number | null>();
   @Output() triggerValueClick = new EventEmitter<Event>();
 
@@ -214,6 +220,17 @@ export class SearchableSelectComponent {
     if (opened && this.resetSearchOnOpen) {
       this.searchText = '';
     }
+  }
+
+  onFocusIn(select: MatSelect): void {
+    if (!this.openOnFocus || this.disabled || this.isPanelOpen) {
+      return;
+    }
+    setTimeout(() => {
+      if (!this.isPanelOpen) {
+        select.open();
+      }
+    }, 0);
   }
 
   onSelectKeydown(event: KeyboardEvent): void {

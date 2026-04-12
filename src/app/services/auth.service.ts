@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injector, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
@@ -11,6 +11,7 @@ import { JwtContainer, JwtUser } from '../public/login/models/jwt';
 import { LoginRequest } from '../public/login/models/login-request';
 import { RefreshTokenRequest } from '../public/login/models/refresh-token-request';
 import { UserGroups } from '../authenticated/users/models/user-enums';
+import { GlobalSelectionService } from '../authenticated/organizations/services/global-selection.service';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
 
@@ -33,7 +34,8 @@ export class AuthService {
         private router: Router,
         private dialog: MatDialog,
         private storageService: StorageService,
-        private configService: ConfigService)
+        private configService: ConfigService,
+        private injector: Injector)
     {
         const authData = this.storageService.getItem(StorageKey.AuthData);
         const storageAuthData = authData !== null ? JSON.parse(authData) as AuthResponse : null;
@@ -46,6 +48,7 @@ export class AuthService {
         this.isLoggingOut$.next(false);
         this.clearSensitiveData();
         return this.http.post<AuthResponse>(this.controller + 'login', request).pipe(
+            tap(() => this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection()),
             tap((response: AuthResponse) => this.setAuthData(response))
         );
     }
@@ -232,6 +235,11 @@ export class AuthService {
         this.jwtContainer$.next(undefined);
         this.storageService.removeItem(StorageKey.AuthData);
         this.storageService.removeItem(StorageKey.AccessEvent);
+        try {
+            this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection();
+        } catch {
+            /* GlobalSelectionService may not be available during teardown */
+        }
     }
 
 

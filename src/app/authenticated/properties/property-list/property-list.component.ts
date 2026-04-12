@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
@@ -13,7 +14,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -50,6 +51,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  furnishedPropertyToggleChecked = false;
   allProperties: PropertyListDisplayRow[] = [];
   propertiesDisplay: PropertyListDisplayRow[] = [];
 
@@ -104,7 +106,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private route: ActivatedRoute,
     private utilityService: UtilityService,
     private dialog: MatDialog,
@@ -125,7 +127,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
+      this.furnishedPropertyToggleChecked = v === true;
+      if (this.officeScopeResolved) {
+        this.applyFilters();
+      }
+    });
+
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -133,30 +142,26 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const path = e.urlAfterRedirects.split('?')[0];
-      const isPropertyList = /\/properties$/.test(path);
-      const fromSelection = this.lastNavigationUrl.includes('/selection');
-      if (isPropertyList && fromSelection) {
+      if (/\/properties$/.test(path) && this.lastNavigationUrl.includes('/selection')) {
         this.getProperties();
       }
       this.lastNavigationUrl = path;
     });
 
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.resolveOfficeScope(this.officeId, false);
       }
       
       this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
+        if (params['officeId']) {
+          const parsedOfficeId = parseInt(params['officeId'], 10);
           if (parsedOfficeId) {
             this.resolveOfficeScope(parsedOfficeId, true);
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
+            this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue(), true);
           }
         }
       });
@@ -167,18 +172,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
-      
+
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
         if (this.offices.length > 0) {
           this.resolveOfficeScope(newOfficeId, false);
         }
       }
     }
-  }
-
-  @HostListener('window:resize')
-  onWindowResize(): void {
-    this.updateDisplayedColumns();
   }
 
   getProperties(): void {
@@ -196,7 +196,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.allProperties = this.mappingService.mapPropertyListRows(properties || []);
         this.applyFilters();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.allProperties = [];
         this.propertiesDisplay = [];
@@ -241,8 +241,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyPropertyIsActiveValue(event.propertyId, nextValue);
 
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(
-      take(1),
+    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
       switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyIsActiveUpdateRequest(property, nextValue)).pipe(take(1))),
       finalize(() => this.applyFilters())
     ).subscribe({
@@ -325,7 +324,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
-  
+
+  onUnfurnishedToggle(event: MatSlideToggleChange): void {
+    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
+  }
+
   applyFilters(): void {
     if (!this.officeScopeResolved) {
       return;
@@ -341,17 +344,19 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);
     }
 
+    filtered = filtered.filter(property => property.unfurnished === this.globalSelectionService.getFurnishedPropertySelection());
+
     this.propertiesDisplay = filtered;
   }
   //#endregion
 
   //#region Office Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             if (this.officeId !== null && this.officeId !== undefined) {
@@ -389,7 +394,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
   }
 
@@ -488,6 +493,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateDisplayedColumns();
+  }
+
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
     this.propertiesDisplayedColumns = this.isCompactView ? this.compactPropertiesDisplayedColumns : this.fullPropertiesDisplayedColumns;

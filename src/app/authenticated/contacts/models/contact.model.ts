@@ -4,9 +4,12 @@ export interface ContactRequest {
   contactId?: string;
   organizationId: string;
   officeId: number;
+  officeAccess: number[];
   contactCode?: string;
+  userId?: string | null;
   entityTypeId: number;
   ownerTypeId?: number | null;
+  vendorTypeId?: number | null;
   properties: string[];
   companyName?: string | null;
   companyEmail?: string | null;
@@ -29,8 +32,6 @@ export interface ContactRequest {
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
   markup?: number | null;
-  agreementPath?: string | null;
-  agreementFileDetails?: FileDetails | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;
   workingCapitalBalance?: number | null;
@@ -47,9 +48,12 @@ export interface ContactResponse {
   organizationId: string;
   officeId: number;
   officeName: string;
+  officeAccess?: number[];
   contactCode: string;
+  userId?: string | null;
   entityTypeId: number;
   ownerTypeId?: number | null;
+  vendorTypeId?: number | null;
   properties: string[];
   companyName?: string | null;
   companyEmail?: string | null;
@@ -73,8 +77,6 @@ export interface ContactResponse {
   insuranceFileDetails?: FileDetails | null;
   insuranceExpiration?: string | null;
   markup?: number | null;
-  agreementPath?: string | null;
-  agreementFileDetails?: FileDetails | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;
   workingCapitalBalance?: number | null;
@@ -91,6 +93,7 @@ export interface ContactListDisplay {
   contactCode: string;
   officeId: number;
   officeName: string;
+  officeAccess?: number[];
   fullName?: string | null;
   contactType: string;
   entityTypeId?: number;

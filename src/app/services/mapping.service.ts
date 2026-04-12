@@ -127,22 +127,80 @@ export class MappingService {
     }));
   }
 
+  /** Same normalization as User office access: number[], with API string/comma/JSON fallbacks. */
+  normalizeOfficeAccessNumbers(value: unknown): number[] {
+    if (value == null || value === '') {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return Array.from(new Set(
+        value
+          .map(id => (typeof id === 'string' ? parseInt(id, 10) : Number(id)))
+          .filter(id => Number.isFinite(id) && !Number.isNaN(id) && id > 0)
+      ));
+    }
+    if (typeof value === 'string') {
+      const s = value.trim();
+      if (!s) {
+        return [];
+      }
+      if (s.startsWith('[')) {
+        try {
+          return this.normalizeOfficeAccessNumbers(JSON.parse(s) as unknown);
+        } catch {
+          return [];
+        }
+      }
+      return Array.from(new Set(
+        s.split(',')
+          .map(part => parseInt(part.trim(), 10))
+          .filter(id => Number.isFinite(id) && !Number.isNaN(id) && id > 0)
+      ));
+    }
+    return [];
+  }
+
   mapContactResponse(raw: Record<string, unknown>): ContactResponse {
-    return raw as unknown as ContactResponse;
+    const officeAccess = this.normalizeOfficeAccessNumbers(raw['officeAccess']);
+    const rawOfficeId = raw['officeId'] ?? raw['defaultOfficeId'];
+    const parsedOfficeId = Number(rawOfficeId);
+    const officeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
+      ? parsedOfficeId
+      : (officeAccess[0] ?? 0);
+    const base = raw as unknown as ContactResponse;
+    const parsedEntityTypeId = Number(raw['entityTypeId']);
+    const isVendor = Number.isFinite(parsedEntityTypeId) && parsedEntityTypeId === EntityType.Vendor;
+    let vendorTypeId: number | null = null;
+    if (isVendor) {
+      const rawVt = raw['vendorTypeId'];
+      if (rawVt != null && rawVt !== '') {
+        const n = Number(rawVt);
+        vendorTypeId = Number.isFinite(n) ? n : null;
+      }
+    }
+    return {
+      ...base,
+      officeAccess,
+      officeId,
+      vendorTypeId
+    };
   }
 
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();
       const displayName = (o.fullName ?? o.displayName ?? '').trim() || combinedName || o.companyName || '';
+      const officeAccess = this.normalizeOfficeAccessNumbers(o.officeAccess);
+      const officeName = (o.officeName || '').trim();
       const rawCodes = (o.properties ?? []) as string[] | string;
       const codesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
       const propertyCodesDisplay = codesArray.length ? codesArray.join(', ') : undefined;
       return {
         contactId: o.contactId,
         contactCode: o.contactCode,
-        officeId: o.officeId,
-        officeName: o.officeName,
+        officeId: Number.isFinite(Number(o.officeId)) ? Number(o.officeId) : 0,
+        officeName,
+        officeAccess,
         fullName: displayName,
         contactType: getEntityType(o.entityTypeId),
         entityTypeId: o.entityTypeId,
@@ -548,6 +606,7 @@ export class MappingService {
         hvacServiced: o.hvacServiced ?? undefined,
         fireplaceServiced: o.fireplaceServiced ?? undefined,
         isActive: o.isActive,
+        unfurnished: this.toBooleanValue(o.unfurnished),
       };
     });
   }

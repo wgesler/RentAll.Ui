@@ -15,7 +15,7 @@ import { UserService } from '../../../users/services/user.service';
 import { UserComponent } from '../../../users/user/user.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { GlobalOfficeSelectionService } from '../../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../../organizations/services/global-selection.service';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -53,14 +53,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private userService: UserService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private sidebarStateService: SidebarStateService,
     private debugLayoutBandsService: DebugLayoutBandsService
   ) { }
   
   ngOnInit(): void {
     // Stay in sync with global office selection (e.g. when app initializes from user default)
-    this.selectedOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().subscribe(id => {
+    this.selectedOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().subscribe(id => {
       this.selectedGlobalOfficeId = id;
     });
     // Load user profile picture when component initializes
@@ -89,7 +89,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.userDefaultOfficeId = userResponse.defaultOfficeId ?? null;
         // Initialize working office from user's default if we have offices
         if (this.offices.length > 0 && this.userDefaultOfficeId !== null) {
-          this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, this.userDefaultOfficeId);
+          this.globalSelectionService.syncWithAvailableOffices(this.offices, this.userDefaultOfficeId);
         }
         // Set profile picture URL from fileDetails or profilePath
         if (userResponse.fileDetails && userResponse.fileDetails.file) {
@@ -148,7 +148,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   onGlobalOfficeSelect(officeId: number | null): void {
     this.selectedGlobalOfficeId = officeId;
-    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+    this.globalSelectionService.setSelectedOfficeId(officeId);
   }
 
   stopMenuPropagation(event: Event): void {
@@ -173,9 +173,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
           return;
         }
         const activeOffices = (allOffices || []).filter(office => office.isActive);
-        this.offices = this.globalOfficeSelectionService.filterOfficeListForUser(activeOffices);
+        this.offices = this.globalSelectionService.filterOfficeListForUser(activeOffices);
         const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
-        this.selectedGlobalOfficeId = this.globalOfficeSelectionService.syncWithAvailableOffices(this.offices, preferredId);
+        this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices, preferredId);
       });
     });
   }

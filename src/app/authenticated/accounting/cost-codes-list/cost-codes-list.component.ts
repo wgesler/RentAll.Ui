@@ -11,7 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -80,7 +80,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private officeService: OfficeService,
     private utilityService: UtilityService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService) {
+    private globalSelectionService: GlobalSelectionService) {
   }
 
   //#region CostCodes-List
@@ -88,7 +88,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadCostCodes();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -217,7 +217,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.embeddedInSettings }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.embeddedInSettings }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
@@ -240,7 +240,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Filter Methods
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {

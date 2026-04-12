@@ -14,7 +14,7 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -80,7 +80,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     private router: Router,
     private authService: AuthService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
     private mappingService: MappingService
@@ -314,7 +314,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
@@ -324,7 +324,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
           this.refreshHeaderReservationOptions();
           return;
         }
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.selectedOfficeId, useGlobalSelection: false, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.selectedOfficeId, useGlobalSelection: false, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.selectedOfficeId = uiState.selectedOfficeId;

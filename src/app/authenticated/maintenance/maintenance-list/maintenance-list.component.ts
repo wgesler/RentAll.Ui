@@ -13,7 +13,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MaintenanceListCurrentReservationByPropertyId, MaintenanceListMappingContext, MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getBedSizeType, getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
@@ -130,7 +130,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     public authService: AuthService,
     public officeService: OfficeService,
-    public globalOfficeSelectionService: GlobalOfficeSelectionService,
+    public globalSelectionService: GlobalSelectionService,
     public route: ActivatedRoute,
     public utilityService: UtilityService,
     public ngZone: NgZone,
@@ -160,7 +160,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadActiveReservations();
     this.updateDisplayedColumns();
     this.loadOffices();
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -405,11 +405,11 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
@@ -427,14 +427,14 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.offices = [];
         this.availableOffices = [];
-        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         this.loadPropertyMaintenance();
       }
     });
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {

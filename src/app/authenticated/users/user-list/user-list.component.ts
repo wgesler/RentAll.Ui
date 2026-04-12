@@ -11,7 +11,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -70,7 +70,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     public userService: UserService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     public toastr: ToastrService,
     private formatterService: FormatterService,
@@ -92,7 +92,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadUsers();
     this.loadOrganizations();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -220,7 +220,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.applyFilters();
   }
 
@@ -333,7 +333,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
 
           this.showOfficeDropdown = this.offices.length !== 1;
-          this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+          this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
         },
         error: () => {
           this.offices = [];

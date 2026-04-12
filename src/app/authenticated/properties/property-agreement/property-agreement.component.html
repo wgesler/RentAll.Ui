@@ -8,7 +8,7 @@
     <div class="property-agreement-management-section mb-6 min-w-0">
       <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
       <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-start gap-x-3 gap-y-2 w-full min-w-0">
-        <div class="property-agreement-management-mode-column flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 flex-1 min-w-0">
+        <div class="property-agreement-management-mode-column flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 w-full min-w-0">
           <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-radios flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 shrink-0">
             <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
             <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
@@ -29,10 +29,6 @@
             </mat-form-field>
           </div>
         </div>
-        <button mat-raised-button type="button" color="primary" class="property-agreement-save shrink-0 ms-auto" (click)="saveAgreement()" [disabled]="isAgreementSaving">
-          <mat-icon>save</mat-icon>
-          Save
-        </button>
       </div>
     </div>
     <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">

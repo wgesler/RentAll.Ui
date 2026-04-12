@@ -17,6 +17,7 @@ export interface UserRequest {
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
+  contactId?: string | null;
   isActive: boolean;
 }
 
@@ -38,6 +39,7 @@ export interface UserResponse {
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
+  contactId?: string | null;
   isActive: boolean;
 }
 

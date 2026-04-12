@@ -14,7 +14,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -97,7 +97,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     public formatter: FormatterService,
     private utilityService: UtilityService,
     private dialog: MatDialog,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalSelectionService: GlobalSelectionService
   ) {
   }
 
@@ -108,7 +108,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     this.loadReservations();
     this.loadCostCodes();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
         this.resolveOfficeScope(officeId);
         this.form.get('officeId')?.setValue(this.selectedOffice?.officeId ?? null, { emitEvent: false });
@@ -173,7 +173,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         }
       }
     } else if (this.isAddMode && this.offices.length > 0 && this.form) {
-      const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       if (globalOfficeId != null) {
         this.resolveOfficeScope(globalOfficeId);
         if (this.selectedOffice) {
@@ -927,7 +927,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   setupOfficeIdHandler(): void {
     this.form.get('officeId')?.valueChanges.subscribe(officeId => {
-      this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
+      this.globalSelectionService.setSelectedOfficeId(officeId ?? null);
       this.resolveOfficeScope(officeId);
       this.updateAvailableReservations();
       this.filterCostCodes();

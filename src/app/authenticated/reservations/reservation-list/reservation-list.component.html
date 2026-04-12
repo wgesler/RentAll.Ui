@@ -20,8 +20,11 @@
           }
         </div>
       </div>
-      <div class="form-titlebar-actions-wrap">
+      <div class="form-titlebar-actions-wrap uniform-gap">
         @if (!isCompactView) {
+          <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
+            Unfurnished
+          </mat-slide-toggle>
           <button
             mat-raised-button
             type="button"

@@ -282,6 +282,7 @@ export interface PropertyListResponse{
   hvacServiced?: string | null;
   fireplaceServiced?: string | null;
   isActive: boolean;
+  unfurnished?: boolean;
 }
 export interface PropertyListDisplay {
   propertyId: string;
@@ -316,4 +317,5 @@ export interface PropertyListDisplay {
   hvacServiced?: string | null;
   fireplaceServiced?: string | null;
   isActive: boolean;
+  unfurnished: boolean;
 }

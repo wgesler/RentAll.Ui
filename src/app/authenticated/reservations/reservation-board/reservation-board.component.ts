@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -15,7 +16,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { ColorResponse } from '../../organizations/models/color.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { ColorService } from '../../organizations/services/color.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
@@ -40,6 +41,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   getPropertyStatusLetter = getPropertyStatusLetter;
 
   properties: BoardProperty[] = [];
+  allPropertyRows: PropertyListResponse[] = [];
   propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
@@ -61,6 +63,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   propertiesFiltered = false;
+  furnishedPropertyToggleChecked = false;
   propertyStatusOptions = getPropertyStatuses().map(status => ({
     value: status.value,
     label: status.label,
@@ -81,7 +84,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService,
     private propertySelectionFilterService: PropertySelectionFilterService,
     private toastr: ToastrService
@@ -100,7 +103,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.initializeOfficeScope();
 
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
-    this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe({
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), distinctUntilChanged(), takeUntil(this.destroy$)).subscribe({
       next: officeId => {
         if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
           return;
@@ -113,6 +116,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {this.propertiesFiltered = value;}
+    });
+    this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe({
+      next: value => {
+        this.furnishedPropertyToggleChecked = value === true;
+        this.applyBoardPropertyFilter();
+      }
     });
   }
 
@@ -186,6 +195,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   loadProperties(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
     if (!this.userId) {
+      this.allPropertyRows = [];
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
@@ -194,10 +204,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
       next: (properties: PropertyListResponse[]) => {
-        this.propertyRows = this.selectedOfficeId == null ? (properties || []) : (properties || []).filter(p => p.officeId === this.selectedOfficeId);
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+        this.allPropertyRows = this.selectedOfficeId == null ? (properties || []) : (properties || []).filter(p => p.officeId === this.selectedOfficeId);
+        this.applyBoardPropertyFilter();
       },
       error: () => {
+        this.allPropertyRows = [];
         this.propertyRows = [];
         this.properties = [];
       }
@@ -207,6 +218,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   loadPropertiesForOwner(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
     if (!this.userId) {
+      this.allPropertyRows = [];
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
@@ -215,6 +227,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     const scopedOwnerId = (this.userId || '').trim();
     if (!scopedOwnerId) {
+      this.allPropertyRows = [];
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
@@ -225,13 +238,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       next: (properties: PropertyListResponse[]) => {
         const activeProperties = (properties || []).filter(p => p.isActive);
         const workingOfficeId = this.selectedOfficeId;
-        const filtered = workingOfficeId == null
+        this.allPropertyRows = workingOfficeId == null
           ? activeProperties
           : activeProperties.filter(p => p.officeId === workingOfficeId);
-        this.propertyRows = filtered;
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+        this.applyBoardPropertyFilter();
       },
       error: () => {
+        this.allPropertyRows = [];
         this.propertyRows = [];
         this.properties = [];
       }
@@ -272,14 +285,14 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   initializeOfficeScope(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
         this.loadReservations(true);
         this.loadBoardProperties();
       },
       error: () => {
-        this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue());
+        this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
         this.loadReservations(true);
         this.loadBoardProperties();
       }
@@ -294,6 +307,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Board Supporting Methods
+  onUnfurnishedToggle(event: MatSlideToggleChange): void {
+    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
+  }
+
+  applyBoardPropertyFilter(): void {
+    const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
+    this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);
+    this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+  }
+
   generateCalendarDays(): void {
     const days: CalendarDay[] = [];
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];

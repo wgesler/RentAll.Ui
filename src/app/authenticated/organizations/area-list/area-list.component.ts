@@ -16,7 +16,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AreaListDisplay, AreaResponse } from '../models/area.model';
 import { OfficeResponse } from '../models/office.model';
 import { AreaService } from '../services/area.service';
-import { GlobalOfficeSelectionService } from '../services/global-office-selection.service';
+import { GlobalSelectionService } from '../services/global-selection.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -60,7 +60,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
     public router: Router,
     public mappingService: MappingService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private utilityService: UtilityService) {
   }
 
@@ -69,7 +69,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
     this.loadOffices();
     this.getAreas();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -124,7 +124,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.selectedOffice = uiState.selectedOffice;
             this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
@@ -138,7 +138,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.applyFilters();
   }
     

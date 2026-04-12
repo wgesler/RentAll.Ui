@@ -16,7 +16,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -170,7 +170,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
     private contactService: ContactService,
     private authService: AuthService,
@@ -187,7 +187,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadReservations();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -217,7 +217,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         } else {
           if (this.officeId === null || this.officeId === undefined) {
-            const defaultOfficeId = this.source === 'accounting' ? null : this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+            const defaultOfficeId = this.source === 'accounting' ? null : this.globalSelectionService.getSelectedOfficeIdValue();
             this.resolveOfficeScope(defaultOfficeId, true);
           }
         }
@@ -881,7 +881,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         const defaultOfficeId = this.officeId
           ?? (this.source === 'accounting'
             ? null
-            : (this.offices.length === 1 ? this.offices[0].officeId : this.globalOfficeSelectionService.getSelectedOfficeIdValue()));
+            : (this.offices.length === 1 ? this.offices[0].officeId : this.globalSelectionService.getSelectedOfficeIdValue()));
         this.resolveOfficeScope(defaultOfficeId, this.officeId === null || this.officeId === undefined);
       });
     });
@@ -973,7 +973,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
   }
 

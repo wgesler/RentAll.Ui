@@ -2,6 +2,7 @@ import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
@@ -12,7 +13,7 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
@@ -41,9 +42,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  furnishedPropertyToggleChecked = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
   allowedPropertyIds: Set<string> | null = null;
+  unfurnishedPropertyIds: Set<string> | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
 
@@ -97,7 +100,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private propertyService: PropertyService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     private dialog: MatDialog,
     private propertySelectionFilterService: PropertySelectionFilterService) {
@@ -114,14 +117,21 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateDisplayedColumns();
     this.loadOffices();
 
-    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe(v => {
+      this.propertiesFiltered = v;
+      this.reloadAllowedPropertyIds();
+    });
     this.propertySelectionFilterService.dateRange$.pipe(takeUntil(this.destroy$)).subscribe((range) => {
         this.startDate = range.startDate;
         this.endDate = range.endDate;
         this.applyFilters();
       });
+    this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
+      this.furnishedPropertyToggleChecked = v === true;
+      this.applyFilters();
+    });
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -137,7 +147,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.lastNavigationUrl = url;
     });
 
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         if (this.selectedOffice) {
@@ -154,7 +164,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
             this.resolveOfficeScope(parsedOfficeId, true);
           }
         } else {
-          this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+          this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         }
       });
     });
@@ -393,8 +403,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadProperties(): void {
-    if (!this.userId || !this.propertiesFiltered) {
+    if (!this.userId) {
       this.allowedPropertyIds = null;
+      this.unfurnishedPropertyIds = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
       this.applyFilters();
       return;
@@ -402,23 +413,26 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (props: PropertyListResponse[]) => {
-        this.allowedPropertyIds = new Set((props || []).map(p => p.propertyId));
+        const properties = props || [];
+        this.allowedPropertyIds = this.propertiesFiltered ? new Set(properties.map(p => p.propertyId)) : null;
+        this.unfurnishedPropertyIds = new Set(properties.filter(p => this.mappingService.toBooleanValue(p.unfurnished)).map(p => p.propertyId));
         this.applyFilters();
       },
       error: () => {
         this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
         this.allowedPropertyIds = null;
+        this.unfurnishedPropertyIds = null;
         this.applyFilters();
       }
     });
   }
 
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
@@ -428,17 +442,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.offices = [];
         this.availableOffices = [];
-        this.resolveOfficeScope(this.officeId ?? this.globalOfficeSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
       }
     });
   }
 
   reloadAllowedPropertyIds(): void {
-    if (!this.propertiesFiltered) {
-      this.allowedPropertyIds = null;
-      this.applyFilters();
-      return;
-    }
     this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
     this.loadProperties();
   }
@@ -448,6 +457,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
+  }
+
+  onUnfurnishedToggle(event: MatSlideToggleChange): void {
+    this.globalSelectionService.setFurnishedPropertySelection(event.checked);
   }
 
   applyFilters(): void {
@@ -474,6 +487,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       } else {
         filtered = filtered.filter(r => this.allowedPropertyIds!.has(r.propertyId));
       }
+    }
+
+    if (this.unfurnishedPropertyIds !== null) {
+      const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection();
+      filtered = filtered.filter(r => showUnfurnished ? this.unfurnishedPropertyIds!.has(r.propertyId) : !this.unfurnishedPropertyIds!.has(r.propertyId));
     }
 
     // Filter by date range - show reservations where EITHER arrival OR departure falls within the range
@@ -523,7 +541,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {

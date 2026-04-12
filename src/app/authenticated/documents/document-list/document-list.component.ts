@@ -12,7 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListDisplay } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -108,7 +108,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     private mappingService: MappingService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
     private utilityService: UtilityService,
     private authService: AuthService,
@@ -144,7 +144,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'officeScope');
     this.loadOffices();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -492,10 +492,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, disableSingleOfficeRule: this.source === 'invoice', requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, disableSingleOfficeRule: this.source === 'invoice', requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
             if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
@@ -529,7 +529,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         }
       } else {
         if (this.officeId === null || this.officeId === undefined) {
-          this.resolveOfficeScope(this.globalOfficeSelectionService.getSelectedOfficeIdValue(), true);
+          this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue(), true);
         }
       }
     });
@@ -770,7 +770,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.officeIdChange.emit(this.selectedOfficeId);
     if (this.source === 'invoice') {
       this.filterCompanies();

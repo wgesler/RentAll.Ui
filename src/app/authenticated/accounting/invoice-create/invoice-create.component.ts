@@ -32,7 +32,7 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -130,7 +130,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     documentService: DocumentService,
     documentHtmlService: DocumentHtmlService,
     private accountingOfficeService: AccountingOfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private route: ActivatedRoute,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService
@@ -142,7 +142,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.applyOfficeSelection(officeId);
       }
@@ -200,7 +200,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         if (this.officeId !== null) {
           this.applyOfficeSelection(this.officeId);
         } else {
-          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId != null && this.offices.length > 0) {
             this.applyOfficeSelection(globalOfficeId);
           } else {
@@ -722,7 +722,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   onOfficeSelected(officeId: number | null, syncGlobalSelection: boolean = true): void {
     if (syncGlobalSelection) {
-      this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+      this.globalSelectionService.setSelectedOfficeId(officeId);
     }
     if (!officeId) {
       this.selectedOffice = null;

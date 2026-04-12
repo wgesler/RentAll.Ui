@@ -119,32 +119,47 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
   }
 
-  saveAgreement(): void {
-    if (!this.propertyId || this.propertyId === 'new' || this.isAddMode || !this.isAdmin || !this.agreementForm) {
-      return;
+  persistAgreementIfDirty(): Observable<boolean> {
+    if (!this.isAdmin || !this.agreementForm) {
+      return of(true);
+    }
+    if (!this.agreementForm.dirty) {
+      return of(true);
+    }
+    if (!this.propertyId || this.propertyId === 'new' || this.isAddMode) {
+      return of(true);
     }
     if (!this.agreementForm.valid) {
       this.agreementForm.markAllAsTouched();
-      return;
+      this.toastr.warning(
+        'Property agreement has validation errors. Fix the fields in Property Agreements, then save the property again.',
+        'Agreement Not Saved',
+        { timeOut: CommonTimeouts.Extended }
+      );
+      return of(false);
     }
-
-    this.isAgreementSaving = true;
     const payload = this.buildPropertyAgreementRequest();
+    this.isAgreementSaving = true;
     const req$ = this.agreementExists
       ? this.propertyAgreementService.updatePropertyAgreement(payload)
       : this.propertyAgreementService.createPropertyAgreement(payload);
-    req$.pipe(take(1), finalize(() => { this.isAgreementSaving = false; })).subscribe({
-      next: (saved: PropertyAgreementResponse) => {
-        this.toastr.success('Property agreement saved', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+    return req$.pipe(
+      take(1),
+      map((saved: PropertyAgreementResponse) => {
         this.agreementExists = true;
         this.populatePropertyAgreement(saved);
         this.agreementForm?.markAsPristine();
         this.agreementForm?.markAsUntouched();
-      },
-      error: () => {
+        return true;
+      }),
+      catchError(() => {
         this.toastr.error('Failed to save property agreement', CommonMessage.Error);
-      }
-    });
+        return of(false);
+      }),
+      finalize(() => {
+        this.isAgreementSaving = false;
+      })
+    );
   }
 
   persistAgreementForNewProperty(propertyId: string): Observable<boolean> {

@@ -31,7 +31,7 @@ import { AgentResponse } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AgentService } from '../../organizations/services/agent.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyListResponse } from '../../properties/models/property.model';
@@ -156,7 +156,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private costCodesService: CostCodesService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
   }
@@ -171,7 +171,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadAgents();
     this.loadOffices();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode) {
         this.resolveOfficeScope(officeId);
         if (this.selectedOffice) {
@@ -212,7 +212,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
             }
           }
         } else if (this.isAddMode && this.offices.length > 0) {
-          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId != null) {
             this.resolveOfficeScope(globalOfficeId);
             if (this.selectedOffice) {
@@ -1428,7 +1428,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     dialogRef.componentInstance.id = 'new';
     dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.entityTypeId = entityTypeId;
+    dialogRef.componentInstance.presetEntityTypeId = entityTypeId;
     dialogRef.componentInstance.compactDialogMode = true;
     dialogRef.componentInstance.closed
       .pipe(take(1))
@@ -1720,7 +1720,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       isNew: true
     };
     this.extraFeeLines.push(newLine);
-    setTimeout(() => this.focusLastExtraFeeDescriptionInput());
+    setTimeout(() => this.focusLastExtraFeeDescriptionInput(), 0);
   }
 
   removeExtraFeeLine(index: number): void {
@@ -1872,7 +1872,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

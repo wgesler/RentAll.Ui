@@ -1,3 +1,4 @@
+//#region EntityType
 export enum EntityType {
   Unknown = 0,
   Organization = 1,
@@ -26,7 +27,6 @@ export function getEntityType(entityTypeId: number | undefined): string {
   return typeMap[entityTypeId] || '';
 }
 
-// Gets the array of contact type options for dropdowns (filtered to specific types)
 export function getContactTypes(): { value: number, label: string }[] {
   const includedTypes = [EntityType.Company, EntityType.Tenant, EntityType.Owner, EntityType.Vendor, EntityType.Hoa];
   return includedTypes
@@ -35,6 +35,7 @@ export function getContactTypes(): { value: number, label: string }[] {
       label: getEntityType(value)
     }));
 }
+//#endregion
 
 //#region OwnerType
 export enum OwnerType {
@@ -63,6 +64,33 @@ export function getOwnerTypes(): { value: number; label: string }[] {
     .map(key => ({
       value: OwnerType[key as keyof typeof OwnerType],
       label: getOwnerType(OwnerType[key as keyof typeof OwnerType])
+    }));
+}
+//#endregion
+
+//#region VendorType
+export enum VendorType {
+  Individual = 0,
+  Company = 1
+}
+
+export function getVendorType(vendorTypeId: number | undefined): string {
+  if (vendorTypeId === undefined || vendorTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [VendorType.Individual]: 'Individual',
+    [VendorType.Company]: 'Company'
+  };
+
+  return typeMap[vendorTypeId] || '';
+}
+
+export function getVendorTypes(): { value: number; label: string }[] {
+  return Object.keys(VendorType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: VendorType[key as keyof typeof VendorType],
+      label: getVendorType(VendorType[key as keyof typeof VendorType])
     }));
 }
 //#endregion

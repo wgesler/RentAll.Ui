@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Inject, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, ViewChild } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -15,18 +15,20 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
-import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes } from '../models/contact-enum';
+import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UserService } from '../../users/services/user.service';
-import { UserRequest } from '../../users/models/user.model';
+import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
+import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 
 @Component({
     standalone: true,
@@ -40,17 +42,18 @@ export class ContactComponent implements OnInit, OnDestroy {
   /** Contact id to edit, or 'new' for add. Component is always embedded (contacts or maintenance tabs). */
   @Input() id: string = 'new';
   @Input() copyFrom: string | null = null;
-  @Input() entityTypeId: number | null = null;
+  /** Preset for the Contact Type field (`entityTypeId`) when opening Add from a list tab or dialog. */
+  @Input() presetEntityTypeId: number | null = null;
   @Input() compactDialogMode: boolean = false;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
 
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   EntityType = EntityType;
-  OwnerType = OwnerType; 
- 
+  OwnerType = OwnerType;
+  VendorType = VendorType;
+
   isServiceError: boolean = false;
   form: FormGroup;
-  isSubmitting: boolean = false;
   isAddMode: boolean = false;
   isEmbedded: boolean = true;
   returnUrl: string | null = null;
@@ -60,9 +63,11 @@ export class ContactComponent implements OnInit, OnDestroy {
   contact: ContactResponse;
   availableContactTypes: { value: number, label: string }[] = [];
   availableOwnerTypes: { value: number; label: string }[] = [];
+  availableVendorTypes: { value: number; label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
+  availableDefaultOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
 
@@ -81,20 +86,12 @@ export class ContactComponent implements OnInit, OnDestroy {
   insuranceFileDetails: FileDetails | null = null;
   insurancePath: string | null = null;
   hasNewInsuranceUpload = false;
-  agreementFileName: string | null = null;
-  agreementFileDataUrl: string | null = null;
-  agreementFileContentType: string | null = null;
-  agreementFileDetails: FileDetails | null = null;
-  agreementPath: string | null = null;
-  hasNewAgreementUpload = false;
 
   w9PdfThumbnailUrl: string | null = null;
   insurancePdfThumbnailUrl: string | null = null;
-  agreementPdfThumbnailUrl: string | null = null;
 
   @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('agreementFileInput') agreementFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -110,12 +107,13 @@ export class ContactComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
     private userService: UserService,
+    private dialog: MatDialog,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
       preloadedContact?: ContactResponse;
       entityTypeId?: number;
@@ -126,20 +124,24 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   ) {
   }
+
   //#region Contacts
   ngOnInit(): void {
     this.initializeContactTypes();
     this.availableOwnerTypes = getOwnerTypes();
+    this.availableVendorTypes = getVendorTypes();
     this.loadStates();
     this.loadOffices();
     this.loadAllProperties();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.isAddMode && this.form && this.offices.length > 0) {
         const currentOfficeId = this.form.get('officeId')?.value ?? null;
         const nextOfficeId = officeId ?? null;
         if (currentOfficeId !== nextOfficeId) {
-          this.form.patchValue({ officeId: nextOfficeId }, { emitEvent: false });
+          const nextOfficeAccess = nextOfficeId != null ? [nextOfficeId] : [];
+          this.form.patchValue({ officeAccess: nextOfficeAccess, officeId: nextOfficeId }, { emitEvent: false });
+          this.syncDefaultOfficeOptions();
         }
       }
       this.filterPropertiesByGlobalOffice();
@@ -150,12 +152,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.contact = this.dialogData.preloadedContact;
       this.contactId = this.contact.contactId;
       this.isAddMode = false;
-      if (this.dialogData.entityTypeId != null) this.entityTypeId = this.dialogData.entityTypeId;
+      if (this.dialogData.entityTypeId != null) this.presetEntityTypeId = this.dialogData.entityTypeId;
       if (this.dialogData.compactDialogMode != null) this.compactDialogMode = this.dialogData.compactDialogMode;
     } else {
       if (this.dialogData) {
         if (this.dialogData.entityTypeId != null) {
-          this.entityTypeId = this.dialogData.entityTypeId;
+          this.presetEntityTypeId = this.dialogData.entityTypeId;
         }
         if (this.dialogData.compactDialogMode != null) {
           this.compactDialogMode = this.dialogData.compactDialogMode;
@@ -184,16 +186,23 @@ export class ContactComponent implements OnInit, OnDestroy {
         this.copyFromContact(this.copyFrom);
       } else {
         this.setFormValuesFromQueryParams();
-        if (this.entityTypeId != null) {
-          const patch: { contactTypeId: number; ownerTypeId?: number } = { contactTypeId: this.entityTypeId };
-          if (this.entityTypeId === EntityType.Owner) {
+        if (this.presetEntityTypeId != null) {
+          const patch: { entityTypeId: number; ownerTypeId?: number; vendorTypeId?: number | null } = { entityTypeId: this.presetEntityTypeId };
+          if (this.presetEntityTypeId === EntityType.Owner) {
             patch.ownerTypeId = OwnerType.Individual;
+          }
+          if (this.presetEntityTypeId === EntityType.Vendor) {
+            patch.vendorTypeId = VendorType.Company;
           }
           this.form?.patchValue(patch, { emitEvent: false });
         }
       }
     } else {
       this.getContact();
+    }
+    this.applyContactTypeLockedState();
+    if (this.isAddMode && !this.copyFrom) {
+      this.applyEntityTypeContactValidators(this.form?.getRawValue()?.entityTypeId);
     }
   }
   
@@ -228,22 +237,28 @@ export class ContactComponent implements OnInit, OnDestroy {
     if (officeId !== null) {
       const office = this.offices.find(o => o.officeId === officeId);
       if (office) {
-        this.form.patchValue({ officeId: office.officeId }, patchOptions);
+        this.form.patchValue({ officeAccess: [office.officeId], officeId: office.officeId }, patchOptions);
       }
     } else if (this.isAddMode) {
-      const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+      const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       if (globalOfficeId != null) {
         const office = this.offices.find(o => o.officeId === globalOfficeId);
         if (office) {
-          this.form.patchValue({ officeId: office.officeId }, patchOptions);
+          this.form.patchValue({ officeAccess: [office.officeId], officeId: office.officeId }, patchOptions);
         }
       }
     }
+
+    this.syncDefaultOfficeOptions();
     
     const entityTypeId = getNumberQueryParam(queryParams, 'entityTypeId');
     if (entityTypeId !== null && Object.values(EntityType).includes(entityTypeId)) {
-      this.form.patchValue({ contactTypeId: entityTypeId }, patchOptions);
+      this.form.patchValue({ entityTypeId: entityTypeId }, patchOptions);
+      if (this.isAddMode && entityTypeId === EntityType.Vendor && this.form.getRawValue().vendorTypeId == null) {
+        this.form.patchValue({ vendorTypeId: VendorType.Company }, patchOptions);
+      }
     }
+    this.applyEntityTypeContactValidators(this.form.getRawValue().entityTypeId);
   }
 
   getContact(): void {
@@ -290,28 +305,40 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   saveContact(): void {
+    if (!this.form) {
+      return;
+    }
+    this.form.markAllAsTouched();
+
     if (!this.form.valid) {
-      this.form.markAllAsTouched();
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
-    this.isSubmitting = true;
-
-    // Bulk map: form → request, normalizing optional strings to empty string
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-    const entityTypeId = formValue.contactTypeId;
+    const entityTypeId = formValue.entityTypeId;
+    const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(formValue.officeAccess || []);
+    const pickedDefault = Number(formValue.officeId);
+    const resolvedOfficeId = Number.isFinite(pickedDefault) && pickedDefault > 0 ? pickedDefault : 0;
+    if (resolvedOfficeId <= 0) {
+      this.form.get('officeId')?.markAsTouched();
+      this.toastr.error('Default office is required.', CommonMessage.Error);
+      return;
+    }
+
+    // Bulk map: form → request, normalizing optional strings to empty string
     const isInternational = formValue.isInternational || false;
     const strippedPhone = this.formatterService.stripPhoneFormatting(formValue.phone);
     const isCompanyType = entityTypeId === EntityType.Company;
     const derivedDisplayName = isCompanyType && (formValue.displayName || '').trim()
-      ? (formValue.displayName || '').trim()
-      : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
+      ? (formValue.displayName || '').trim() : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
     const contactRequest: ContactRequest = {
       ...formValue,
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId,
-      officeId: formValue.officeId || undefined,
+      officeAccess,
+      officeId: resolvedOfficeId,
       address1: formValue.address1 || '',
       address2: formValue.address2 || undefined,
       city: isInternational ? undefined : (formValue.city || '').trim() || undefined,
@@ -323,27 +350,23 @@ export class ContactComponent implements OnInit, OnDestroy {
       rating: Number(formValue.rating ?? 0),
       displayName: derivedDisplayName,
       isInternational: isInternational,
-      // In compact dialog we don't show agreements section; preserve loaded values so we don't delete them
+      // Compact dialog: preserve W9/insurance not shown there.
       w9Path: this.compactDialogMode && this.contact ? (this.w9Path ?? this.contact.w9Path ?? null) : (this.hasNewW9Upload ? undefined : this.w9Path),
       w9FileDetails: this.compactDialogMode && this.contact ? (this.w9FileDetails ?? this.contact.w9FileDetails ?? null) : (this.hasNewW9Upload ? (this.w9FileDetails ?? null) : undefined),
       insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
       insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
       insuranceExpiration: this.compactDialogMode && this.contact ? (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration)),
-      agreementPath: this.compactDialogMode && this.contact ? (this.agreementPath ?? this.contact.agreementPath ?? null) : (this.hasNewAgreementUpload ? undefined : this.agreementPath),
-      agreementFileDetails: this.compactDialogMode && this.contact ? (this.agreementFileDetails ?? this.contact.agreementFileDetails ?? null) : (this.hasNewAgreementUpload ? (this.agreementFileDetails ?? null) : undefined),
       revenueSplitOwner: this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
       revenueSplitOffice: this.parseAgreementPercentFromForm(formValue.revenueSplitOffice),
       workingCapitalBalance: this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance),
       linenAndTowelFee: this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
       bankName: (formValue.bankName || '').trim() || null,
       routingNumber: (formValue.routingNumber || '').trim() || null,
-      accountNumber: (formValue.accountNumber || '').trim() || null,
-      addAsUser: entityTypeId === EntityType.Vendor && formValue.addAsUser ? 1 : 0
+      accountNumber: (formValue.accountNumber || '').trim() || null
     };
-    delete (contactRequest as any).contactTypeId;
+    delete (contactRequest as any).propertyCodes;
     delete (contactRequest as any).vendorId;
-    contactRequest.ownerTypeId = entityTypeId === EntityType.Owner ? (formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null) : undefined;
-    contactRequest.properties = entityTypeId === EntityType.Owner ? (formValue.propertyCodes || []) : [];
+    this.applyEntityTypeSpecificContactFields(contactRequest, entityTypeId, formValue);
     contactRequest.companyName = ((formValue.companyName || '').trim() || undefined);
     contactRequest.companyEmail = ((formValue.companyEmail || '').trim() || undefined);
     const isCompany = entityTypeId === EntityType.Company;
@@ -353,13 +376,14 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
       contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
+      contactRequest.userId = this.contact?.userId;
     }
 
     const save$ = this.isAddMode
       ? this.contactService.createContact(contactRequest)
       : this.contactService.updateContact(contactRequest);
 
-    save$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+    save$.pipe(take(1)).subscribe({
       next: (savedContact: ContactResponse) => {
         const message = this.isAddMode ? 'Contact created successfully' : 'Contact updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
@@ -380,50 +404,65 @@ export class ContactComponent implements OnInit, OnDestroy {
             }
           });
         };
-
-        if (!this.shouldCreateVendorUser(entityTypeId, formValue, savedContact)) {
+        const finishSave = (): void => {
           finalizeContactSave();
-          return;
-        }
+        };
 
-        const vendorUserRequest = this.buildVendorUserRequest(savedContact, contactRequest);
-        if (!vendorUserRequest) {
-          this.toastr.warning('Vendor saved, but user account could not be created (missing vendor code or email).', CommonMessage.Error);
-          finalizeContactSave();
-          return;
-        }
-
-        this.userService.createUser(vendorUserRequest).pipe(take(1)).subscribe({
-          next: () => {
-            this.toastr.success('Vendor user account created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-            finalizeContactSave();
-          },
-          error: (err: any) => {
-            const apiMessage = String(err?.error?.message || err?.error?.title || err?.message || '').trim();
-            const message = apiMessage
-              ? `Vendor saved, but user account could not be created: ${apiMessage}`
-              : 'Vendor saved, but user account could not be created.';
-            this.toastr.warning(message, CommonMessage.Error);
-            finalizeContactSave();
+        if (this.isAddMode && entityTypeId === EntityType.Owner && this.shouldCreateOwnerUser(savedContact)) {
+          const ownerUserRequest = this.buildOwnerUserRequest(savedContact, contactRequest);
+          if (!ownerUserRequest) {
+            this.toastr.warning('Owner saved, but user account could not be created (missing contact code or email).', CommonMessage.Error);
+            finishSave();
+            return;
           }
-        });
+          this.runCreateUserAndLinkContact(
+            savedContact,
+            contactRequest,
+            ownerUserRequest,
+            'Owner user account created and linked successfully.',
+            'Owner saved, but user account or link step could not be completed.',
+            finishSave
+          );
+          return;
+        }
+
+        if (this.isAddMode && entityTypeId === EntityType.Vendor && this.shouldCreateVendorUser(formValue, savedContact)) {
+          const vendorUserRequest = this.buildVendorUserRequest(savedContact, contactRequest);
+          if (!vendorUserRequest) {
+            this.toastr.warning('Vendor saved, but user account could not be created (missing vendor code or email).', CommonMessage.Error);
+            finishSave();
+            return;
+          }
+          this.runCreateUserAndLinkContact(
+            savedContact,
+            contactRequest,
+            vendorUserRequest,
+            'Vendor user account created and linked successfully.',
+            'Vendor saved, but user account or link step could not be completed.',
+            finishSave
+          );
+          return;
+        }
+
+        finishSave();
       },
       error: () => {}
     });
   }
-
   //#endregion
 
   //#region Form Methods
   buildForm(): void {
     this.form = this.fb.group({
       contactCode: new FormControl(''), // Not required - only shown in Edit Mode
-      contactTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
+      entityTypeId: new FormControl(EntityType.Unknown, [Validators.required]),
       ownerTypeId: new FormControl<number | null>(null),
+      vendorTypeId: new FormControl<number | null>(null),
       propertyCodes: new FormControl<string[]>([]),
-      firstName: new FormControl(''),
-      lastName: new FormControl(''),
-      officeId: new FormControl(null, [Validators.required]),
+      firstName: new FormControl('', [Validators.required]),
+      lastName: new FormControl('', [Validators.required]),
+      officeAccess: new FormControl<number[]>([], [Validators.required]),
+      officeId: new FormControl<number | null>(null, [Validators.required]),
       companyName: new FormControl(''),
       companyEmail: new FormControl('', [Validators.email]),
       displayName: new FormControl(''),
@@ -453,80 +492,20 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.setupConditionalFields();
     this.formatContractMarkup();
 
-    this.form.get('contactTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactTypeId => {
-      const isCompany = contactTypeId === EntityType.Company;
-      const isOwner = contactTypeId === EntityType.Owner;
-      const isVendor = contactTypeId === EntityType.Vendor;
-      const addAsUser = !!this.form.get('addAsUser')?.value;
-      const companyNameControl = this.form.get('companyName');
-      const companyEmailControl = this.form.get('companyEmail');
-      const displayNameControl = this.form.get('displayName');
-      const firstNameControl = this.form.get('firstName');
-      const lastNameControl = this.form.get('lastName');
-      const phoneControl = this.form.get('phone');
-      const emailControl = this.form.get('email');
-      const address1Control = this.form.get('address1');
-      const cityControl = this.form.get('city');
-      const stateControl = this.form.get('state');
-      const zipControl = this.form.get('zip');
-
-      if (isCompany) {
-        companyNameControl?.setValidators([Validators.required]);
-        companyEmailControl?.setValidators([Validators.required, Validators.email]);
-        displayNameControl?.setValidators([Validators.required]);
-        firstNameControl?.setValidators([Validators.required]);
-        lastNameControl?.setValidators([Validators.required]);
-        phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
-        emailControl?.setValidators([Validators.required, Validators.email]);
-        address1Control?.setValidators([Validators.required]);
-        cityControl?.setValidators([Validators.required]);
-        stateControl?.setValidators([Validators.required]);
-        zipControl?.setValidators([Validators.required]);
-      } else {
-        companyNameControl?.clearValidators();
-        companyEmailControl?.setValidators([Validators.email]);
-        displayNameControl?.clearValidators();
-        firstNameControl?.clearValidators();
-        lastNameControl?.clearValidators();
-        phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
-        emailControl?.setValidators([Validators.required, Validators.email]);
-        address1Control?.clearValidators();
-        cityControl?.clearValidators();
-        stateControl?.clearValidators();
-        zipControl?.clearValidators();
+    this.form.get('entityTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(entityTypeId => {
+      this.applyEntityTypeContactValidators(entityTypeId);
+      if (entityTypeId !== EntityType.Company) {
+        this.form.get('displayName')?.setValue('', { emitEvent: false });
       }
-
-      if (isOwner || (isVendor && addAsUser)) {
-        phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
-      }
-
-      if (!isCompany && displayNameControl) {
-        displayNameControl.setValue('');
-      }
-
-      companyNameControl?.updateValueAndValidity({ emitEvent: false });
-      companyEmailControl?.updateValueAndValidity({ emitEvent: false });
-      displayNameControl?.updateValueAndValidity({ emitEvent: false });
-      firstNameControl?.updateValueAndValidity({ emitEvent: false });
-      lastNameControl?.updateValueAndValidity({ emitEvent: false });
-      phoneControl?.updateValueAndValidity({ emitEvent: false });
-      emailControl?.updateValueAndValidity({ emitEvent: false });
-      address1Control?.updateValueAndValidity({ emitEvent: false });
-      cityControl?.updateValueAndValidity({ emitEvent: false });
-      stateControl?.updateValueAndValidity({ emitEvent: false });
-      zipControl?.updateValueAndValidity({ emitEvent: false });
-      if (!isVendor) {
+      if (entityTypeId !== EntityType.Vendor) {
         this.form.get('addAsUser')?.setValue(false, { emitEvent: false });
       }
     });
 
-    this.form.get('addAsUser')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((addAsUser: boolean) => {
-      const contactTypeId = this.form.get('contactTypeId')?.value;
+    this.form.get('addAsUser')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      const entityTypeId = this.form.getRawValue().entityTypeId;
       const phoneControl = this.form.get('phone');
-      const isCompany = contactTypeId === EntityType.Company;
-      const isOwner = contactTypeId === EntityType.Owner;
-      const isVendorWithUser = contactTypeId === EntityType.Vendor && !!addAsUser;
-      if (isCompany || isOwner || isVendorWithUser) {
+      if (this.needsStrictPhoneValidation(entityTypeId)) {
         phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
       } else {
         phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
@@ -534,34 +513,165 @@ export class ContactComponent implements OnInit, OnDestroy {
       phoneControl?.updateValueAndValidity({ emitEvent: false });
     });
 
-    this.form.get('contactTypeId')?.updateValueAndValidity({ emitEvent: true });
-
-    // When not in compact dialog mode, syncing contact's office to global selection is desired (e.g. add contact).
-    // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
-    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (!this.compactDialogMode) {
-        this.globalOfficeSelectionService.setSelectedOfficeId(officeId ?? null);
+    this.form.get('vendorTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.form?.getRawValue().entityTypeId === EntityType.Vendor) {
+        this.applyVendorNameCompanyValidators();
       }
     });
+
+    this.applyEntityTypeContactValidators(this.form.getRawValue().entityTypeId);
+
+    this.form.get('officeAccess')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncDefaultOfficeOptions();
+    });
+
+    // When not in compact dialog mode, syncing contact's default office to global selection is desired (e.g. add contact).
+    // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
+    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(selectedOfficeId => {
+      if (!this.compactDialogMode) {
+        this.globalSelectionService.setSelectedOfficeId(selectedOfficeId ?? null);
+      }
+    });
+  }
+
+  applyEntityTypeContactValidators(entityTypeId: number | null | undefined): void {
+    if (!this.form) {
+      return;
+    }
+    const isCompany = entityTypeId === EntityType.Company;
+    const companyNameControl = this.form.get('companyName');
+    const companyEmailControl = this.form.get('companyEmail');
+    const displayNameControl = this.form.get('displayName');
+    const firstNameControl = this.form.get('firstName');
+    const lastNameControl = this.form.get('lastName');
+    const phoneControl = this.form.get('phone');
+    const emailControl = this.form.get('email');
+    const address1Control = this.form.get('address1');
+    const cityControl = this.form.get('city');
+    const stateControl = this.form.get('state');
+    const zipControl = this.form.get('zip');
+    const vendorTypeIdControl = this.form.get('vendorTypeId');
+
+    if (isCompany) {
+      companyNameControl?.setValidators([Validators.required]);
+      companyEmailControl?.setValidators([Validators.required, Validators.email]);
+      displayNameControl?.setValidators([Validators.required]);
+      firstNameControl?.clearValidators();
+      lastNameControl?.clearValidators();
+      vendorTypeIdControl?.clearValidators();
+      phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      emailControl?.setValidators([Validators.required, Validators.email]);
+      address1Control?.setValidators([Validators.required]);
+      cityControl?.setValidators([Validators.required]);
+      stateControl?.setValidators([Validators.required]);
+      zipControl?.setValidators([Validators.required]);
+    } else if (entityTypeId === EntityType.Vendor) {
+      companyEmailControl?.setValidators([Validators.email]);
+      displayNameControl?.clearValidators();
+      phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      emailControl?.setValidators([Validators.required, Validators.email]);
+      address1Control?.clearValidators();
+      cityControl?.clearValidators();
+      stateControl?.clearValidators();
+      zipControl?.clearValidators();
+      vendorTypeIdControl?.setValidators([Validators.required]);
+      this.applyVendorNameCompanyValidators();
+    } else {
+      companyNameControl?.clearValidators();
+      companyEmailControl?.setValidators([Validators.email]);
+      displayNameControl?.clearValidators();
+      firstNameControl?.setValidators([Validators.required]);
+      lastNameControl?.setValidators([Validators.required]);
+      phoneControl?.setValidators([Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+      emailControl?.setValidators([Validators.required, Validators.email]);
+      address1Control?.clearValidators();
+      cityControl?.clearValidators();
+      stateControl?.clearValidators();
+      zipControl?.clearValidators();
+      vendorTypeIdControl?.clearValidators();
+    }
+
+    if (this.needsStrictPhoneValidation(entityTypeId)) {
+      phoneControl?.setValidators([Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]);
+    }
+
+    companyNameControl?.updateValueAndValidity({ emitEvent: false });
+    companyEmailControl?.updateValueAndValidity({ emitEvent: false });
+    displayNameControl?.updateValueAndValidity({ emitEvent: false });
+    firstNameControl?.updateValueAndValidity({ emitEvent: false });
+    lastNameControl?.updateValueAndValidity({ emitEvent: false });
+    phoneControl?.updateValueAndValidity({ emitEvent: false });
+    emailControl?.updateValueAndValidity({ emitEvent: false });
+    address1Control?.updateValueAndValidity({ emitEvent: false });
+    cityControl?.updateValueAndValidity({ emitEvent: false });
+    stateControl?.updateValueAndValidity({ emitEvent: false });
+    zipControl?.updateValueAndValidity({ emitEvent: false });
+    vendorTypeIdControl?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  applyVendorNameCompanyValidators(): void {
+    if (!this.form || this.form.getRawValue().entityTypeId !== EntityType.Vendor) {
+      return;
+    }
+    const vendorTypeId = this.form.getRawValue().vendorTypeId;
+    const companyNameControl = this.form.get('companyName');
+    const firstNameControl = this.form.get('firstName');
+    const lastNameControl = this.form.get('lastName');
+    if (vendorTypeId === VendorType.Company) {
+      companyNameControl?.setValidators([Validators.required]);
+      firstNameControl?.clearValidators();
+      lastNameControl?.clearValidators();
+    } else if (vendorTypeId === VendorType.Individual) {
+      companyNameControl?.clearValidators();
+      firstNameControl?.setValidators([Validators.required]);
+      lastNameControl?.setValidators([Validators.required]);
+    } else {
+      companyNameControl?.clearValidators();
+      firstNameControl?.clearValidators();
+      lastNameControl?.clearValidators();
+    }
+    companyNameControl?.updateValueAndValidity({ emitEvent: false });
+    firstNameControl?.updateValueAndValidity({ emitEvent: false });
+    lastNameControl?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  vendorFirstLastRequired(): boolean {
+    const raw = this.form?.getRawValue();
+    return raw?.entityTypeId === EntityType.Vendor && raw?.vendorTypeId === VendorType.Individual;
+  }
+
+  vendorCompanyNameRequired(): boolean {
+    const raw = this.form?.getRawValue();
+    return raw?.entityTypeId === EntityType.Vendor && raw?.vendorTypeId === VendorType.Company;
   }
 
   populateForm(): void {
     if (this.contact && this.form) {
       const isActiveValue = typeof this.contact.isActive === 'number' ? this.contact.isActive === 1 : Boolean(this.contact.isActive);
-      const contactTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
+      const entityTypeId = this.contact.entityTypeId ?? EntityType.Unknown;
       const companyName = this.contact.companyName ?? (this.contact as any).companyName ?? '';
+      const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(this.contact.officeAccess);
+      const normalizedOfficeAccess = officeAccess.length > 0
+        ? officeAccess
+        : (Number.isFinite(Number(this.contact.officeId)) && Number(this.contact.officeId) > 0 ? [Number(this.contact.officeId)] : []);
+      const rawContactOfficeId = Number(this.contact.officeId);
+      const patchOfficeId = Number.isFinite(rawContactOfficeId) && rawContactOfficeId > 0
+        ? rawContactOfficeId
+        : (normalizedOfficeAccess[0] ?? null);
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
       const insuranceExpirationDate = this.utilityService.parseApiDateOnlyToDate(this.contact.insuranceExpiration ?? null);
       this.form.patchValue({
         contactCode: this.contact.contactCode,
-        contactTypeId: contactTypeId,
+        entityTypeId: entityTypeId,
         ownerTypeId: this.contact.ownerTypeId ?? null,
+        vendorTypeId: entityTypeId === EntityType.Vendor ? (this.contact.vendorTypeId ?? null) : null,
         propertyCodes: propertyCodesArray,
         firstName: this.contact.firstName,
         lastName: this.contact.lastName,
-        officeId: this.contact.officeId || null,
+        officeAccess: normalizedOfficeAccess,
+        officeId: patchOfficeId,
         companyName: companyName,
         companyEmail: this.contact.companyEmail ?? '',
         displayName: this.contact.displayName ?? '',
@@ -588,14 +698,16 @@ export class ContactComponent implements OnInit, OnDestroy {
         addAsUser: (this.contact.addAsUser ?? 0) === 1
       }, { emitEvent: false });
 
+      this.syncDefaultOfficeOptions();
+
       if (!this.isAddMode) {
-        this.form.get('contactTypeId')?.disable();
+        this.form.get('entityTypeId')?.disable();
       }
 
-      // Populate W9, Insurance and Agreement from response
+      this.applyEntityTypeContactValidators(entityTypeId);
+
       this.populateW9FromContact();
       this.populateInsuranceFromContact();
-      this.populateAgreementFromContact();
     }
   }
 
@@ -657,78 +769,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   }
 
-  populateAgreementFromContact(): void {
-    if (!this.contact) return;
-    const fd = this.contact.agreementFileDetails;
-    const path = this.contact.agreementPath;
-    this.hasNewAgreementUpload = false;
-    if (fd?.file && fd?.contentType) {
-      this.agreementFileDetails = fd;
-      this.agreementPath = path ?? null;
-      this.agreementFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.agreementFileContentType = fd.contentType;
-      this.agreementFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Agreement';
-      this.setPdfThumbnail(this.agreementFileDataUrl, fd.contentType, u => this.agreementPdfThumbnailUrl = u);
-    } else if (path) {
-      this.agreementPath = path;
-      this.agreementFileDetails = null;
-      this.agreementFileName = path.replace(/^.*[/\\]/, '') || 'Agreement';
-      this.agreementFileDataUrl = null;
-      this.agreementFileContentType = null;
-      this.agreementPdfThumbnailUrl = null;
-    } else {
-      this.agreementPath = null;
-      this.agreementFileDetails = null;
-      this.agreementFileName = null;
-      this.agreementFileDataUrl = null;
-      this.agreementFileContentType = null;
-      this.agreementPdfThumbnailUrl = null;
-    }
-  }
-
-  onAgreementFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length) {
-      this.agreementFileName = null;
-      this.agreementFileDataUrl = null;
-      this.agreementFileContentType = null;
-      this.agreementFileDetails = null;
-      this.agreementPdfThumbnailUrl = null;
-      return;
-    }
-    const file = input.files[0];
-    this.agreementFileName = file.name;
-    this.agreementFileContentType = file.type;
-    this.agreementPath = null;
-    this.hasNewAgreementUpload = true;
-    this.agreementFileDetails = { contentType: file.type, fileName: file.name, file: '', dataUrl: '' };
-    const reader = new FileReader();
-    reader.onload = (): void => {
-      const dataUrl = reader.result as string;
-      this.agreementFileDataUrl = dataUrl;
-      if (this.agreementFileDetails) {
-        this.agreementFileDetails.dataUrl = dataUrl;
-        const base64String = dataUrl.split(',')[1];
-        this.agreementFileDetails.file = base64String ?? '';
-      }
-      this.setPdfThumbnail(dataUrl, file.type, u => this.agreementPdfThumbnailUrl = u);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  removeAgreementForm(): void {
-    this.agreementPath = null;
-    this.agreementFileName = null;
-    this.agreementFileDataUrl = null;
-    this.agreementFileContentType = null;
-    this.agreementFileDetails = null;
-    this.agreementPdfThumbnailUrl = null;
-    this.hasNewAgreementUpload = false;
-    if (this.agreementFileInputRef?.nativeElement) {
-      this.agreementFileInputRef.nativeElement.value = '';
-    }
-  }
-
   setPdfThumbnail(
     dataUrl: string | null,
     contentType: string | null,
@@ -742,19 +782,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => setter(url));
   }
 
-  /** Open a data URL (e.g. PDF) in a new tab using the browser's PDF viewer. */
-  openFileInNewTab(dataUrl: string | null): void {
-    if (!dataUrl) return;
-    try {
-      const blob = this.dataUrlToBlob(dataUrl);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch {
-      window.open(dataUrl, '_blank', 'noopener');
-    }
-  }
-
   dataUrlToBlob(dataUrl: string): Blob {
     const [header, base64] = dataUrl.split(',');
     const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/pdf';
@@ -765,7 +792,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   filterPropertiesByGlobalOffice(): void {
-    const officeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+    const officeId = this.globalSelectionService.getSelectedOfficeIdValue();
     const list = (this.allProperties || []);
     const filtered = officeId != null ? list.filter(p => p.officeId === officeId) : list;
     this.availablePropertyCodes = filtered.map(p => ({
@@ -783,7 +810,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       const cityControl = this.form.get('city');
       const stateControl = this.form.get('state');
       const zipControl = this.form.get('zip');
-      const isCompany = this.form.get('contactTypeId')?.value === EntityType.Company;
+      const isCompany = this.form.get('entityTypeId')?.value === EntityType.Company;
 
       if (isInternational && !isCompany) {
         cityControl?.clearValidators();
@@ -809,7 +836,7 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   get contactTypeTitleLabel(): string {
     const id = this.isAddMode
-      ? (this.form?.get('contactTypeId')?.value ?? this.entityTypeId)
+      ? (this.form?.get('entityTypeId')?.value ?? this.presetEntityTypeId)
       : this.contact?.entityTypeId;
     const label = getEntityType(id);
     const known = [EntityType.Tenant, EntityType.Owner, EntityType.Company, EntityType.Vendor].includes(Number(id));
@@ -828,19 +855,71 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.form?.get('rating')?.markAsTouched();
   }
 
-  getOfficeName(): string {
-    if (!this.contact) {
-      return '';
+  syncDefaultOfficeOptions(): void {
+    if (!this.form) {
+      return;
     }
-    // Use officeName from contact response if available, otherwise look it up
-    if (this.contact.officeName) {
-      return this.contact.officeName;
+
+    const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(this.form.get('officeAccess')?.value || []);
+    const selectedSet = new Set<number>(officeAccess);
+    this.availableDefaultOffices = this.availableOffices.filter(office => selectedSet.has(office.value));
+
+    const currentDefaultOffice = this.form.get('officeId')?.value;
+    const hasCurrentDefaultOffice = this.availableDefaultOffices.some(office => office.value === currentDefaultOffice);
+    if (!hasCurrentDefaultOffice) {
+      this.form.get('officeId')?.setValue(officeAccess[0] ?? null, { emitEvent: false });
     }
-    if (this.contact.officeId && this.offices && this.offices.length > 0) {
-      const office = this.offices.find(o => o.officeId === this.contact.officeId);
-      return office ? office.name : '';
+  }
+
+  needsStrictPhoneValidation(entityTypeId: number | null | undefined): boolean {
+    const id = Number(entityTypeId);
+    if (id === EntityType.Company || id === EntityType.Owner || id === EntityType.Vendor) {
+      return true;
     }
-    return '';
+    return false;
+  }
+
+  applyEntityTypeSpecificContactFields(
+    contactRequest: ContactRequest,
+    entityTypeId: number,
+    formValue: { ownerTypeId?: number | null; vendorTypeId?: number | null; propertyCodes?: string[]; addAsUser?: boolean }
+  ): void {
+    if (entityTypeId === EntityType.Owner) {
+      contactRequest.ownerTypeId = formValue.ownerTypeId ?? this.contact?.ownerTypeId ?? null;
+      contactRequest.properties = formValue.propertyCodes || [];
+      contactRequest.addAsUser = 0;
+      contactRequest.vendorTypeId = null;
+      return;
+    }
+    contactRequest.ownerTypeId = undefined;
+    contactRequest.properties = [];
+    if (entityTypeId === EntityType.Vendor) {
+      contactRequest.vendorTypeId = formValue.vendorTypeId ?? this.contact?.vendorTypeId ?? null;
+    } else {
+      contactRequest.vendorTypeId = null;
+    }
+    contactRequest.addAsUser = entityTypeId === EntityType.Vendor && formValue.addAsUser ? 1 : 0;
+  }
+
+  applyContactTypeLockedState(): void {
+    if (!this.form || !this.isAddMode) {
+      return;
+    }
+    const locked =
+      !this.copyFrom &&
+      (this.presetEntityTypeId === EntityType.Owner ||
+        this.presetEntityTypeId === EntityType.Vendor ||
+        this.presetEntityTypeId === EntityType.Tenant ||
+        this.presetEntityTypeId === EntityType.Company);
+    const ctl = this.form.get('entityTypeId');
+    if (!ctl) {
+      return;
+    }
+    if (locked) {
+      ctl.disable({ emitEvent: false });
+    } else {
+      ctl.enable({ emitEvent: false });
+    }
   }
   //#endregion
 
@@ -867,6 +946,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.syncDefaultOfficeOptions();
         
         // If in add mode and form is built, set values from query params
         if (this.isAddMode && this.form) {
@@ -937,7 +1017,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   patchPreselectedOwnerPropertyCodes(): void {
-    if (!this.form || !this.isAddMode || this.entityTypeId !== EntityType.Owner) {
+    if (!this.form || !this.isAddMode || this.form.get('entityTypeId')?.value !== EntityType.Owner) {
       return;
     }
     const codes = (this.dialogData?.preselectPropertyCodes ?? [])
@@ -1048,6 +1128,29 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.insuranceFileInputRef.nativeElement.value = '';
     }
   }
+
+  openW9Preview(event?: Event): void {
+    const imageSrc = this.w9FileContentType?.startsWith('image/')
+      ? this.w9FileDataUrl
+      : this.w9PdfThumbnailUrl;
+    this.openContactAttachmentPreview(imageSrc, 'W9 Form', event);
+  }
+
+  openInsurancePreview(event?: Event): void {
+    const imageSrc = this.insuranceFileContentType?.startsWith('image/')
+      ? this.insuranceFileDataUrl
+      : this.insurancePdfThumbnailUrl;
+    this.openContactAttachmentPreview(imageSrc, 'Insurance Form', event);
+  }
+
+  openContactAttachmentPreview(imageSrc: string | null, title: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!imageSrc) {
+      return;
+    }
+    const data: ImageViewDialogData = { imageSrc, title };
+    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+  }
   //#endregion
 
   //#region Contract Negotiation Helpers
@@ -1149,13 +1252,49 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
-  shouldCreateVendorUser(entityTypeId: number, formValue: any, savedContact: ContactResponse): boolean {
-    if (!this.isAddMode || entityTypeId !== EntityType.Vendor || !formValue?.addAsUser) {
+  //#region User Create Methods
+  shouldCreateOwnerUser(savedContact: ContactResponse): boolean {
+    const email = (savedContact?.email || '').trim();
+    const code = (savedContact?.contactCode || '').trim();
+    return email.length > 0 && code.length > 0;
+  }
+
+  shouldCreateVendorUser(formValue: { addAsUser?: boolean; email?: string }, savedContact: ContactResponse): boolean {
+    if (!formValue?.addAsUser) {
       return false;
     }
     const vendorEmail = (savedContact?.email || formValue?.email || '').trim();
     return vendorEmail.length > 0;
+  }
+
+  buildOwnerUserRequest(savedContact: ContactResponse, contactRequest: ContactRequest): UserRequest | null {
+    const contactCode = (savedContact.contactCode || contactRequest.contactCode || '').trim();
+    const email = (savedContact.email || contactRequest.email || '').trim();
+    if (!contactCode || !email) {
+      return null;
+    }
+
+    const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? contactRequest.officeAccess);
+    const officeId = Number(savedContact.officeId ?? contactRequest.officeId);
+    const firstName = (savedContact.firstName || contactRequest.firstName || '').trim();
+    const lastName = (savedContact.lastName || contactRequest.lastName || '').trim();
+    const phone = this.formatterService.stripPhoneFormatting(savedContact.phone || contactRequest.phone || '');
+
+    return {
+      userId: email,
+      organizationId: savedContact.organizationId || contactRequest.organizationId,
+      firstName: firstName || 'Owner',
+      lastName: lastName || 'Owner',
+      email,
+      phone: phone || '',
+      password: contactCode,
+      userGroups: [UserGroups[UserGroups.Owner]],
+      officeAccess: officeAccess.length > 0 ? officeAccess : [officeId],
+      properties: contactRequest.properties || [],
+      startupPageId: 0,
+      defaultOfficeId: officeId,
+      isActive: typeof savedContact.isActive === 'number' ? savedContact.isActive === 1 : !!savedContact.isActive
+    };
   }
 
   buildVendorUserRequest(savedContact: ContactResponse, contactRequest: ContactRequest): UserRequest | null {
@@ -1165,7 +1304,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       return null;
     }
 
-    const officeId = Number(savedContact?.officeId ?? contactRequest.officeId ?? 0);
+    const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? contactRequest.officeAccess);
+    const officeId = Number(savedContact.officeId ?? contactRequest.officeId);
     const firstName = (savedContact?.firstName || contactRequest.firstName || '').trim() || (savedContact?.companyName || contactRequest.companyName || 'Vendor').trim();
     const lastName = (savedContact?.lastName || contactRequest.lastName || '').trim() || 'Vendor';
     const phone = this.formatterService.stripPhoneFormatting(savedContact?.phone || contactRequest.phone || '');
@@ -1178,14 +1318,123 @@ export class ContactComponent implements OnInit, OnDestroy {
       phone: phone || '',
       password: vendorCode,
       userGroups: [UserGroups[UserGroups.Vendor]],
-      officeAccess: officeId > 0 ? [officeId] : [],
+      officeAccess: officeAccess.length > 0 ? officeAccess : [officeId],
       properties: [],
       startupPageId: 0,
-      defaultOfficeId: officeId > 0 ? officeId : null,
+      defaultOfficeId: officeId,
       isActive: !!savedContact?.isActive
     };
   }
 
+  userResponseToUserRequestForUpdate(user: UserResponse, overrides: Partial<UserRequest>): UserRequest {
+    return {
+      userId: user.userId,
+      organizationId: user.organizationId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: this.formatterService.stripPhoneFormatting(user.phone || '') || '',
+      password: null,
+      userGroups: user.userGroups || [],
+      officeAccess: user.officeAccess || [],
+      properties: user.properties || [],
+      profilePath: user.profilePath,
+      fileDetails: user.fileDetails,
+      startupPageId: user.startupPageId ?? 0,
+      defaultOfficeId: user.defaultOfficeId ?? null,
+      agentId: user.agentId ?? null,
+      commissionRate: user.commissionRate ?? null,
+      contactId: overrides.contactId !== undefined ? overrides.contactId : user.contactId,
+      isActive: user.isActive
+    };
+  }
+
+  buildContactRequestWithUserId(savedContact: ContactResponse, originalRequest: ContactRequest, userId: string): ContactRequest {
+    const isActive =
+      typeof savedContact.isActive === 'number' ? savedContact.isActive === 1 : !!savedContact.isActive;
+    return {
+      ...originalRequest,
+      contactId: savedContact.contactId,
+      contactCode: savedContact.contactCode,
+      organizationId: savedContact.organizationId,
+      officeId: savedContact.officeId,
+      officeAccess: this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? originalRequest.officeAccess),
+      userId,
+      entityTypeId: savedContact.entityTypeId,
+      ownerTypeId: savedContact.entityTypeId === EntityType.Owner ? (savedContact.ownerTypeId ?? originalRequest.ownerTypeId ?? null) : undefined,
+      vendorTypeId:
+        savedContact.entityTypeId === EntityType.Vendor ? (savedContact.vendorTypeId ?? originalRequest.vendorTypeId ?? null) : null,
+      properties: savedContact.entityTypeId === EntityType.Owner ? (savedContact.properties ?? originalRequest.properties ?? []) : [],
+      companyName: savedContact.companyName ?? originalRequest.companyName,
+      companyEmail: savedContact.companyEmail ?? originalRequest.companyEmail,
+      displayName: savedContact.displayName ?? originalRequest.displayName,
+      firstName: savedContact.firstName ?? originalRequest.firstName,
+      lastName: savedContact.lastName ?? originalRequest.lastName,
+      address1: savedContact.address1 ?? originalRequest.address1,
+      address2: savedContact.address2 ?? originalRequest.address2,
+      city: savedContact.city ?? originalRequest.city,
+      state: savedContact.state ?? originalRequest.state,
+      zip: savedContact.zip ?? originalRequest.zip,
+      phone: savedContact.phone ?? originalRequest.phone,
+      email: savedContact.email,
+      rating: savedContact.rating ?? originalRequest.rating,
+      notes: savedContact.notes ?? originalRequest.notes,
+      isInternational: savedContact.isInternational ?? originalRequest.isInternational,
+      w9Path: savedContact.w9Path ?? originalRequest.w9Path,
+      w9FileDetails: savedContact.w9FileDetails ?? originalRequest.w9FileDetails,
+      insurancePath: savedContact.insurancePath ?? originalRequest.insurancePath,
+      insuranceFileDetails: savedContact.insuranceFileDetails ?? originalRequest.insuranceFileDetails,
+      insuranceExpiration: savedContact.insuranceExpiration ?? originalRequest.insuranceExpiration,
+      markup: savedContact.markup ?? originalRequest.markup,
+      revenueSplitOwner: savedContact.revenueSplitOwner ?? originalRequest.revenueSplitOwner,
+      revenueSplitOffice: savedContact.revenueSplitOffice ?? originalRequest.revenueSplitOffice,
+      workingCapitalBalance: savedContact.workingCapitalBalance ?? originalRequest.workingCapitalBalance,
+      linenAndTowelFee: savedContact.linenAndTowelFee ?? originalRequest.linenAndTowelFee,
+      bankName: savedContact.bankName ?? originalRequest.bankName,
+      routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
+      accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
+      addAsUser: savedContact.addAsUser ?? originalRequest.addAsUser ?? 0,
+      isActive
+    };
+  }
+
+  runCreateUserAndLinkContact(
+    savedContact: ContactResponse,
+    contactRequest: ContactRequest,
+    userRequest: UserRequest,
+    successMessage: string,
+    failureMessage: string,
+    finalizeContactSave: () => void
+  ): void {
+    this.userService.createUser(userRequest).pipe(
+      switchMap(created =>
+        this.userService.getUserByGuid(created.userId).pipe(
+          switchMap(retrieved =>
+            this.userService.updateUser(this.userResponseToUserRequestForUpdate(retrieved, { contactId: savedContact.contactId }))
+          ),
+          switchMap(() =>
+            this.contactService.updateContact(this.buildContactRequestWithUserId(savedContact, contactRequest, created.userId))
+          )
+        )
+      ),
+      take(1)
+    ).subscribe({
+      next: () => {
+        this.toastr.success(successMessage, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        finalizeContactSave();
+      },
+      error: (err: unknown) => {
+        const httpErr = err as { error?: { message?: string; title?: string }; message?: string };
+        const apiMessage = String(httpErr?.error?.message || httpErr?.error?.title || httpErr?.message || '').trim();
+        const message = apiMessage ? `${failureMessage} ${apiMessage}` : failureMessage;
+        this.toastr.warning(message, CommonMessage.Error);
+        finalizeContactSave();
+      }
+    });
+  }
+  //#endregion 
+    
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

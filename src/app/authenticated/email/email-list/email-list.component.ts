@@ -14,7 +14,7 @@ import { EmailService } from '../services/email.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -89,7 +89,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private contactService: ContactService,
     private toastr: ToastrService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService
+    private globalSelectionService: GlobalSelectionService
   ) {}
 
   //#region Email-List
@@ -110,7 +110,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.loadOffices();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -191,11 +191,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalOfficeSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
-        this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.source !== 'invoice', disableSingleOfficeRule: this.source === 'invoice' }).pipe(take(1)).subscribe({
+        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.source !== 'invoice', disableSingleOfficeRule: this.source === 'invoice' }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
@@ -270,7 +270,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanies();
     this.filterReservations();

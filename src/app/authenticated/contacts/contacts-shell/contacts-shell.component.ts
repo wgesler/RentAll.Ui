@@ -5,7 +5,7 @@ import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { ContactListComponent } from '../contact-list/contact-list.component';
@@ -49,7 +49,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private officeService: OfficeService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private contactService: ContactService,
     private cdr: ChangeDetectorRef
   ) { }
@@ -63,7 +63,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       .subscribe(params => this.applyQueryParamState(params));
 
     this.loadOffices();
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.syncOfficeFromGlobal(officeId);
     });
   }
@@ -98,7 +98,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   }
   
   onOfficeIdChange(officeId: number | null): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(officeId);
+    this.globalSelectionService.setSelectedOfficeId(officeId);
     this.resolveOfficeScope(officeId);
     this.updateUrlWithCurrentState();
   }
@@ -167,7 +167,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
           this.resolveOfficeScope(this.offices[0].officeId);
           didSetInitialOffice = true;
         } else if (!this.selectedOffice) {
-          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId !== null) {
             const globalOffice = this.offices.find(office => office.officeId === globalOfficeId) || null;
             if (globalOffice) {

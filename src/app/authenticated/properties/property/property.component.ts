@@ -24,7 +24,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { RegionResponse } from '../../organizations/models/region.model';
 import { AreaService } from '../../organizations/services/area.service';
 import { BuildingService } from '../../organizations/services/building.service';
-import { GlobalOfficeSelectionService } from '../../organizations/services/global-office-selection.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
@@ -128,7 +128,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     private utilityService: UtilityService,
     private propertyLetterService: PropertyLetterService,
     private reservationService: ReservationService,
-    private globalOfficeSelectionService: GlobalOfficeSelectionService,
+    private globalSelectionService: GlobalSelectionService,
     private dialog: MatDialog,
     private unsavedChangesDialogService: UnsavedChangesDialogService
   ) {
@@ -149,7 +149,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.loadAreas();
     this.loadBuildings();
 
-    this.globalOfficeSubscription = this.globalOfficeSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && !this.property) {
         this.resolveOfficeScope(officeId);
         if (this.form) {
@@ -452,15 +452,22 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     } else {
       propertyRequest.propertyId = this.propertyId;
       propertyRequest.organizationId = this.property?.organizationId || user?.organizationId || '';
-      this.propertyService.updateProperty(propertyRequest).pipe(take(1), finalize(() => this.isSubmitting = false) ).subscribe({
-        next: (response: PropertyResponse) => {
+      this.propertyService.updateProperty(propertyRequest).pipe(
+        switchMap((response: PropertyResponse) => {
+          const persist$ = this.propertyAgreementSection?.persistAgreementIfDirty() ?? of(true);
+          return persist$.pipe(map(ok => ({ response, ok })));
+        }),
+        take(1),
+        finalize(() => { this.isSubmitting = false; })
+      ).subscribe({
+        next: ({ response, ok }) => {
           this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
           this.populateForm();
           this.captureSavedStateSignature();
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
-          onComplete?.(true);
+          onComplete?.(ok);
         },
         error: () => {
           onComplete?.(false);
@@ -888,7 +895,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const officeId =
       this.form.getRawValue().officeId ??
       this.selectedOffice?.officeId ??
-      this.globalOfficeSelectionService.getSelectedOfficeIdValue() ??
+      this.globalSelectionService.getSelectedOfficeIdValue() ??
       this.offices[0]?.officeId ??
       null;
     if (officeId == null || officeId === '') {
@@ -1394,7 +1401,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
 
         if (!this.property && this.form) {
-          const globalOfficeId = this.globalOfficeSelectionService.getSelectedOfficeIdValue();
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
           const globalOffice = globalOfficeId != null
             ? this.offices.find(o => o.officeId === globalOfficeId) || null
             : null;
@@ -1407,7 +1414,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
           this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null }, { emitEvent: false });
           this.filterReservations();
         } else {
-          this.globalOfficeSelectionService.getOfficeUiState$(this.offices, { useGlobalSelection: false, disableSingleOfficeRule: !!this.property?.officeId }).pipe(take(1)).subscribe({
+          this.globalSelectionService.getOfficeUiState$(this.offices, { useGlobalSelection: false, disableSingleOfficeRule: !!this.property?.officeId }).pipe(take(1)).subscribe({
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
               if (uiState.autoSelectedOfficeId !== null) {
@@ -1617,7 +1624,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   onOfficeChange(): void {
-    this.globalOfficeSelectionService.setSelectedOfficeId(this.form.get('officeId')?.value ?? null);
+    this.globalSelectionService.setSelectedOfficeId(this.form.get('officeId')?.value ?? null);
     this.resolveOfficeScope(this.form.get('officeId')?.value ?? null);
     this.filterLocationLookupsByOffice();
     this.filterReservations();

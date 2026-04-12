@@ -9,7 +9,6 @@ export interface PropertySelectionRequest {
   propertyCode: string | null;
   city: string | null;
   state: string | null;
-  unfurnished: boolean;
   cable: boolean;
   streaming: boolean;
   pool: boolean;
@@ -37,7 +36,6 @@ export interface PropertySelectionResponse {
   propertyCode: string | null;
   city: string | null;
   state: string | null;
-  unfurnished: boolean;
   cable: boolean;
   streaming: boolean;
   pool: boolean;
