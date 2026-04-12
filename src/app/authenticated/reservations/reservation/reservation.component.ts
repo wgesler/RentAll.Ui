@@ -57,6 +57,12 @@ interface ExtraFeeLineDisplay {
   isNew?: boolean; // Track if this is a new line
 }
 
+interface AdditionalContactRow {
+  contactId: string;
+  contactPhone: string;
+  contactEmail: string;
+}
+
 @Component({
     standalone: true,
     selector: 'app-reservation',
@@ -103,6 +109,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   companyContacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
   selectedContact: ContactResponse | null = null;
+  additionalContactRows: AdditionalContactRow[] = [];
   properties: PropertyListResponse[] = [];
   availableProperties: PropertyListResponse[] = [];
   selectedProperty: PropertyListResponse | null = null;
@@ -245,12 +252,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
+  getPrimaryReservationContactId(reservation: ReservationResponse | null | undefined): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
+  }
+
   applyCopyFromReservation(source: ReservationResponse): void {
     if (!this.form || !source) return;
 
     this.selectedOffice = this.offices.find(o => o.officeId === source.officeId) || null;
     this.selectedProperty = null;
-    this.selectedContact = this.contacts.find(c => c.contactId === source.contactId) || null;
+    this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(source)) || null;
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
@@ -282,7 +295,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       agentId: source.reservationTypeId === ReservationType.Owner
         ? null
         : (source.agentId || this.noneAgentOptionValue),
-      contactId: source.contactId || null,
+      contactId: this.getPrimaryReservationContactId(source) || null,
       companyName: (source as { companyName?: string })?.companyName ?? '',
       tenantName: source.tenantName || '',
       referenceNo: source.referenceNo || '',
@@ -321,6 +334,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const departurePickerStart = new Date(today);
     departurePickerStart.setDate(departurePickerStart.getDate() + 1);
     this.departureDateStartAt = departurePickerStart;
+    this.buildAdditionalContactRows(source.contactIds || []);
     this.updateContactFields();
     this.applyPlatformCompanyDetails(source.companyId ?? null, source.companyName ?? null);
     this.updatePetFields();
@@ -388,6 +402,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.touchAllFormControls(this.form);
     this.form.markAsTouched();
     this.form.markAsDirty();
+    this.validateNumberOfPeopleAgainstContacts();
     this.form.updateValueAndValidity({ emitEvent: false });
     
     if (!this.form.valid) {
@@ -507,6 +522,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const companyNameRaw = formValue.companyName;
     const companyId = companyIdRaw == null || String(companyIdRaw).trim() === '' ? null : String(companyIdRaw).trim();
     const companyName = companyNameRaw == null || String(companyNameRaw).trim() === '' ? null : String(companyNameRaw).trim();
+    const selectedContactIds = this.getSelectedContactIdsFromForm();
 
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
@@ -515,7 +531,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       agentId: isOwnerReservationType
         ? null
         : (agentId == null || String(agentId).trim() === '' ? null : String(agentId)),
-      contactId: formValue.contactId,
+      contactIds: selectedContactIds,
       companyId: companyId,
       companyName: companyName,
       reservationTypeId: reservationTypeId,
@@ -680,7 +696,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
     const reservationOfficeId = this.selectedProperty?.officeId ?? this.reservation.officeId;
     this.selectedOffice = this.offices.find(o => o.officeId === reservationOfficeId) || null;
-    this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
+    this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.reservation));
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
@@ -704,7 +720,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       agentId: this.reservation.reservationTypeId === ReservationType.Owner
         ? null
         : (this.reservation.agentId || this.noneAgentOptionValue),
-      contactId: this.reservation.contactId || null,
+      contactId: this.getPrimaryReservationContactId(this.reservation) || null,
       companyName: (this.reservation as { companyName?: string })?.companyName ?? '',
       tenantName: this.reservation.tenantName || '',
       referenceNo: this.reservation.referenceNo || '',
@@ -737,7 +753,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }, { emitEvent: false });
 
     // Find selected contact - contacts are guaranteed to be loaded at this point
-    this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
+    this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.reservation));
+    this.buildAdditionalContactRows(this.reservation.contactIds || []);
     this.updateContactFields();
     this.applyPlatformCompanyDetails(this.reservation.companyId ?? null, this.reservation.companyName ?? null);
    
@@ -881,8 +898,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           this.filterPropertiesByOffice();
         }
       }
-      if (this.reservation?.contactId) {
-        this.selectedContact = this.contacts.find(c => c.contactId === this.reservation.contactId);
+      const selectedContactId = this.getPrimaryReservationContactId(this.reservation);
+      if (selectedContactId) {
+        this.selectedContact = this.contacts.find(c => c.contactId === selectedContactId);
       }
 
       const propertyAddress = this.selectedProperty?.shortAddress || '';
@@ -939,6 +957,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       
       // Clear selected contact reference
       this.selectedContact = null;
+      this.additionalContactRows = [];
       this.updateContactFields();
     });
   }
@@ -1058,7 +1077,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
 
     const reservationTypeId = this.form.get('reservationTypeId')?.value as number;
-    const contactId = this.form.get('contactId')?.value || this.reservation?.contactId;
+    const contactId = this.form.get('contactId')?.value || this.getPrimaryReservationContactId(this.reservation);
 
     if (reservationTypeId === ReservationType.Individual) 
       this.filteredContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Tenant);
@@ -1086,6 +1105,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     ];
   }
 
+  //#region Contact List Methods
+  get contactNameOptionsNoCreate(): SearchableSelectOption[] {
+    return this.filteredContacts.map(contact => ({
+      value: contact.contactId,
+      label: this.getContactNameLabel(contact)
+    }));
+  }
+
   get companyContactOptions(): SearchableSelectOption[] {
     return this.companyContacts.map(contact => ({
       value: contact.contactId,
@@ -1106,7 +1133,98 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     contactControl?.setValue(normalizedContactId);
     contactControl?.markAsTouched();
     contactControl?.markAsDirty();
+    this.validateNumberOfPeopleAgainstContacts();
   }
+
+  onAdditionalContactNameChange(index: number, contactId: string | number | null): void {
+    const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId).trim();
+    const selectedContact = normalizedContactId ? this.contacts.find(c => c.contactId === normalizedContactId) || null : null;
+    this.additionalContactRows[index] = {
+      contactId: normalizedContactId,
+      contactPhone: selectedContact ? (this.formatterService.phoneNumber(selectedContact.phone) || '') : '',
+      contactEmail: selectedContact?.email || ''
+    };
+    this.validateNumberOfPeopleAgainstContacts();
+  }
+
+  addAdditionalContactRow(): void {
+    this.additionalContactRows.push({
+      contactId: '',
+      contactPhone: '',
+      contactEmail: ''
+    });
+    this.validateNumberOfPeopleAgainstContacts();
+  }
+
+  removeAdditionalContactRow(index: number): void {
+    if (index < 0 || index >= this.additionalContactRows.length) {
+      return;
+    }
+    this.additionalContactRows.splice(index, 1);
+    this.validateNumberOfPeopleAgainstContacts();
+  }
+
+  buildAdditionalContactRows(contactIds: string[] | null | undefined): void {
+    const additionalContactIds = (contactIds || [])
+      .map(id => String(id || '').trim())
+      .filter((id, index) => id.length > 0 && index > 0);
+    this.additionalContactRows = additionalContactIds.map(contactId => {
+      const matchedContact = this.contacts.find(c => c.contactId === contactId) || null;
+      return {
+        contactId,
+        contactPhone: matchedContact ? (this.formatterService.phoneNumber(matchedContact.phone) || '') : '',
+        contactEmail: matchedContact?.email || ''
+      };
+    });
+  }
+
+  getSelectedContactIdsFromForm(): string[] {
+    const primaryContactIdRaw = this.form?.get('contactId')?.value;
+    const primaryContactId = primaryContactIdRaw == null ? '' : String(primaryContactIdRaw).trim();
+    const additionalContactIds = this.additionalContactRows
+      .map(row => String(row.contactId || '').trim())
+      .filter(id => id.length > 0 && id !== this.newContactOptionValue);
+    const contactIds = [primaryContactId, ...additionalContactIds].filter(id => id.length > 0 && id !== this.newContactOptionValue);
+    return [...new Set(contactIds)];
+  }
+
+  getSelectedContactCount(): number {
+    return this.getSelectedContactIdsFromForm().length;
+  }
+
+  get canAddAdditionalContactRow(): boolean {
+    const primaryContactId = String(this.form?.get('contactId')?.value || '').trim();
+    if (!primaryContactId || primaryContactId === this.newContactOptionValue) {
+      return false;
+    }
+    if (this.additionalContactRows.length === 0) {
+      return true;
+    }
+    const lastContactId = String(this.additionalContactRows[this.additionalContactRows.length - 1]?.contactId || '').trim();
+    return !!lastContactId;
+  }
+
+  validateNumberOfPeopleAgainstContacts(): boolean {
+    const numberOfPeopleControl = this.form?.get('numberOfPeople');
+    if (!numberOfPeopleControl) {
+      return true;
+    }
+    const selectedContactCount = this.getSelectedContactCount();
+    const numberOfPeople = Number(numberOfPeopleControl.value);
+    const isValid = !Number.isNaN(numberOfPeople) && numberOfPeople >= selectedContactCount;
+    const errors = { ...(numberOfPeopleControl.errors || {}) } as Record<string, boolean>;
+    if (!isValid) {
+      errors['minContacts'] = true;
+      numberOfPeopleControl.setErrors(errors);
+      return false;
+    }
+    if (errors['minContacts']) {
+      delete errors['minContacts'];
+      numberOfPeopleControl.setErrors(Object.keys(errors).length > 0 ? errors : null);
+    }
+    return true;
+  }
+  //#endregion
 
   onCompanyContactChange(contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId);
@@ -1802,10 +1920,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       next: (contacts) => {
         this.contacts = contacts || [];
         this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+        if (this.additionalContactRows.length > 0) {
+          this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
+        }
       },
       error: () => {
         this.contacts = [];
         this.companyContacts = [];
+        this.additionalContactRows = [];
       }
     });
   }
@@ -1836,7 +1958,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         this.reservationId = response.reservationId;
         this.reservation = response;
         this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId === response.contactId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
         this.populateForm();
       },
       error: () => {
@@ -2119,6 +2241,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const value = input.value.replace(/[^0-9]/g, '');
     input.value = value;
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
+    if (fieldName === 'numberOfPeople') {
+      this.validateNumberOfPeopleAgainstContacts();
+    }
   }
 
   onExtraFeeAmountInput(event: Event, index: number): void {

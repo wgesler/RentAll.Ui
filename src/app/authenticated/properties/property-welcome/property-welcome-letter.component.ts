@@ -229,7 +229,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
     const generateDto: GenerateDocumentFromHtmlDto = {
@@ -867,7 +867,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
 
@@ -886,7 +886,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   override async onEmail(): Promise<void> {
-    const contact = this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) || null;
+    const contact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) || null;
     const toName = contact?.fullName;
     const toEmail = contact?.email || '';
     const salutationName = `${contact?.firstName|| ''}`.trim();
@@ -902,7 +902,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
@@ -949,6 +949,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const na = Number(a);
     const nb = Number(b);
     return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+  }
+
+  getPrimaryReservationContactId(reservation: ReservationResponse | null | undefined): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
   }
 
   ngOnDestroy(): void {

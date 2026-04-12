@@ -98,7 +98,7 @@ export class ApplyCreditDialogComponent implements OnInit {
           officeId: reservation.officeId,
           agentId: reservation.agentId ?? null,
           propertyId: reservation.propertyId,
-          contactId: reservation.contactId,
+          contactIds: (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0),
           reservationCode: reservation.reservationCode,
           reservationTypeId: reservation.reservationTypeId,
           reservationStatusId: reservation.reservationStatusId,

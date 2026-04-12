@@ -368,7 +368,46 @@
                   <input matInput type="email" formControlName="contactEmail">
                 </mat-form-field>
 
-                <div class="col-span-1"></div>
+                <div class="col-span-1 flex items-center justify-end reservation-add-contact-action-cell">
+                  @if (canAddAdditionalContactRow) {
+                    <button mat-raised-button type="button" color="primary" (click)="addAdditionalContactRow()">
+                      + Add Contact
+                    </button>
+                  }
+                </div>
+              }
+
+              @for (contactRow of additionalContactRows; track $index) {
+                <app-searchable-select
+                  class="col-span-1"
+                  [renderInFormField]="true"
+                  [formFieldLabel]="'Contact Name'"
+                  [required]="false"
+                  [value]="contactRow.contactId || ''"
+                  [options]="contactNameOptionsNoCreate"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [nullOptionLabel]="'Select Contact'"
+                  [noResultsText]="'No contacts match your search'"
+                  (valueChange)="onAdditionalContactNameChange($index, $event)">
+                </app-searchable-select>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Phone</mat-label>
+                  <input matInput [value]="contactRow.contactPhone" readonly [disabled]="true" class="readonly-field">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>Contact Email</mat-label>
+                  <input matInput type="email" [value]="contactRow.contactEmail" readonly [disabled]="true" class="readonly-field">
+                </mat-form-field>
+
+                <div class="col-span-1 flex items-center justify-start">
+                  <button mat-icon-button type="button" color="warn" class="reservation-remove-contact-button" (click)="removeAdditionalContactRow($index)" aria-label="Remove contact">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
               }
 
               @if (showCompanyRow) {
@@ -412,6 +451,8 @@
                 <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfPeople" placeholder="1" (focus)="selectAllOnFocus($event)" (input)="onIntegerInput($event, 'numberOfPeople')" required>
                 @if (form.get('numberOfPeople')?.hasError('required') && form.get('numberOfPeople')?.touched) {
                   <mat-error>Number of People is required</mat-error>
+                } @else if (form.get('numberOfPeople')?.hasError('minContacts') && form.get('numberOfPeople')?.touched) {
+                  <mat-error>Number of People must be equal to or greater than selected contacts ({{ getSelectedContactCount() }}).</mat-error>
                 }
               </mat-form-field>
 

@@ -10,7 +10,7 @@ export interface ReservationRequest {
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId: number;
-  contactId: string;
+  contactIds: string[];
   companyId?: string | null;
   companyName?: string | null;
   numberOfPeople: number;
@@ -64,7 +64,7 @@ export interface ReservationResponse {
   reservationTypeId: number;
   reservationStatusId: number;
   reservationNoticeId?: number | null;
-  contactId: string;
+  contactIds: string[];
   contactName: string;
   companyId?: string | null;
   companyName?: string | null;

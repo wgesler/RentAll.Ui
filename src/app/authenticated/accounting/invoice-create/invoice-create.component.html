@@ -125,8 +125,8 @@
                 <mat-icon>print</mat-icon>
                 Print
               </button>
-              <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
-                [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !selectedReservation?.contactId">
+              <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+                [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
                 <mat-icon>email</mat-icon>
                 Email
               </button>

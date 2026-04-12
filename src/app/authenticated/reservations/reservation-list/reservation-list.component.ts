@@ -609,6 +609,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       feeFrequencyId: line.feeFrequencyId,
       costCodeId: line.costCodeId
     }));
+    const contactIds = (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0);
 
     return {
       reservationId: reservation.reservationId,
@@ -616,7 +617,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       officeId: reservation.officeId,
       agentId: reservation.agentId ?? null,
       propertyId: reservation.propertyId,
-      contactId: reservation.contactId,
+      contactIds,
       companyId: reservation.companyId ?? null,
       companyName: reservation.companyName ?? null,
       reservationCode: reservation.reservationCode,

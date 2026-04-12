@@ -329,9 +329,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     // Load contact if not provided
-    if (!this.contact && reservation.contactId) {
+    const reservationContactId = this.getPrimaryReservationContactId(reservation);
+    if (!this.contact && reservationContactId) {
       const contacts = await firstValueFrom(this.contactService.getAllContacts().pipe(take(1)));
-      this.contact = contacts.find(c => c.contactId === reservation.contactId) || null;
+      this.contact = contacts.find(c => c.contactId === reservationContactId) || null;
     }
 
     // Load accounting office if not provided
@@ -639,18 +640,25 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
- loadContact(): void {
-    if (!this.selectedReservation?.contactId) {
+loadContact(): void {
+    const reservationContactId = this.getPrimaryReservationContactId(this.selectedReservation);
+    if (!reservationContactId) {
       this.contact = null;
       return;
     }
 
-    this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
+    this.contact = this.contacts.find(c => c.contactId === reservationContactId) || null;
     if (this.contact && this.contact.entityTypeId === EntityType.Company) {
        this.isCompanyRental = true;
     } else {
       this.isCompanyRental = false;
     }
+  }
+
+  getPrimaryReservationContactId(reservation: ReservationResponse | null | undefined): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
   }
   //#endregion
 

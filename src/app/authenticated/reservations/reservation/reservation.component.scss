@@ -290,11 +290,21 @@
 
 .reservation-toggle-cell {
   justify-self: end;
-  padding-right: 8px;
+  padding-right: var(--global-page-inner-padding);
 }
 
 .reservation-mobile-toggle-row {
   display: none;
+}
+
+.reservation-add-contact-action-cell {
+  padding-right: var(--global-page-inner-padding);
+}
+
+.reservation-remove-contact-button {
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
 }
 
 @media screen and (max-width: 1024px) {

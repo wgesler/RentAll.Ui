@@ -303,7 +303,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.property.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
     const generateDto: GenerateDocumentFromHtmlDto = {
@@ -594,15 +594,22 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
   }
 
+  getPrimaryReservationContactId(reservation: ReservationResponse | null): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
+  }
+
   loadContact(): void {
-    if (!this.selectedReservation?.contactId) {
+    const selectedContactId = this.getPrimaryReservationContactId(this.selectedReservation);
+    if (!selectedContactId) {
       this.contact = null;
       this.companyContact = null;
       this.isCompanyRental = false;
       return;
     }
 
-    this.contact = this.contacts.find(c => c.contactId === this.selectedReservation.contactId) || null;
+    this.contact = this.contacts.find(c => c.contactId === selectedContactId) || null;
     this.companyContact = this.selectedReservation.companyId
       ? this.contacts.find(c => c.contactId === this.selectedReservation?.companyId) || null
       : null;
@@ -1464,7 +1471,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.property.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
     const downloadConfig: DownloadConfig = {
@@ -1497,7 +1504,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.property.propertyCode,
       this.utilityService.buildReservationCodeNameLabel(
         this.selectedReservation,
-        this.contacts.find(c => c.contactId === this.selectedReservation?.contactId) ?? null
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
       )
     );
     const reservationCode = this.selectedReservation?.reservationCode;

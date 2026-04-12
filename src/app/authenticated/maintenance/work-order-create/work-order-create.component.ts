@@ -339,8 +339,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.reservationService.getReservationByGuid(this.workOrder.reservationId).pipe(take(1)).subscribe({
         next: reservation => {
           this.reservation = reservation;
-          if (reservation.contactId) {
-            this.contactService.getContactByGuid(reservation.contactId).pipe(take(1)).subscribe({
+          const reservationContactId = (reservation.contactIds || []).find(id => String(id || '').trim().length > 0);
+          if (reservationContactId) {
+            this.contactService.getContactByGuid(reservationContactId).pipe(take(1)).subscribe({
               next: contact => {
                 this.reservationContact = contact;
                 this.tryGeneratePreview();
