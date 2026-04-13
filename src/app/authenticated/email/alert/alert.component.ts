@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { take } from 'rxjs';
+import { Subject, forkJoin, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,6 +13,12 @@ import { EmailType } from '../models/email.enum';
 import { getFrequencies } from '../../reservations/models/reservation-enum';
 import { AlertRequest, AlertResponse } from '../models/alert.model';
 import { AlertService } from '../services/alert.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
 
 @Component({
   standalone: true,
@@ -21,9 +27,8 @@ import { AlertService } from '../services/alert.service';
   templateUrl: './alert.component.html',
   styleUrl: './alert.component.scss'
 })
-export class AlertComponent implements OnInit, OnChanges {
+export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   readonly defaultFromName = 'The RentAll Exchange';
-  readonly defaultFromEmail = 'wendy.gesler@rentallexchange.com';
 
   @Input() alertId: string | null = null;
   @Input() alertResponse: AlertResponse | null = null;
@@ -42,8 +47,13 @@ export class AlertComponent implements OnInit, OnChanges {
   isSubmitting = false;
   isServiceError = false;
   isAddMode = true;
+  readonly alertEmailTypeId = EmailType.Alert;
 
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
+  offices: OfficeResponse[] = [];
+  propertyOptions: { value: string; officeId: number; label: string }[] = [];
+  reservationOptions: { value: string; officeId: number; propertyId: string; label: string }[] = [];
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -51,12 +61,16 @@ export class AlertComponent implements OnInit, OnChanges {
     private fb: FormBuilder,
     private alertService: AlertService,
     private authService: AuthService,
+    private officeService: OfficeService,
+    private propertyService: PropertyService,
+    private reservationService: ReservationService,
     private formatter: FormatterService,
     private toastr: ToastrService
   ) {}
 
   //#region Alert
   ngOnInit(): void {
+    this.loadDropdownData();
     if (this.alertId) {
       this.initializeAlert(this.alertId);
       return;
@@ -76,6 +90,9 @@ export class AlertComponent implements OnInit, OnChanges {
       if (incomingAlert && incomingAlert.alertId === this.currentAlertId) {
         this.populateFormFromAlert(incomingAlert);
       }
+    }
+    if ((changes['officeId'] || changes['propertyId'] || changes['reservationId']) && this.isAddMode) {
+      this.patchDefaultValues();
     }
   }
 
@@ -121,11 +138,9 @@ export class AlertComponent implements OnInit, OnChanges {
     }
     const user = this.authService.getUser();
     const value = this.form.getRawValue();
-    const selectedOfficeId = this.officeId ?? null;
-    const selectedPropertyId = this.propertyId ? String(this.propertyId).trim() : null;
-    const selectedReservationId = this.reservationId ? String(this.reservationId).trim() : null;
-    const selectedEmailTypeId = selectedReservationId ? EmailType.ReservationAlert
-      : (selectedPropertyId ? EmailType.PropertyAlert : EmailType.GeneralAlert);
+    const selectedOfficeId = value.officeId != null ? Number(value.officeId) : null;
+    const selectedPropertyId = value.propertyId ? String(value.propertyId).trim() : null;
+    const selectedReservationId = value.reservationId ? String(value.reservationId).trim() : null;
     const request: AlertRequest = {
       alertId: this.isAddMode ? undefined : (this.alert?.alertId || this.currentAlertId),
       organizationId: this.alert?.organizationId || this.organizationId || user?.organizationId || '',
@@ -133,7 +148,7 @@ export class AlertComponent implements OnInit, OnChanges {
       propertyId: selectedPropertyId || null,
       reservationId: selectedReservationId || null,
       fromRecipient: {
-        email: String(user?.email || '').trim() || String(value.fromEmail || '').trim() || this.defaultFromEmail,
+        email: String(user?.email || '').trim(),
         name: this.getCurrentUserName()
       },
       toRecipients: [{
@@ -144,9 +159,11 @@ export class AlertComponent implements OnInit, OnChanges {
       bccRecipients: this.parseEmailAddresses(String(value.bccEmails || '').trim()),
       subject: String(value.subject || '').trim(),
       plainTextContent: String(value.plainTextContent || ''),
-      emailTypeId: selectedEmailTypeId,
+      emailTypeId: this.alertEmailTypeId,
       startDate: value.startDate ? new Date(value.startDate).toISOString() : new Date().toISOString(),
-      frequencyId: Number(value.frequencyId || 0)
+      daysBeforeDeparture: selectedReservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
+      frequencyId: Number(value.frequencyId || 0),
+      isActive: value.isActive !== false
     };
 
     this.isSubmitting = true;
@@ -187,52 +204,219 @@ export class AlertComponent implements OnInit, OnChanges {
 
   buildForm(): FormGroup {
     return this.fb.group({
+      officeId: new FormControl<number | null>(null, [Validators.required]),
+      propertyId: new FormControl<string | null>(null),
+      reservationId: new FormControl<string | null>(null),
       subject: new FormControl('', [Validators.required]),
       toEmail: new FormControl('', [Validators.required, Validators.email]),
-      fromEmail: new FormControl('', [Validators.required, Validators.email]),
       ccEmails: new FormControl(''),
       bccEmails: new FormControl(''),
       plainTextContent: new FormControl(''),
       startDate: new FormControl<Date | null>(null, [Validators.required]),
-      frequencyId: new FormControl<number | null>(null, [Validators.required])
+      daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
+      frequencyId: new FormControl<number | null>(null, [Validators.required]),
+      isActive: new FormControl(true)
     });
   }
 
   patchDefaultValues(): void {
     const user = this.authService.getUser();
+    const contextOfficeId = user?.defaultOfficeId ?? null;
+    const contextPropertyId = this.propertyId ? String(this.propertyId).trim() : null;
+    const contextReservationId = this.reservationId ? String(this.reservationId).trim() : null;
     this.form.patchValue({
+      officeId: contextOfficeId,
+      propertyId: contextPropertyId,
+      reservationId: contextReservationId,
       toEmail: user?.email || '',
-      fromEmail: user?.email || this.defaultFromEmail,
-      startDate: new Date()
+      daysBeforeDeparture: '',
+      startDate: new Date(),
+      isActive: true
     });
+    this.setDaysBeforeDepartureEnabled(contextReservationId);
   }
 
   parseEmailAddresses(value: string): { email: string; name: string }[] {
     return (value || '')
-      .split(',')
+      .split(';')
       .map(email => email.trim())
       .filter(email => email.length > 0)
       .map(email => ({ email, name: '' }));
   }
 
+  onDaysBeforeDepartureInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    const sanitized = input.value.replace(/\D+/g, '');
+    if (sanitized !== input.value) {
+      input.value = sanitized;
+    }
+    this.form.get('daysBeforeDeparture')?.setValue(sanitized, { emitEvent: false });
+  }
+
+  selectAllOnFocus(event: FocusEvent): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    setTimeout(() => input.select(), 0);
+  }
+
   populateFormFromAlert(response: AlertResponse): void {
     this.alert = response;
     this.form.patchValue({
+      officeId: response.officeId ?? this.officeId ?? null,
+      propertyId: response.propertyId ?? null,
+      reservationId: response.reservationId ?? null,
       subject: response.subject || '',
       toEmail: response.toRecipients?.[0]?.email || this.authService.getUser()?.email || '',
-      fromEmail: this.authService.getUser()?.email || response.fromRecipient?.email || this.defaultFromEmail,
       ccEmails: (response.ccRecipients || []).map(recipient => recipient.email).join(', '),
       bccEmails: (response.bccRecipients || []).map(recipient => recipient.email).join(', '),
       plainTextContent: response.plainTextContent || '',
       startDate: response.startDate ? new Date(response.startDate) : null,
-      frequencyId: response.frequencyId ?? null
+      daysBeforeDeparture: response.daysBeforeDeparture || '',
+      frequencyId: response.frequencyId ?? null,
+      isActive: response.isActive ?? true
     });
+    this.setDaysBeforeDepartureEnabled(response.reservationId ?? null);
   }
 
   getCurrentUserName(): string {
     const user = this.authService.getUser();
     const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
     return fullName || this.defaultFromName;
+  }
+
+  get filteredPropertyOptions(): { value: string; officeId: number; label: string }[] {
+    const selectedOfficeId = this.form.get('officeId')?.value;
+    if (selectedOfficeId == null) {
+      return [...this.propertyOptions];
+    }
+    return this.propertyOptions.filter(option => option.officeId === Number(selectedOfficeId));
+  }
+
+  get filteredReservationOptions(): { value: string; officeId: number; propertyId: string; label: string }[] {
+    const selectedOfficeId = this.form.get('officeId')?.value;
+    const selectedPropertyId = this.form.get('propertyId')?.value;
+    return this.reservationOptions.filter(option => {
+      if (selectedOfficeId != null && option.officeId !== Number(selectedOfficeId)) {
+        return false;
+      }
+      if (selectedPropertyId && option.propertyId !== selectedPropertyId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  onOfficeChanged(officeId: number | null): void {
+    const selectedPropertyId = this.form.get('propertyId')?.value;
+    if (selectedPropertyId) {
+      const property = this.propertyOptions.find(option => option.value === selectedPropertyId) || null;
+      if (!property || (officeId != null && property.officeId !== officeId)) {
+        this.form.patchValue({ propertyId: null }, { emitEvent: false });
+      }
+    }
+
+    const selectedReservationId = this.form.get('reservationId')?.value;
+    if (selectedReservationId) {
+      const reservation = this.reservationOptions.find(option => option.value === selectedReservationId) || null;
+      if (!reservation || (officeId != null && reservation.officeId !== officeId)) {
+        this.form.patchValue({ reservationId: null }, { emitEvent: false });
+      }
+    }
+  }
+
+  onPropertyChanged(propertyId: string | null): void {
+    const selectedReservationId = this.form.get('reservationId')?.value;
+    if (!selectedReservationId) {
+      return;
+    }
+    const reservation = this.reservationOptions.find(option => option.value === selectedReservationId) || null;
+    if (!reservation || (propertyId && reservation.propertyId !== propertyId)) {
+      this.form.patchValue({ reservationId: null }, { emitEvent: false });
+      this.setDaysBeforeDepartureEnabled(null);
+    }
+  }
+
+  onReservationChanged(reservationId: string | null): void {
+    this.setDaysBeforeDepartureEnabled(reservationId);
+    if (!reservationId) {
+      return;
+    }
+    const reservation = this.reservationOptions.find(option => option.value === reservationId) || null;
+    if (!reservation) {
+      return;
+    }
+    this.form.patchValue({
+      officeId: reservation.officeId,
+      propertyId: reservation.propertyId
+    }, { emitEvent: false });
+  }
+
+  setDaysBeforeDepartureEnabled(reservationId: string | null): void {
+    const control = this.form.get('daysBeforeDeparture');
+    if (!control) {
+      return;
+    }
+    if (reservationId) {
+      control.enable({ emitEvent: false });
+      return;
+    }
+    control.setValue('', { emitEvent: false });
+    control.disable({ emitEvent: false });
+  }
+
+  loadDropdownData(): void {
+    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.onOfficeChanged(value == null ? null : Number(value));
+    });
+    this.form.get('propertyId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.onPropertyChanged(value == null ? null : String(value));
+    });
+    this.form.get('reservationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.onReservationChanged(value == null ? null : String(value));
+    });
+
+    const user = this.authService.getUser();
+    const organizationId = String(user?.organizationId || '').trim();
+    const userId = String(user?.userId || '').trim();
+    if (!organizationId || !userId) {
+      return;
+    }
+
+    forkJoin({
+      offices: this.officeService.ensureOfficesLoaded(organizationId),
+      properties: this.propertyService.getPropertiesBySelectionCriteria(userId),
+      reservations: this.reservationService.getReservationList()
+    }).pipe(take(1)).subscribe({
+      next: ({ offices, properties, reservations }) => {
+        this.offices = offices || [];
+        this.propertyOptions = (properties || []).map((property: PropertyListResponse) => ({
+          value: property.propertyId,
+          officeId: Number(property.officeId || 0),
+          label: property.propertyCode || ''
+        }));
+        this.reservationOptions = (reservations || []).map((reservation: ReservationListResponse) => ({
+          value: reservation.reservationId,
+          officeId: Number(reservation.officeId || 0),
+          propertyId: reservation.propertyId,
+          label: `${reservation.reservationCode || ''}${reservation.tenantName ? ` - ${reservation.tenantName}` : ''}`
+        }));
+      },
+      error: () => {
+        this.offices = [];
+        this.propertyOptions = [];
+        this.reservationOptions = [];
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }

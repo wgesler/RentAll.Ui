@@ -51,6 +51,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alertsById = new Map<string, AlertResponse>();
   isLoading = false;
   isServiceError = false;
+  showInactive = false;
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -66,12 +67,14 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alertsDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
-    subject: { displayAs: 'Subject', maxWidth: '30ch' },
+    subject: { displayAs: 'Subject', maxWidth: '20ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '24ch' },
-    startDate: { displayAs: 'Start Date', maxWidth: '14ch', alignment: 'center' },
-    frequencyLabel: { displayAs: 'Frequency', maxWidth: '14ch', alignment: 'center' },
-    lastNotifiedDate: { displayAs: 'Last Notified Date', maxWidth: '26ch', alignment: 'center' },
-    createdOn: { displayAs: 'Created', maxWidth: '26ch', alignment: 'center' }
+    startDate: { displayAs: 'Start Date', maxWidth: '15ch', alignment: 'center' },
+    nextAlertDate: { displayAs: 'Next Alert', maxWidth: '15ch', alignment: 'center' },
+    frequencyLabel: { displayAs: 'Frequency', maxWidth: '20ch', alignment: 'center' },
+    lastNotifiedDate: { displayAs: 'Last Notified', maxWidth: '15ch', alignment: 'center' },
+    createdOn: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(
@@ -281,6 +284,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     let filtered = [...this.allAlerts];
+    if (!this.showInactive) {
+      filtered = filtered.filter(alert => alert.isActive);
+    }
     if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
       filtered = filtered.filter(alert => alert.officeId === String(this.selectedOfficeId));
     }
@@ -291,6 +297,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = filtered.filter(alert => alert.propertyId === this.propertyId);
     }
     this.alerts = filtered;
+  }
+
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.applyFilters();
   }
 
   reload(): void {

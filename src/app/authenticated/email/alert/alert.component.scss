@@ -82,6 +82,18 @@
   column-gap: 0.75rem;
 }
 
+.alert-property-reservation-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-timing-fields-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-field-span-2 {
+  grid-column: span 2;
+}
+
 .alert-compact-form {
   width: 100%;
   min-width: 0;
@@ -93,6 +105,14 @@
   .alert-compact-form {
     width: 100%;
     min-width: 0;
+  }
+
+  .alert-extra-fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-field-span-2 {
+    grid-column: auto;
   }
 }
 

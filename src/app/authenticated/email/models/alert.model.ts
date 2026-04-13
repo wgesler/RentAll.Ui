@@ -14,7 +14,9 @@ export interface AlertRequest {
   plainTextContent: string;
   emailTypeId: number;
   startDate: string;
+  daysBeforeDeparture?: string | null;
   frequencyId: number;
+  isActive: boolean;
 }
 
 export interface AlertResponse {
@@ -33,12 +35,15 @@ export interface AlertResponse {
   plainTextContent: string;
   emailTypeId: number;
   startDate: string;
+  nextAlertDate: string;
+  daysBeforeDeparture?: string | null;
   frequencyId: number;
   emailStatusId: number;
   attemptCount: number;
   lastError: string;
   lastAttemptedOn?: string | null;
   sentOn?: string | null;
+  isActive: boolean;
   createdOn: string;
   createdBy: string;
   modifiedOn: string;
@@ -62,6 +67,8 @@ export interface AlertListDisplay {
   startDate: string;
   frequencyId: number;
   frequencyLabel: string;
+  nextAlertDate: string;
   lastNotifiedDate: string;
+  isActive: boolean;
   createdOn: string;
 }

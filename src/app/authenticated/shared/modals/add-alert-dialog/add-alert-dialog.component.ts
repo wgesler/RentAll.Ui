@@ -50,6 +50,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
   isSubmitting = false;
   isLoading = true;
   destroy$ = new Subject<void>();
+  readonly alertEmailTypeId = EmailType.Alert;
 
   offices: OfficeResponse[] = [];
   propertyOptions: AlertPropertyOption[] = [];
@@ -111,9 +112,11 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       bccRecipients: this.parseEmailAddresses(String(value.bccEmails || '').trim()),
       subject: String(value.subject || '').trim(),
       plainTextContent: String(value.plainTextContent || ''),
-      emailTypeId: this.resolveEmailTypeId(propertyId, reservationId),
+      emailTypeId: this.alertEmailTypeId,
       startDate: value.startDate ? new Date(value.startDate).toISOString() : new Date().toISOString(),
-      frequencyId: Number(value.frequencyId || 0)
+      daysBeforeDeparture: reservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
+      frequencyId: Number(value.frequencyId || 0),
+      isActive: true
     };
 
     this.isSubmitting = true;
@@ -140,10 +143,10 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       propertyId: new FormControl<string | null>(null),
       reservationId: new FormControl<string | null>(null),
       toEmail: new FormControl('', [Validators.required, Validators.email]),
-      fromEmail: new FormControl({ value: '', disabled: true }, [Validators.required, Validators.email]),
       ccEmails: new FormControl(''),
       bccEmails: new FormControl(''),
       startDate: new FormControl<Date | null>(new Date(), [Validators.required]),
+      daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       subject: new FormControl('', [Validators.required]),
       plainTextContent: new FormControl('')
@@ -172,8 +175,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     const userId = String(user?.userId || '').trim();
 
     this.form.patchValue({
-      toEmail: user?.email || '',
-      fromEmail: user?.email || ''
+      toEmail: user?.email || ''
     }, { emitEvent: false });
 
     if (!organizationId || !userId) {
@@ -202,7 +204,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
 
   applyInitialSelections(): void {
     const user = this.authService.getUser();
-    const requestedOfficeId = this.data?.officeId ?? user?.defaultOfficeId ?? null;
+    const requestedOfficeId = user?.defaultOfficeId ?? null;
     const requestedPropertyId = this.data?.propertyId ? String(this.data.propertyId).trim() : null;
     const requestedReservationId = this.data?.reservationId ? String(this.data.reservationId).trim() : null;
 
@@ -213,8 +215,10 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     this.form.patchValue({
       officeId,
       propertyId: requestedPropertyId,
-      reservationId: requestedReservationId
+      reservationId: requestedReservationId,
+      daysBeforeDeparture: ''
     }, { emitEvent: true });
+    this.setDaysBeforeDepartureEnabled(requestedReservationId);
   }
   //#endregion
 
@@ -274,10 +278,12 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
 
     if (propertyId && reservation.propertyId !== propertyId) {
       this.form.patchValue({ reservationId: null }, { emitEvent: false });
+      this.setDaysBeforeDepartureEnabled(null);
     }
   }
 
   onReservationChanged(reservationId: string | null): void {
+    this.setDaysBeforeDepartureEnabled(reservationId);
     if (!reservationId) {
       return;
     }
@@ -298,6 +304,19 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     }
   }
 
+  setDaysBeforeDepartureEnabled(reservationId: string | null): void {
+    const control = this.form.get('daysBeforeDeparture');
+    if (!control) {
+      return;
+    }
+    if (reservationId) {
+      control.enable({ emitEvent: false });
+      return;
+    }
+    control.setValue('', { emitEvent: false });
+    control.disable({ emitEvent: false });
+  }
+
   mapPropertyOption(property: PropertyListResponse): AlertPropertyOption {
     return {
       propertyId: property.propertyId,
@@ -316,25 +335,32 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     };
   }
 
-  resolveEmailTypeId(propertyId: string | null, reservationId: string | null): number {
-    if (reservationId) {
-      return EmailType.ReservationAlert;
-    }
-    if (propertyId) {
-      return EmailType.PropertyAlert;
-    }
-    if (this.data?.source === 'maintenance') {
-      return EmailType.MaintenanceAlert;
-    }
-    return EmailType.GeneralAlert;
-  }
-
   parseEmailAddresses(value: string): { email: string; name: string }[] {
     return (value || '')
-      .split(',')
+      .split(';')
       .map(email => email.trim())
       .filter(email => email.length > 0)
       .map(email => ({ email, name: '' }));
+  }
+
+  onDaysBeforeDepartureInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    const sanitized = input.value.replace(/\D+/g, '');
+    if (sanitized !== input.value) {
+      input.value = sanitized;
+    }
+    this.form.get('daysBeforeDeparture')?.setValue(sanitized, { emitEvent: false });
+  }
+
+  selectAllOnFocus(event: FocusEvent): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    setTimeout(() => input.select(), 0);
   }
 
   ngOnDestroy(): void {

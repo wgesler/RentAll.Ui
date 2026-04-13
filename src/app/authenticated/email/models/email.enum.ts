@@ -7,10 +7,7 @@ export enum EmailType {
   WorkOrder = 4,
   Inspection = 5,
   InspectionIssues = 6,
-  PropertyAlert = 7,
-  ReservationAlert = 8,
-  MaintenanceAlert = 9,
-  GeneralAlert = 10
+  Alert = 7
 }
 
 export function getEmailType(emailTypeId: number | undefined): string {
@@ -24,10 +21,7 @@ export function getEmailType(emailTypeId: number | undefined): string {
     [EmailType.WorkOrder]: 'Work Order',
     [EmailType.Inspection]: 'Inspection',
     [EmailType.InspectionIssues]: 'Inspection Issues',
-    [EmailType.PropertyAlert]: 'Property Alert',
-    [EmailType.ReservationAlert]: 'Reservation Alert',
-    [EmailType.MaintenanceAlert]: 'Maintenance Alert',
-    [EmailType.GeneralAlert]: 'Alert'
+    [EmailType.Alert]: 'Alert'
   };
 
   return typeMap[emailTypeId] || '';

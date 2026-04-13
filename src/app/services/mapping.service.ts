@@ -377,10 +377,12 @@ export class MappingService {
       subject: alert?.subject ?? '',
       emailTypeId: Number(alert?.emailTypeId ?? 0),
       startDate: this.formatter.formatDateString(alert?.startDate) || (alert?.startDate ?? ''),
+      nextAlertDate: this.formatter.formatDateString(alert?.nextAlertDate) || (alert?.nextAlertDate ?? ''),
       frequencyId: Number(alert?.frequencyId ?? 0),
       frequencyLabel: getFrequency(Number(alert?.frequencyId ?? 0)),
-      lastNotifiedDate: this.formatter.formatDateTimeString(alert?.sentOn) || (alert?.sentOn ?? ''),
-      createdOn: this.formatter.formatDateTimeString(alert?.createdOn) || (alert?.createdOn ?? '')
+      lastNotifiedDate: this.formatter.formatDateString(alert?.sentOn) || (alert?.sentOn ?? ''),
+      isActive: alert?.isActive !== false,
+      createdOn: this.formatter.formatDateString(alert?.createdOn) || (alert?.createdOn ?? '')
     }));
   }
 

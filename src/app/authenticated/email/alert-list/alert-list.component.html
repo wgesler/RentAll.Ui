@@ -26,6 +26,9 @@
           (deleteEvent)="deleteAlert($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle color="primary" [checked]="showInactive" (change)="toggleInactive()">
+                InActive
+              </mat-slide-toggle>
               <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addAlert()">
                 <mat-icon>add</mat-icon>
                 Add
@@ -96,6 +99,13 @@
                 (editEvent)="editAlert($event)"
                 (rowClickEvent)="editAlert($event)"
                 (deleteEvent)="deleteAlert($event)">
+                <div dataTableFilterActions>
+                  <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                    <mat-slide-toggle color="primary" [checked]="showInactive" (change)="toggleInactive()">
+                      InActive
+                    </mat-slide-toggle>
+                  </div>
+                </div>
               </app-data-table>
             </div>
           </div>

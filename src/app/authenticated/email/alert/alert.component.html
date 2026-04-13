@@ -12,7 +12,13 @@
             <mat-icon class="flex-shrink-0">notifications</mat-icon>
             <span class="flex-shrink-0 text-xl font-medium">{{ isAddMode ? 'Add Alert' : 'Edit Alert' }}</span>
           </span>
-          <div class="flex gap-2">
+          <div class="flex items-center gap-2">
+            <mat-checkbox
+              color="primary"
+              [checked]="form.get('isActive')?.value"
+              (change)="form.get('isActive')?.setValue($event.checked)">
+              IsActive
+            </mat-checkbox>
             <button mat-raised-button type="button" color="accent" (click)="back()" class="scale-90 text-nowrap flex-shrink-0">
               <mat-icon>arrow_back</mat-icon>
               Back
@@ -43,24 +49,51 @@
               <input type="email" class="email-line-input" formControlName="toEmail" placeholder="recipient@example.com" />
             </div>
             <div class="email-address-line email-address-grid">
-              <span class="line-label">From:</span>
-              <input type="email" class="email-line-input" formControlName="fromEmail" placeholder="sender@example.com" />
-            </div>
-            <div class="email-address-line email-address-grid">
               <span class="line-label">CC:</span>
-              <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="Comma-separated emails" />
+              <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="semicolon-separated emails" />
             </div>
             <div class="email-address-line email-address-grid">
               <span class="line-label">BCC:</span>
-              <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="Comma-separated emails" />
+              <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="semicolon-separated emails" />
             </div>
             <mat-divider></mat-divider>
-            <div class="alert-extra-fields-grid">
+            <div class="alert-extra-fields-grid alert-property-reservation-grid">
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Property Code</mat-label>
+                <mat-select formControlName="propertyId">
+                  <mat-option [value]="null">All Properties</mat-option>
+                  @for (propertyOption of filteredPropertyOptions; track propertyOption.value) {
+                    <mat-option [value]="propertyOption.value">{{ propertyOption.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="email-body-field alert-field-span-2">
+                <mat-label>Reservation</mat-label>
+                <mat-select formControlName="reservationId">
+                  <mat-option [value]="null">All Reservations</mat-option>
+                  @for (reservationOption of filteredReservationOptions; track reservationOption.value) {
+                    <mat-option [value]="reservationOption.value">{{ reservationOption.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="alert-extra-fields-grid alert-timing-fields-grid">
               <mat-form-field appearance="outline" class="email-body-field">
                 <mat-label>Start Date</mat-label>
                 <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
                 <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
                 <mat-datepicker #startDatePicker></mat-datepicker>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Days Before Departure</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  formControlName="daysBeforeDeparture"
+                  (focus)="selectAllOnFocus($event)"
+                  (input)="onDaysBeforeDepartureInput($event)" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="email-body-field">
                 <mat-label>Frequency</mat-label>
@@ -89,6 +122,9 @@
         <div class="property-tab-actions-band">
           <div class="property-tab-actions-band__row">
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-checkbox formControlName="isActive" color="primary" class="flex-shrink-0">
+                IsActive
+              </mat-checkbox>
               <button mat-raised-button type="button" color="primary" id="save-button" (click)="save()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
                 <mat-icon>save</mat-icon>
                 {{ isSubmitting ? 'Saving...' : 'Save' }}
@@ -117,24 +153,51 @@
                 <input type="email" class="email-line-input" formControlName="toEmail" placeholder="recipient@example.com" />
               </div>
               <div class="email-address-line email-address-grid">
-                <span class="line-label">From:</span>
-                <input type="email" class="email-line-input" formControlName="fromEmail" placeholder="sender@example.com" />
-              </div>
-              <div class="email-address-line email-address-grid">
                 <span class="line-label">CC:</span>
-                <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="Comma-separated emails" />
+                <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="semicolon-separated emails" />
               </div>
               <div class="email-address-line email-address-grid">
                 <span class="line-label">BCC:</span>
-                <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="Comma-separated emails" />
+                <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="semicolon-separated emails" />
               </div>
               <mat-divider></mat-divider>
-              <div class="alert-extra-fields-grid">
+              <div class="alert-extra-fields-grid alert-property-reservation-grid">
+                <mat-form-field appearance="outline" class="email-body-field">
+                  <mat-label>Property Code</mat-label>
+                  <mat-select formControlName="propertyId">
+                    <mat-option [value]="null">All Properties</mat-option>
+                    @for (propertyOption of filteredPropertyOptions; track propertyOption.value) {
+                      <mat-option [value]="propertyOption.value">{{ propertyOption.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="email-body-field alert-field-span-2">
+                  <mat-label>Reservation</mat-label>
+                  <mat-select formControlName="reservationId">
+                    <mat-option [value]="null">All Reservations</mat-option>
+                    @for (reservationOption of filteredReservationOptions; track reservationOption.value) {
+                      <mat-option [value]="reservationOption.value">{{ reservationOption.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <div class="alert-extra-fields-grid alert-timing-fields-grid">
                 <mat-form-field appearance="outline" class="email-body-field">
                   <mat-label>Start Date</mat-label>
                   <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
                   <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
                   <mat-datepicker #startDatePicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="email-body-field">
+                  <mat-label>Days Before Departure</mat-label>
+                  <input
+                    matInput
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    formControlName="daysBeforeDeparture"
+                    (focus)="selectAllOnFocus($event)"
+                    (input)="onDaysBeforeDepartureInput($event)" />
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="email-body-field">
                   <mat-label>Frequency</mat-label>
