@@ -850,31 +850,113 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   getResponsibleParty(): string {
-    const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    if (reservationTypeId === ReservationType.Corporate) {
-      return (this.contact.companyName || '').trim();
-    }
-
-    return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
+    return this.getResponsiblePartyValue(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyAddress() {
-    const isInternational = this.contact.isInternational || false;
-    if (isInternational) {
-      const parts = [this.contact?.address1, this.contact?.address2].filter(p => p);
-      return parts.join(', ');
-    }
-
-    const parts = [this.contact?.address1, this.contact?.city, this.contact?.state, this.contact?.zip].filter(p => p);
-    return parts.join(', ');
+    return this.getResponsiblePartyAddressValue(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyPhone() {
-    return this.formatterService.phoneNumber(this.contact.phone) || '';
+    return this.getResponsiblePartyPhoneValue(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyEmail() {
-    return this.contact?.email || '';
+    return this.getResponsiblePartyEmailValue(this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartiesBlock(): string {
+    const contacts = this.getResponsibleContacts();
+    if (contacts.length === 0) {
+      return '';
+    }
+
+    return contacts.map(contact => {
+      const responsibleParty = this.escapeHtml(this.getResponsiblePartyValue(contact));
+      const responsiblePartyAddress = this.escapeHtml(this.getResponsiblePartyAddressValue(contact));
+      const responsiblePartyPhone = this.escapeHtml(this.getResponsiblePartyPhoneValue(contact));
+      const responsiblePartyEmail = this.escapeHtml(this.getResponsiblePartyEmailValue(contact));
+
+      return [
+        `<span style="font-weight: bold">Name(s):</span> ${responsibleParty}<br>`,
+        `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress}<br>`,
+        `<span style="font-weight: bold">Phone:</span> ${responsiblePartyPhone}<br>`,
+        `<span style="font-weight: bold">Email:</span> ${responsiblePartyEmail}<br>`
+      ].join('');
+    }).join('<br>');
+  }
+
+  getPrimaryResponsibleContact(): ContactResponse | null {
+    return this.getResponsibleContacts()[0] || null;
+  }
+
+  getResponsibleContacts(): ContactResponse[] {
+    const selectedContactIds = this.selectedReservation?.contactIds || [];
+    const uniqueContactIds = new Set<string>();
+    const contacts: ContactResponse[] = [];
+
+    selectedContactIds.forEach(contactId => {
+      const normalizedContactId = String(contactId || '').trim();
+      if (!normalizedContactId || uniqueContactIds.has(normalizedContactId)) {
+        return;
+      }
+      const reservationContact = this.contacts.find(c => c.contactId === normalizedContactId);
+      if (reservationContact) {
+        uniqueContactIds.add(normalizedContactId);
+        contacts.push(reservationContact);
+      }
+    });
+
+    if (contacts.length === 0 && this.contact) {
+      contacts.push(this.contact);
+    }
+
+    return contacts;
+  }
+
+  getResponsiblePartyValue(contact: ContactResponse | null): string {
+    if (!contact) {
+      return '';
+    }
+
+    const reservationTypeId = this.selectedReservation?.reservationTypeId;
+    if (reservationTypeId === ReservationType.Corporate) {
+      return (contact.companyName || `${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+    }
+
+    return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+  }
+
+  getResponsiblePartyAddressValue(contact: ContactResponse | null): string {
+    if (!contact) {
+      return '';
+    }
+
+    const isInternational = contact.isInternational || false;
+    if (isInternational) {
+      const parts = [contact.address1, contact.address2].filter(p => p);
+      return parts.join(', ');
+    }
+
+    const parts = [contact.address1, contact.city, contact.state, contact.zip].filter(p => p);
+    return parts.join(', ');
+  }
+
+  getResponsiblePartyPhoneValue(contact: ContactResponse | null): string {
+    return this.formatterService.phoneNumber(contact?.phone) || '';
+  }
+
+  getResponsiblePartyEmailValue(contact: ContactResponse | null): string {
+    return contact?.email || '';
+  }
+
+  escapeHtml(value: string): string {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   getSecurityDepositText(): string {
@@ -1150,6 +1232,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{responsiblePartyAddress\}\}/g, this.getResponsiblePartyAddress());
       result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getResponsiblePartyPhone());
       result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getResponsiblePartyEmail());
+      result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock());
 
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{referenceNo\}\}/g, referenceNo || '');

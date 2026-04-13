@@ -244,11 +244,8 @@
             <h2 style="color: #000 !important;">Tenant Information</h2>
             <p>
               <span style="font-weight: bold">Reservation #:</span> {{reservationCode}}<br>
-              <span style="font-weight: bold">Name(s):</span> {{responsibleParty}}<br>
-              <span style="font-weight: bold">Address:</span> {{responsiblePartyAddress}}<br>
-              <span style="font-weight: bold">Phone:</span> {{responsiblePartyPhone}}<br>
-              <span style="font-weight: bold">Email:</span> {{responsiblePartyEmail}}<br>
-              <span style="font-weight: bold">Occupant: {{tenantName}}</span><br>
+              {{responsiblePartiesBlock}}
+              <span style="font-weight: bold">Occupant(s): {{tenantName}}</span><br>
               <span style="font-weight: bold">Occupant #:</span> {{numberOfPeople}}<br>
             </p>
           </div>
