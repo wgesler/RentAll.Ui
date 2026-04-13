@@ -19,6 +19,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
@@ -206,6 +207,20 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   addProperty(): void {
     this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+  }
+
+  openAddAlertDialog(): void {
+    const dialogData: AddAlertDialogData = {
+      officeId: this.selectedOffice?.officeId ?? null,
+      source: 'property'
+    };
+    this.dialog.open(AddAlertDialogComponent, {
+      width: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'add-alert-dialog-panel',
+      data: dialogData
+    });
   }
     
   copyProperty(event: PropertyListDisplay): void {

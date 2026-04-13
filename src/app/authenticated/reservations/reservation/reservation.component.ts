@@ -40,6 +40,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
@@ -2461,6 +2462,22 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         return;
       }
       this.navigateToReservationEntryOrigin();
+    });
+  }
+
+  openAddAlertDialog(): void {
+    const dialogData: AddAlertDialogData = {
+      officeId: this.sharedOfficeId,
+      propertyId: this.sharedPropertyId,
+      reservationId: this.selectedHeaderReservationId ?? (this.isAddMode ? null : this.reservationId),
+      source: 'reservation'
+    };
+    this.dialog.open(AddAlertDialogComponent, {
+      width: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'add-alert-dialog-panel',
+      data: dialogData
     });
   }
 

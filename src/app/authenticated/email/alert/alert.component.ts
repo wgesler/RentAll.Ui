@@ -133,8 +133,8 @@ export class AlertComponent implements OnInit, OnChanges {
       propertyId: selectedPropertyId || null,
       reservationId: selectedReservationId || null,
       fromRecipient: {
-        email: this.defaultFromEmail,
-        name: this.defaultFromName
+        email: String(user?.email || '').trim() || String(value.fromEmail || '').trim() || this.defaultFromEmail,
+        name: this.getCurrentUserName()
       },
       toRecipients: [{
         email: String(value.toEmail || '').trim(),
@@ -189,6 +189,7 @@ export class AlertComponent implements OnInit, OnChanges {
     return this.fb.group({
       subject: new FormControl('', [Validators.required]),
       toEmail: new FormControl('', [Validators.required, Validators.email]),
+      fromEmail: new FormControl('', [Validators.required, Validators.email]),
       ccEmails: new FormControl(''),
       bccEmails: new FormControl(''),
       plainTextContent: new FormControl(''),
@@ -201,6 +202,7 @@ export class AlertComponent implements OnInit, OnChanges {
     const user = this.authService.getUser();
     this.form.patchValue({
       toEmail: user?.email || '',
+      fromEmail: user?.email || this.defaultFromEmail,
       startDate: new Date()
     });
   }
@@ -218,12 +220,19 @@ export class AlertComponent implements OnInit, OnChanges {
     this.form.patchValue({
       subject: response.subject || '',
       toEmail: response.toRecipients?.[0]?.email || this.authService.getUser()?.email || '',
+      fromEmail: this.authService.getUser()?.email || response.fromRecipient?.email || this.defaultFromEmail,
       ccEmails: (response.ccRecipients || []).map(recipient => recipient.email).join(', '),
       bccEmails: (response.bccRecipients || []).map(recipient => recipient.email).join(', '),
       plainTextContent: response.plainTextContent || '',
       startDate: response.startDate ? new Date(response.startDate) : null,
       frequencyId: response.frequencyId ?? null
     });
+  }
+
+  getCurrentUserName(): string {
+    const user = this.authService.getUser();
+    const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    return fullName || this.defaultFromName;
   }
   //#endregion
 }

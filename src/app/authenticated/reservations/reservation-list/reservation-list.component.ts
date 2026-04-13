@@ -22,6 +22,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { ExtraFeeLineRequest, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
@@ -204,6 +205,20 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.router.navigate([url], { queryParams });
+  }
+
+  openAddAlertDialog(): void {
+    const dialogData: AddAlertDialogData = {
+      officeId: this.selectedOffice?.officeId ?? null,
+      source: 'reservation'
+    };
+    this.dialog.open(AddAlertDialogComponent, {
+      width: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'add-alert-dialog-panel',
+      data: dialogData
+    });
   }
 
   getReservations(): void {

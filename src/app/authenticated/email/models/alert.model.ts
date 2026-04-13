@@ -62,5 +62,6 @@ export interface AlertListDisplay {
   startDate: string;
   frequencyId: number;
   frequencyLabel: string;
+  lastNotifiedDate: string;
   createdOn: string;
 }

@@ -31,11 +31,14 @@
             color="primary"
             id="selection-button"
             (click)="goToPropertySelection()"
-            class="text-nowrap flex-shrink-0 inline-flex items-center gap-1">
+            class="text-nowrap flex-shrink-0 inline-flex items-center gap-1 ml-1">
             <mat-icon
               class="!w-[18px] !h-[18px] !text-lg leading-none"
               [style.color]="propertiesFiltered ? 'var(--mat-sys-secondary, #e91e63)' : '#ffffff'">star</mat-icon>
             Selection
+          </button>
+          <button mat-icon-button type="button" color="warn" id="property-list-alert-button" class="flex-shrink-0 !w-11 !h-11" (click)="openAddAlertDialog()" aria-label="Add Alert">
+            <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
           </button>
         }
       </div>

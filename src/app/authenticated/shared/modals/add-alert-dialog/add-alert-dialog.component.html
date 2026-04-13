@@ -1,0 +1,80 @@
+<div class="add-alert-dialog-wrap">
+  <div class="add-alert-dialog-header">
+    <span class="add-alert-dialog-title">
+      <mat-icon class="flex-shrink-0">notification_important</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Add Alert</span>
+    </span>
+    <div class="form-titlebar-actions-wrap uniform-gap">
+      <button mat-raised-button type="button" color="accent" (click)="cancel()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
+        Cancel
+      </button>
+      <button mat-raised-button type="button" color="primary" (click)="save()" [disabled]="isSubmitting || isLoading" class="text-nowrap flex-shrink-0">
+        <mat-icon>save</mat-icon>
+        {{ isSubmitting ? 'Saving...' : 'Save' }}
+      </button>
+    </div>
+  </div>
+
+  <mat-dialog-content>
+    @if (isLoading) {
+      <div class="add-alert-loading">
+        <mat-spinner [diameter]="32"></mat-spinner>
+      </div>
+    } @else {
+      <form [formGroup]="form" class="add-alert-form alert-compact-form form-hide-error-text">
+        <div class="alert-hero">
+          <mat-icon class="alert-hero-icon">notification_important</mat-icon>
+          <div class="alert-hero-text">
+            <div class="alert-hero-title">New Alert</div>
+            <div class="alert-hero-subtitle">Future delivery configuration</div>
+          </div>
+        </div>
+
+        <div class="email-address-line email-address-grid">
+          <span class="line-label">To:</span>
+          <input type="email" class="email-line-input" formControlName="toEmail" placeholder="recipient@example.com" />
+        </div>
+        <div class="email-address-line email-address-grid">
+          <span class="line-label">From:</span>
+          <input type="email" class="email-line-input" formControlName="fromEmail" placeholder="sender@example.com" readonly />
+        </div>
+        <div class="email-address-line email-address-grid">
+          <span class="line-label">CC:</span>
+          <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="Comma-separated emails" />
+        </div>
+        <div class="email-address-line email-address-grid email-address-line--last">
+          <span class="line-label">BCC:</span>
+          <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="Comma-separated emails" />
+        </div>
+        <mat-divider></mat-divider>
+        <div class="add-alert-extra-fields-grid">
+          <mat-form-field appearance="outline" class="email-body-field">
+            <mat-label>Start Date</mat-label>
+            <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="email-body-field">
+            <mat-label>Frequency</mat-label>
+            <mat-select formControlName="frequencyId">
+              @for (frequency of frequencyOptions; track frequency.value) {
+                <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="email-body-field">
+          <mat-label>Subject</mat-label>
+          <input matInput type="text" formControlName="subject" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="email-body-field add-alert-message-field">
+          <mat-label>Alert Message</mat-label>
+          <textarea matInput rows="6" formControlName="plainTextContent"></textarea>
+        </mat-form-field>
+      </form>
+    }
+  </mat-dialog-content>
+</div>

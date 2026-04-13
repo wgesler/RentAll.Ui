@@ -70,6 +70,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     toEmail: { displayAs: 'To Email', maxWidth: '24ch' },
     startDate: { displayAs: 'Start Date', maxWidth: '14ch', alignment: 'center' },
     frequencyLabel: { displayAs: 'Frequency', maxWidth: '14ch', alignment: 'center' },
+    lastNotifiedDate: { displayAs: 'Last Notified Date', maxWidth: '26ch', alignment: 'center' },
     createdOn: { displayAs: 'Created', maxWidth: '26ch', alignment: 'center' }
   };
 

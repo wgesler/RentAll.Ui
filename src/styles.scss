@@ -31,6 +31,11 @@
   --global-accordion-gap: 4px;
   --global-dropdown-font-size: 14px;
   --global-dropdown-option-min-height: 34px;
+  --global-alert-bell-color: #dc2626;
+}
+
+.titlebar-alert-bell-icon {
+  color: var(--global-alert-bell-color) !important;
 }
 
 /* Prevent horizontal layout shift when page scrollbar appears/disappears. */
@@ -1252,6 +1257,14 @@ mat-form-field input,
     display: inline-block;
     max-width: 50% !important;
   }
+}
+
+/* Add Alert dialog chrome: edge-to-edge header, rounded white shell, no inner scroll frame. */
+.add-alert-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0 !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  background: #fff;
 }
 
 // Make required asterisk red in all forms

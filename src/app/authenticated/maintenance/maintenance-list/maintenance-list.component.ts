@@ -2,6 +2,7 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, catchError, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -20,6 +21,7 @@ import { PropertyRequest, PropertyResponse } from '../../properties/models/prope
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { hasInspectorRole } from '../../shared/access/role-access';
 import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
@@ -137,7 +139,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public maintenanceService: MaintenanceService,
     public maintenanceItemsService: MaintenanceItemsService,
     public userService: UserService,
-    public reservationService: ReservationService
+    public reservationService: ReservationService,
+    private dialog: MatDialog
   ) {
   }
 
@@ -214,6 +217,20 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   goToInspection(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
+    });
+  }
+
+  openAddAlertDialog(): void {
+    const dialogData: AddAlertDialogData = {
+      officeId: this.selectedOffice?.officeId ?? null,
+      source: 'maintenance'
+    };
+    this.dialog.open(AddAlertDialogComponent, {
+      width: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'add-alert-dialog-panel',
+      data: dialogData
     });
   }
 

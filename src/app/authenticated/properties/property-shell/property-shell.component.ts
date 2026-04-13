@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -15,6 +16,7 @@ import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 
 @Component({
   standalone: true,
@@ -50,7 +52,8 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   constructor(
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private dialog: MatDialog
   ) {}
 
   //#region Property-Shell
@@ -144,6 +147,22 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   onPropertyCodeFocus(event: FocusEvent): void {
     this.propertySection?.onPropertyCodeFocus(event);
+  }
+
+  openAddAlertDialog(): void {
+    const dialogData: AddAlertDialogData = {
+      officeId: this.titleBarOfficeId,
+      propertyId: this.propertySection?.isAddMode ? null : (this.propertySection?.propertyId ?? null),
+      reservationId: this.titleBarReservationId ?? null,
+      source: 'property'
+    };
+    this.dialog.open(AddAlertDialogComponent, {
+      width: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      panelClass: 'add-alert-dialog-panel',
+      data: dialogData
+    });
   }
   //#endregion
 

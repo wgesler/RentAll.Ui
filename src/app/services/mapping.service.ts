@@ -379,6 +379,7 @@ export class MappingService {
       startDate: this.formatter.formatDateString(alert?.startDate) || (alert?.startDate ?? ''),
       frequencyId: Number(alert?.frequencyId ?? 0),
       frequencyLabel: getFrequency(Number(alert?.frequencyId ?? 0)),
+      lastNotifiedDate: this.formatter.formatDateTimeString(alert?.sentOn) || (alert?.sentOn ?? ''),
       createdOn: this.formatter.formatDateTimeString(alert?.createdOn) || (alert?.createdOn ?? '')
     }));
   }
